@@ -1,0 +1,272 @@
+#include "OBJLoader.h"
+#include <algorithm>
+#include <glm/vec3.hpp>
+#include <glm/geometric.hpp>
+
+float3 computeTriangleNormal(std::vector<float3> &vertices, unsigned int baseIndex);
+
+void split(std::vector<std::string>* parts, const std::string &s, char delim) {
+	
+	std::stringstream ss;
+	ss.str(s);
+	std::string item;
+	while (std::getline(ss, item, delim)) {
+		parts->push_back(item);
+	}
+}
+
+void deleteEmptyStrings(std::vector<std::string> &list) {
+	for (int i = 0; i < list.size(); i++) {
+		std::string item = list.at(i);
+		if (item == "") {
+			list.erase(list.begin() + i);
+			i--;
+		}
+	}
+}
+
+inline float3 elementWiseMin(float3 v1, float3 v2)
+{
+	float3 output;
+	output.x = std::min(v1.x, v2.x);
+	output.y = std::min(v1.y, v2.y);
+	output.z = std::min(v1.z, v2.z);
+	return output;
+}
+
+inline float3 elementWiseMax(float3 v1, float3 v2)
+{
+	float3 output;
+	output.x = std::max(v1.x, v2.x);
+	output.y = std::max(v1.y, v2.y);
+	output.z = std::max(v1.z, v2.z);
+	return output;
+}
+
+Mesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNormals)
+{
+	std::vector<std::string> lineParts;
+	lineParts.reserve(32);
+	std::vector<std::string> faceParts;
+	faceParts.reserve(32);
+	
+	std::vector<float3> vertices;
+	std::vector<float3> normals;
+	std::vector<float2> textureCoordinates;
+
+	std::vector<float3> vertexBuffer;
+	std::vector<float2> textureBuffer;
+	std::vector<float3> normalBuffer;
+
+	float3 boundingBoxMin;
+	float3 boundingBoxMax;
+
+	std::vector<unsigned int> indices;
+
+	std::ifstream objFile(src);
+	std::string line;
+
+	unsigned int currentIndex = 0;
+
+	if (objFile.is_open()) {
+
+		//std::cout << "\tReading file.." << std::endl;
+
+		int lineNumber = -1;
+		while (std::getline(objFile, line)) {
+			lineParts.clear();
+			split(&lineParts, line, ' ');
+			deleteEmptyStrings(lineParts);
+
+			lineNumber++;
+			if(lineNumber % 10000 == 0)
+			{
+				//std::cout << "\r\t(" << lineNumber << " lines processed)";
+			}
+
+			if (lineParts.size() == 0) {
+				continue;
+			}
+
+			if (lineParts.at(0) == "v") {
+				float3 vertex;
+				vertex.x = std::stof(lineParts.at(1));
+				vertex.y = std::stof(lineParts.at(2));
+				vertex.z = std::stof(lineParts.at(3));
+				vertexBuffer.push_back(vertex);
+			}
+
+			if (lineParts.at(0) == "vn") {
+				float3 normal;
+				normal.x = std::stof(lineParts.at(1));
+				normal.y = std::stof(lineParts.at(2));
+				normal.z = std::stof(lineParts.at(3));
+				normalBuffer.push_back(normal);
+			}
+
+			if (lineParts.at(0) == "vt") {
+				float2 textureCoordinate;
+				textureCoordinate.x = std::stof(lineParts.at(1));
+				textureCoordinate.y = std::stof(lineParts.at(2));
+				textureBuffer.push_back(textureCoordinate);
+			}
+
+			if (lineParts.at(0) == "f") {
+				bool normalsFound = false;
+				for (int i = 1; i <= 3; i++) {
+					faceParts.clear();
+					std::string linePart = lineParts.at(i);
+					split(&faceParts, linePart, '/');
+
+					int vertexIndex = std::stoi(faceParts.at(0)) - 1;
+					float3 vertex = vertexBuffer.at(unsigned(vertexIndex));
+					vertices.push_back(vertex);
+                    //std::cout << "Vertex (" << vertex.x << ", " << vertex.y << ", " << vertex.z << "), size: " << vertices.size() << " and " << normals.size() << std::endl;
+
+					if(currentIndex == 0) {
+						boundingBoxMin = vertex;
+						boundingBoxMax = vertex;
+					} else {
+						boundingBoxMin = elementWiseMin(boundingBoxMin, vertex);
+						boundingBoxMax = elementWiseMax(boundingBoxMax, vertex);
+					}
+
+					int normalIndex = -1;
+
+					if(faceParts.size() == 2)
+					{
+						normalIndex = std::stoi(faceParts.at(1)) - 1;
+					}
+					else if (faceParts.size() == 3 && faceParts.at(1) == "") {
+						normalIndex = std::stoi(faceParts.at(2)) - 1;
+					}
+					else if (faceParts.size() == 3)
+					{
+						int textureCoordIndex = std::stoi(faceParts.at(1)) - 1;
+					    if(textureBuffer.size() > textureCoordIndex) {
+                            textureCoordinates.push_back(textureBuffer.at(textureCoordIndex));
+                        // This situation can occur when the file format is either invalid
+                        // (does not include texture coordinates at all)
+                        // or has not specified the texture coordinates yet (something this loader does not deal with)
+					    } else {
+					        textureCoordinates.push_back(make_float2(0, 0));
+					    }
+						normalIndex = std::stoi(faceParts.at(2)) - 1;
+					}
+
+					// (partially) invalid files may contain normals later, or in some cases not at all.
+					// This check accounts for that. If it fails, normals are computed after processing
+					// the contents of the current line in the file
+					if(normalIndex != -1 && normalBuffer.size() > normalIndex) {
+						normals.push_back(normalBuffer.at(normalIndex));
+						normalsFound = true;
+					}
+
+					indices.push_back(currentIndex);
+					currentIndex++;
+				}
+
+				// If the file incorrectly or was missing normals, we compute them here.
+				// Alternatively, we override those present in the file if this was mandated by the use.
+				if(!normalsFound) {
+                    float3 normal = computeTriangleNormal(vertices, vertices.size() - 3);
+
+                    //std::cout << "(" << side0.x << ", " << side0.y << ", "<< side0.z << ") + (" << side1.x << ", " << side1.y << ", "<< side1.z << ") -> " << normal.x << ", " << normal.y << ", "<< normal.z << ")" << std::endl;
+                    //std::cout << "Meta: " << normalsFound << std::endl;
+
+
+                    normals.push_back(normal);
+                    normals.push_back(normal);
+                    normals.push_back(normal);
+
+
+					//std::cout<< "(" << normals.at(normals.size() - 3).x << ", " << normals.at(normals.size() - 3).y << ", "<< normals.at(normals.size() - 3).z << ") + (" << vertices.at(vertices.size() - 3).x << ", " << vertices.at(vertices.size() - 3).y << ", "<< vertices.at(vertices.size() - 3).z << ")" << std::endl;
+                    //std::cout<< "(" << normals.at(normals.size() - 2).x << ", " << normals.at(normals.size() - 2).y << ", "<< normals.at(normals.size() - 2).z << ") + (" << vertices.at(vertices.size() - 2).x << ", " << vertices.at(vertices.size() - 2).y << ", "<< vertices.at(vertices.size() - 2).z << ")" << std::endl;
+                    //std::cout<< "(" << normals.at(normals.size() - 1).x << ", " << normals.at(normals.size() - 1).y << ", "<< normals.at(normals.size() - 1).z << ") + (" << vertices.at(vertices.size() - 1).x << ", " << vertices.at(vertices.size() - 1).y << ", "<< vertices.at(vertices.size() - 1).z << ")" << std::endl;
+				}
+			}
+		}
+		//std::cout << std::endl;
+
+		//std::cout << "\tCopying buffers.." << std::endl;
+
+		//std::cout << "Normal buffer status: (" << normalBuffer.size() << ", " << normals.size() << ")" << std::endl;
+
+        if(recomputeNormals) {
+            for(int index = 0; index < indices.size(); index+=3) {
+                float3 recomputedNormal = computeTriangleNormal(vertices, index);
+                normals.at(index + 0) = recomputedNormal;
+                normals.at(index + 1) = recomputedNormal;
+                normals.at(index + 2) = recomputedNormal;
+            }
+        }
+
+        unsigned int faceCount = unsigned(indices.size()) / 3;
+
+		float3* meshVertexBuffer = new float3[vertices.size()];
+		std::copy(vertices.begin(), vertices.end(), meshVertexBuffer);
+
+		float3* meshNormalBuffer = new float3[normals.size()];
+		std::copy(normals.begin(), normals.end(), meshNormalBuffer);
+
+		float2* meshTextureCoordBuffer = new float2[textureCoordinates.size()];
+		std::copy(textureCoordinates.begin(), textureCoordinates.end(), meshTextureCoordBuffer);
+
+		unsigned int* meshIndexBuffer = new unsigned int[3 * faceCount];
+		std::copy(indices.begin(), indices.end(), meshIndexBuffer);
+
+		objFile.close();
+
+		Mesh mesh;
+
+		mesh.vertices = meshVertexBuffer;
+		mesh.normals = meshNormalBuffer;
+		mesh.textureCoordinates = meshTextureCoordBuffer;
+
+		mesh.indices = meshIndexBuffer;
+
+		mesh.vertexCount = 3 * faceCount;
+		mesh.indexCount = 3 * faceCount;
+
+		mesh.boundingBoxMin = boundingBoxMin;
+		mesh.boundingBoxMax = boundingBoxMax;
+
+		mesh.dataFormat = VERTICES_TEXCOORDS_NORMALS;
+
+		return mesh;
+	}
+	else {
+		std::cout << "Something went wrong reading the file!" << std::endl;
+	}
+
+	
+
+	return Mesh();
+}
+
+float3 computeTriangleNormal(std::vector<float3> &vertices, unsigned int baseIndex) {
+    float3 triangleVertex0 = vertices.at(baseIndex + 0);
+    float3 triangleVertex1 = vertices.at(baseIndex + 1);
+    float3 triangleVertex2 = vertices.at(baseIndex + 2);
+
+    float3 side0 = triangleVertex1 - triangleVertex0;
+    float3 side1 = triangleVertex2 - triangleVertex0;
+
+
+    side0 = side0 / length(side0);
+    side1 = side1 / length(side1);
+
+    glm::vec3 glmSide0NonNormalised = glm::vec3(side0.x, side0.y, side0.z);
+    glm::vec3 glmSide1NonNormalised = glm::vec3(side1.x, side1.y, side1.z);
+
+    glm::vec3 glmSide0 = glmSide0NonNormalised;
+    glm::vec3 glmSide1 = glmSide1NonNormalised;
+
+    glm::vec3 glmNormal = normalize(cross(glmSide0, glmSide1));
+
+    float3 normal = make_float3(glmNormal.x, glmNormal.y, glmNormal.z);
+
+    //std::cout << side0 << " and " << side1 << " -> " << normal << std::endl;
+
+    return normal;
+}

@@ -1,9 +1,9 @@
 #include "SpinImageSizeCalculator.h"
 
 
-float computeSpinImagePixelSize(Mesh mesh) {
+float computeSpinImagePixelSize(HostMesh mesh) {
 
-    float3 meshDimensions = mesh.boundingBoxMax - mesh.boundingBoxMin;
+    float3_cpu meshDimensions = mesh.boundingBoxMax - mesh.boundingBoxMin;
 
     float cubeSize = std::cbrt(meshDimensions.x * meshDimensions.y * meshDimensions.z);
 

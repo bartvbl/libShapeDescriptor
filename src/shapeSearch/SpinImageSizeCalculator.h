@@ -3,4 +3,4 @@
 #include "Mesh.h"
 #include "constants.h"
 
-float computeSpinImagePixelSize(Mesh mesh);
+float computeSpinImagePixelSize(HostMesh mesh);

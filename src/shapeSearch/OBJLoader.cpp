@@ -3,7 +3,7 @@
 #include <glm/vec3.hpp>
 #include <glm/geometric.hpp>
 
-float3 computeTriangleNormal(std::vector<float3> &vertices, unsigned int baseIndex);
+float3_cpu hostComputeTriangleNormal(std::vector<float3_cpu> &vertices, unsigned int baseIndex);
 
 void split(std::vector<std::string>* parts, const std::string &s, char delim) {
 	
@@ -25,41 +25,41 @@ void deleteEmptyStrings(std::vector<std::string> &list) {
 	}
 }
 
-inline float3 elementWiseMin(float3 v1, float3 v2)
+inline float3_cpu elementWiseMin(float3_cpu v1, float3_cpu v2)
 {
-	float3 output;
+	float3_cpu output;
 	output.x = std::min(v1.x, v2.x);
 	output.y = std::min(v1.y, v2.y);
 	output.z = std::min(v1.z, v2.z);
 	return output;
 }
 
-inline float3 elementWiseMax(float3 v1, float3 v2)
+inline float3_cpu elementWiseMax(float3_cpu v1, float3_cpu v2)
 {
-	float3 output;
+	float3_cpu output;
 	output.x = std::max(v1.x, v2.x);
 	output.y = std::max(v1.y, v2.y);
 	output.z = std::max(v1.z, v2.z);
 	return output;
 }
 
-Mesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNormals)
+HostMesh hostLoadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNormals)
 {
 	std::vector<std::string> lineParts;
 	lineParts.reserve(32);
 	std::vector<std::string> faceParts;
 	faceParts.reserve(32);
 	
-	std::vector<float3> vertices;
-	std::vector<float3> normals;
-	std::vector<float2> textureCoordinates;
+	std::vector<float3_cpu> vertices;
+	std::vector<float3_cpu> normals;
+	std::vector<float2_cpu> textureCoordinates;
 
-	std::vector<float3> vertexBuffer;
-	std::vector<float2> textureBuffer;
-	std::vector<float3> normalBuffer;
+	std::vector<float3_cpu> vertexBuffer;
+	std::vector<float2_cpu> textureBuffer;
+	std::vector<float3_cpu> normalBuffer;
 
-	float3 boundingBoxMin;
-	float3 boundingBoxMax;
+	float3_cpu boundingBoxMin;
+	float3_cpu boundingBoxMax;
 
 	std::vector<unsigned int> indices;
 
@@ -89,7 +89,7 @@ Mesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNor
 			}
 
 			if (lineParts.at(0) == "v") {
-				float3 vertex;
+				float3_cpu vertex;
 				vertex.x = std::stof(lineParts.at(1));
 				vertex.y = std::stof(lineParts.at(2));
 				vertex.z = std::stof(lineParts.at(3));
@@ -97,7 +97,7 @@ Mesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNor
 			}
 
 			if (lineParts.at(0) == "vn") {
-				float3 normal;
+				float3_cpu normal;
 				normal.x = std::stof(lineParts.at(1));
 				normal.y = std::stof(lineParts.at(2));
 				normal.z = std::stof(lineParts.at(3));
@@ -105,7 +105,7 @@ Mesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNor
 			}
 
 			if (lineParts.at(0) == "vt") {
-				float2 textureCoordinate;
+				float2_cpu textureCoordinate;
 				textureCoordinate.x = std::stof(lineParts.at(1));
 				textureCoordinate.y = std::stof(lineParts.at(2));
 				textureBuffer.push_back(textureCoordinate);
@@ -119,7 +119,7 @@ Mesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNor
 					split(&faceParts, linePart, '/');
 
 					int vertexIndex = std::stoi(faceParts.at(0)) - 1;
-					float3 vertex = vertexBuffer.at(unsigned(vertexIndex));
+					float3_cpu vertex = vertexBuffer.at(unsigned(vertexIndex));
 					vertices.push_back(vertex);
                     //std::cout << "Vertex (" << vertex.x << ", " << vertex.y << ", " << vertex.z << "), size: " << vertices.size() << " and " << normals.size() << std::endl;
 
@@ -149,7 +149,7 @@ Mesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNor
                         // (does not include texture coordinates at all)
                         // or has not specified the texture coordinates yet (something this loader does not deal with)
 					    } else {
-					        textureCoordinates.push_back(make_float2(0, 0));
+					        textureCoordinates.push_back(make_float2_cpu(0, 0));
 					    }
 						normalIndex = std::stoi(faceParts.at(2)) - 1;
 					}
@@ -169,7 +169,7 @@ Mesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNor
 				// If the file incorrectly or was missing normals, we compute them here.
 				// Alternatively, we override those present in the file if this was mandated by the use.
 				if(!normalsFound) {
-                    float3 normal = computeTriangleNormal(vertices, vertices.size() - 3);
+                    float3_cpu normal = hostComputeTriangleNormal(vertices, vertices.size() - 3);
 
                     //std::cout << "(" << side0.x << ", " << side0.y << ", "<< side0.z << ") + (" << side1.x << ", " << side1.y << ", "<< side1.z << ") -> " << normal.x << ", " << normal.y << ", "<< normal.z << ")" << std::endl;
                     //std::cout << "Meta: " << normalsFound << std::endl;
@@ -194,7 +194,7 @@ Mesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNor
 
         if(recomputeNormals) {
             for(int index = 0; index < indices.size(); index+=3) {
-                float3 recomputedNormal = computeTriangleNormal(vertices, index);
+                float3_cpu recomputedNormal = hostComputeTriangleNormal(vertices, index);
                 normals.at(index + 0) = recomputedNormal;
                 normals.at(index + 1) = recomputedNormal;
                 normals.at(index + 2) = recomputedNormal;
@@ -203,13 +203,13 @@ Mesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNor
 
         unsigned int faceCount = unsigned(indices.size()) / 3;
 
-		float3* meshVertexBuffer = new float3[vertices.size()];
+		float3_cpu* meshVertexBuffer = new float3_cpu[vertices.size()];
 		std::copy(vertices.begin(), vertices.end(), meshVertexBuffer);
 
-		float3* meshNormalBuffer = new float3[normals.size()];
+		float3_cpu* meshNormalBuffer = new float3_cpu[normals.size()];
 		std::copy(normals.begin(), normals.end(), meshNormalBuffer);
 
-		float2* meshTextureCoordBuffer = new float2[textureCoordinates.size()];
+		float2_cpu* meshTextureCoordBuffer = new float2_cpu[textureCoordinates.size()];
 		std::copy(textureCoordinates.begin(), textureCoordinates.end(), meshTextureCoordBuffer);
 
 		unsigned int* meshIndexBuffer = new unsigned int[3 * faceCount];
@@ -217,7 +217,7 @@ Mesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNor
 
 		objFile.close();
 
-		Mesh mesh;
+		HostMesh mesh;
 
 		mesh.vertices = meshVertexBuffer;
 		mesh.normals = meshNormalBuffer;
@@ -241,16 +241,16 @@ Mesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNor
 
 	
 
-	return Mesh();
+	return HostMesh();
 }
 
-float3 computeTriangleNormal(std::vector<float3> &vertices, unsigned int baseIndex) {
-    float3 triangleVertex0 = vertices.at(baseIndex + 0);
-    float3 triangleVertex1 = vertices.at(baseIndex + 1);
-    float3 triangleVertex2 = vertices.at(baseIndex + 2);
+float3_cpu hostComputeTriangleNormal(std::vector<float3_cpu> &vertices, unsigned int baseIndex) {
+    float3_cpu triangleVertex0 = vertices.at(baseIndex + 0);
+    float3_cpu triangleVertex1 = vertices.at(baseIndex + 1);
+    float3_cpu triangleVertex2 = vertices.at(baseIndex + 2);
 
-    float3 side0 = triangleVertex1 - triangleVertex0;
-    float3 side1 = triangleVertex2 - triangleVertex0;
+    float3_cpu side0 = triangleVertex1 - triangleVertex0;
+    float3_cpu side1 = triangleVertex2 - triangleVertex0;
 
 
     side0 = side0 / length(side0);
@@ -264,7 +264,7 @@ float3 computeTriangleNormal(std::vector<float3> &vertices, unsigned int baseInd
 
     glm::vec3 glmNormal = normalize(cross(glmSide0, glmSide1));
 
-    float3 normal = make_float3(glmNormal.x, glmNormal.y, glmNormal.z);
+    float3_cpu normal = make_float3_cpu(glmNormal.x, glmNormal.y, glmNormal.z);
 
     //std::cout << side0 << " and " << side1 << " -> " << normal << std::endl;
 

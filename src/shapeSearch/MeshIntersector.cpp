@@ -1,12 +1,15 @@
 #include <vector>
 #include <iostream>
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/vector_angle.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 #include "MeshIntersector.h"
 
 std::vector<IntersectionCluster> linkEdgeChains(std::vector<IntersectionLineSegment> vector);
-std::vector<IntersectionLineSegment> findPlaneIntersections(const Mesh &mesh, const glm::mat4 &alignmentTransformation);
-glm::mat4 generateAlignmentTransformation(const float3 &origin, const float3 &normal, const float &planeAngle);
-float3 vec4tofloat3(glm::vec4 in);
+std::vector<IntersectionLineSegment> findPlaneIntersections(const HostMesh &mesh, const glm::mat4 &alignmentTransformation);
+glm::mat4 generateAlignmentTransformation(const float3_cpu &origin, const float3_cpu &normal, const float &planeAngle);
+float3_cpu vec4tofloat3(glm::vec4 in);
 void assignEdge(VertexAtZeroCrossing &edge, glm::vec4 vertex0, glm::vec4 vertex1);
 
 enum ClusterSide {
@@ -29,7 +32,7 @@ std::vector<IntersectionCluster> linkIntersectionEdges(std::vector<IntersectionL
     return intersectingEdges;
 }*/
 
-glm::mat4 generateAlignmentTransformation(const float3 &origin, const float3 &normal, const float &planeAngleRadians) {
+glm::mat4 generateAlignmentTransformation(const float3_cpu &origin, const float3_cpu &normal, const float &planeAngleRadians) {
     const glm::vec3 targetCoordinateSystemX(1, 0, 0);
     const glm::vec3 targetCoordinateSystemY(0, -1, 0);
     const glm::vec3 targetCoordinateSystemZ(0, 0, 1);
@@ -72,7 +75,7 @@ glm::mat4 generateAlignmentTransformation(const float3 &origin, const float3 &no
 void computePlaneIntersections(glm::vec4 vertices[], unsigned int triangleCount, glm::mat4 transformations[], std::vector<IntersectionLineSegment> intersections[], const int planeStepCount) {
 
 #pragma omp for
-    for(int triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
+    for(unsigned int triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
 
         // THIS ASSUMES WE DUPLICATED VERTICES, ELIMINATING THE NEED FOR AN INDEX BUFFER!!!
         glm::vec4 vertex0 = vertices[3 * triangleIndex + 0];
@@ -176,7 +179,7 @@ std::vector<IntersectionCluster> linkEdgeChains(std::vector<IntersectionLineSegm
     clusters.reserve(vector.size());
 
     // Initialise cluster array by creating a new cluster per edge in the input array
-    for(int i = 0; i < vector.size(); i++) {
+    for(unsigned int i = 0; i < vector.size(); i++) {
         IntersectionCluster cluster;
         IntersectionLineSegment segment = vector.at(i);
         cluster.contents.push_back(segment);
@@ -234,8 +237,8 @@ std::vector<IntersectionCluster> linkEdgeChains(std::vector<IntersectionLineSegm
     return clusters;
 }
 
-float3 vec4tofloat3(glm::vec4 in) {
-    return make_float3(in.x, in.y, in.z);
+float3_cpu vec4tofloat3(glm::vec4 in) {
+    return make_float3_cpu(in.x, in.y, in.z);
 }
 
 void assignEdge(VertexAtZeroCrossing &edge, glm::vec4 vertex0, glm::vec4 vertex1) {

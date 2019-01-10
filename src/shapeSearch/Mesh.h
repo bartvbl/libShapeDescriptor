@@ -1,6 +1,6 @@
 #pragma once
-#include "shapeSearch/geom.hpp"
 #include "shapeSearch/arrayTypes.hpp"
+#include "geom.hpp"
 
 enum MeshFormat {
 	VERTICES,
@@ -9,10 +9,10 @@ enum MeshFormat {
 	VERTICES_TEXCOORDS_NORMALS
 };
 
-typedef struct Mesh {
-	float3* vertices;
-	float3* normals;
-	float2* textureCoordinates;
+typedef struct HostMesh {
+	float3_cpu* vertices;
+	float3_cpu* normals;
+	float2_cpu* textureCoordinates;
 
 	MeshFormat dataFormat;
 
@@ -21,10 +21,10 @@ typedef struct Mesh {
 	size_t vertexCount;
 	size_t indexCount;
 
-	float3 boundingBoxMin;
-	float3 boundingBoxMax;
+	float3_cpu boundingBoxMin;
+	float3_cpu boundingBoxMax;
 
-	Mesh() {
+	HostMesh() {
 		vertices = nullptr;
 		normals = nullptr;
 		textureCoordinates = nullptr;
@@ -36,17 +36,17 @@ typedef struct Mesh {
 		boundingBoxMax = {0, 0, 0};
 	}
 
-	Mesh(size_t vertCount, size_t numIndices, MeshFormat format) {
-		vertices = new float3[vertCount];
+	HostMesh(size_t vertCount, size_t numIndices, MeshFormat format) {
+		vertices = new float3_cpu[vertCount];
 
 		if(format == VERTICES_NORMALS || format == VERTICES_TEXCOORDS_NORMALS) {
-			normals = new float3[vertCount];
+			normals = new float3_cpu[vertCount];
 		} else {
 			normals = nullptr;
 		}
 
 		if(format == VERTICES_TEXCOORDS || format == VERTICES_TEXCOORDS_NORMALS) {
-			textureCoordinates = new float2[vertCount];
+			textureCoordinates = new float2_cpu[vertCount];
 		} else {
 			textureCoordinates = nullptr;
 		}
@@ -67,4 +67,4 @@ typedef struct Mesh {
 		delete[] indices;
 		delete[] textureCoordinates;
 	}
-} Mesh;
+} HostMesh;

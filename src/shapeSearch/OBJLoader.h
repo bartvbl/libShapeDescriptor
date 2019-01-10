@@ -10,4 +10,4 @@
 #include "shapeSearch/geom.hpp"
 #include "shapeSearch/Mesh.h"
 
-Mesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNormals = false);
+HostMesh loadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNormals = false);

@@ -1,5 +1,5 @@
 #pragma once
-#include "shapeSearch/arrayTypes.hpp"
+#include "shapeSearch/cpu/arrayTypes.hpp"
 #include "geom.hpp"
 
 enum MeshFormat {
@@ -67,4 +67,7 @@ typedef struct HostMesh {
 		delete[] indices;
 		delete[] textureCoordinates;
 	}
+
+
 } HostMesh;
+

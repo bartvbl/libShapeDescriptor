@@ -1,4 +1,4 @@
-#include "shapeSearch/MSIGenerator.hpp"
+#include "shapeSearch/cpu/MSIGenerator.hpp"
 #include "SpinImageSizeCalculator.h"
 
 float hostTransformNormalX(PrecalculatedSettings pre_settings, float3_cpu spinImageNormal)

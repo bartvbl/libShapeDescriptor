@@ -2,10 +2,10 @@
 
 #include <algorithm>
 
-#include "shapeSearch/geom.hpp"
-#include "shapeSearch/OBJLoader.h"
-#include "shapeSearch/constants.h"
-#include "shapeSearch/arrayTypes.hpp"
+#include "shapeSearch/cpu/geom.hpp"
+#include "shapeSearch/cpu/OBJLoader.h"
+#include "shapeSearch/cpu/constants.h"
+#include "shapeSearch/cpu/arrayTypes.hpp"
 
 
 typedef struct PrecalculatedSettings {

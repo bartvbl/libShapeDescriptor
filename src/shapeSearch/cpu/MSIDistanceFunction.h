@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include "shapeSearch/constants.h"
+#include "shapeSearch/cpu/constants.h"
 #include <bitset>
 #include <chrono>
 #include <ctime>

@@ -1,5 +1,4 @@
 #include "OBJLoader.h"
-#include <algorithm>
 #include <glm/vec3.hpp>
 #include <glm/geometric.hpp>
 

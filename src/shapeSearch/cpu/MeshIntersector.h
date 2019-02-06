@@ -1,7 +1,7 @@
 #pragma once
 
-#include "geom.hpp"
-#include "Mesh.h"
+#include "shapeSearch/common/geom.hpp"
+#include "hostMesh.h"
 
 #include <glm/detail/type_mat4x4.hpp>
 #include <vector>

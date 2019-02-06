@@ -7,7 +7,7 @@
 #include <sstream>
 #include <limits>
 
-#include "shapeSearch/cpu/geom.hpp"
-#include "shapeSearch/cpu/Mesh.h"
+#include "shapeSearch/common/geom.hpp"
+#include "shapeSearch/cpu/hostMesh.h"
 
 HostMesh hostLoadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNormals = false);

@@ -1,4 +1,4 @@
-#include "shapeSearch/cpu/MSIGenerator.hpp"
+#include "MSIGenerator.hpp"
 #include "SpinImageSizeCalculator.h"
 
 float hostTransformNormalX(PrecalculatedSettings pre_settings, float3_cpu spinImageNormal)
@@ -227,7 +227,7 @@ void hostRasteriseTriangle(array<unsigned int> descriptor, float3_cpu *vertices,
 			jobRowStartPixels = std::min((unsigned int)settings.spinImageWidthPixels, std::max(unsigned(0), unsigned(jobRowStartPixels)));
 			jobRowEndPixels = std::min((unsigned int)settings.spinImageWidthPixels, unsigned(jobRowEndPixels));
 
-			size_t jobSpinImageBaseIndex = jobPixelYCoordinate * size_t(settings.spinImageWidthPixels);
+			size_t jobSpinImageBaseIndex = size_t(settings.vertexIndexIndex) * spinImageWidthPixels * spinImageWidthPixels + jobPixelYCoordinate * size_t(settings.spinImageWidthPixels);
 
 			if (jobHasDoubleIntersection)
 			{
@@ -236,6 +236,7 @@ void hostRasteriseTriangle(array<unsigned int> descriptor, float3_cpu *vertices,
 				for (int jobX = jobDoubleIntersectionStartPixels; jobX < jobRowStartPixels; jobX++)
 				{
 					size_t jobPixelIndex = jobSpinImageBaseIndex + jobX;
+#pragma omp atomic
 					descriptor.content[jobPixelIndex] += 2;
 					//std::cout << jobX << ", " << jobPixelYCoordinate << ": 2" << std::endl;
 				}
@@ -244,6 +245,7 @@ void hostRasteriseTriangle(array<unsigned int> descriptor, float3_cpu *vertices,
 			for (int jobX = jobRowStartPixels; jobX < jobRowEndPixels; jobX++)
 			{
 				size_t jobPixelIndex = jobSpinImageBaseIndex + jobX;
+#pragma omp atomic
 				descriptor.content[jobPixelIndex] += 1;
 				//std::cout << jobX << ", " << jobPixelYCoordinate << ": 1" << std::endl;
 			}
@@ -273,10 +275,6 @@ HostMesh hostScaleMesh(HostMesh &model, HostMesh &scaledModel, float spinImagePi
 
 void hostGenerateQSI(array<unsigned int> descriptor, RasterisationSettings settings)
 {
-	// Reset the output descriptor
-	std::fill(descriptor.content, descriptor.content + descriptor.length, 0);
-
-	//#pragma omp parallel for num_threads(8)
 	for (int triangleIndex = 0; triangleIndex < settings.mesh.indexCount / 3; triangleIndex += 1)
 	{
 		float3_cpu vertices[3];
@@ -285,12 +283,30 @@ void hostGenerateQSI(array<unsigned int> descriptor, RasterisationSettings setti
 		size_t threadTriangleIndex1 = static_cast<size_t>(3 * triangleIndex + 1);
 		size_t threadTriangleIndex2 = static_cast<size_t>(3 * triangleIndex + 2);
 
-		vertices[0] = settings.mesh.vertices[settings.mesh.indices[threadTriangleIndex0]];
-		vertices[1] = settings.mesh.vertices[settings.mesh.indices[threadTriangleIndex1]];
-		vertices[2] = settings.mesh.vertices[settings.mesh.indices[threadTriangleIndex2]];
+		vertices[0] = settings.mesh.vertices[threadTriangleIndex0];
+		vertices[1] = settings.mesh.vertices[threadTriangleIndex1];
+		vertices[2] = settings.mesh.vertices[threadTriangleIndex2];
 
 		hostRasteriseTriangle(descriptor, vertices, settings);
 	}
+}
+
+array<unsigned int> hostGenerateQSIAllVertices(RasterisationSettings settings) {
+	array<unsigned int> descriptors;
+	size_t descriptorElementCount = settings.spinImageWidthPixels * settings.spinImageWidthPixels * settings.mesh.vertexCount;
+	descriptors.content = new unsigned int[descriptorElementCount];
+	descriptors.length = descriptorElementCount;
+
+	// Reset the output descriptor
+	std::fill(descriptors.content, descriptors.content + descriptors.length, 0);
+
+	for(int vertex = 0; vertex < settings.mesh.vertexCount; vertex++) {
+		settings.vertexIndexIndex = vertex;
+		settings.spinImageVertex = settings.mesh.vertices[vertex];
+		settings.spinImageNormal = settings.mesh.normals[vertex];
+		hostGenerateQSI(descriptors, settings);
+	}
+	return descriptors;
 }
 
 void hostComputeMSI_fallingHorizontal(array<unsigned int> MSIDescriptor, array<unsigned int> QSIDescriptor) {

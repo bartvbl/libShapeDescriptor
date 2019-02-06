@@ -1,15 +1,12 @@
 #pragma once
-#include "shapeSearch/cpu/arrayTypes.hpp"
-#include "geom.hpp"
 
-enum MeshFormat {
-	VERTICES,
-	VERTICES_TEXCOORDS,
-	VERTICES_NORMALS,
-	VERTICES_TEXCOORDS_NORMALS
-};
+#include <shapeSearch/gpu/deviceMesh.h>
+#include "shapeSearch/common/types/arrayTypes.hpp"
+#include "shapeSearch/common/geom.hpp"
 
-typedef struct HostMesh {
+
+
+struct HostMesh {
 	float3_cpu* vertices;
 	float3_cpu* normals;
 	float2_cpu* textureCoordinates;
@@ -69,5 +66,5 @@ typedef struct HostMesh {
 	}
 
 
-} HostMesh;
+};
 

@@ -1,0 +1,8 @@
+#pragma once
+
+enum MeshFormat {
+    VERTICES,
+    VERTICES_TEXCOORDS,
+    VERTICES_NORMALS,
+    VERTICES_TEXCOORDS_NORMALS
+};

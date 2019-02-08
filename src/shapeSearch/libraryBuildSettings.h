@@ -17,5 +17,13 @@
 // in shared memory instead, copying it to main memory on completion instead.
 #define ENABLE_SHARED_MEMORY_IMAGE false
 
+// In a few places we need to check for equivalence between floating point numbers.
+// This is the maximum difference between two floating numbers such that they are considered equal.
+#define MAX_EQUIVALENCE_ROUNDING_ERROR 0.0001
+
+// Unsupported at the moment.
+#define spinImageSupportAngle 60
+
+
 
 #include <shapeSearch/common/buildSettings/derivedBuildSettings.h>

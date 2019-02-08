@@ -9,3 +9,7 @@ typedef float newSpinImagePixelType;
 #endif
 
 typedef float classicSpinImagePixelType;
+
+#ifdef _WIN32
+#define M_PI 3.1415926353
+#endif

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <shapeSearch/common/types/outputImageSettings.h>
+#include <shapeSearch/common/types/OutputImageSettings.h>
 #include <shapeSearch/common/types/arrayTypes.hpp>
-#include <shapeSearch/common/types/vertexDescriptors.h>
+#include <shapeSearch/common/types/VertexDescriptors.h>
 #include <shapeSearch/libraryBuildSettings.h>
 
 #include <string>

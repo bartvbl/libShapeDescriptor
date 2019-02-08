@@ -1,23 +1,16 @@
 #pragma once
 
 #include <algorithm>
+#include <shapeSearch/cpu/types/CPURasterisationSettings.h>
+#include <shapeSearch/cpu/types/float3_cpu.h>
 
-#include "shapeSearch/common/geom.hpp"
 #include "shapeSearch/common/OBJLoader.h"
-#include "constants.h"
 #include "shapeSearch/common/types/arrayTypes.hpp"
 
 
 
 
-struct CPURasterisationSettings {
-	float3_cpu spinImageVertex;
-	float3_cpu spinImageNormal;
-	int vertexIndexIndex;
-	int spinImageWidthPixels;
 
-	HostMesh mesh;
-};
 
 void hostGenerateQSI(array<unsigned int> descriptor, CPURasterisationSettings settings);
 array<unsigned int> hostGenerateQSIAllVertices(CPURasterisationSettings settings);

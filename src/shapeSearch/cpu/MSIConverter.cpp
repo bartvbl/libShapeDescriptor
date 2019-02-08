@@ -1,4 +1,5 @@
 #include <bitset>
+#include <shapeSearch/libraryBuildSettings.h>
 #include "MSIConverter.h"
 
 void compressMSI(array<unsigned int> msiImage, unsigned long long* compressedImage) {

@@ -3,8 +3,12 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
-#include "deviceMesh.h"
+#include <shapeSearch/gpu/types/DeviceMesh.h>
+#include <shapeSearch/gpu/types/GPURasterisationSettings.h>
+#include <shapeSearch/gpu/types/CudaLaunchDimensions.h>
+#include <shapeSearch/gpu/utilityKernels.cuh>
 #include <shapeSearch/libraryBuildSettings.h>
+#include <shapeSearch/common/types/QSIPrecalculatedSettings.h>
 
 #include "nvidia/shfl_scan.cuh"
 #include "nvidia/helper_math.h"
@@ -43,16 +47,16 @@ const int RASTERISATION_WARP_SIZE = 1024;
 
 #define MAX_EQUIVALENCE_ROUNDING_ERROR 0.001
 
-__device__ __inline__ PrecalculatedSettings calculateRotationSettings(float3 spinImageNormal);
+__device__ __inline__ QSIPrecalculatedSettings calculateRotationSettings(float3 spinImageNormal);
 
-__device__ __inline__ float transformNormalX(PrecalculatedSettings pre_settings, float3 spinImageNormal)
+__device__ __inline__ float transformNormalX(QSIPrecalculatedSettings pre_settings, float3 spinImageNormal)
 {
 	return pre_settings.alignmentProjection_n_ax * spinImageNormal.x + pre_settings.alignmentProjection_n_ay * spinImageNormal.y;
 }
 
 __device__ __inline__ float3 transformCoordinate(float3 vertex, GPURasterisationSettings settings)
 {
-	PrecalculatedSettings spinImageSettings = calculateRotationSettings(settings.spinImageNormal);
+	QSIPrecalculatedSettings spinImageSettings = calculateRotationSettings(settings.spinImageNormal);
 
 	float3 transformedCoordinate = vertex - settings.spinImageVertex;
 
@@ -81,7 +85,7 @@ __device__ __inline__ float2 alignWithPositiveX(float2 midLineDirection, float2 
 
 __device__ __inline__ float calculateTransformedZCoordinate(GPURasterisationSettings settings, float3 vertex)
 {
-	PrecalculatedSettings pre_settings = calculateRotationSettings(settings.spinImageNormal);
+	QSIPrecalculatedSettings pre_settings = calculateRotationSettings(settings.spinImageNormal);
 
 	// Translate to origin
 	vertex -= settings.spinImageVertex;
@@ -170,10 +174,10 @@ __forceinline__ __device__ unsigned lane_id()
 	return ret;
 }
 
-__device__ __inline__ PrecalculatedSettings calculateRotationSettings(float3 spinImageNormal) {
+__device__ __inline__ QSIPrecalculatedSettings calculateRotationSettings(float3 spinImageNormal) {
 
 // Calculating the transformation factors
-	PrecalculatedSettings pre_settings;
+	QSIPrecalculatedSettings pre_settings;
 
 	float2 sineCosineAlpha = normalize(make_float2(spinImageNormal.x, spinImageNormal.y));
 
@@ -598,7 +602,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void rasteriseTriangles(
 }
 
 __global__ void createNewDescriptors(
-	array<PrecalculatedSettings> precalculated,	DeviceMesh mesh, array<newSpinImagePixelType> descriptors)
+	array<QSIPrecalculatedSettings> precalculated,	DeviceMesh mesh, array<newSpinImagePixelType> descriptors)
 {
 	int batchThreadIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -606,10 +610,7 @@ __global__ void createNewDescriptors(
 	// Threads are reused in case of large models. These cause an excessive number of threads to be spawned.
 
 	for (int threadIndex = batchThreadIndex; threadIndex < mesh.vertexCount; threadIndex += LAUNCH_THREAD_BATCH_SIZE) {
-
-
-
-		GPURasterisationSettings settings;
+	    GPURasterisationSettings settings;
 
 		settings.vertexIndexIndex = threadIndex;
 
@@ -626,7 +627,7 @@ __global__ void createNewDescriptors(
 		spinImageNormal.y = mesh.normals_y[threadIndex];
 		spinImageNormal.z = mesh.normals_z[threadIndex];
 
-		PrecalculatedSettings pre_settings = calculateRotationSettings(spinImageNormal);
+		QSIPrecalculatedSettings pre_settings = calculateRotationSettings(spinImageNormal);
 
 
 		precalculated.content[threadIndex].alignmentProjection_n_ax = pre_settings.alignmentProjection_n_ax;
@@ -654,25 +655,25 @@ VertexDescriptors createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDevicePr
 	device_descriptors.isClassic = false;
 
 	std::cout << "\t- Initialising descriptor array" << std::endl;
-	CudaSettings valueSetSettings = calculateCUDASettings(descriptorBufferLength, device_information);
+	CudaLaunchDimensions valueSetSettings = calculateCUDASettings(descriptorBufferLength, device_information);
 	setValue<newSpinImagePixelType><< <valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >> > (device_descriptors.newDescriptorArray.content, descriptorBufferLength, 0);
 
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 
 	std::cout << "\t- Allocating precalculated settings array" << std::endl;
-	array<PrecalculatedSettings> device_precalculatedSettings;
-	size_t precalculatedBufferSize = sizeof(PrecalculatedSettings) * imageCount;
-	checkCudaErrors(cudaMalloc<PrecalculatedSettings>(&device_precalculatedSettings.content, precalculatedBufferSize));
+	array<QSIPrecalculatedSettings> device_precalculatedSettings;
+	size_t precalculatedBufferSize = sizeof(QSIPrecalculatedSettings) * imageCount;
+	checkCudaErrors(cudaMalloc<QSIPrecalculatedSettings>(&device_precalculatedSettings.content, precalculatedBufferSize));
 	device_precalculatedSettings.length = imageCount;
 
-	CudaSettings settings = calculateCUDASettings(imageCount < size_t(LAUNCH_THREAD_BATCH_SIZE) ? imageCount : size_t(LAUNCH_THREAD_BATCH_SIZE), device_information);
+	CudaLaunchDimensions settings = calculateCUDASettings(imageCount < size_t(LAUNCH_THREAD_BATCH_SIZE) ? imageCount : size_t(LAUNCH_THREAD_BATCH_SIZE), device_information);
 	auto start = std::chrono::steady_clock::now();
 
 	std::cout << "\t- Running spin image kernel" << std::endl;
 	createNewDescriptors << <settings.blocksPerGrid, settings.threadsPerBlock >> >(
 		device_precalculatedSettings,
-		device_mesh, device_cubePartition, device_descriptors.newDescriptorArray, device_debugBuffer);
+		device_mesh, device_descriptors.newDescriptorArray);
 
 	// If dynamic parallelism is not used, we need to launch the threads we need manually.
 	// 32 threads per warp, 27 cubes evaluated per vertex, for each image
@@ -685,31 +686,13 @@ VertexDescriptors createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDevicePr
 
 	GPURasterisationSettings generalSettings;
 	generalSettings.mesh = device_mesh;
-	generalSettings.partition = device_cubePartition;
 
-	rasteriseTriangles <<<blockSizes, RASTERISATION_WARP_SIZE>>> (
-		device_precalculatedSettings.content, device_descriptors.newDescriptorArray, generalSettings);
+	rasteriseTriangles <<<blockSizes, RASTERISATION_WARP_SIZE>>> (device_descriptors.newDescriptorArray, generalSettings);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 
-	//cudaDeviceSynchronize();
-	//checkCudaErrors(cudaGetLastError());
-
 	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
 	std::cout << "Execution time:" << duration.count() << std::endl;
-
-	// Writing statistics output file
-	std::ofstream executionTimeFileStream("../output/execution_time.txt");
-	executionTimeFileStream << imageCount << std::endl;
-	executionTimeFileStream << device_mesh.vertexCount << std::endl;
-	executionTimeFileStream << device_mesh.indexCount << std::endl;
-	executionTimeFileStream << duration.count() << std::endl;
-	executionTimeFileStream << device_cubePartition.cubeCounts.x << std::endl;
-	executionTimeFileStream << device_cubePartition.cubeCounts.y << std::endl;
-	executionTimeFileStream << device_cubePartition.cubeCounts.z << std::endl;
-	executionTimeFileStream.close();
-
-
 
 	std::cout << "\t- Copying results to CPU" << std::endl;
 	VertexDescriptors host_descriptors;

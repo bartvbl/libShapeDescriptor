@@ -1,9 +1,9 @@
 #pragma once
 
-#include <shapeSearch/gpu/deviceMesh.h>
+#include <shapeSearch/gpu/types/DeviceMesh.h>
 #include "shapeSearch/common/types/arrayTypes.hpp"
-#include "shapeSearch/common/geom.hpp"
-
+#include "float3_cpu.h"
+#include "float2_cpu.h"
 
 
 struct HostMesh {

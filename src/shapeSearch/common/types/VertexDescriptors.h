@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shapeSearch/common/types/vertexDescriptors.h>
+#include <shapeSearch/common/types/VertexDescriptors.h>
 #include <shapeSearch/common/types/arrayTypes.hpp>
 #include <shapeSearch/libraryBuildSettings.h>
 

@@ -1,3 +1,5 @@
+#include <shapeSearch/libraryBuildSettings.h>
+#include <cmath>
 #include "SpinImageSizeCalculator.h"
 
 

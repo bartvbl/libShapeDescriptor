@@ -1,7 +1,11 @@
+#include <shapeSearch/common/types/QSIPrecalculatedSettings.h>
+#include <shapeSearch/libraryBuildSettings.h>
+#include <cmath>
+#include <nvidia/helper_math.h>
 #include "MSIGenerator.hpp"
 #include "SpinImageSizeCalculator.h"
 
-float hostTransformNormalX(PrecalculatedSettings pre_settings, float3_cpu spinImageNormal)
+float hostTransformNormalX(QSIPrecalculatedSettings pre_settings, float3_cpu spinImageNormal)
 {
 	return pre_settings.alignmentProjection_n_ax * spinImageNormal.x + pre_settings.alignmentProjection_n_ay * spinImageNormal.y;
 }
@@ -14,8 +18,8 @@ float2_cpu hostAlignWithPositiveX(float2_cpu midLineDirection, float2_cpu vertex
 	return transformed;
 }
 
-PrecalculatedSettings hostCalculateRotationSettings(float3_cpu spinImageNormal) {
-	PrecalculatedSettings pre_settings{};
+QSIPrecalculatedSettings hostCalculateRotationSettings(float3_cpu spinImageNormal) {
+	QSIPrecalculatedSettings pre_settings{};
 
 	float2_cpu sineCosineAlpha = normalize(make_float2_cpu(spinImageNormal.x, spinImageNormal.y));
 
@@ -54,7 +58,7 @@ PrecalculatedSettings hostCalculateRotationSettings(float3_cpu spinImageNormal) 
 
 float3_cpu hostTransformCoordinate(float3_cpu vertex, float3_cpu spinImageVertex, float3_cpu spinImageNormal)
 {
-	PrecalculatedSettings spinImageSettings = hostCalculateRotationSettings(spinImageNormal);
+	QSIPrecalculatedSettings spinImageSettings = hostCalculateRotationSettings(spinImageNormal);
 	float3_cpu transformedCoordinate = vertex - spinImageVertex;
 
 	float initialTransformedX = transformedCoordinate.x;
@@ -143,11 +147,11 @@ void hostRasteriseTriangle(array<unsigned int> descriptor, float3_cpu *vertices,
 	deltaMidMaxXY = maxXY - midXY;
 	deltaMinMaxXY = maxXY - minXY;
 
-	minPixels = int(floor(minVector.z));
-	maxPixels = int(floor(maxVector.z));
+	minPixels = int(std::floor(minVector.z));
+	maxPixels = int(std::floor(maxVector.z));
 
-	minPixels = clamp(minPixels, (-settings.spinImageWidthPixels / 2), (settings.spinImageWidthPixels / 2) - 1);
-	maxPixels = clamp(maxPixels, (-settings.spinImageWidthPixels / 2), (settings.spinImageWidthPixels / 2) - 1);
+	minPixels = clamp(minPixels, (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
+	maxPixels = clamp(maxPixels, (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
 
 	int jobCount = maxPixels - minPixels;
 
@@ -156,7 +160,7 @@ void hostRasteriseTriangle(array<unsigned int> descriptor, float3_cpu *vertices,
 	}
 
 	jobCount++;
-	jobCount = std::min(minPixels + jobCount, int(settings.spinImageWidthPixels / 2)) - minPixels;
+	jobCount = std::min(minPixels + jobCount, int(spinImageWidthPixels / 2)) - minPixels;
 
 	for (int jobID = 0; jobID < jobCount; jobID++)
 	{
@@ -203,7 +207,7 @@ void hostRasteriseTriangle(array<unsigned int> descriptor, float3_cpu *vertices,
 		float jobShortDistanceInTriangle = jobZLevel - jobShortVectorStartZ;
 		float jobShortInterpolationFactor = (jobShortDeltaVectorZ == 0) ? 1.0f : jobShortDistanceInTriangle / jobShortDeltaVectorZ;
 
-		int jobPixelYCoordinate = jobPixelY + (settings.spinImageWidthPixels / 2);
+		int jobPixelYCoordinate = jobPixelY + (spinImageWidthPixels / 2);
 
 		if (jobLongDistanceInTriangle > 0 && jobShortDistanceInTriangle > 0)
 		{

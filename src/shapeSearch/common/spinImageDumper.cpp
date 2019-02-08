@@ -7,6 +7,7 @@
 
 
 #include <vector>
+#include <lodepng.h>
 
 template<typename spinPixelType>
 void performSpinDump(array<spinPixelType> descriptors, OutputImageSettings imageSettings, unsigned int imagesPerRow) {

@@ -1,4 +1,9 @@
 #include "OBJLoader.h"
+#include <vector>
+#include <sstream>
+#include <fstream>
+#include <iostream>
+
 #include <glm/vec3.hpp>
 #include <glm/geometric.hpp>
 
@@ -261,7 +266,7 @@ float3_cpu hostComputeTriangleNormal(std::vector<float3_cpu> &vertices, unsigned
     glm::vec3 glmSide0 = glmSide0NonNormalised;
     glm::vec3 glmSide1 = glmSide1NonNormalised;
 
-    glm::vec3 glmNormal = normalize(cross(glmSide0, glmSide1));
+    glm::vec3 glmNormal = normalize(glm::cross(glmSide0, glmSide1));
 
     float3_cpu normal = make_float3_cpu(glmNormal.x, glmNormal.y, glmNormal.z);
 

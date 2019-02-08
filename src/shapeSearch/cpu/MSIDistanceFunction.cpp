@@ -1,3 +1,5 @@
+#include <shapeSearch/libraryBuildSettings.h>
+#include <assert.h>
 #include "MSIDistanceFunction.h"
 
 #ifdef _WIN32

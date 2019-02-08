@@ -1,7 +1,7 @@
 #pragma once
 #include "shapeSearch/common/types/arrayTypes.hpp"
-#include "shapeSearch/common/geom.hpp"
-#include <shapeSearch/common/meshFormat.h>
+#include <shapeSearch/common/types/MeshFormat.h>
+#include <host_defines.h>
 
 struct DeviceMesh {
     float* vertices_x;
@@ -15,7 +15,7 @@ struct DeviceMesh {
     size_t vertexCount;
     size_t indexCount;
 
-	DeviceMesh() {
+	__host__ __device__ DeviceMesh() {
 		vertexCount = 0;
 		indexCount = 0;
 	}

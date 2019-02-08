@@ -1,6 +1,5 @@
 #pragma once
 
-#include "hostMesh.h"
-#include "constants.h"
+#include "shapeSearch/cpu/types/HostMesh.h"
 
 float computeSpinImagePixelSize(HostMesh mesh);

@@ -1,9 +1,10 @@
 #pragma once
 
-#include "shapeSearch/common/geom.hpp"
-#include "hostMesh.h"
+#include "shapeSearch/cpu/types/HostMesh.h"
 
-#include <glm/detail/type_mat4x4.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
+
 #include <vector>
 
 struct VertexAtZeroCrossing {

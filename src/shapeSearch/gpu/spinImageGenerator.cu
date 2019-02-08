@@ -19,6 +19,10 @@
 
 #define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
 
+// Classical spin image generation constants
+// Number of threads per warp in classical spin image generation
+const int SPIN_IMAGE_GENERATION_WARP_SIZE = 32;
+
 __device__ __inline__ float signedArea(float2 p1, float2 p2, float2 p3)
 {
 	return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
@@ -178,14 +182,12 @@ __device__ __inline__ void lookupTriangleVertices(Mesh mesh, CubePartition parti
 	triangleVertices[2] -= mesh.boundingBoxMin;
 }
 
-typedef struct SampleBounds {
-	float sampleStart;
+struct SampleBounds {
 	size_t sampleCount;
 	float areaStart;
 	float areaEnd;
-	float triangleArea;
 	size_t sampleStartIndex;
-} SampleBounds;
+};
 
 __device__ __inline__ SampleBounds calculateSampleBounds(const array<float> &areaArray, int triangleIndex, int sampleCount) {
 	SampleBounds sampleBounds;
@@ -275,7 +277,7 @@ __global__ void generateRandomSampleCoefficients(array<float2> coefficients, cur
 }
 
 // One thread = One triangle
-__global__ void createSampledMesh(Mesh mesh, CubePartition partition, array<float> areaArray, array<float3> pointSamples, array<float2> coefficients, int sampleCount) {
+__global__ void createSampledMesh(DeviceMesh mesh, array<float> areaArray, array<float3> pointSamples, array<float2> coefficients, int sampleCount) {
 	int triangleIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
 	if(triangleIndex >= mesh.indexCount / 3)
@@ -328,7 +330,7 @@ __global__ void createSampledMesh(Mesh mesh, CubePartition partition, array<floa
 // Run once for every vertex index
 
 
-__global__ void createDescriptors(Mesh mesh, CubePartition partition, array<float3> pointSamples, array<classicSpinImagePixelType> descriptors, array<float> areaArray, int sampleCount)
+__global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, array<classicSpinImagePixelType> descriptors, array<float> areaArray, int sampleCount)
 {
 	int spinImageIndexIndex = blockIdx.x;
 	int rawThreadIndex = threadIdx.x+blockDim.x*blockIdx.x;
@@ -493,7 +495,7 @@ __global__ void createDescriptors(Mesh mesh, CubePartition partition, array<floa
 
 
 
-VertexDescriptors createClassicDescriptors(Mesh device_mesh, CubePartition device_cubePartition, cudaDeviceProp device_information, OutputImageSettings imageSettings, size_t sampleCount)
+VertexDescriptors createClassicDescriptors(Mesh device_mesh, cudaDeviceProp device_information, OutputImageSettings imageSettings, size_t sampleCount)
 {
 	// In principle, these kernels should only be run once per vertex.
 	// However, since we also need a normal, and the same vertex can have different normals in different situations,

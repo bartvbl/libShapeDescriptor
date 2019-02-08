@@ -5,8 +5,11 @@
 #include <fstream>
 #include <bitset>
 
+
+#include <vector>
+
 template<typename spinPixelType>
-void performSpinDump(array<spinPixelType> descriptors, OutputImageSettings imageSettings) {
+void performSpinDump(array<spinPixelType> descriptors, OutputImageSettings imageSettings, unsigned int imagesPerRow) {
 	size_t rowCount = (descriptors.length / imagesPerRow) + 1;
 	std::cout << "Dumping " << rowCount << " rows containing " << descriptors.length << " images." << std::endl;
 
@@ -130,17 +133,17 @@ void performSpinDump(array<spinPixelType> descriptors, OutputImageSettings image
 	}
 }
 
-void dumpImages(VertexDescriptors descriptors, OutputImageSettings imageSettings)
+void dumpImages(VertexDescriptors descriptors, OutputImageSettings imageSettings, unsigned int imagesPerRow)
 {
 	if(descriptors.isClassic) {
 		performSpinDump<classicSpinImagePixelType> (descriptors.classicDescriptorArray, imageSettings);
 	} else if(descriptors.isNew) {
-		performSpinDump<newSpinImagePixelType > (descriptors.newDescriptorArray, imageSettings);
+		performSpinDump<newSpinImagePixelType> (descriptors.newDescriptorArray, imageSettings);
 	}
 
 }
 
-void dumpCompressedImages(array<unsigned int> compressedDescriptors, OutputImageSettings imageSettings) {
+void dumpCompressedImages(array<unsigned int> compressedDescriptors, OutputImageSettings imageSettings, unsigned int imagesPerRow) {
 	array<unsigned int> decompressedDesciptors;
 	size_t imageTotalPixelCount = compressedDescriptors.length * spinImageWidthPixels * spinImageWidthPixels;
 	
@@ -188,7 +191,7 @@ void dumpCompressedImages(array<unsigned int> compressedDescriptors, OutputImage
 	performSpinDump<unsigned int>(decompressedDesciptors, imageSettings);
 }
 
-void dumpRawCompressedImages(array<unsigned int> compressedDescriptors, std::string destination) {
+void dumpRawCompressedImages(array<unsigned int> compressedDescriptors, std::string destination, unsigned int imagesPerRow) {
 	std::cout << "Dumping raw compressed images to: " << destination << std::endl;
 
 	unsigned int itemCount = unsigned(compressedDescriptors.length);

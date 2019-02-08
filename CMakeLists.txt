@@ -10,6 +10,7 @@ include_directories (
         src/
         lib/glm/
         lib/nvidia-samples-common/
+        lib/lodepng/
         ${CUDA_INCLUDE_DIRS}
 )
 
@@ -21,7 +22,8 @@ file (GLOB_RECURSE LIBRARY_KERNELS src/*.cu
 file (GLOB_RECURSE LIBRARY_SOURCES src/*.cpp
                                    src/*.cxx
                                    src/*.cc
-                                   src/*.c)
+                                   src/*.c
+                                   lib/lodepng/*.cpp)
 
 cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 

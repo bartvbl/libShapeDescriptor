@@ -2,6 +2,7 @@
 
 #include <shapeSearch/common/types/vertexDescriptors.h>
 #include <shapeSearch/common/types/arrayTypes.hpp>
+#include <shapeSearch/libraryBuildSettings.h>
 
 struct VertexDescriptors {
     array<classicSpinImagePixelType> classicDescriptorArray;

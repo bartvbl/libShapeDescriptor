@@ -68,7 +68,7 @@ float3_cpu hostTransformCoordinate(float3_cpu vertex, float3_cpu spinImageVertex
 	return transformedCoordinate;
 }
 
-void hostRasteriseTriangle(array<unsigned int> descriptor, float3_cpu *vertices, RasterisationSettings settings)
+void hostRasteriseTriangle(array<unsigned int> descriptor, float3_cpu *vertices, CPURasterisationSettings settings)
 {
 	vertices[0] = hostTransformCoordinate(vertices[0], settings.spinImageVertex, settings.spinImageNormal);
 	vertices[1] = hostTransformCoordinate(vertices[1], settings.spinImageVertex, settings.spinImageNormal);
@@ -273,7 +273,7 @@ HostMesh hostScaleMesh(HostMesh &model, HostMesh &scaledModel, float spinImagePi
 
 
 
-void hostGenerateQSI(array<unsigned int> descriptor, RasterisationSettings settings)
+void hostGenerateQSI(array<unsigned int> descriptor, CPURasterisationSettings settings)
 {
 	for (int triangleIndex = 0; triangleIndex < settings.mesh.indexCount / 3; triangleIndex += 1)
 	{
@@ -291,7 +291,7 @@ void hostGenerateQSI(array<unsigned int> descriptor, RasterisationSettings setti
 	}
 }
 
-array<unsigned int> hostGenerateQSIAllVertices(RasterisationSettings settings) {
+array<unsigned int> hostGenerateQSIAllVertices(CPURasterisationSettings settings) {
 	array<unsigned int> descriptors;
 	size_t descriptorElementCount = settings.spinImageWidthPixels * settings.spinImageWidthPixels * settings.mesh.vertexCount;
 	descriptors.content = new unsigned int[descriptorElementCount];
@@ -330,7 +330,7 @@ void hostComputeMSI_risingHorizontal(array<unsigned int> MSIDescriptor, array<un
 }
 
 void hostGenerateMSI(array<unsigned int> MSIDescriptor, array<unsigned int> QSIDescriptor,
-                     RasterisationSettings settings) {
+                     CPURasterisationSettings settings) {
 	hostGenerateQSI(QSIDescriptor, settings);
 
 	//hostComputeMSI_fallingHorizontal(MSIDescriptor, QSIDescriptor);

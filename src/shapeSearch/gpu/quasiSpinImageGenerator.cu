@@ -1,75 +1,47 @@
 #include "quasiSpinImageGenerator.cuh"
 
 #include "cuda_runtime.h"
-
-
-#include "cudaCommon.h"
+#include "device_launch_parameters.h"
 
 #include "deviceMesh.h"
-#include <assert.h>
+#include <shapeSearch/libraryBuildSettings.h>
 
+#include "nvidia/shfl_scan.cuh"
 #include "nvidia/helper_math.h"
 #include "nvidia/helper_cuda.h"
+
+#include <assert.h>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include "nvidia/shfl_scan.cuh"
-#include "device_launch_parameters.h"
 #include <chrono>
 #include <sstream>
 
+#if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
+const int SHORT_SINGLE_BOTH_MASK = 0x00010001;
+const int SHORT_SINGLE_ONE_MASK = 0x00000001;
+const int SHORT_SINGLE_FIRST_MASK = 0x00010000;
 
-// Configuration for "top layer" threads
-
-#if !_DEBUG
-	#define QUEUE_STEP_ENABLED false
-#else
-	#define QUEUE_STEP_ENABLED false
+const int SHORT_DOUBLE_BOTH_MASK = 0x00020002;
+const int SHORT_DOUBLE_ONE_MASK = 0x00000002;
+const int SHORT_DOUBLE_FIRST_MASK = 0x00020000;
 #endif
 
-#define ENABLE_SHARED_MEMORY_IMAGE false
-#define DISABLE_SHARED_MEMORY false
+
+
+
 
 // Dynamic parallelism has a thread count limit, causing the optimal batch size to be different when it's disabled
 // TODO: consider tuning the launch thread batch size.
 // We currently only launch one warp per spin image. May consider launching more at a time to improve cache coherency (for instructions).
 // TODO: attempt larger block sizes
 
-const int SUBTHREAD_BATCH_SIZE = 1024;
 const int LAUNCH_THREAD_BATCH_SIZE = 32;
 
 // The number of triangles within a partition (cube) should be handled by
-//const int SUBTHREAD_WARP_SIZE = 32;
 const int RASTERISATION_WARP_SIZE = 1024;
 
-// The number of MSI images being computed at any given time
-const int PROCESSING_BATCH_SIZE = 1024;
-
-// Only generate an image with a specific index. Set to -1 to disable.
-#define FOCUS_IMAGE -1 //271
-
 #define MAX_EQUIVALENCE_ROUNDING_ERROR 0.001
-
-
-// @Assumption: vertex is measured relative to the origin of the grid
-__device__ __inline__ int3 calculateCubeLocation(RasterisationSettings settings)
-{
-	// To add the vertex to the appropriate cube, we first calculate the cube the vertex belongs to.
-	int3 cubeLocation;
-
-	cubeLocation.x = int(floor(settings.spinImageVertex.x / (spinImageWidthPixels * 2)));
-	cubeLocation.y = int(floor(settings.spinImageVertex.y / (spinImageWidthPixels * 2)));
-	cubeLocation.z = int(floor(settings.spinImageVertex.z / (spinImageWidthPixels * 2)));
-
-	return cubeLocation;
-}
-
-__device__ __inline__ int calculateCubeIndex(CubePartition cubePartition, int3 cubeLocation)
-{
-	return (cubePartition.cubeCounts.x * cubePartition.cubeCounts.y * cubeLocation.z) +
-		(cubePartition.cubeCounts.x * cubeLocation.y) +
-		(cubeLocation.x);
-}
 
 __device__ __inline__ PrecalculatedSettings calculateRotationSettings(float3 spinImageNormal);
 
@@ -78,8 +50,7 @@ __device__ __inline__ float transformNormalX(PrecalculatedSettings pre_settings,
 	return pre_settings.alignmentProjection_n_ax * spinImageNormal.x + pre_settings.alignmentProjection_n_ay * spinImageNormal.y;
 }
 
-__device__ __inline__ float3 transformCoordinate(float3 vertex, RasterisationSettings settings /*, DebugValueBuffer debugBuffer*/
-)
+__device__ __inline__ float3 transformCoordinate(float3 vertex, GPURasterisationSettings settings)
 {
 	PrecalculatedSettings spinImageSettings = calculateRotationSettings(settings.spinImageNormal);
 
@@ -108,7 +79,7 @@ __device__ __inline__ float2 alignWithPositiveX(float2 midLineDirection, float2 
 	return transformed;
 }
 
-__device__ __inline__ float calculateTransformedZCoordinate(RasterisationSettings settings, float3 vertex)
+__device__ __inline__ float calculateTransformedZCoordinate(GPURasterisationSettings settings, float3 vertex)
 {
 	PrecalculatedSettings pre_settings = calculateRotationSettings(settings.spinImageNormal);
 
@@ -130,8 +101,6 @@ __device__ __inline__ float calculateTransformedZCoordinate(RasterisationSetting
 
 	return transformedZ;
 }
-
-
 
 __device__ __inline__ void rasteriseRow(int pixelBaseIndex, newSpinImagePixelType* descriptorArray, unsigned int pixelStart, unsigned int pixelEnd, const unsigned int singleMask, const unsigned int doubleMask, const unsigned int initialMask)
 {
@@ -251,25 +220,11 @@ __device__ __inline__ void rasteriseTriangle(
 #else
 		array<newSpinImagePixelType> descriptors,
 #endif
-		float3 vertices[3], RasterisationSettings settings //, DebugValueBuffer debugBuffer
-
-)
+		float3 vertices[3], GPURasterisationSettings settings)
 {
-	// Input triangleIndexIndex can contain -1 (an invalid value), but only if requiresTriangleRasterisation is false.
-
-
-
-	//float3 vertices[3];
-
-	// 32 Threads is guaranteed here
-
-
-	vertices[0] = transformCoordinate(vertices[0], settings /*, debugBuffer*/);
-	vertices[1] = transformCoordinate(vertices[1], settings /*, debugBuffer*/);
-	vertices[2] = transformCoordinate(vertices[2], settings /*, debugBuffer*/);
-
-
-	// First culling phase ends here, so we need to check whether the value of requiresTriangleRasterisation changed.
+	vertices[0] = transformCoordinate(vertices[0], settings);
+	vertices[1] = transformCoordinate(vertices[1], settings);
+	vertices[2] = transformCoordinate(vertices[2], settings);
 
 	float3 minVector = { 0, 0, 0 };
 	float3 midVector = { 0, 0, 0 };
@@ -279,8 +234,7 @@ __device__ __inline__ void rasteriseTriangle(
 	float3 deltaMidMax = { 0, 0, 0 };
 	float3 deltaMinMax = { 0, 0, 0 };
 
-
-	// Step 4: Sort vertices by z-coordinate
+	// Sort vertices by z-coordinate
 
 	int minIndex = 0;
 	int midIndex = 1;
@@ -310,7 +264,8 @@ __device__ __inline__ void rasteriseTriangle(
 	midVector = vertices[midIndex];
 	maxVector = vertices[maxIndex];
 
-	// Step 5: Calculate deltas
+	// Calculate deltas
+
 	deltaMinMid = midVector - minVector;
 	deltaMidMax = maxVector - midVector;
 	deltaMinMax = maxVector - minVector;
@@ -321,9 +276,6 @@ __device__ __inline__ void rasteriseTriangle(
 		return;
 	}
 
-	// End of second culling phase, once again checking status of flag variable
-	// TODO: remove default values
-
 	float2 minXY = { 0, 0 };
 	float2 midXY = { 0, 0 };
 	float2 maxXY = { 0, 0 };
@@ -333,9 +285,7 @@ __device__ __inline__ void rasteriseTriangle(
 	float2 deltaMinMaxXY = { 0, 0 };
 
 	int minPixels = 0;
-	//int midPixels = 0;
 	int maxPixels = 0;
-
 
 	// Step 6: Calculate centre line
 	float centreLineFactor = deltaMinMid.z / deltaMinMax.z;
@@ -344,7 +294,7 @@ __device__ __inline__ void rasteriseTriangle(
 	float2 centreDirection = normalize(centreLineDirection);
 
 	// Step 7: Rotate coordinates around origin
-	// From here on out:
+	// From here on out, variable names follow these conventions:
 	// - X: physical relative distance to closest point on intersection line
 	// - Y: Distance from origin
 	minXY = alignWithPositiveX(centreDirection, make_float2(minVector.x, minVector.y));
@@ -437,8 +387,7 @@ __device__ __inline__ void rasteriseTriangle(
 			jobShortTransformedDelta = jobDeltaMidMaxXY;
 		}
 
-
-		float jobZLevel = float(jobPixelY);// +settings.nudgeDistance); // * settings.pixelSize;
+		float jobZLevel = float(jobPixelY);
 		float jobLongDistanceInTriangle = jobZLevel - jobMinVectorZ;
 		float jobLongInterpolationFactor = jobLongDistanceInTriangle / deltaMinMax.z;
 		float jobShortDistanceInTriangle = jobZLevel - jobShortVectorStartZ;
@@ -450,8 +399,6 @@ __device__ __inline__ void rasteriseTriangle(
 		// Avoid overlap situations, only rasterise is the interpolation factors are valid
 		if (jobLongDistanceInTriangle > 0 && jobShortDistanceInTriangle > 0)
 		{
-			// TODO: Check whether these coordinates are also valid for both sections
-
 			// y-coordinates of both interpolated values are always equal. As such we only need to interpolate that direction once.
 			// They must be equal because we have aligned the direction of the horizontal-triangle plane with the x-axis.
 			float jobIntersectionY = jobMinXY.y + (jobLongInterpolationFactor * deltaMinMaxXY.y);
@@ -480,9 +427,7 @@ __device__ __inline__ void rasteriseTriangle(
 			jobRowStartPixels = min((unsigned int)spinImageWidthPixels, max(0, jobRowStartPixels));
 			jobRowEndPixels = min((unsigned int)spinImageWidthPixels, jobRowEndPixels);
 
-
 			size_t jobSpinImageBaseIndex = size_t(jobVertexIndexIndex) * spinImageWidthPixels * spinImageWidthPixels + jobPixelYCoordinate * spinImageWidthPixels;
-
 
 			// Step 9: Fill pixels
 			if (jobHasDoubleIntersection)
@@ -492,16 +437,12 @@ __device__ __inline__ void rasteriseTriangle(
 
 				// rowStartPixels must already be in bounds, and doubleIntersectionStartPixels can not be smaller than 0.
 				// Hence the values in this loop are in-bounds.
-#if SPIN_IMAGE_MODE == MODE_UNSIGNED_INT || SPIN_IMAGE_MODE == MODE_FLOAT32
-				//printf("Double: %i -> %i to %i\n", jobPixelY, jobDoubleIntersectionStartPixels, jobRowStartPixels);
+#if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT || QSI_PIXEL_DATATYPE == DATATYPE_FLOAT32
 				for (int jobX = jobDoubleIntersectionStartPixels; jobX < jobRowStartPixels; jobX++)
 				{
+					// Increment pixel by 2 because 2 intersections occurred.
 #if !ENABLE_SHARED_MEMORY_IMAGE
 					size_t jobPixelIndex = jobSpinImageBaseIndex + jobX;
-
-					// Increment pixel by 2 because 2 intersections occurred.
-
-
 					atomicAdd(&(descriptors.content[jobPixelIndex]), 2);
 #else
 					int jobPixelIndex = jobPixelYCoordinate * spinImageWidthPixels + jobX;
@@ -509,7 +450,7 @@ __device__ __inline__ void rasteriseTriangle(
 #endif
 
 				}
-#elif SPIN_IMAGE_MODE == MODE_UNSIGNED_SHORT
+#elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
 				int jobBaseIndex = jobSpinImageBaseIndex + jobDoubleIntersectionStartPixels;
 				newSpinImagePixelType* descriptorArrayPointer = descriptors.content;
@@ -525,7 +466,7 @@ __device__ __inline__ void rasteriseTriangle(
 
 			}
 
-#if SPIN_IMAGE_MODE == MODE_UNSIGNED_INT || SPIN_IMAGE_MODE == MODE_FLOAT32
+#if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT || QSI_PIXEL_DATATYPE == DATATYPE_FLOAT32
 			// It's imperative the condition of this loop is a < comparison
 			//printf("Single: %i -> %i to %i\n", jobPixelY, jobRowStartPixels, jobRowEndPixels);
 			for (int jobX = jobRowStartPixels; jobX < jobRowEndPixels; jobX++)
@@ -541,7 +482,7 @@ __device__ __inline__ void rasteriseTriangle(
 				atomicAdd(&(sharedDescriptorArray[jobPixelIndex]), 1);
 	#endif
 			}
-#elif SPIN_IMAGE_MODE == MODE_UNSIGNED_SHORT
+#elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
 			int jobBaseIndex = jobSpinImageBaseIndex + jobRowStartPixels;
 			newSpinImagePixelType* descriptorArrayPointer = descriptors.content;
@@ -557,27 +498,15 @@ __device__ __inline__ void rasteriseTriangle(
 }
 
 __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void rasteriseTriangles(
-	PrecalculatedSettings* precalculatedSettings,
 	array<newSpinImagePixelType> descriptors,
-	RasterisationSettings settings) //,
-	//DebugValueBuffer debugBuffer)
+	GPURasterisationSettings settings)
 {
-	
-
 	// One block x-coordinate per image
 	settings.vertexIndexIndex = blockIdx.x;
-
-
 	//assert(settings.vertexIndexIndex >= 0);
 	//assert(settings.vertexIndexIndex < settings.mesh.vertexCount);
 
-
-	// And one y-coordinate per cube surrounding it.
-	int blockIndex = blockIdx.y;
-
 	// Copying over precalculated values
-
-
 	settings.spinImageVertex.x = settings.mesh.vertices_x[settings.vertexIndexIndex];
 	settings.spinImageVertex.y = settings.mesh.vertices_y[settings.vertexIndexIndex];
 	settings.spinImageVertex.z = settings.mesh.vertices_z[settings.vertexIndexIndex];
@@ -586,42 +515,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void rasteriseTriangles(
 	settings.spinImageNormal.y = settings.mesh.normals_y[settings.vertexIndexIndex];
 	settings.spinImageNormal.z = settings.mesh.normals_z[settings.vertexIndexIndex];
 
-	BlockRasterisationSettings blockSettings;
-
-	int3 blockDeltaCoordinate;
-	blockDeltaCoordinate.x = (blockIndex / 9);
-	blockDeltaCoordinate.y = ((blockIndex - (9 * blockDeltaCoordinate.x)) / 3);
-	blockDeltaCoordinate.z = ((blockIndex - (9 * blockDeltaCoordinate.x) - (3 * blockDeltaCoordinate.y)));
-
-	blockDeltaCoordinate.x -= 1;
-	blockDeltaCoordinate.y -= 1;
-	blockDeltaCoordinate.z -= 1;
-
-
-
-	int3 baseCubeLocation = calculateCubeLocation(settings);
-	int3 blockCoordinate = baseCubeLocation + blockDeltaCoordinate;
-
-
-	// Ensure no out of range coordinates are considered
-	// Since the entire warp works on the same cube, all threads will exit when this evaluates to true
-	if( (blockCoordinate.x < 0) ||
-		(blockCoordinate.x >= settings.partition.cubeCounts.x) ||
-		(blockCoordinate.y < 0) ||
-		(blockCoordinate.y >= settings.partition.cubeCounts.y) ||
-		(blockCoordinate.z < 0) ||
-		(blockCoordinate.z >= settings.partition.cubeCounts.z))
-	{
-		return;
-	}
-
 	assert(__activemask() == 0xFFFFFFFF);
-
-	blockSettings.cubeIndex = calculateCubeIndex(settings.partition, blockCoordinate);
-	blockSettings.cubeContentStartIndex = settings.partition.startIndices[blockSettings.cubeIndex];
-	int cubeContentLength = settings.partition.lengths[blockSettings.cubeIndex];
-	blockSettings.cubeContentEndIndex = blockSettings.cubeContentStartIndex + cubeContentLength;
-
 
 #if ENABLE_SHARED_MEMORY_IMAGE
 	assert(__activemask() == 0xFFFFFFFF);
@@ -638,72 +532,34 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void rasteriseTriangles(
 	__syncthreads();
 #endif
 
-	// Rounds up the thread count to the nearest block of 32 threads
-	int roundedUpLimit = (blockSettings.cubeContentEndIndex | 0b00000000000000000000000000011111) + 1;
-	for (int warpTriangleIndexIndex = blockSettings.cubeContentStartIndex; 
-		warpTriangleIndexIndex < roundedUpLimit; 
+	const size_t triangleCount = settings.mesh.indexCount / 3;
+	for (int warpTriangleIndexIndex = 0;
+		warpTriangleIndexIndex < triangleCount;
 		warpTriangleIndexIndex += RASTERISATION_WARP_SIZE)
 	{
 		int triangleIndexIndex = warpTriangleIndexIndex + threadIdx.x;
 		
 		assert(__activemask() == 0xFFFFFFFF);
 
-		if(warpTriangleIndexIndex >= blockSettings.cubeContentEndIndex) {
-			continue;
-		}
-
 		float3 vertices[3];
 
-		size_t threadTriangleIndex0 = 3 * blockSettings.cubeContentStartIndex 						  + triangleIndexIndex;
-		size_t threadTriangleIndex1 = 3 * blockSettings.cubeContentStartIndex +     cubeContentLength + triangleIndexIndex;
-		size_t threadTriangleIndex2 = 3 * blockSettings.cubeContentStartIndex + 2 * cubeContentLength + triangleIndexIndex;
+		size_t triangleBaseIndex = 3 * triangleIndexIndex;
 
-		vertices[0].x = settings.partition.duplicated_vertices_x[threadTriangleIndex0];
-		vertices[0].y = settings.partition.duplicated_vertices_y[threadTriangleIndex0];
-		vertices[0].z = settings.partition.duplicated_vertices_z[threadTriangleIndex0];
+		size_t threadTriangleIndex0 = triangleBaseIndex + 0;
+		size_t threadTriangleIndex1 = triangleBaseIndex + 1;
+		size_t threadTriangleIndex2 = triangleBaseIndex + 2;
 
-		vertices[1].x = settings.partition.duplicated_vertices_x[threadTriangleIndex1];
-		vertices[1].y = settings.partition.duplicated_vertices_y[threadTriangleIndex1];
-		vertices[1].z = settings.partition.duplicated_vertices_z[threadTriangleIndex1];
+		vertices[0].x = settings.mesh.vertices_x[threadTriangleIndex0];
+		vertices[0].y = settings.mesh.vertices_y[threadTriangleIndex0];
+		vertices[0].z = settings.mesh.vertices_z[threadTriangleIndex0];
 
-		vertices[2].x = settings.partition.duplicated_vertices_x[threadTriangleIndex2];
-		vertices[2].y = settings.partition.duplicated_vertices_y[threadTriangleIndex2];
-		vertices[2].z = settings.partition.duplicated_vertices_z[threadTriangleIndex2];
+		vertices[1].x = settings.mesh.vertices_x[threadTriangleIndex1];
+		vertices[1].y = settings.mesh.vertices_y[threadTriangleIndex1];
+		vertices[1].z = settings.mesh.vertices_z[threadTriangleIndex1];
 
-
-		if(triangleIndexIndex < blockSettings.cubeContentEndIndex)
-		{
-			int3 cubeCoords0 = make_int3(int(vertices[0].x / float(2 * spinImageWidthPixels)),
-			                             int(vertices[0].y / float(2 * spinImageWidthPixels)),
-			                             int(vertices[0].z / float(2 * spinImageWidthPixels)));
-			int3 cubeCoords1 = make_int3(int(vertices[1].x / float(2 * spinImageWidthPixels)),
-			                             int(vertices[1].y / float(2 * spinImageWidthPixels)),
-			                             int(vertices[1].z / float(2 * spinImageWidthPixels)));
-			int3 cubeCoords2 = make_int3(int(vertices[2].x / float(2 * spinImageWidthPixels)),
-			                             int(vertices[2].y / float(2 * spinImageWidthPixels)),
-			                             int(vertices[2].z / float(2 * spinImageWidthPixels)));
-
-
-
-			int cubeIndex0 = calculateCubeIndex(settings.partition, cubeCoords0);
-			int cubeIndex1 = calculateCubeIndex(settings.partition, cubeCoords1);
-			int cubeIndex2 = calculateCubeIndex(settings.partition, cubeCoords2);
-
-			// Ensure the triangle isn't rendered twice when rendering it in another cube.
-			int minCubeIndex = min(cubeIndex0, min(cubeIndex1, cubeIndex2));
-			// = settings.partition.minCubeIndices.content[triangleIndex];
-			bool isTriangleInLowestCube = minCubeIndex == blockSettings.cubeIndex;
-
-			if (!isTriangleInLowestCube)
-			{
-				continue;
-			}
-		} else
-		{
-			// Triangle index out of range. We still propagate the thread to help out with rasterisation later
-			continue;
-		}
-
+		vertices[2].x = settings.mesh.vertices_x[threadTriangleIndex2];
+		vertices[2].y = settings.mesh.vertices_y[threadTriangleIndex2];
+		vertices[2].z = settings.mesh.vertices_z[threadTriangleIndex2];
 
 	#if ENABLE_SHARED_MEMORY_IMAGE
 		rasteriseTriangle(descriptorArrayPointer, vertices, settings);
@@ -714,7 +570,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void rasteriseTriangles(
 	}
 #if ENABLE_SHARED_MEMORY_IMAGE
 
-#if SPIN_IMAGE_MODE == MODE_UNSIGNED_INT
+#if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT
 
 	__syncthreads();
 	// Image finished. Copying into main memory
@@ -725,7 +581,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void rasteriseTriangles(
 	{
 		atomicAdd(&descriptors.content[jobSpinImageBaseIndex + i], descriptorArrayPointer[i]);
 	}
-#elif SPIN_IMAGE_MODE == MODE_UNSIGNED_SHORT
+#elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	size_t jobSpinImageBaseIndex = size_t(settings.vertexIndexIndex) * spinImageWidthPixels * spinImageWidthPixels;
 
 	unsigned int* integerBasePointer = (unsigned int*)((void*)(descriptors.content + jobSpinImageBaseIndex));
@@ -741,11 +597,8 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void rasteriseTriangles(
 
 }
 
-// Run once for every vertex index
-//TODO: switch this out to many threads when not using dynamic parallelism
 __global__ void createNewDescriptors(
-	array<PrecalculatedSettings> precalculated,
-	Mesh mesh, CubePartition partition, array<newSpinImagePixelType> descriptors, DebugValueBuffer debugBuffer)
+	array<PrecalculatedSettings> precalculated,	DeviceMesh mesh, array<newSpinImagePixelType> descriptors)
 {
 	int batchThreadIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -756,7 +609,7 @@ __global__ void createNewDescriptors(
 
 
 
-		RasterisationSettings settings;
+		GPURasterisationSettings settings;
 
 		settings.vertexIndexIndex = threadIndex;
 
@@ -783,17 +636,8 @@ __global__ void createNewDescriptors(
 	}
 }
 
-VertexDescriptors createDescriptorsNewstyle(Mesh device_mesh, CubePartition device_cubePartition, cudaDeviceProp device_information, OutputImageSettings imageSettings)
+VertexDescriptors createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDeviceProp device_information)
 {
-	// In principle, these kernels should only be run once per vertex.
-	// However, since we also need a normal, and the same vertex can have different normals in different situations,
-	// we need to run the vertex index multiple times to ensure we create a spin image for every case.
-	// This is unfortunately very much overkill, but I currently don't know how to fix it.
-
-	DebugValueBuffer device_debugBuffer;
-	device_debugBuffer.bufferPointer = 0;
-	size_t debugBufferSize = DEBUG_BUFFER_ENTRY_COUNT * sizeof(DebugValueBufferEntry);
-
 	VertexDescriptors device_descriptors;
 
 	std::cout << "\t- Allocating descriptor array" << std::endl;
@@ -801,10 +645,8 @@ VertexDescriptors createDescriptorsNewstyle(Mesh device_mesh, CubePartition devi
 	size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
 
 	size_t descriptorBufferSize = sizeof(newSpinImagePixelType) * descriptorBufferLength;
-	printMemoryUsage();
 	std::cout << "\t (Allocating " << descriptorBufferSize << " bytes)" << std::endl;
 	checkCudaErrors(cudaMalloc(&device_descriptors.newDescriptorArray.content, descriptorBufferSize));
-	printMemoryUsage();
 
 	size_t imageCount = device_mesh.vertexCount;
 	device_descriptors.newDescriptorArray.length = imageCount;
@@ -822,7 +664,6 @@ VertexDescriptors createDescriptorsNewstyle(Mesh device_mesh, CubePartition devi
 	array<PrecalculatedSettings> device_precalculatedSettings;
 	size_t precalculatedBufferSize = sizeof(PrecalculatedSettings) * imageCount;
 	checkCudaErrors(cudaMalloc<PrecalculatedSettings>(&device_precalculatedSettings.content, precalculatedBufferSize));
-	printMemoryUsage();
 	device_precalculatedSettings.length = imageCount;
 
 	CudaSettings settings = calculateCUDASettings(imageCount < size_t(LAUNCH_THREAD_BATCH_SIZE) ? imageCount : size_t(LAUNCH_THREAD_BATCH_SIZE), device_information);
@@ -838,16 +679,16 @@ VertexDescriptors createDescriptorsNewstyle(Mesh device_mesh, CubePartition devi
 
 	dim3 blockSizes;
 	blockSizes.x = unsigned(imageCount); // Run one 3x3x3 area for each image
-	blockSizes.y = 27; // 3 x 3 x 3 area around the cube containing the vertex
-	blockSizes.z = 1;  // Just a single dimension.
-	std::cout << blockSizes.x << "x27x1 blocks launched" << std::endl;
+	blockSizes.y = 1;
+	blockSizes.z = 1;
+	std::cout << blockSizes.x << "x1x1 blocks launched" << std::endl;
 
-	RasterisationSettings generalSettings;
+	GPURasterisationSettings generalSettings;
 	generalSettings.mesh = device_mesh;
 	generalSettings.partition = device_cubePartition;
 
 	rasteriseTriangles <<<blockSizes, RASTERISATION_WARP_SIZE>>> (
-		device_precalculatedSettings.content, device_descriptors.newDescriptorArray, generalSettings /*, device_debugBuffer*/);
+		device_precalculatedSettings.content, device_descriptors.newDescriptorArray, generalSettings);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 
@@ -876,14 +717,6 @@ VertexDescriptors createDescriptorsNewstyle(Mesh device_mesh, CubePartition devi
 	host_descriptors.newDescriptorArray.length = imageCount;
 	host_descriptors.isNew = true;
 	checkCudaErrors(cudaMemcpy(host_descriptors.newDescriptorArray.content, device_descriptors.newDescriptorArray.content, descriptorBufferSize, cudaMemcpyDeviceToHost));
-
-	dumpDebugFile(device_debugBuffer, debugBufferSize);
-
-	if(imageSettings.enableOutputImage)
-	{
-		std::cout << "\t- Dumping images.." << std::endl;
-		dumpImages(host_descriptors, imageSettings);
-	}
 
 	return device_descriptors;
 }

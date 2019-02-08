@@ -8,14 +8,9 @@
 #include "shapeSearch/common/types/arrayTypes.hpp"
 
 
-struct PrecalculatedSettings {
-	float alignmentProjection_n_ax;
-	float alignmentProjection_n_ay;
-	float alignmentProjection_n_bx;
-	float alignmentProjection_n_bz;
-};
 
-struct RasterisationSettings {
+
+struct CPURasterisationSettings {
 	float3_cpu spinImageVertex;
 	float3_cpu spinImageNormal;
 	int vertexIndexIndex;
@@ -24,11 +19,11 @@ struct RasterisationSettings {
 	HostMesh mesh;
 };
 
-void hostGenerateQSI(array<unsigned int> descriptor, RasterisationSettings settings);
-array<unsigned int> hostGenerateQSIAllVertices(RasterisationSettings settings);
+void hostGenerateQSI(array<unsigned int> descriptor, CPURasterisationSettings settings);
+array<unsigned int> hostGenerateQSIAllVertices(CPURasterisationSettings settings);
 
 void hostGenerateMSI(array<unsigned int> MSIDescriptor, array<unsigned int> QSIDescriptor,
-                     RasterisationSettings settings);
+                     CPURasterisationSettings settings);
 // utility functions
 float3_cpu hostTransformCoordinate(float3_cpu vertex, float3_cpu spinImageVertex, float3_cpu spinImageNormal);
 

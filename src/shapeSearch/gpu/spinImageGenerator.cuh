@@ -1,4 +1,7 @@
 #pragma once
 
+#include <shapeSearch/common/types/vertexDescriptors.h>
+#include <shapeSearch/common/types/outputImageSettings.h>
+#include <shapeSearch/gpu/deviceMesh.h>
 
-VertexDescriptors createClassicDescriptors(Mesh device_mesh, CubePartition device_cubePartition, cudaDeviceProp device_information, OutputImageSettings imageSettings, size_t sampleCount);
+VertexDescriptors createClassicDescriptors(DeviceMesh device_mesh, cudaDeviceProp device_information, OutputImageSettings imageSettings, size_t sampleCount);

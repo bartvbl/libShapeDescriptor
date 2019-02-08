@@ -12,12 +12,7 @@
 
 
 // Makes it easier to switch between generation styles
-//#define SPIN_IMAGE_MODE MODE_FLOAT32
-#define SPIN_IMAGE_MODE MODE_UNSIGNED_INT
 
-#define MODE_UNSIGNED_INT 2
-#define MODE_UNSIGNED_SHORT 3
-#define MODE_FLOAT32 4
 
 
 
@@ -46,8 +41,6 @@ const int SHORT_DOUBLE_FIRST_MASK = 0x00020000;
 	#define DEBUG_DUMP_ENABLED false
 #endif
 
-const unsigned int DEBUG_BUFFER_ENTRY_COUNT = (0xFFFFFFFF) / sizeof(DebugValueBufferEntry);
-
 
 // ----- REDEFINE SPIN IMAGE COUNT GENERATED TO CUT DOWN ON RUNTIMES? -----
 
@@ -55,32 +48,6 @@ const unsigned int DEBUG_BUFFER_ENTRY_COUNT = (0xFFFFFFFF) / sizeof(DebugValueBu
 
 // ----- OTHER STUFF -----
 
-
-// We're working with triangles throughout this program
-#define verticesPerFace 3
-
-// As part of the merging process, we need to compare floating point coordinates to check equivalence.
-// Since floating points have 101 reasons for not being equal to one another in any situation, we need
-// to use some sort of error threshold to distinguish them.
-#define maxPointEquivalenceError 0.000001
-
-// Toggles whether vertices are checked for duplicates
-#define mergeVertices false
-
-// resolution of the created spin images.
-// Their physical size depends on the size of individual cubes and is thus calculated separately.
-// Limitation: can not be more than 255 due to the array of bytes 
-#define spinImageWidthPixels 2048
-
-// How many subsamples to compute in each direction per pixel per spin image
-#define spinImagePixelSubsampleSide 1
-
-// The size of the number of cubes to inspect around the one containing the spin image vertex.
-#define spinImageKernelSize 3
-
-// For all kernels, this value is used to calculate how many blocks are needed to execute the kernel.
-// This value represents the number of threads per block. The number of blocks is subsequently adjusted to cover all values.
-const unsigned int blockSize = 32;
 
 // In the work division kernel, this defines how many "work batches" we aim to divide the model into.
 // This is a lower bound, as it will calculate the number of cubes by _volume_, requiring the number
@@ -98,16 +65,10 @@ const int rowsPerOutputImage = 64;
 typedef struct CubePartition {
 	unsigned int* startIndices;
 	unsigned int* lengths;
-	uintArray minCubeIndices;
-	uint3 cubeCounts;
-	int totalCubeCount;
-	float cubeSize;
 
 	float* duplicated_vertices_x; // startIndices point here. Format: [partition 0 vertices] [partition 1 vertices]
 	float* duplicated_vertices_y; // Format of each [partition vertices]: [vertex 0 of triangle 0] [vertex 0 of triangle 1] ... [vertex 1 of triangle 0] [vertex 1 of triangle 1]
 	float* duplicated_vertices_z;
-	unsigned int* duplicated_triangle_indices;
-	unsigned int* duplicated_min_cube_indices;
 } CubePartition;
 
 
@@ -124,11 +85,7 @@ typedef struct CubePartition {
 #define parallelPlaneMaxDotError 0.0001
 
 
-// Classical spin image generation constants
-// Number of threads per warp in classical spin image generation
-const int SPIN_IMAGE_GENERATION_WARP_SIZE = 32;
-const int samplesPerSpinImageSide = spinImageWidthPixels * spinImagePixelSubsampleSide;
-const int halfSpinImageSizePixels = spinImageWidthPixels / 2;
+
 
 
 
@@ -141,17 +98,12 @@ const int halfSpinImageSizePixels = spinImageWidthPixels / 2;
 // Convenience type definition
 
 // CUDA settings
-typedef struct CudaSettings {
+struct CudaSettings {
     size_t threadsPerBlock;
     size_t blocksPerGrid;
-} CudaSettings;
+};
 
-typedef struct OutputImageSettings {
-	bool enableOutputImage;
-	bool enableLogImage;
-	std::string imageDestinationFile;
-	std::string compressedDestinationFile;
-} OutputImageSettings;
+
 
 CudaSettings calculateCUDASettings(size_t vertexCount, cudaDeviceProp device_information);
 

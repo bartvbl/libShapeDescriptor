@@ -137,24 +137,18 @@ void performSpinDump(array<spinPixelType> descriptors, OutputImageSettings image
 void dumpImages(VertexDescriptors descriptors, OutputImageSettings imageSettings, unsigned int imagesPerRow)
 {
 	if(descriptors.isClassic) {
-		performSpinDump<classicSpinImagePixelType> (descriptors.classicDescriptorArray, imageSettings);
+		performSpinDump<classicSpinImagePixelType> (descriptors.classicDescriptorArray, imageSettings, imagesPerRow);
 	} else if(descriptors.isNew) {
-		performSpinDump<newSpinImagePixelType> (descriptors.newDescriptorArray, imageSettings);
+		performSpinDump<newSpinImagePixelType> (descriptors.newDescriptorArray, imageSettings, imagesPerRow);
 	}
-
 }
 
 void dumpCompressedImages(array<unsigned int> compressedDescriptors, OutputImageSettings imageSettings, unsigned int imagesPerRow) {
 	array<unsigned int> decompressedDesciptors;
 	size_t imageTotalPixelCount = compressedDescriptors.length * spinImageWidthPixels * spinImageWidthPixels;
-	
-	
-	
 
 	decompressedDesciptors.content = new unsigned int[imageTotalPixelCount];
 	decompressedDesciptors.length = compressedDescriptors.length;
-
-
 
 	for(int compressedEntry = 0; compressedEntry < imageTotalPixelCount / 32; compressedEntry++) {
 		unsigned int entry = compressedDescriptors.content[compressedEntry];
@@ -163,33 +157,13 @@ void dumpCompressedImages(array<unsigned int> compressedDescriptors, OutputImage
 		for(int bitInEntry = 0; bitInEntry < 32; bitInEntry++) {
 			int pixelIndex = 32 * compressedEntry + bitInEntry;
 
-		    /*unsigned int outputIndex = compressedEntry * 32 + bitInEntry;
-
-
-			const unsigned int warpSize = 32;
-			const unsigned int cacheLinesPerRow = spinImageWidthPixels / warpSize;
-			const unsigned int cacheLinesPerImage = cacheLinesPerRow * spinImageWidthPixels;
-
-			size_t offsetWithinImage = compressedEntry - (imageIndex * elementsPerCompressedImage);
-			size_t imageRow = offsetWithinImage / cacheLinesPerRow;
-			size_t cacheLineInRow = offsetWithinImage - (imageRow * cacheLinesPerRow);
-			size_t x = (cacheLineInRow * 32) + bitInEntry;
-			size_t y = imageRow;*/
-
-			//if(imageIndex == 100 && imageRow == 20) {
-			//	std::cout << "Row: " << imageRow << ", Column: " << x << " -> " << std::hex << entry << std::dec << std::endl;
-			//}
-
-			
-			//	std::cout << compressedEntry << " / " << elementsPerCompressedImage << " -> (" << imageIndex << ", " << x << ", " << y << ") " << std::endl;
-
 			decompressedDesciptors.content[pixelIndex] = (entryBits[31 - bitInEntry] * 255);
 		}
 	}
 
 	imageSettings.imageDestinationFile = imageSettings.compressedDestinationFile;
 
-	performSpinDump<unsigned int>(decompressedDesciptors, imageSettings);
+	performSpinDump<unsigned int>(decompressedDesciptors, imageSettings, imagesPerRow);
 }
 
 void dumpRawCompressedImages(array<unsigned int> compressedDescriptors, std::string destination, unsigned int imagesPerRow) {

@@ -228,10 +228,10 @@ void hostRasteriseTriangle(array<unsigned int> descriptor, float3_cpu *vertices,
 			unsigned int jobRowStartPixels = unsigned(floor(jobMinDistance));
 			unsigned int jobRowEndPixels = unsigned(floor(jobMaxDistance));
 
-			jobRowStartPixels = std::min((unsigned int)settings.spinImageWidthPixels, std::max(unsigned(0), unsigned(jobRowStartPixels)));
-			jobRowEndPixels = std::min((unsigned int)settings.spinImageWidthPixels, unsigned(jobRowEndPixels));
+			jobRowStartPixels = std::min((unsigned int) spinImageWidthPixels, std::max(unsigned(0), unsigned(jobRowStartPixels)));
+			jobRowEndPixels = std::min((unsigned int) spinImageWidthPixels, unsigned(jobRowEndPixels));
 
-			size_t jobSpinImageBaseIndex = size_t(settings.vertexIndexIndex) * spinImageWidthPixels * spinImageWidthPixels + jobPixelYCoordinate * size_t(settings.spinImageWidthPixels);
+			size_t jobSpinImageBaseIndex = size_t(settings.vertexIndexIndex) * spinImageWidthPixels * spinImageWidthPixels + jobPixelYCoordinate * size_t(spinImageWidthPixels);
 
 			if (jobHasDoubleIntersection)
 			{
@@ -297,7 +297,7 @@ void hostGenerateQSI(array<unsigned int> descriptor, CPURasterisationSettings se
 
 array<unsigned int> hostGenerateQSIAllVertices(CPURasterisationSettings settings) {
 	array<unsigned int> descriptors;
-	size_t descriptorElementCount = settings.spinImageWidthPixels * settings.spinImageWidthPixels * settings.mesh.vertexCount;
+	size_t descriptorElementCount = spinImageWidthPixels * spinImageWidthPixels * settings.mesh.vertexCount;
 	descriptors.content = new unsigned int[descriptorElementCount];
 	descriptors.length = descriptorElementCount;
 
@@ -336,6 +336,4 @@ void hostComputeMSI_risingHorizontal(array<unsigned int> MSIDescriptor, array<un
 void hostGenerateMSI(array<unsigned int> MSIDescriptor, array<unsigned int> QSIDescriptor,
                      CPURasterisationSettings settings) {
 	hostGenerateQSI(QSIDescriptor, settings);
-
-	//hostComputeMSI_fallingHorizontal(MSIDescriptor, QSIDescriptor);
 }

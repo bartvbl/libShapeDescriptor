@@ -1,6 +1,10 @@
 #include <vector>
 #include <iostream>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/transform.hpp>
+
 #include "MeshIntersector.h"
 
 std::vector<IntersectionCluster> linkEdgeChains(std::vector<IntersectionLineSegment> vector);

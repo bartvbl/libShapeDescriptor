@@ -215,8 +215,6 @@ HostMesh hostLoadOBJ(std::string src, bool recomputeNormals)
 		std::cout << "Something went wrong reading the file!" << std::endl;
 	}
 
-	
-
 	return HostMesh();
 }
 

@@ -1,6 +1,6 @@
 #include <bitset>
 #include <shapeSearch/libraryBuildSettings.h>
-#include "MSIConverter.h"
+#include "MSICompressor.h"
 
 void compressMSI(array<unsigned int> msiImage, unsigned long long* compressedImage) {
 	for(unsigned int row = 0; row < spinImageWidthPixels; row++) {

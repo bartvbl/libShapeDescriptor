@@ -24,10 +24,6 @@ struct IntersectionCluster {
     std::vector<IntersectionLineSegment> contents;
 };
 
-struct IntersectResult2D {
-	int count;
-};
-
 void computePlaneIntersections(glm::vec4 vertices[], unsigned int triangleCount, glm::mat4 transformations[], std::vector<IntersectionLineSegment> intersections[], int planeStepCount);
 
 glm::mat4 generateAlignmentTransformation(const float3_cpu &origin, const float3_cpu &normal, const float &planeAngleRadians);

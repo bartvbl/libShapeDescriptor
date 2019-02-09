@@ -308,7 +308,7 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 }
 
 
-VertexDescriptors createClassicDescriptors(DeviceMesh device_mesh, cudaDeviceProp device_information, size_t sampleCount)
+array<classicSpinImagePixelType> createClassicDescriptors(DeviceMesh device_mesh, cudaDeviceProp device_information, size_t sampleCount)
 {
 	// In principle, these kernels should only be run once per vertex.
 	// However, since we also need a normal, and the same vertex can have different normals in different situations,
@@ -317,13 +317,10 @@ VertexDescriptors createClassicDescriptors(DeviceMesh device_mesh, cudaDevicePro
 
 	size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
 	size_t descriptorBufferSize = sizeof(float) * descriptorBufferLength;
-	VertexDescriptors device_descriptors;
-	checkCudaErrors(cudaMalloc(&device_descriptors.classicDescriptorArray.content, descriptorBufferSize));
-	device_descriptors.classicDescriptorArray.length = device_mesh.vertexCount;
-	std::cout << "\t- Allocating descriptor array (size: " << descriptorBufferSize << ", pointer: " << device_descriptors.classicDescriptorArray.content << ")" << std::endl;
-
-	device_descriptors.isNew = false;
-	device_descriptors.isClassic = true;
+	array<classicSpinImagePixelType> device_descriptors;
+	checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
+	device_descriptors.length = device_mesh.vertexCount;
+	std::cout << "\t- Allocating descriptor array (size: " << descriptorBufferSize << ", pointer: " << device_descriptors.content << ")" << std::endl;
 
 	array<float> device_areaArray;
 	array<float> device_cumulativeAreaArray;
@@ -339,7 +336,7 @@ VertexDescriptors createClassicDescriptors(DeviceMesh device_mesh, cudaDevicePro
 
 	std::cout << "\t- Initialising descriptor array" << std::endl;
 	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength, device_information);
-	setValue <classicSpinImagePixelType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.classicDescriptorArray.content, descriptorBufferLength, 0);
+	setValue <classicSpinImagePixelType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.content, descriptorBufferLength, 0);
 
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
@@ -406,7 +403,7 @@ VertexDescriptors createClassicDescriptors(DeviceMesh device_mesh, cudaDevicePro
 	auto start = std::chrono::steady_clock::now();
 
 	std::cout << "\t- Running spin image kernel" << std::endl;
-	createDescriptors <<<blockSizes, SPIN_IMAGE_GENERATION_WARP_SIZE >>>(device_mesh, device_pointSamples, device_descriptors.classicDescriptorArray, device_cumulativeAreaArray, sampleCount, 1.0f);
+	createDescriptors <<<blockSizes, SPIN_IMAGE_GENERATION_WARP_SIZE >>>(device_mesh, device_pointSamples, device_descriptors, device_cumulativeAreaArray, sampleCount, 1.0f);
 
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
@@ -415,11 +412,12 @@ VertexDescriptors createClassicDescriptors(DeviceMesh device_mesh, cudaDevicePro
 	std::cout << "Execution time:" << duration.count() << std::endl;
 
 	std::cout << "\t- Copying results to CPU" << std::endl;
-	VertexDescriptors host_descriptors;
-	host_descriptors.classicDescriptorArray.content = new classicSpinImagePixelType[descriptorBufferLength];
-	host_descriptors.classicDescriptorArray.length = device_descriptors.classicDescriptorArray.length;
-	host_descriptors.isClassic = true;
-	checkCudaErrors(cudaMemcpy(host_descriptors.classicDescriptorArray.content, device_descriptors.classicDescriptorArray.content, descriptorBufferSize, cudaMemcpyDeviceToHost));
+
+	array<classicSpinImagePixelType> host_descriptors;
+	host_descriptors.content = new classicSpinImagePixelType[descriptorBufferLength];
+	host_descriptors.length = device_descriptors.length;
+
+	checkCudaErrors(cudaMemcpy(host_descriptors.content, device_descriptors.content, descriptorBufferSize, cudaMemcpyDeviceToHost));
 
 	return device_descriptors;
 }

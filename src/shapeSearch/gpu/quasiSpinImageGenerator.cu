@@ -516,8 +516,6 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void rasteriseTriangles(
 		 triangleIndex < triangleCount;
 		 triangleIndex += RASTERISATION_WARP_SIZE)
 	{
-		assert(__activemask() == 0xFFFFFFFF);
-
 		float3 vertices[3];
 
 		size_t triangleBaseIndex = 3 * triangleIndex;
@@ -609,9 +607,9 @@ __global__ void createNewDescriptors(
 	}
 }
 
-VertexDescriptors createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDeviceProp device_information)
+array<newSpinImagePixelType> createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDeviceProp device_information)
 {
-	VertexDescriptors device_descriptors;
+	array<newSpinImagePixelType> device_descriptors;
 
 	std::cout << "\t- Allocating descriptor array" << std::endl;
 
@@ -619,16 +617,14 @@ VertexDescriptors createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDevicePr
 
 	size_t descriptorBufferSize = sizeof(newSpinImagePixelType) * descriptorBufferLength;
 	std::cout << "\t (Allocating " << descriptorBufferSize << " bytes)" << std::endl;
-	checkCudaErrors(cudaMalloc(&device_descriptors.newDescriptorArray.content, descriptorBufferSize));
+	checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
 
 	size_t imageCount = device_mesh.vertexCount;
-	device_descriptors.newDescriptorArray.length = imageCount;
-	device_descriptors.isNew = true;
-	device_descriptors.isClassic = false;
+	device_descriptors.length = imageCount;
 
 	std::cout << "\t- Initialising descriptor array" << std::endl;
 	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength, device_information);
-	setValue<newSpinImagePixelType><< <valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >> > (device_descriptors.newDescriptorArray.content, descriptorBufferLength, 0);
+	setValue<newSpinImagePixelType><< <valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >> > (device_descriptors.content, descriptorBufferLength, 0);
 
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
@@ -647,7 +643,7 @@ VertexDescriptors createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDevicePr
 	std::cout << "\t- Running spin image kernel" << std::endl;
 	createNewDescriptors << <settings.blocksPerGrid, settings.threadsPerBlock >> >(
 		device_precalculatedSettings,
-		device_mesh, device_descriptors.newDescriptorArray);
+		device_mesh, device_descriptors);
 
 	// If dynamic parallelism is not used, we need to launch the threads we need manually.
 	// 32 threads per warp, 27 cubes evaluated per vertex, for each image
@@ -661,7 +657,7 @@ VertexDescriptors createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDevicePr
 	GPURasterisationSettings generalSettings;
 	generalSettings.mesh = device_mesh;
 
-	rasteriseTriangles <<<blockSizes, RASTERISATION_WARP_SIZE>>> (device_descriptors.newDescriptorArray, generalSettings);
+	rasteriseTriangles <<<blockSizes, RASTERISATION_WARP_SIZE>>> (device_descriptors, generalSettings);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 
@@ -669,11 +665,11 @@ VertexDescriptors createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDevicePr
 	std::cout << "Execution time:" << duration.count() << std::endl;
 
 	std::cout << "\t- Copying results to CPU" << std::endl;
-	VertexDescriptors host_descriptors;
-	host_descriptors.newDescriptorArray.content = new newSpinImagePixelType[imageCount * spinImageWidthPixels * spinImageWidthPixels];
-	host_descriptors.newDescriptorArray.length = imageCount;
-	host_descriptors.isNew = true;
-	checkCudaErrors(cudaMemcpy(host_descriptors.newDescriptorArray.content, device_descriptors.newDescriptorArray.content, descriptorBufferSize, cudaMemcpyDeviceToHost));
+    array<newSpinImagePixelType> host_descriptors;
+	host_descriptors.content = new newSpinImagePixelType[imageCount * spinImageWidthPixels * spinImageWidthPixels];
+	host_descriptors.length = imageCount;
+
+	checkCudaErrors(cudaMemcpy(host_descriptors.content, device_descriptors.content, descriptorBufferSize, cudaMemcpyDeviceToHost));
 
 	return device_descriptors;
 }

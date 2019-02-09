@@ -134,13 +134,14 @@ void performSpinDump(array<spinPixelType> descriptors, std::string imageDestinat
 	}
 }
 
-void dumpImages(VertexDescriptors descriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void dumpImages(array<classicSpinImagePixelType> descriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
-	if(descriptors.isClassic) {
-		performSpinDump<classicSpinImagePixelType> (descriptors.classicDescriptorArray, imageDestinationFile, logarithmicImage, imagesPerRow);
-	} else if(descriptors.isNew) {
-		performSpinDump<newSpinImagePixelType> (descriptors.newDescriptorArray, imageDestinationFile, logarithmicImage, imagesPerRow);
-	}
+	performSpinDump<classicSpinImagePixelType>(descriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
+}
+
+void dumpImages(array<newSpinImagePixelType> descriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+{
+	performSpinDump<newSpinImagePixelType> (descriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
 void dumpCompressedImages(array<unsigned int> compressedDescriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {

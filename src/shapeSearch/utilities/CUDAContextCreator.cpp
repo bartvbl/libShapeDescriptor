@@ -34,6 +34,8 @@ cudaDeviceProp createCUDAContext(int forceGPU = -1)
 
 	checkCudaErrors(cudaSetDevice(chosenDeviceIndex));
 
+	std::cout << "CUDA context created on device " << chosenDeviceIndex << " (" << deviceWithMostMemory.name << ")" << std::endl;
+
 	return deviceWithMostMemory;
 }
 

@@ -9,5 +9,3 @@ template<typename TYPE> struct array
 };
 
 typedef array<float> floatArray;
-typedef array<int> intArray;
-typedef array<unsigned int> uintArray;

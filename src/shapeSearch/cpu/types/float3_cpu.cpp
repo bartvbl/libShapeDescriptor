@@ -3,11 +3,6 @@
 #include "float2_cpu.h"
 
 
-float2_cpu to_float2(float3_cpu vec) {
-    return make_float2_cpu(vec.x, vec.y);
-}
-
-
 float length(float3_cpu vec) {
     return std::sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
 }

@@ -8,6 +8,9 @@
 // Valid values are DATATYPE_UNSIGNED_SHORT, DATATYPE_UNSIGNED_INT, DATATYPE_FLOAT32
 #define QSI_PIXEL_DATATYPE DATATYPE_UNSIGNED_INT
 
+// Same thing, for the spin image generator. Only DATATYPE_FLOAT is supported at this time.
+#define SI_PIXEL_DATATYPE DATATYPE_FLOAT
+
 // Resolution of the created spin images.
 // Their physical size depends on the size of individual cubes and is thus calculated separately.
 // Limitation: can not be more than 255 due to the array of bytes

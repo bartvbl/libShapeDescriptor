@@ -73,20 +73,10 @@ HostMesh hostLoadOBJ(std::string src, MeshFormat expectedOutputFormat, bool reco
 	unsigned int currentIndex = 0;
 
 	if (objFile.is_open()) {
-
-		//std::cout << "\tReading file.." << std::endl;
-
-		int lineNumber = -1;
 		while (std::getline(objFile, line)) {
 			lineParts.clear();
 			split(&lineParts, line, ' ');
 			deleteEmptyStrings(lineParts);
-
-			lineNumber++;
-			if(lineNumber % 10000 == 0)
-			{
-				//std::cout << "\r\t(" << lineNumber << " lines processed)";
-			}
 
 			if (lineParts.size() == 0) {
 				continue;
@@ -125,7 +115,6 @@ HostMesh hostLoadOBJ(std::string src, MeshFormat expectedOutputFormat, bool reco
 					int vertexIndex = std::stoi(faceParts.at(0)) - 1;
 					float3_cpu vertex = vertexBuffer.at(unsigned(vertexIndex));
 					vertices.push_back(vertex);
-                    //std::cout << "Vertex (" << vertex.x << ", " << vertex.y << ", " << vertex.z << "), size: " << vertices.size() << " and " << normals.size() << std::endl;
 
 					if(currentIndex == 0) {
 						boundingBoxMin = vertex;
@@ -175,26 +164,12 @@ HostMesh hostLoadOBJ(std::string src, MeshFormat expectedOutputFormat, bool reco
 				if(!normalsFound) {
                     float3_cpu normal = hostComputeTriangleNormal(vertices, vertices.size() - 3);
 
-                    //std::cout << "(" << side0.x << ", " << side0.y << ", "<< side0.z << ") + (" << side1.x << ", " << side1.y << ", "<< side1.z << ") -> " << normal.x << ", " << normal.y << ", "<< normal.z << ")" << std::endl;
-                    //std::cout << "Meta: " << normalsFound << std::endl;
-
-
                     normals.push_back(normal);
                     normals.push_back(normal);
                     normals.push_back(normal);
-
-
-					//std::cout<< "(" << normals.at(normals.size() - 3).x << ", " << normals.at(normals.size() - 3).y << ", "<< normals.at(normals.size() - 3).z << ") + (" << vertices.at(vertices.size() - 3).x << ", " << vertices.at(vertices.size() - 3).y << ", "<< vertices.at(vertices.size() - 3).z << ")" << std::endl;
-                    //std::cout<< "(" << normals.at(normals.size() - 2).x << ", " << normals.at(normals.size() - 2).y << ", "<< normals.at(normals.size() - 2).z << ") + (" << vertices.at(vertices.size() - 2).x << ", " << vertices.at(vertices.size() - 2).y << ", "<< vertices.at(vertices.size() - 2).z << ")" << std::endl;
-                    //std::cout<< "(" << normals.at(normals.size() - 1).x << ", " << normals.at(normals.size() - 1).y << ", "<< normals.at(normals.size() - 1).z << ") + (" << vertices.at(vertices.size() - 1).x << ", " << vertices.at(vertices.size() - 1).y << ", "<< vertices.at(vertices.size() - 1).z << ")" << std::endl;
 				}
 			}
 		}
-		//std::cout << std::endl;
-
-		//std::cout << "\tCopying buffers.." << std::endl;
-
-		//std::cout << "Normal buffer status: (" << normalBuffer.size() << ", " << normals.size() << ")" << std::endl;
 
         if(recomputeNormals) {
             for(int index = 0; index < indices.size(); index+=3) {
@@ -269,8 +244,6 @@ float3_cpu hostComputeTriangleNormal(std::vector<float3_cpu> &vertices, unsigned
     glm::vec3 glmNormal = normalize(glm::cross(glmSide0, glmSide1));
 
     float3_cpu normal = make_float3_cpu(glmNormal.x, glmNormal.y, glmNormal.z);
-
-    //std::cout << side0 << " and " << side1 << " -> " << normal << std::endl;
 
     return normal;
 }

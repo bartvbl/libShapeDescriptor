@@ -1,7 +1,7 @@
 #pragma once
 
-#include <shapeSearch/gpu/types/DeviceMesh.h>
-#include "shapeSearch/common/types/arrayTypes.hpp"
+#include <shapeSearch/common/types/MeshFormat.h>
+#include "shapeSearch/common/types/array.h"
 #include "float3_cpu.h"
 #include "float2_cpu.h"
 
@@ -57,14 +57,5 @@ struct HostMesh {
 		boundingBoxMin = {0, 0, 0};
 		boundingBoxMax = {5, 5, 5};
 	}
-
-	void deleteMesh() {
-		delete[] vertices;
-		delete[] normals;
-		delete[] indices;
-		delete[] textureCoordinates;
-	}
-
-
 };
 

@@ -16,7 +16,7 @@
 
 #include <shapeSearch/gpu/types/DeviceMesh.h>
 #include <shapeSearch/gpu/types/CudaLaunchDimensions.h>
-#include <shapeSearch/gpu/utilityKernels.cuh>
+#include <shapeSearch/gpu/setValue.cuh>
 
 #define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
 
@@ -233,8 +233,6 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 
 	for (int triangleIndex = threadIdx.x; triangleIndex < mesh.indexCount / 3; triangleIndex += SPIN_IMAGE_GENERATION_WARP_SIZE)
 	{
-		// START OF SAMPLING
-
 		SampleBounds bounds = calculateSampleBounds(areaArray, triangleIndex, sampleCount);
 
 		for(unsigned int sample = 0; sample < bounds.sampleCount; sample++)
@@ -308,7 +306,6 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 		}
 	}
 }
-
 
 
 VertexDescriptors createClassicDescriptors(DeviceMesh device_mesh, cudaDeviceProp device_information, size_t sampleCount)

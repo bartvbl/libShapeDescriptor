@@ -12,5 +12,4 @@ void compressMSI(array<unsigned int> msiImage, unsigned long long* compressedIma
 		}
 		compressedImage[row] = pixelRowBits.to_ullong();
 	}
-
 }

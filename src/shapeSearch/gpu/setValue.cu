@@ -1,4 +1,4 @@
-#include "utilityKernels.cuh"
+#include "setValue.cuh"
 #include <device_launch_parameters.h>
 
 #include <shapeSearch/libraryBuildSettings.h>

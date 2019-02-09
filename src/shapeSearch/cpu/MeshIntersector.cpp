@@ -22,22 +22,10 @@ std::vector<IntersectionCluster> linkIntersectionEdges(std::vector<IntersectionL
     return clusteredEdges;
 }
 
-
-
-/*std::vector<IntersectionLineSegment> intersectPlane(Mesh mesh, float3 origin, float3 normal, float planeAngleRadians) {
-
-    glm::mat4 alignmentTransformation = generateAlignmentTransformation(origin, normal, planeAngleRadians);
-
-    std::vector<IntersectionLineSegment> intersectingEdges = findPlaneIntersections(mesh, alignmentTransformation);
-
-    return intersectingEdges;
-}*/
-
 glm::mat4 generateAlignmentTransformation(const float3_cpu &origin, const float3_cpu &normal, const float &planeAngleRadians) {
     const glm::vec3 targetCoordinateSystemX(1, 0, 0);
     const glm::vec3 targetCoordinateSystemY(0, -1, 0);
     const glm::vec3 targetCoordinateSystemZ(0, 0, 1);
-
 
     // COLUMN major order
     float targetTransform[16] = {
@@ -73,6 +61,7 @@ glm::mat4 generateAlignmentTransformation(const float3_cpu &origin, const float3
 
     return alignmentTransformation;
 }
+
 void computePlaneIntersections(glm::vec4 vertices[], unsigned int triangleCount, glm::mat4 transformations[], std::vector<IntersectionLineSegment> intersections[], const int planeStepCount) {
 
 #pragma omp for
@@ -229,17 +218,11 @@ std::vector<IntersectionCluster> linkEdgeChains(std::vector<IntersectionLineSegm
                     changesOccurred = true;
                     otherClusterIndex--;
                 }
-
-
             }
         }
     }
 
     return clusters;
-}
-
-float3_cpu vec4tofloat3(glm::vec4 in) {
-    return make_float3_cpu(in.x, in.y, in.z);
 }
 
 void assignEdge(VertexAtZeroCrossing &edge, glm::vec4 vertex0, glm::vec4 vertex1) {

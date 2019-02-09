@@ -37,5 +37,4 @@ inline float2_cpu make_float2_cpu(float x, float y) {
     return out;
 }
 
-float2_cpu to_float2_cpu(float3_cpu vec);
 float2_cpu normalize(float2_cpu in);

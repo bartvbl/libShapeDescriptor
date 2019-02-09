@@ -242,7 +242,6 @@ void hostRasteriseTriangle(array<unsigned int> descriptor, float3_cpu *vertices,
 					size_t jobPixelIndex = jobSpinImageBaseIndex + jobX;
 #pragma omp atomic
 					descriptor.content[jobPixelIndex] += 2;
-					//std::cout << jobX << ", " << jobPixelYCoordinate << ": 2" << std::endl;
 				}
 			}
 
@@ -251,7 +250,6 @@ void hostRasteriseTriangle(array<unsigned int> descriptor, float3_cpu *vertices,
 				size_t jobPixelIndex = jobSpinImageBaseIndex + jobX;
 #pragma omp atomic
 				descriptor.content[jobPixelIndex] += 1;
-				//std::cout << jobX << ", " << jobPixelYCoordinate << ": 1" << std::endl;
 			}
 		}
 	}

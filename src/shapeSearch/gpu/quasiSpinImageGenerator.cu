@@ -6,7 +6,7 @@
 #include <shapeSearch/gpu/types/DeviceMesh.h>
 #include <shapeSearch/gpu/types/GPURasterisationSettings.h>
 #include <shapeSearch/gpu/types/CudaLaunchDimensions.h>
-#include <shapeSearch/gpu/utilityKernels.cuh>
+#include <shapeSearch/gpu/setValue.cuh>
 #include <shapeSearch/libraryBuildSettings.h>
 #include <shapeSearch/common/types/QSIPrecalculatedSettings.h>
 
@@ -31,10 +31,6 @@ const int SHORT_DOUBLE_ONE_MASK = 0x00000002;
 const int SHORT_DOUBLE_FIRST_MASK = 0x00020000;
 #endif
 
-
-
-
-
 // Dynamic parallelism has a thread count limit, causing the optimal batch size to be different when it's disabled
 // TODO: consider tuning the launch thread batch size.
 // We currently only launch one warp per spin image. May consider launching more at a time to improve cache coherency (for instructions).
@@ -44,8 +40,6 @@ const int LAUNCH_THREAD_BATCH_SIZE = 32;
 
 // The number of triangles within a partition (cube) should be handled by
 const int RASTERISATION_WARP_SIZE = 1024;
-
-#define MAX_EQUIVALENCE_ROUNDING_ERROR 0.001
 
 __device__ __inline__ QSIPrecalculatedSettings calculateRotationSettings(float3 spinImageNormal);
 
@@ -117,9 +111,6 @@ __device__ __inline__ void rasteriseRow(int pixelBaseIndex, newSpinImagePixelTyp
 	// We use shifts because the actual size of uintprt_t is not known. Could be 40-bit.
 	unsigned int* jobAlignedPointer = (unsigned int*)((((uintptr_t)jobBasePixelPointer) >> 2) << 2);
 
-	//printf("%p + %p = %p must equal %p -> rounded: %p\n", descriptorArray, pixelBaseIndex, rowStartPointer, jobBasePixelPointer, jobAlignedPointer);
-
-
 	int pixelCount = pixelEnd - pixelStart;
 
 	// Zero pixel counts and unchecked pixel ranges can still exist at this point.
@@ -130,7 +121,6 @@ __device__ __inline__ void rasteriseRow(int pixelBaseIndex, newSpinImagePixelTyp
 	{
 		return;
 	}
-
 
 	assert((unsigned long) (jobBasePixelPointer) - (unsigned long) (jobAlignedPointer) == 0 || (unsigned long) (jobBasePixelPointer) - (unsigned long) (jobAlignedPointer) == 2);
 
@@ -155,8 +145,6 @@ __device__ __inline__ void rasteriseRow(int pixelBaseIndex, newSpinImagePixelTyp
 	while (pixelCount > 0)
 	{
 		unsigned int* updateAddress = jobAlignedPointer + jobPointerOffset;
-
-		//printf("(%p, %p) -> %i, %u\n", updateAddress, descriptorArray, pixelCount, jobPointerOffset);
 
 		atomicAdd(updateAddress, currentMask);
 
@@ -196,8 +184,6 @@ __device__ __inline__ QSIPrecalculatedSettings calculateRotationSettings(float3 
 	}
 
 	float transformedNormalX = transformNormalX(pre_settings, spinImageNormal);
-
-
 
 	float2 sineCosineBeta = normalize(make_float2(transformedNormalX, spinImageNormal.z));
 
@@ -347,7 +333,6 @@ __device__ __inline__ void rasteriseTriangle(
 		float2 jobShortVectorStartXY;
 		float2 jobShortTransformedDelta;
 
-	
 		int jobMinYPixels = minPixels;
 		int jobPixelY = jobMinYPixels + jobID;
 
@@ -363,7 +348,6 @@ __device__ __inline__ void rasteriseTriangle(
 		jobDeltaMinMidXY = deltaMinMidXY;
 
 		jobDeltaMidMaxXY = deltaMidMaxXY;
-
 
 		jobVertexIndexIndex = settings.vertexIndexIndex;
 
@@ -397,7 +381,6 @@ __device__ __inline__ void rasteriseTriangle(
 		float jobShortDistanceInTriangle = jobZLevel - jobShortVectorStartZ;
 		float jobShortInterpolationFactor = (jobShortDeltaVectorZ == 0) ? 1.0f : jobShortDistanceInTriangle / jobShortDeltaVectorZ;
 		// Set value to 1 because we want to avoid a zero division, and we define the job Z level to be at its maximum height
-
 
 		int jobPixelYCoordinate = jobPixelY + (spinImageWidthPixels / 2);
 		// Avoid overlap situations, only rasterise is the interpolation factors are valid
@@ -467,19 +450,14 @@ __device__ __inline__ void rasteriseTriangle(
 				// Now that we have already covered single intersections in the range minPixels -> doubleIntersectionEndPixels, we move the starting point for the next loop.
 				// Not needed because the double intersection range is always smaller than the closest edge point
 				//rowStartPixels = doubleIntersectionStartPixels + 1;
-
 			}
 
 #if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT || QSI_PIXEL_DATATYPE == DATATYPE_FLOAT32
 			// It's imperative the condition of this loop is a < comparison
-			//printf("Single: %i -> %i to %i\n", jobPixelY, jobRowStartPixels, jobRowEndPixels);
 			for (int jobX = jobRowStartPixels; jobX < jobRowEndPixels; jobX++)
 			{
 	#if !ENABLE_SHARED_MEMORY_IMAGE
 				size_t jobPixelIndex = jobSpinImageBaseIndex + jobX;
-
-
-				//printf("(%i, %i, %i), ", jobVertexIndexIndex, jobX, jobPixelYCoordinate);
 				atomicAdd(&(descriptors.content[jobPixelIndex]), 1);
 	#else
 				int jobPixelIndex = jobPixelYCoordinate * spinImageWidthPixels + jobX;
@@ -496,7 +474,6 @@ __device__ __inline__ void rasteriseTriangle(
 	#endif
 			rasteriseRow(jobBaseIndex, descriptorArrayPointer, jobRowStartPixels, jobRowEndPixels, SHORT_SINGLE_ONE_MASK, SHORT_SINGLE_BOTH_MASK, SHORT_SINGLE_FIRST_MASK);
 #endif
-
 		}
 	}
 }
@@ -507,8 +484,6 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void rasteriseTriangles(
 {
 	// One block x-coordinate per image
 	settings.vertexIndexIndex = blockIdx.x;
-	//assert(settings.vertexIndexIndex >= 0);
-	//assert(settings.vertexIndexIndex < settings.mesh.vertexCount);
 
 	// Copying over precalculated values
 	settings.spinImageVertex.x = settings.mesh.vertices_x[settings.vertexIndexIndex];
@@ -537,17 +512,15 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void rasteriseTriangles(
 #endif
 
 	const size_t triangleCount = settings.mesh.indexCount / 3;
-	for (int warpTriangleIndexIndex = 0;
-		warpTriangleIndexIndex < triangleCount;
-		warpTriangleIndexIndex += RASTERISATION_WARP_SIZE)
+	for (int triangleIndex = threadIdx.x;
+		 triangleIndex < triangleCount;
+		 triangleIndex += RASTERISATION_WARP_SIZE)
 	{
-		int triangleIndexIndex = warpTriangleIndexIndex + threadIdx.x;
-		
 		assert(__activemask() == 0xFFFFFFFF);
 
 		float3 vertices[3];
 
-		size_t triangleBaseIndex = 3 * triangleIndexIndex;
+		size_t triangleBaseIndex = 3 * triangleIndex;
 
 		size_t threadTriangleIndex0 = triangleBaseIndex + 0;
 		size_t threadTriangleIndex1 = triangleBaseIndex + 1;
@@ -605,7 +578,6 @@ __global__ void createNewDescriptors(
 	array<QSIPrecalculatedSettings> precalculated,	DeviceMesh mesh, array<newSpinImagePixelType> descriptors)
 {
 	int batchThreadIndex = blockIdx.x * blockDim.x + threadIdx.x;
-
 
 	// Threads are reused in case of large models. These cause an excessive number of threads to be spawned.
 

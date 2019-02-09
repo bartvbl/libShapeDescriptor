@@ -4,8 +4,8 @@
 #include <shapeSearch/cpu/types/CPURasterisationSettings.h>
 #include <shapeSearch/cpu/types/float3_cpu.h>
 
-#include "shapeSearch/common/OBJLoader.h"
-#include "shapeSearch/common/types/arrayTypes.hpp"
+#include "shapeSearch/utilities/OBJLoader.h"
+#include "shapeSearch/common/types/array.h"
 
 
 

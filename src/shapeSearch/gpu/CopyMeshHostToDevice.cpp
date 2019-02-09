@@ -1,4 +1,4 @@
-#include "HostToDeviceMesh.h"
+#include "CopyMeshHostToDevice.h"
 
 #include <shapeSearch/cpu/types/HostMesh.h>
 #include <shapeSearch/gpu/types/DeviceMesh.h>

@@ -9,6 +9,8 @@
  *
  */
 
+ /*
+
 // Shuffle intrinsics CUDA Sample
 // This sample demonstrates the use of the shuffle intrinsic
 // First, a simple example of a prefix sum using the shuffle to
@@ -205,4 +207,4 @@ void shuffle_prefix_scan_int(int * device_input, int * device_output, int elemen
 void shuffle_prefix_scan_uint(unsigned int * device_input, unsigned int * device_output, int elementCount)
 {
 	shuffle_prefix_scan<unsigned int>(device_input, device_output, elementCount);
-}
+}*/

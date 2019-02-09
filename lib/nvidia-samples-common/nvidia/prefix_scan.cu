@@ -2,7 +2,7 @@
 #include <device_launch_parameters.h>
 #include "prefix_scan.cuh"
 
-const int BLOCK_SIZE = 32;
+//const int BLOCK_SIZE = 32;
 
 // From: https://gist.github.com/wh5a/4500706
 /*__global__ void prescan(float * input, float * output, int len) {

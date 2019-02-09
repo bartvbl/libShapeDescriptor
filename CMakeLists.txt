@@ -3,7 +3,7 @@ project(ShapeSearch CXX CUDA)
 cmake_minimum_required (VERSION 3.0)
 
 if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 endif()
 
 if (MSVC)

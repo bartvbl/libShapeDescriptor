@@ -9,9 +9,3 @@
 
 void hostGenerateQSI(array<unsigned int> descriptor, CPURasterisationSettings settings);
 array<unsigned int> hostGenerateQSIAllVertices(CPURasterisationSettings settings);
-
-// utility functions
-float3_cpu hostTransformCoordinate(float3_cpu vertex, float3_cpu spinImageVertex, float3_cpu spinImageNormal);
-
-
-

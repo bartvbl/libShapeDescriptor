@@ -338,14 +338,14 @@ VertexDescriptors createClassicDescriptors(DeviceMesh device_mesh, cudaDevicePro
 	device_cumulativeAreaArray.length = (unsigned) areaArrayLength;
 
 	std::cout << "\t- Initialising descriptor array" << std::endl;
-	CudaLaunchDimensions valueSetSettings = calculateCUDASettings(descriptorBufferLength, device_information);
+	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength, device_information);
 	setValue <classicSpinImagePixelType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.classicDescriptorArray.content, descriptorBufferLength, 0);
 
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 
 	std::cout << "\t- Calculating areas" << std::endl;
-    CudaLaunchDimensions areaSettings = calculateCUDASettings(device_areaArray.length, device_information);
+    CudaLaunchDimensions areaSettings = calculateCudaLaunchDimensions(device_areaArray.length, device_information);
 	calculateAreas <<<areaSettings.blocksPerGrid, areaSettings.threadsPerBlock >>> (device_areaArray, device_mesh);
 
 	cudaDeviceSynchronize();
@@ -354,7 +354,8 @@ VertexDescriptors createClassicDescriptors(DeviceMesh device_mesh, cudaDevicePro
 	
 
 	std::cout << "\t- Calculating sample values" << std::endl;
-    CudaLaunchDimensions cumulativeAreaSettings = calculateCUDASettings(device_areaArray.length, device_information);
+    CudaLaunchDimensions cumulativeAreaSettings = calculateCudaLaunchDimensions(device_areaArray.length,
+																				device_information);
 	calculateCumulativeAreas<<<cumulativeAreaSettings.blocksPerGrid, cumulativeAreaSettings.threadsPerBlock>>>(device_areaArray, device_cumulativeAreaArray);
 	//shuffle_prefix_scan_float(device_areaArray.content, device_cumulativeAreaArray.content, device_areaArray.length);
 
@@ -371,7 +372,8 @@ VertexDescriptors createClassicDescriptors(DeviceMesh device_mesh, cudaDevicePro
 	curandState* device_randomState;
 	checkCudaErrors(cudaMalloc(&device_randomState, sizeof(curandState) * (size_t)SAMPLE_COEFFICIENT_THREAD_COUNT));
 
-    CudaLaunchDimensions sampleSettings = calculateCUDASettings(SAMPLE_COEFFICIENT_THREAD_COUNT, device_information);
+    CudaLaunchDimensions sampleSettings = calculateCudaLaunchDimensions(SAMPLE_COEFFICIENT_THREAD_COUNT,
+																		device_information);
 
 	array<float2> device_coefficients;
 	checkCudaErrors(cudaMalloc(&device_coefficients.content, sizeof(float2) * sampleCount));

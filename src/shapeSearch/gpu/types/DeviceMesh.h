@@ -1,6 +1,5 @@
 #pragma once
 #include "shapeSearch/common/types/array.h"
-#include <shapeSearch/common/types/MeshFormat.h>
 #include <host_defines.h>
 
 struct DeviceMesh {

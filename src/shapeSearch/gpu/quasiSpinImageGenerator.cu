@@ -627,7 +627,7 @@ VertexDescriptors createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDevicePr
 	device_descriptors.isClassic = false;
 
 	std::cout << "\t- Initialising descriptor array" << std::endl;
-	CudaLaunchDimensions valueSetSettings = calculateCUDASettings(descriptorBufferLength, device_information);
+	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength, device_information);
 	setValue<newSpinImagePixelType><< <valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >> > (device_descriptors.newDescriptorArray.content, descriptorBufferLength, 0);
 
 	cudaDeviceSynchronize();
@@ -639,7 +639,9 @@ VertexDescriptors createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDevicePr
 	checkCudaErrors(cudaMalloc<QSIPrecalculatedSettings>(&device_precalculatedSettings.content, precalculatedBufferSize));
 	device_precalculatedSettings.length = imageCount;
 
-	CudaLaunchDimensions settings = calculateCUDASettings(imageCount < size_t(LAUNCH_THREAD_BATCH_SIZE) ? imageCount : size_t(LAUNCH_THREAD_BATCH_SIZE), device_information);
+	CudaLaunchDimensions settings = calculateCudaLaunchDimensions(
+			imageCount < size_t(LAUNCH_THREAD_BATCH_SIZE) ? imageCount : size_t(LAUNCH_THREAD_BATCH_SIZE),
+			device_information);
 	auto start = std::chrono::steady_clock::now();
 
 	std::cout << "\t- Running spin image kernel" << std::endl;

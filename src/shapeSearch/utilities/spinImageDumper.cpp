@@ -10,7 +10,7 @@
 #include <lodepng.h>
 
 template<typename spinPixelType>
-void performSpinDump(array<spinPixelType> descriptors, OutputImageSettings imageSettings, unsigned int imagesPerRow) {
+void performSpinDump(array<spinPixelType> descriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
 	size_t rowCount = (descriptors.length / imagesPerRow) + 1;
 	std::cout << "Dumping " << rowCount << " rows containing " << descriptors.length << " images." << std::endl;
 
@@ -93,7 +93,7 @@ void performSpinDump(array<spinPixelType> descriptors, OutputImageSettings image
 					size_t pixel_index = size_t(spinImageWidthPixels) * size_t(spinImageWidthPixels) * imageIndex + size_t(spinImageWidthPixels) * y + x;
 					spinPixelType pixelValue = descriptors.content[pixel_index];
 					float normalised;
-					if (imageSettings.enableLogImage) {
+					if (logarithmicImage) {
 						normalised = (std::log(std::max(0.0f, float(pixelValue))) / float(std::log(max))) * 255.0f;
 					} else
 					{
@@ -124,9 +124,9 @@ void performSpinDump(array<spinPixelType> descriptors, OutputImageSettings image
 		}
 	}
 
-	std::cout << "Writing image file.. " << imageSettings.imageDestinationFile << std::endl;
+	std::cout << "Writing image file.. " << imageDestinationFile << std::endl;
 
-	unsigned error = lodepng::encode(imageSettings.imageDestinationFile, imageData, width, height);
+	unsigned error = lodepng::encode(imageDestinationFile, imageData, width, height);
 
 	if(error)
 	{
@@ -134,16 +134,16 @@ void performSpinDump(array<spinPixelType> descriptors, OutputImageSettings image
 	}
 }
 
-void dumpImages(VertexDescriptors descriptors, OutputImageSettings imageSettings, unsigned int imagesPerRow)
+void dumpImages(VertexDescriptors descriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
 	if(descriptors.isClassic) {
-		performSpinDump<classicSpinImagePixelType> (descriptors.classicDescriptorArray, imageSettings, imagesPerRow);
+		performSpinDump<classicSpinImagePixelType> (descriptors.classicDescriptorArray, imageDestinationFile, logarithmicImage, imagesPerRow);
 	} else if(descriptors.isNew) {
-		performSpinDump<newSpinImagePixelType> (descriptors.newDescriptorArray, imageSettings, imagesPerRow);
+		performSpinDump<newSpinImagePixelType> (descriptors.newDescriptorArray, imageDestinationFile, logarithmicImage, imagesPerRow);
 	}
 }
 
-void dumpCompressedImages(array<unsigned int> compressedDescriptors, OutputImageSettings imageSettings, unsigned int imagesPerRow) {
+void dumpCompressedImages(array<unsigned int> compressedDescriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
 	array<unsigned int> decompressedDesciptors;
 	size_t imageTotalPixelCount = compressedDescriptors.length * spinImageWidthPixels * spinImageWidthPixels;
 
@@ -161,9 +161,7 @@ void dumpCompressedImages(array<unsigned int> compressedDescriptors, OutputImage
 		}
 	}
 
-	imageSettings.imageDestinationFile = imageSettings.compressedDestinationFile;
-
-	performSpinDump<unsigned int>(decompressedDesciptors, imageSettings, imagesPerRow);
+	performSpinDump<unsigned int>(decompressedDesciptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
 void dumpRawCompressedImages(array<unsigned int> compressedDescriptors, std::string destination, unsigned int imagesPerRow) {

@@ -47,7 +47,7 @@ inline float3_cpu elementWiseMax(float3_cpu v1, float3_cpu v2)
 	return output;
 }
 
-HostMesh hostLoadOBJ(std::string src, MeshFormat expectedOutputFormat, bool recomputeNormals)
+HostMesh hostLoadOBJ(std::string src, bool recomputeNormals)
 {
 	std::vector<std::string> lineParts;
 	lineParts.reserve(32);
@@ -200,7 +200,6 @@ HostMesh hostLoadOBJ(std::string src, MeshFormat expectedOutputFormat, bool reco
 
 		mesh.vertices = meshVertexBuffer;
 		mesh.normals = meshNormalBuffer;
-		mesh.textureCoordinates = meshTextureCoordBuffer;
 
 		mesh.indices = meshIndexBuffer;
 
@@ -209,8 +208,6 @@ HostMesh hostLoadOBJ(std::string src, MeshFormat expectedOutputFormat, bool reco
 
 		mesh.boundingBoxMin = boundingBoxMin;
 		mesh.boundingBoxMax = boundingBoxMax;
-
-		mesh.dataFormat = VERTICES_TEXCOORDS_NORMALS;
 
 		return mesh;
 	}

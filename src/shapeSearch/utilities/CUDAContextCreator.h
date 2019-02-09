@@ -3,4 +3,4 @@
 #include "cuda_runtime.h"
 
 cudaDeviceProp createCUDAContext(int forceGPU);
-void printGPUProperties();
+void printGPUProperties(unsigned int deviceIndex);

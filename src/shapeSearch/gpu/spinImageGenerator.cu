@@ -17,17 +17,13 @@
 #include <shapeSearch/gpu/types/DeviceMesh.h>
 #include <shapeSearch/gpu/types/CudaLaunchDimensions.h>
 #include <shapeSearch/gpu/setValue.cuh>
+#include <shapeSearch/utilities/spinImageDumper.h>
 
 #define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
 
 // Classical spin image generation constants
 // Number of threads per warp in classical spin image generation
 const int SPIN_IMAGE_GENERATION_WARP_SIZE = 32;
-
-__device__ __inline__ float signedArea(float2 p1, float2 p2, float2 p3)
-{
-	return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
-}
 
 __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNormal, float3 point)
 {
@@ -49,18 +45,7 @@ __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNo
 	return alphabeta;
 }
 
-
-__device__ __inline__ float calculateScaleFactor(float3 vector1, float3 vector2)
-{
-	return dot(vector1, vector2) / dot(vector2, vector2);
-}
-
-__device__ __inline__ bool isValueEquivalent(float value1, float value2)
-{
-	return abs(value1 - value2) < 0.001;
-}
-
-__device__ __inline__ void lookupTriangleVertices(DeviceMesh mesh, int triangleIndex, float3* triangleVertices) {
+__device__ __inline__ void lookupTriangleVertices(DeviceMesh mesh, int triangleIndex, float3 (&triangleVertices)[3]) {
 	assert(triangleIndex >= 0);
 	assert((3 * triangleIndex) + 2 < mesh.indexCount);
 
@@ -182,8 +167,13 @@ __global__ void createSampledMesh(DeviceMesh mesh, array<float> areaArray, array
 		size_t sampleIndex = bounds.sampleStartIndex + sample;
 
 		if(sampleIndex >= sampleCount) {
-			printf("Sample %i/%i was skipped.\n", bounds.sampleStartIndex + sample, bounds.sampleCount);
-			continue;
+		    /*printf("Sample was out of bounds\n");
+            printf("Bounds start: %i.\n", bounds.areaStart);
+            printf("Bounds end: %i.\n", bounds.areaEnd);
+            printf("Bounds sample start index: %i.\n", bounds.sampleStartIndex);
+            printf("Bounds sample count: %i.\n", bounds.sampleCount);
+*/
+		    continue;
 		}
 
 		float v1 = coefficients.content[sampleIndex].x;
@@ -240,7 +230,7 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 			size_t sampleIndex = bounds.sampleStartIndex + sample;
 
 			if(sampleIndex >= sampleCount) {
-				printf("Sample %i/%i was skipped.\n", sampleIndex, bounds.sampleCount);
+				printf("Sample %i/%i/%i was skipped.\n", sampleIndex, bounds.sampleCount, sampleCount);
 				continue;
 			}
 
@@ -258,7 +248,7 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 			float interPixelX = floatSpinImageCoordinateX - floorf(floatSpinImageCoordinateX);
 			float interPixelY = floatSpinImageCoordinateY - floorf(floatSpinImageCoordinateY);
 
-			const unsigned int halfSpinImageSizePixels = spinImageWidthPixels / 2;
+			const int halfSpinImageSizePixels = spinImageWidthPixels / 2;
 
             if (baseSpinImageCoordinateX + 0 >= 0 &&
                 baseSpinImageCoordinateX + 0 < spinImageWidthPixels &&
@@ -397,7 +387,7 @@ array<classicSpinImagePixelType> createClassicDescriptors(DeviceMesh device_mesh
 
 	dim3 blockSizes;
 	blockSizes.x = device_mesh.vertexCount; // Run one 3x3x3 area for each image
-	blockSizes.y = 27; // 3 x 3 x 3 area around the cube containing the vertex
+	blockSizes.y = 1; // 3 x 3 x 3 area around the cube containing the vertex
 	blockSizes.z = 1;  // Just a single dimension.
 
 	auto start = std::chrono::steady_clock::now();
@@ -419,6 +409,6 @@ array<classicSpinImagePixelType> createClassicDescriptors(DeviceMesh device_mesh
 
 	checkCudaErrors(cudaMemcpy(host_descriptors.content, device_descriptors.content, descriptorBufferSize, cudaMemcpyDeviceToHost));
 
-	return device_descriptors;
+	return host_descriptors;
 }
 

@@ -14,7 +14,7 @@
 // Resolution of the created spin images.
 // Their physical size depends on the size of individual cubes and is thus calculated separately.
 // Limitation: can not be more than 255 due to the array of bytes
-#define spinImageWidthPixels 2048
+#define spinImageWidthPixels 64
 
 // By default, the quasi spin image is generated entirely in main memory. This setting forces it to generate the image
 // in shared memory instead, copying it to main memory on completion instead.

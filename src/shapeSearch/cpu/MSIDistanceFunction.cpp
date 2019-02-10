@@ -24,7 +24,7 @@ inline unsigned int compareImageRows(unsigned long long needleRow, unsigned long
 	const unsigned int distanceLimit = 2;
 	unsigned long long dilatedMask = needleRow;
 
-	for(int i = 0; i < distanceLimit; i++) {
+	for(unsigned int i = 0; i < distanceLimit; i++) {
 		dilatedMask = dilatedMask | ((needleRow >> distance) | (needleRow << distance));
 	}
 

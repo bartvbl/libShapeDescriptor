@@ -607,7 +607,7 @@ __global__ void createNewDescriptors(
 	}
 }
 
-array<newSpinImagePixelType> createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDeviceProp device_information)
+array<newSpinImagePixelType> createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDeviceProp device_information, float spinImageWidth)
 {
 	array<newSpinImagePixelType> device_descriptors;
 
@@ -671,6 +671,6 @@ array<newSpinImagePixelType> createDescriptorsNewstyle(DeviceMesh device_mesh, c
 
 	checkCudaErrors(cudaMemcpy(host_descriptors.content, device_descriptors.content, descriptorBufferSize, cudaMemcpyDeviceToHost));
 
-	return device_descriptors;
+	return host_descriptors;
 }
 

@@ -5,4 +5,4 @@
 
 #include "cuda_runtime.h"
 
-array<newSpinImagePixelType> createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDeviceProp device_information);
+array<newSpinImagePixelType> createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDeviceProp device_information, float spinImageWidth);

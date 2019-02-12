@@ -31,14 +31,6 @@ const int SHORT_DOUBLE_ONE_MASK = 0x00000002;
 const int SHORT_DOUBLE_FIRST_MASK = 0x00020000;
 #endif
 
-// Dynamic parallelism has a thread count limit, causing the optimal batch size to be different when it's disabled
-// TODO: consider tuning the launch thread batch size.
-// We currently only launch one warp per spin image. May consider launching more at a time to improve cache coherency (for instructions).
-// TODO: attempt larger block sizes
-
-const int LAUNCH_THREAD_BATCH_SIZE = 32;
-
-// The number of triangles within a partition (cube) should be handled by
 const int RASTERISATION_WARP_SIZE = 1024;
 
 __device__ __inline__ QSIPrecalculatedSettings calculateRotationSettings(float3 spinImageNormal);
@@ -62,9 +54,6 @@ __device__ __inline__ float3 transformCoordinate(float3 vertex, GPURasterisation
 	initialTransformedX = transformedCoordinate.x;
 	transformedCoordinate.x = spinImageSettings.alignmentProjection_n_bz * transformedCoordinate.x - spinImageSettings.alignmentProjection_n_bx * transformedCoordinate.z;
 	transformedCoordinate.z = spinImageSettings.alignmentProjection_n_bx * initialTransformedX + spinImageSettings.alignmentProjection_n_bz * transformedCoordinate.z;
-
-	// Account for that samples of pixels are considered centred. We thus need to add a distance value to each z-coordinate.
-	//stransformedCoordinate.z -= settings.nudgeDistance;
 
 	return transformedCoordinate;
 }
@@ -313,7 +302,6 @@ __device__ __inline__ void rasteriseTriangle(
 	// + 1 because we go from minPixels to <= maxPixels
 	jobCount++;
 
-	//printf("Job: start %i, length %i, corrected to %i\n", minPixels, jobCount, min(minPixels + jobCount, (spinImageWidthPixels / 2) - 1) - minPixels);
 	jobCount = min(minPixels + jobCount, (spinImageWidthPixels / 2)) - minPixels;
 
 	for(int jobID = 0; jobID < jobCount; jobID++) 
@@ -478,9 +466,9 @@ __device__ __inline__ void rasteriseTriangle(
 	}
 }
 
-__launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void rasteriseTriangles(
-	array<newSpinImagePixelType> descriptors,
-	GPURasterisationSettings settings)
+__launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImage(
+		array<newSpinImagePixelType> descriptors,
+		GPURasterisationSettings settings)
 {
 	// One block x-coordinate per image
 	settings.vertexIndexIndex = blockIdx.x;
@@ -572,99 +560,35 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void rasteriseTriangles(
 
 }
 
-__global__ void createNewDescriptors(
-	array<QSIPrecalculatedSettings> precalculated,	DeviceMesh mesh, array<newSpinImagePixelType> descriptors)
+array<newSpinImagePixelType> generateQuasiSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information,
+													 float spinImageWidth)
 {
-	int batchThreadIndex = blockIdx.x * blockDim.x + threadIdx.x;
-
-	// Threads are reused in case of large models. These cause an excessive number of threads to be spawned.
-
-	for (int threadIndex = batchThreadIndex; threadIndex < mesh.vertexCount; threadIndex += LAUNCH_THREAD_BATCH_SIZE) {
-	    GPURasterisationSettings settings;
-
-		settings.vertexIndexIndex = threadIndex;
-
-
-		assert(threadIndex >= 0);
-		assert(threadIndex < mesh.vertexCount);
-
-		settings.spinImageVertex.x = mesh.vertices_x[threadIndex];
-		settings.spinImageVertex.y = mesh.vertices_y[threadIndex];
-		settings.spinImageVertex.z = mesh.vertices_z[threadIndex];
-
-		float3 spinImageNormal;
-		spinImageNormal.x = mesh.normals_x[threadIndex];
-		spinImageNormal.y = mesh.normals_y[threadIndex];
-		spinImageNormal.z = mesh.normals_z[threadIndex];
-
-		QSIPrecalculatedSettings pre_settings = calculateRotationSettings(spinImageNormal);
-
-
-		precalculated.content[threadIndex].alignmentProjection_n_ax = pre_settings.alignmentProjection_n_ax;
-		precalculated.content[threadIndex].alignmentProjection_n_ay = pre_settings.alignmentProjection_n_ay;
-		precalculated.content[threadIndex].alignmentProjection_n_bx = pre_settings.alignmentProjection_n_bx;
-		precalculated.content[threadIndex].alignmentProjection_n_bz = pre_settings.alignmentProjection_n_bz;
-	}
-}
-
-array<newSpinImagePixelType> createDescriptorsNewstyle(DeviceMesh device_mesh, cudaDeviceProp device_information, float spinImageWidth)
-{
-	array<newSpinImagePixelType> device_descriptors;
-
-	std::cout << "\t- Allocating descriptor array" << std::endl;
-
 	size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
-
 	size_t descriptorBufferSize = sizeof(newSpinImagePixelType) * descriptorBufferLength;
-	std::cout << "\t (Allocating " << descriptorBufferSize << " bytes)" << std::endl;
+
+	array<newSpinImagePixelType> device_descriptors;
 	checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
 
 	size_t imageCount = device_mesh.vertexCount;
 	device_descriptors.length = imageCount;
 
-	std::cout << "\t- Initialising descriptor array" << std::endl;
 	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength, device_information);
 	setValue<newSpinImagePixelType><< <valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >> > (device_descriptors.content, descriptorBufferLength, 0);
-
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 
-	std::cout << "\t- Allocating precalculated settings array" << std::endl;
-	array<QSIPrecalculatedSettings> device_precalculatedSettings;
-	size_t precalculatedBufferSize = sizeof(QSIPrecalculatedSettings) * imageCount;
-	checkCudaErrors(cudaMalloc<QSIPrecalculatedSettings>(&device_precalculatedSettings.content, precalculatedBufferSize));
-	device_precalculatedSettings.length = imageCount;
-
-	CudaLaunchDimensions settings = calculateCudaLaunchDimensions(
-			imageCount < size_t(LAUNCH_THREAD_BATCH_SIZE) ? imageCount : size_t(LAUNCH_THREAD_BATCH_SIZE),
-			device_information);
 	auto start = std::chrono::steady_clock::now();
-
-	std::cout << "\t- Running spin image kernel" << std::endl;
-	createNewDescriptors << <settings.blocksPerGrid, settings.threadsPerBlock >> >(
-		device_precalculatedSettings,
-		device_mesh, device_descriptors);
-
-	// If dynamic parallelism is not used, we need to launch the threads we need manually.
-	// 32 threads per warp, 27 cubes evaluated per vertex, for each image
-
-	dim3 blockSizes;
-	blockSizes.x = unsigned(imageCount); // Run one 3x3x3 area for each image
-	blockSizes.y = 1;
-	blockSizes.z = 1;
-	std::cout << blockSizes.x << "x1x1 blocks launched" << std::endl;
 
 	GPURasterisationSettings generalSettings;
 	generalSettings.mesh = device_mesh;
 
-	rasteriseTriangles <<<blockSizes, RASTERISATION_WARP_SIZE>>> (device_descriptors, generalSettings);
+	generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors, generalSettings);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 
 	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
 	std::cout << "Execution time:" << duration.count() << std::endl;
 
-	std::cout << "\t- Copying results to CPU" << std::endl;
     array<newSpinImagePixelType> host_descriptors;
 	host_descriptors.content = new newSpinImagePixelType[imageCount * spinImageWidthPixels * spinImageWidthPixels];
 	host_descriptors.length = imageCount;

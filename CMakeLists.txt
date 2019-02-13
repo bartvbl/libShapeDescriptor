@@ -37,7 +37,7 @@ file (GLOB_RECURSE LIBRARY_SOURCES src/*.cpp
                                    src/*.cxx
                                    src/*.cc
                                    src/*.c
-                                   lib/lodepng/*.cpp)
+                                   lib/lodepng/lodepng.cpp)
 
 cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 

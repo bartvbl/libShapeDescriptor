@@ -282,6 +282,7 @@ array<unsigned int> hostGenerateQSIAllVertices(CPURasterisationSettings settings
 	// Reset the output descriptor
 	std::fill(descriptors.content, descriptors.content + descriptors.length, 0);
 
+#pragma omp parallel for
 	for(int vertex = 0; vertex < settings.mesh.vertexCount; vertex++) {
 		settings.vertexIndexIndex = vertex;
 		settings.spinImageVertex = settings.mesh.vertices[vertex];

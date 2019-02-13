@@ -595,6 +595,8 @@ array<newSpinImagePixelType> generateQuasiSpinImages(DeviceMesh device_mesh, cud
 
 	checkCudaErrors(cudaMemcpy(host_descriptors.content, device_descriptors.content, descriptorBufferSize, cudaMemcpyDeviceToHost));
 
+	cudaFree(device_descriptors.content);
+
 	return host_descriptors;
 }
 

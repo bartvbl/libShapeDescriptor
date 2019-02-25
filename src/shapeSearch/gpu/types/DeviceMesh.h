@@ -12,11 +12,10 @@ struct DeviceMesh {
     float* normals_z;
 
     size_t vertexCount;
-    size_t indexCount;
 
 	__host__ __device__ DeviceMesh() {
 		vertexCount = 0;
-		indexCount = 0;
 	}
 };
 
+void freeDeviceMesh(DeviceMesh mesh);

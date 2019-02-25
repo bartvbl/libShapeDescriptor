@@ -4,7 +4,7 @@
 #include <curand_mtgp32_kernel.h>
 #include <tgmath.h>
 #include <assert.h>
-#include "../../../lib/nvidia-samples-common/nvidia/helper_cuda.h"
+#include "nvidia/helper_cuda.h"
 
 #define COMPARISON_BLOCK_SIZE 32
 
@@ -28,118 +28,129 @@ __inline__ __device__ float warpAllReduceSum(float val) {
 	return val;
 }
 
-__device__ void compareSingleImagePair(const array<float> &correlations, size_t imageCount, unsigned int spinImageIndex,
-									   const int spinImageElementCount, float sumX, float expectedPart1,
-									   unsigned int otherImageIndex, size_t correlationIndex) {
-	float threadPartialSumY = 0;
-	float threadPartialSquaredSumY = 0;
-	float threadPartialMultiplicativeSum = 0;
+__device__ float computeImagePairCorrelation(array<newSpinImagePixelType> descriptors,
+                                             array<newSpinImagePixelType> otherDescriptors,
+                                             size_t spinImageIndex,
+                                             size_t otherImageIndex,
+                                             float averageX, float averageY) {
+	float threadSquaredSumX = 0;
+	float threadSquaredSumY = 0;
+	float threadMultiplicativeSum = 0;
 
 	for (int y = 0; y < spinImageWidthPixels; y++)
 	{
-		#pragma unroll
 		for (int x = threadIdx.x; x < spinImageWidthPixels; x += blockDim.x)
 		{
-			float pixelValueX = descriptors.content[spinImageIndex  * spinImageElementCount + (y * spinImageWidthPixels + x)];
-			float pixelValueY = descriptors.content[otherImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
+            const unsigned int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
 
-			threadPartialSumY += pixelValueY;
-			threadPartialSquaredSumY += pixelValueY * pixelValueY;
-			threadPartialMultiplicativeSum += pixelValueX * pixelValueY;
+            newSpinImagePixelType pixelValueX = descriptors.content[spinImageIndex  * spinImageElementCount + (y * spinImageWidthPixels + x)];
+            newSpinImagePixelType pixelValueY = otherDescriptors.content[otherImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
+
+			float deltaX = pixelValueX - averageX;
+			float deltaY = pixelValueY - averageY;
+
+			threadSquaredSumX += deltaX * deltaX;
+			threadSquaredSumY += deltaY * deltaY;
+			threadMultiplicativeSum += deltaX * deltaY;
 		}
 	}
 
-#if COMPARISON_BLOCK_SIZE > 32
-	__syncthreads();
-#endif
+	float squaredSumX = warpAllReduceSum(threadSquaredSumX);
+    float squaredSumY = warpAllReduceSum(threadSquaredSumY);
+    float multiplicativeSum = warpAllReduceSum(threadMultiplicativeSum);
 
-	float sumY = warpAllReduceSum(threadPartialSumY);
-	float squaredSumY = warpAllReduceSum(threadPartialSquaredSumY);
-	float multiplicativeSum = warpAllReduceSum(threadPartialMultiplicativeSum);
-	float expectedPart2 = sqrt((float(spinImageElementCount) * squaredSumY) - (sumY * sumY));
+    float correlation = -1;
 
-#if COMPARISON_BLOCK_SIZE > 32
-	__syncthreads();
-#endif
+    // Avoid zero divisions
+    if(squaredSumX != 0 && squaredSumY != 0)
+    {
+        correlation = multiplicativeSum / (squaredSumX * squaredSumY);
+    }
 
-	// Ensure we only spam one write
-	if(findLowestActiveThreadIndex() == threadIdx.x) {
-		float correlation = -1;
-
-		// Avoid zero divisions
-		if(expectedPart1 != 0 && expectedPart2 != 0)
-		{
-			correlation = ((float(spinImageElementCount) * multiplicativeSum) - (sumX * sumY)) / (expectedPart1 * expectedPart2);
-		}
-
-		assert(correlationIndex < correlations.length);
-
-		correlations.content[correlationIndex] = correlation;
-	}
+    return correlation;
 }
 
-__device__ void computeInitialSums(unsigned int spinImageIndex, float &sumX, float &expectedPart1) {
-	float threadPartialSumX = 0;
-	float threadPartialSquaredSumX = 0;
 
-	const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
+
+__device__ float computeImageAverage(array<newSpinImagePixelType> descriptors, unsigned int spinImageIndex)
+{
+	const unsigned int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
+
+	float threadPartialSum = 0;
 
 	for (int y = 0; y < spinImageWidthPixels; y++)
 	{
-#pragma unroll
 		for (int x = threadIdx.x; x < spinImageWidthPixels; x += blockDim.x)
 		{
 			float pixelValue = descriptors.content[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
-			threadPartialSumX += pixelValue;
-			threadPartialSquaredSumX += pixelValue * pixelValue;
+			threadPartialSum += pixelValue;
 		}
 	}
 
-#if COMPARISON_BLOCK_SIZE > 32
-	// Needs more work than this, but is fine for single warp
-	__syncthreads();
-#endif
-
-	sumX = warpAllReduceSum(threadPartialSumX);
-	float squaredSumX = warpAllReduceSum(threadPartialSquaredSumX);
-
-	expectedPart1 = float(sqrt((float(spinImageElementCount) * squaredSumX) - (sumX * sumX)));
+	return warpAllReduceSum(threadPartialSum) / float(spinImageElementCount);
 }
 
-__global__ void doDescriptorComparisonElementWise(DeviceMesh mesh, array<float> correlations, size_t imageCount)
-{
-	unsigned int spinImageIndex = blockIdx.x;
 
-	// Step 1: Calculate average of spin image
-	float sumX;
-	float expectedPart1;
-	computeInitialSums(spinImageIndex, sumX, expectedPart1);
+
+
+__device__ void writeCorrelationValue(const array<float> &correlations, float correlation, size_t correlationIndex) {
+    // Ensure we only spam one write
+    if(findLowestActiveThreadIndex() == threadIdx.x) {
+        correlations.content[correlationIndex] = correlation;
+    }
+}
+
+
+
+__global__ void doDescriptorComparisonElementWise(array<newSpinImagePixelType> descriptors,
+                                                  array<newSpinImagePixelType> otherDescriptors,
+                                                  array<float> correlations,
+                                                  size_t imageCount)
+{
+	const unsigned int spinImageIndex = blockIdx.x;
+
+
+	float averageX = computeImageAverage(descriptors, spinImageIndex);
+	float averageY = computeImageAverage(otherDescriptors, spinImageIndex);
 
 	unsigned int otherImageIndex = spinImageIndex;
 	size_t correlationIndex = spinImageIndex;
-	compareSingleImagePair(correlations, imageCount, spinImageIndex, sumX, expectedPart1, otherImageIndex, correlationIndex);
+
+	float correlation = computeImagePairCorrelation(descriptors, otherDescriptors, spinImageIndex, otherImageIndex, averageX, averageY);
+
+    writeCorrelationValue(correlations, correlation, correlationIndex);
 }
 
 
-__global__ void doDescriptorComparisonComplete(DeviceMesh mesh, array<float> correlations, size_t imageCount)
+
+__global__ void doDescriptorComparisonComplete(array<newSpinImagePixelType> descriptors,
+                                               array<newSpinImagePixelType> otherDescriptors,
+                                               array<float> correlations,
+                                               size_t imageCount)
 {
-	unsigned int spinImageIndex = blockIdx.x;
+	const unsigned int spinImageIndex = blockIdx.x;
 
-	float sumX;
-	float expectedPart1;
-	computeInitialSums(spinImageIndex, sumX, expectedPart1);
+    float averageX = computeImageAverage(descriptors, spinImageIndex);
 
-	for(unsigned int otherImageIndex = spinImageIndex + 1; otherImageIndex < descriptors.length; otherImageIndex++) {
+	for(unsigned int otherImageIndex = spinImageIndex + 1; otherImageIndex < imageCount; otherImageIndex++) {
+        float averageY = computeImageAverage(otherDescriptors, otherImageIndex);
+
+		float correlation = computeImagePairCorrelation(descriptors, otherDescriptors, spinImageIndex, otherImageIndex, averageX, averageY);
+
 		size_t correlationStartIndex = correlations.length - sumCount(imageCount - 1 - spinImageIndex);
 		size_t correlationIndex = correlationStartIndex + (otherImageIndex - (spinImageIndex + 1));
-		compareSingleImagePair(correlations, imageCount, spinImageIndex, sumX, expectedPart1, otherImageIndex, correlationIndex);
-
+        writeCorrelationValue(correlations, correlation, correlationIndex);
 	}
 }
 
-array<float> doDescriptorComparison(const DeviceMesh &device_mesh, const array<unsigned int> &device_descriptors,
-                                    size_t correlationBufferCount, bool computeComplete) {
-	size_t imageCount = device_mesh.vertexCount;
+
+
+array<float> doDescriptorComparison(const array<newSpinImagePixelType> &device_descriptors,
+                                    const array<newSpinImagePixelType> &device_otherDescriptors,
+                                    size_t imageCount,
+                                    size_t correlationBufferCount,
+                                    bool computeComplete)
+{
 
 	array<float> device_correlations;
 	size_t correlationBufferSize = sizeof(float) * correlationBufferCount;
@@ -147,18 +158,16 @@ array<float> doDescriptorComparison(const DeviceMesh &device_mesh, const array<u
 	checkCudaErrors(cudaMalloc(&device_correlations.content, correlationBufferSize));
 	device_correlations.length = correlationBufferCount;
 
-	cudaDeviceSynchronize();
-	checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaMemset(device_correlations.content, 0x0, correlationBufferSize));
 
-	cudaMemset(device_correlations.content, 0x0, correlationBufferSize);
-
-	cudaDeviceSynchronize();
-	checkCudaErrors(cudaGetLastError());
+#if COMPARISON_BLOCK_SIZE != 32
+#error "Kernel code has been written for one warp per block"
+#endif
 
 	if(computeComplete) {
-		doDescriptorComparisonComplete<<<imageCount, COMPARISON_BLOCK_SIZE>>> (device_mesh, device_descriptors.content, device_correlations, imageCount);
+		doDescriptorComparisonComplete<<<imageCount, COMPARISON_BLOCK_SIZE>>> (device_descriptors, device_otherDescriptors, device_correlations, imageCount);
 	} else {
-		doDescriptorComparisonElementWise<<<imageCount, COMPARISON_BLOCK_SIZE>>> (device_mesh, device_descriptors.content, device_correlations, imageCount);
+		doDescriptorComparisonElementWise<<<imageCount, COMPARISON_BLOCK_SIZE>>> (device_descriptors, device_otherDescriptors, device_correlations, imageCount);
 	}
 
 	cudaDeviceSynchronize();
@@ -175,15 +184,23 @@ array<float> doDescriptorComparison(const DeviceMesh &device_mesh, const array<u
 	return host_correlations;
 }
 
-array<float> compareDescriptorsComplete(DeviceMesh device_mesh, array<unsigned int> device_descriptors)
+
+
+array<float> compareDescriptorsComplete(array<newSpinImagePixelType> device_descriptors,
+                                        array<newSpinImagePixelType> device_otherDescriptors,
+                                        size_t imageCount)
 {
-	size_t correlationBufferCount = sumCount(device_mesh.vertexCount - 1);
-	return doDescriptorComparison(device_mesh, device_descriptors, correlationBufferCount, true);
+	size_t correlationBufferCount = sumCount(imageCount - 1);
+	return doDescriptorComparison(device_descriptors, device_otherDescriptors, imageCount, correlationBufferCount, true);
 
 }
 
-array<float> compareDescriptorsElementWise(DeviceMesh device_mesh, array<unsigned int> device_descriptors)
+
+
+array<float> compareDescriptorsElementWise(array<newSpinImagePixelType> device_descriptors,
+                                           array<newSpinImagePixelType> device_otherDescriptors,
+                                           size_t imageCount)
 {
-	size_t correlationBufferCount = device_mesh.vertexCount;
-	return doDescriptorComparison(device_mesh, device_descriptors, correlationBufferCount, false);
+	size_t correlationBufferCount = imageCount;
+	return doDescriptorComparison(device_descriptors, device_otherDescriptors, imageCount, correlationBufferCount, false);
 }

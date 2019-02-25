@@ -499,7 +499,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImag
 	__syncthreads();
 #endif
 
-	const size_t triangleCount = settings.mesh.indexCount / 3;
+	const size_t triangleCount = settings.mesh.vertexCount / 3;
 	for (int triangleIndex = threadIdx.x;
 		 triangleIndex < triangleCount;
 		 triangleIndex += RASTERISATION_WARP_SIZE)
@@ -589,14 +589,18 @@ array<newSpinImagePixelType> generateQuasiSpinImages(DeviceMesh device_mesh, cud
 	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
 	std::cout << "Execution time:" << duration.count() << std::endl;
 
-    array<newSpinImagePixelType> host_descriptors;
-	host_descriptors.content = new newSpinImagePixelType[imageCount * spinImageWidthPixels * spinImageWidthPixels];
-	host_descriptors.length = imageCount;
-
-	checkCudaErrors(cudaMemcpy(host_descriptors.content, device_descriptors.content, descriptorBufferSize, cudaMemcpyDeviceToHost));
-
-	cudaFree(device_descriptors.content);
-
-	return host_descriptors;
+    return device_descriptors;
 }
+/*
+array<float> copyDescriptorsToCPU() {
+    array<newSpinImagePixelType> host_descriptors;
+    host_descriptors.content = new newSpinImagePixelType[imageCount * spinImageWidthPixels * spinImageWidthPixels];
+    host_descriptors.length = imageCount;
 
+    checkCudaErrors(cudaMemcpy(host_descriptors.content, device_descriptors.content, descriptorBufferSize, cudaMemcpyDeviceToHost));
+
+    cudaFree(device_descriptors.content);
+
+    return host_descriptors;
+}
+*/

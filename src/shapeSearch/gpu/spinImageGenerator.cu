@@ -47,7 +47,7 @@ __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNo
 
 __device__ __inline__ void lookupTriangleVertices(DeviceMesh mesh, int triangleIndex, float3 (&triangleVertices)[3]) {
 	assert(triangleIndex >= 0);
-	assert((3 * triangleIndex) + 2 < mesh.indexCount);
+	assert((3 * triangleIndex) + 2 < mesh.vertexCount);
 
 	unsigned int triangleBaseIndex = 3 * triangleIndex;
 
@@ -154,7 +154,7 @@ __global__ void sampleMesh(DeviceMesh mesh, array<float> areaArray, array<float3
 						   array<float2> coefficients, int sampleCount) {
 	int triangleIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
-	if(triangleIndex >= mesh.indexCount / 3)
+	if(triangleIndex >= mesh.vertexCount / 3)
 	{
 		return;
 	}
@@ -198,7 +198,7 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 {
 	int spinImageIndexIndex = blockIdx.x;
 
-	if(spinImageIndexIndex >= mesh.indexCount)
+	if(spinImageIndexIndex >= mesh.vertexCount)
 	{
 		return;
 	}
@@ -216,7 +216,7 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 	normal.y = mesh.normals_y[spinImageIndexIndex];
 	normal.z = mesh.normals_z[spinImageIndexIndex];
 
-	for (int triangleIndex = threadIdx.x; triangleIndex < mesh.indexCount / 3; triangleIndex += SPIN_IMAGE_GENERATION_WARP_SIZE)
+	for (int triangleIndex = threadIdx.x; triangleIndex < mesh.vertexCount / 3; triangleIndex += SPIN_IMAGE_GENERATION_WARP_SIZE)
 	{
 		SampleBounds bounds = calculateSampleBounds(areaArray, triangleIndex, sampleCount);
 
@@ -296,7 +296,7 @@ array<classicSpinImagePixelType> createClassicDescriptors(DeviceMesh device_mesh
 {
 	size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
 	size_t descriptorBufferSize = sizeof(float) * descriptorBufferLength;
-	size_t areaArrayLength = device_mesh.indexCount / 3;
+	size_t areaArrayLength = device_mesh.vertexCount / 3;
 	size_t areaArraySize = areaArrayLength * sizeof(float);
 	curandState* device_randomState;
 	array<float2> device_coefficients;

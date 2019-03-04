@@ -31,6 +31,8 @@ const int SHORT_DOUBLE_ONE_MASK = 0x00000002;
 const int SHORT_DOUBLE_FIRST_MASK = 0x00020000;
 #endif
 
+#define renderedSpinImageIndex blockIdx.x
+
 const int RASTERISATION_WARP_SIZE = 1024;
 
 __device__ __inline__ QSIPrecalculatedSettings calculateRotationSettings(float3 spinImageNormal);
@@ -197,7 +199,7 @@ __device__ __inline__ void rasteriseTriangle(
 #if ENABLE_SHARED_MEMORY_IMAGE
 		newSpinImagePixelType* sharedDescriptorArray,
 #else
-		array<newSpinImagePixelType> descriptors,
+		newSpinImagePixelType* descriptors,
 #endif
 		float3 vertices[3], GPURasterisationSettings settings)
 {
@@ -307,7 +309,6 @@ __device__ __inline__ void rasteriseTriangle(
 	for(int jobID = 0; jobID < jobCount; jobID++) 
 	{
 
-		int jobVertexIndexIndex;
 		float jobMinVectorZ;
 		float jobMidVectorZ;
 		float jobDeltaMinMidZ;
@@ -336,8 +337,6 @@ __device__ __inline__ void rasteriseTriangle(
 		jobDeltaMinMidXY = deltaMinMidXY;
 
 		jobDeltaMidMaxXY = deltaMidMaxXY;
-
-		jobVertexIndexIndex = settings.vertexIndexIndex;
 
 		// Verified: this should be <=, because it fails for the cube tests case
 		if (float(jobPixelY) <= jobMidVectorZ)
@@ -402,7 +401,7 @@ __device__ __inline__ void rasteriseTriangle(
 			jobRowStartPixels = min((unsigned int)spinImageWidthPixels, max(0, jobRowStartPixels));
 			jobRowEndPixels = min((unsigned int)spinImageWidthPixels, jobRowEndPixels);
 
-			size_t jobSpinImageBaseIndex = size_t(jobVertexIndexIndex) * spinImageWidthPixels * spinImageWidthPixels + jobPixelYCoordinate * spinImageWidthPixels;
+			size_t jobSpinImageBaseIndex = size_t(renderedSpinImageIndex) * spinImageWidthPixels * spinImageWidthPixels + jobPixelYCoordinate * spinImageWidthPixels;
 
 			// Step 9: Fill pixels
 			if (jobHasDoubleIntersection)
@@ -418,7 +417,7 @@ __device__ __inline__ void rasteriseTriangle(
 					// Increment pixel by 2 because 2 intersections occurred.
 #if !ENABLE_SHARED_MEMORY_IMAGE
 					size_t jobPixelIndex = jobSpinImageBaseIndex + jobX;
-					atomicAdd(&(descriptors.content[jobPixelIndex]), 2);
+					atomicAdd(&(descriptors[jobPixelIndex]), 2);
 #else
 					int jobPixelIndex = jobPixelYCoordinate * spinImageWidthPixels + jobX;
 					atomicAdd(&(sharedDescriptorArray[jobPixelIndex]), 2);
@@ -446,7 +445,7 @@ __device__ __inline__ void rasteriseTriangle(
 			{
 	#if !ENABLE_SHARED_MEMORY_IMAGE
 				size_t jobPixelIndex = jobSpinImageBaseIndex + jobX;
-				atomicAdd(&(descriptors.content[jobPixelIndex]), 1);
+				atomicAdd(&(descriptors[jobPixelIndex]), 1);
 	#else
 				int jobPixelIndex = jobPixelYCoordinate * spinImageWidthPixels + jobX;
 				atomicAdd(&(sharedDescriptorArray[jobPixelIndex]), 1);
@@ -467,20 +466,19 @@ __device__ __inline__ void rasteriseTriangle(
 }
 
 __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImage(
-		array<newSpinImagePixelType> descriptors,
-		GPURasterisationSettings settings)
+		newSpinImagePixelType* descriptors,
+		DeviceMesh mesh)
 {
-	// One block x-coordinate per image
-	settings.vertexIndexIndex = blockIdx.x;
+    GPURasterisationSettings settings;
 
 	// Copying over precalculated values
-	settings.spinImageVertex.x = settings.mesh.vertices_x[settings.vertexIndexIndex];
-	settings.spinImageVertex.y = settings.mesh.vertices_y[settings.vertexIndexIndex];
-	settings.spinImageVertex.z = settings.mesh.vertices_z[settings.vertexIndexIndex];
+	settings.spinImageVertex.x = mesh.vertices_x[renderedSpinImageIndex];
+	settings.spinImageVertex.y = mesh.vertices_y[renderedSpinImageIndex];
+	settings.spinImageVertex.z = mesh.vertices_z[renderedSpinImageIndex];
 
-	settings.spinImageNormal.x = settings.mesh.normals_x[settings.vertexIndexIndex];
-	settings.spinImageNormal.y = settings.mesh.normals_y[settings.vertexIndexIndex];
-	settings.spinImageNormal.z = settings.mesh.normals_z[settings.vertexIndexIndex];
+	settings.spinImageNormal.x = mesh.normals_x[renderedSpinImageIndex];
+	settings.spinImageNormal.y = mesh.normals_y[renderedSpinImageIndex];
+	settings.spinImageNormal.z = mesh.normals_z[renderedSpinImageIndex];
 
 	assert(__activemask() == 0xFFFFFFFF);
 
@@ -499,7 +497,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImag
 	__syncthreads();
 #endif
 
-	const size_t triangleCount = settings.mesh.vertexCount / 3;
+	const size_t triangleCount = mesh.vertexCount / 3;
 	for (int triangleIndex = threadIdx.x;
 		 triangleIndex < triangleCount;
 		 triangleIndex += RASTERISATION_WARP_SIZE)
@@ -512,17 +510,17 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImag
 		size_t threadTriangleIndex1 = triangleBaseIndex + 1;
 		size_t threadTriangleIndex2 = triangleBaseIndex + 2;
 
-		vertices[0].x = settings.mesh.vertices_x[threadTriangleIndex0];
-		vertices[0].y = settings.mesh.vertices_y[threadTriangleIndex0];
-		vertices[0].z = settings.mesh.vertices_z[threadTriangleIndex0];
+		vertices[0].x = mesh.vertices_x[threadTriangleIndex0];
+		vertices[0].y = mesh.vertices_y[threadTriangleIndex0];
+		vertices[0].z = mesh.vertices_z[threadTriangleIndex0];
 
-		vertices[1].x = settings.mesh.vertices_x[threadTriangleIndex1];
-		vertices[1].y = settings.mesh.vertices_y[threadTriangleIndex1];
-		vertices[1].z = settings.mesh.vertices_z[threadTriangleIndex1];
+		vertices[1].x = mesh.vertices_x[threadTriangleIndex1];
+		vertices[1].y = mesh.vertices_y[threadTriangleIndex1];
+		vertices[1].z = mesh.vertices_z[threadTriangleIndex1];
 
-		vertices[2].x = settings.mesh.vertices_x[threadTriangleIndex2];
-		vertices[2].y = settings.mesh.vertices_y[threadTriangleIndex2];
-		vertices[2].z = settings.mesh.vertices_z[threadTriangleIndex2];
+		vertices[2].x = mesh.vertices_x[threadTriangleIndex2];
+		vertices[2].y = mesh.vertices_y[threadTriangleIndex2];
+		vertices[2].z = mesh.vertices_z[threadTriangleIndex2];
 
 	#if ENABLE_SHARED_MEMORY_IMAGE
 		rasteriseTriangle(descriptorArrayPointer, vertices, settings);
@@ -538,14 +536,14 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImag
 	__syncthreads();
 	// Image finished. Copying into main memory
 	// Assumption: entire warp processes same spin image
-	int jobSpinImageBaseIndex = settings.vertexIndexIndex * spinImageWidthPixels * spinImageWidthPixels;
+	int jobSpinImageBaseIndex = renderedSpinImageIndex * spinImageWidthPixels * spinImageWidthPixels;
 
 	for (int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += RASTERISATION_WARP_SIZE)
 	{
 		atomicAdd(&descriptors.content[jobSpinImageBaseIndex + i], descriptorArrayPointer[i]);
 	}
 #elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
-	size_t jobSpinImageBaseIndex = size_t(settings.vertexIndexIndex) * spinImageWidthPixels * spinImageWidthPixels;
+	size_t jobSpinImageBaseIndex = size_t(renderedSpinImageIndex) * spinImageWidthPixels * spinImageWidthPixels;
 
 	unsigned int* integerBasePointer = (unsigned int*)((void*)(descriptors.content + jobSpinImageBaseIndex));
 	unsigned int* sharedImageIntPointer = (unsigned int*)((void*)(descriptorArrayPointer));
@@ -566,10 +564,12 @@ array<newSpinImagePixelType> generateQuasiSpinImages(DeviceMesh device_mesh, cud
 	size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
 	size_t descriptorBufferSize = sizeof(newSpinImagePixelType) * descriptorBufferLength;
 
-	array<newSpinImagePixelType> device_descriptors;
-	checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
+	newSpinImagePixelType* device_descriptors_content;
+	checkCudaErrors(cudaMalloc(&device_descriptors_content, descriptorBufferSize));
 
+    array<newSpinImagePixelType> device_descriptors;
 	size_t imageCount = device_mesh.vertexCount;
+	device_descriptors.content = device_descriptors_content;
 	device_descriptors.length = imageCount;
 
 	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength, device_information);
@@ -579,10 +579,7 @@ array<newSpinImagePixelType> generateQuasiSpinImages(DeviceMesh device_mesh, cud
 
 	auto start = std::chrono::steady_clock::now();
 
-	GPURasterisationSettings generalSettings;
-	generalSettings.mesh = device_mesh;
-
-	generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors, generalSettings);
+	generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors_content, device_mesh);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 

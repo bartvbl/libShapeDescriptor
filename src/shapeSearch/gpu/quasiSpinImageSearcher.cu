@@ -32,7 +32,7 @@ __device__ float computeImagePairCorrelation(newSpinImagePixelType* descriptors,
 		{
             const unsigned int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
 
-            newSpinImagePixelType pixelValueX = descriptors[spinImageIndex  * spinImageElementCount + (y * spinImageWidthPixels + x)];
+            newSpinImagePixelType pixelValueX = descriptors[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
             newSpinImagePixelType pixelValueY = otherDescriptors[otherImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
 
 			float deltaX = pixelValueX - averageX;
@@ -121,7 +121,9 @@ __global__ void generateSearchResults(newSpinImagePixelType* needleDescriptors,
 		// Since most images will not make it into the top ranking, we do a quick check to avoid a search
 		// This saves a few instructions.
 		if(correlation > __shfl_sync(0xFFFFFFFF, threadSearchResultScore, 31)) {
-			unsigned int leftBound = 0;
+
+		    // Issue: does not insert correctly in an empty list
+		    /*unsigned int leftBound = 0;
 			unsigned int rightBound = blockDim.x - 1;
 			unsigned int pivotIndex = (leftBound + rightBound) / 2;
 
@@ -135,15 +137,24 @@ __global__ void generateSearchResults(newSpinImagePixelType* needleDescriptors,
 				} else {
 					break;
 				}
-			}
+			}*/
+		    assert(__activemask() == 0xFFFFFFFF);
+
+            unsigned int foundIndex = 0;
+            for(; foundIndex < blockDim.x; foundIndex++) {
+                float threadValue = __shfl_sync(0xFFFFFFFF, threadSearchResultScore, foundIndex);
+                if(threadValue < correlation) {
+                    break;
+                }
+            }
 
 			// Binary search complete. pivotIndex is now the index at which the found value should be inserted.
-			if(threadIdx.x >= pivotIndex) {
+			if(threadIdx.x >= foundIndex) {
 				// Shift all values one thread to the right
 				threadSearchResultScore = __shfl_sync(0xFFFFFFFF, threadSearchResultScore, threadIdx.x - 1);
 				threadSearchResultImageIndex = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndex, threadIdx.x - 1);
 
-				if(threadIdx.x == pivotIndex) {
+				if(threadIdx.x == foundIndex) {
 					threadSearchResultScore = correlation;
 					threadSearchResultImageIndex = haystackImageIndex;
 				}
@@ -174,6 +185,13 @@ array<ImageSearchResults> findDescriptorsInHaystack(
 	calculateImageAverages<<<needleImageCount, 32>>>(device_needleDescriptors.content, device_needleImageAverages);
 	calculateImageAverages<<<haystackImageCount, 32>>>(device_haystackDescriptors.content, device_haystackImageAverages);
 	checkCudaErrors(cudaDeviceSynchronize());
+
+	float* debug_averages = new float[needleImageCount];
+	cudaMemcpy(debug_averages, device_needleImageAverages, needleImageCount * sizeof(float), cudaMemcpyDeviceToHost);
+	for(int i = 0; i < needleImageCount; i++) {
+	    std::cout << debug_averages[i] << ", ";
+	}
+	std::cout << std::endl;
 
 	// Step 2: Perform search
 

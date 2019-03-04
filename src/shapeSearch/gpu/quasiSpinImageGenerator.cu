@@ -339,7 +339,7 @@ __device__ __inline__ void rasteriseTriangle(
 
 		jobVertexIndexIndex = settings.vertexIndexIndex;
 
-		// Verified: this should be <=, because it fails for the cube test case
+		// Verified: this should be <=, because it fails for the cube tests case
 		if (float(jobPixelY) <= jobMidVectorZ)
 		{
 			// shortVectorStartXY, Bottom: minXY
@@ -587,7 +587,7 @@ array<newSpinImagePixelType> generateQuasiSpinImages(DeviceMesh device_mesh, cud
 	checkCudaErrors(cudaGetLastError());
 
 	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
-	std::cout << "Execution time:" << duration.count() << std::endl;
+	std::cout << "\t\t\tExecution time: " << duration.count() << std::endl;
 
     return device_descriptors;
 }

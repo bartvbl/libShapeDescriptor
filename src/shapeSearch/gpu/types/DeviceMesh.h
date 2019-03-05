@@ -18,4 +18,5 @@ struct DeviceMesh {
 	}
 };
 
+DeviceMesh duplicateDeviceMesh(DeviceMesh mesh);
 void freeDeviceMesh(DeviceMesh mesh);

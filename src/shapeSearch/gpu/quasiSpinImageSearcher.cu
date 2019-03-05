@@ -30,7 +30,7 @@ __device__ float computeImagePairCorrelation(newSpinImagePixelType* descriptors,
 	{
 		for (int x = threadIdx.x; x < spinImageWidthPixels; x += blockDim.x)
 		{
-            const unsigned int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
+            const size_t spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
 
             newSpinImagePixelType pixelValueX = descriptors[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
             newSpinImagePixelType pixelValueY = otherDescriptors[otherImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
@@ -44,8 +44,8 @@ __device__ float computeImagePairCorrelation(newSpinImagePixelType* descriptors,
 		}
 	}
 
-	float squaredSumX = warpAllReduceSum(threadSquaredSumX);
-    float squaredSumY = warpAllReduceSum(threadSquaredSumY);
+	float squaredSumX = sqrt(warpAllReduceSum(threadSquaredSumX));
+    float squaredSumY = sqrt(warpAllReduceSum(threadSquaredSumY));
     float multiplicativeSum = warpAllReduceSum(threadMultiplicativeSum);
 
     float correlation = -1;
@@ -186,12 +186,20 @@ array<ImageSearchResults> findDescriptorsInHaystack(
 	calculateImageAverages<<<haystackImageCount, 32>>>(device_haystackDescriptors.content, device_haystackImageAverages);
 	checkCudaErrors(cudaDeviceSynchronize());
 
-	float* debug_averages = new float[needleImageCount];
-	cudaMemcpy(debug_averages, device_needleImageAverages, needleImageCount * sizeof(float), cudaMemcpyDeviceToHost);
+	float* debug_needleAverages = new float[needleImageCount];
+	float* debug_sampleAverages = new float[haystackImageCount];
+	cudaMemcpy(debug_needleAverages, device_needleImageAverages, needleImageCount * sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(debug_sampleAverages, device_haystackImageAverages, haystackImageCount * sizeof(float), cudaMemcpyDeviceToHost);
 	for(int i = 0; i < needleImageCount; i++) {
-	    std::cout << debug_averages[i] << ", ";
+	    std::cout << debug_needleAverages[i] << ", ";
 	}
 	std::cout << std::endl;
+	for(int i = 0; i < haystackImageCount; i++) {
+		std::cout << debug_sampleAverages[i] << ", ";
+	}
+	std::cout << std::endl;
+	delete[] debug_needleAverages;
+	delete[] debug_sampleAverages;
 
 	// Step 2: Perform search
 

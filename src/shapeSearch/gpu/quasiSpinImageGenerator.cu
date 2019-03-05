@@ -577,7 +577,7 @@ array<newSpinImagePixelType> generateQuasiSpinImages(DeviceMesh device_mesh, cud
 	size_t descriptorBufferSize = sizeof(newSpinImagePixelType) * descriptorBufferLength;
 
 	DeviceMesh device_meshCopy = duplicateDeviceMesh(device_mesh);
-	scaleMesh<<<(device_meshCopy.vertexCount / 128) + 1, 128>>>(device_meshCopy, 1.0f/(spinImageWidth * float(spinImageWidthPixels)));
+	scaleMesh<<<(device_meshCopy.vertexCount / 128) + 1, 128>>>(device_meshCopy, float(spinImageWidthPixels)/spinImageWidth);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 

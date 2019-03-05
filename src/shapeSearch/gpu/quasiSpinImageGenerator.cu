@@ -558,19 +558,38 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImag
 
 }
 
+__global__ void scaleMesh(DeviceMesh mesh, float scaleFactor) {
+    size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if(vertexIndex >= mesh.vertexCount) {
+        return;
+    }
+
+    mesh.vertices_x[vertexIndex] *= scaleFactor;
+    mesh.vertices_y[vertexIndex] *= scaleFactor;
+    mesh.vertices_z[vertexIndex] *= scaleFactor;
+}
+
 array<newSpinImagePixelType> generateQuasiSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information,
 													 float spinImageWidth)
 {
 	size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
 	size_t descriptorBufferSize = sizeof(newSpinImagePixelType) * descriptorBufferLength;
 
+	DeviceMesh device_meshCopy = duplicateDeviceMesh(device_mesh);
+	scaleMesh<<<(device_meshCopy.vertexCount / 128) + 1, 128>>>(device_meshCopy, 1.0f/(spinImageWidth * float(spinImageWidthPixels)));
+	cudaDeviceSynchronize();
+	checkCudaErrors(cudaGetLastError());
+
 	newSpinImagePixelType* device_descriptors_content;
 	checkCudaErrors(cudaMalloc(&device_descriptors_content, descriptorBufferSize));
 
     array<newSpinImagePixelType> device_descriptors;
-	size_t imageCount = device_mesh.vertexCount;
+	size_t imageCount = device_meshCopy.vertexCount;
 	device_descriptors.content = device_descriptors_content;
 	device_descriptors.length = imageCount;
+
+
 
 	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength, device_information);
 	setValue<newSpinImagePixelType><< <valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >> > (device_descriptors.content, descriptorBufferLength, 0);
@@ -579,25 +598,14 @@ array<newSpinImagePixelType> generateQuasiSpinImages(DeviceMesh device_mesh, cud
 
 	auto start = std::chrono::steady_clock::now();
 
-	generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors_content, device_mesh);
+	generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors_content, device_meshCopy);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 
 	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
 	std::cout << "\t\t\tExecution time: " << duration.count() << std::endl;
 
+	freeDeviceMesh(device_meshCopy);
+
     return device_descriptors;
 }
-/*
-array<float> copyDescriptorsToCPU() {
-    array<newSpinImagePixelType> host_descriptors;
-    host_descriptors.content = new newSpinImagePixelType[imageCount * spinImageWidthPixels * spinImageWidthPixels];
-    host_descriptors.length = imageCount;
-
-    checkCudaErrors(cudaMemcpy(host_descriptors.content, device_descriptors.content, descriptorBufferSize, cudaMemcpyDeviceToHost));
-
-    cudaFree(device_descriptors.content);
-
-    return host_descriptors;
-}
-*/

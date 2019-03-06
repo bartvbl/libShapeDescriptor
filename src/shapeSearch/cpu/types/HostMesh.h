@@ -40,3 +40,5 @@ struct HostMesh {
 	}
 };
 
+void freeHostMesh(HostMesh &mesh);
+

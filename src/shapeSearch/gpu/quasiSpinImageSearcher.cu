@@ -186,21 +186,6 @@ array<ImageSearchResults> findDescriptorsInHaystack(
 	calculateImageAverages<<<haystackImageCount, 32>>>(device_haystackDescriptors.content, device_haystackImageAverages);
 	checkCudaErrors(cudaDeviceSynchronize());
 
-	float* debug_needleAverages = new float[needleImageCount];
-	float* debug_sampleAverages = new float[haystackImageCount];
-	cudaMemcpy(debug_needleAverages, device_needleImageAverages, needleImageCount * sizeof(float), cudaMemcpyDeviceToHost);
-	cudaMemcpy(debug_sampleAverages, device_haystackImageAverages, haystackImageCount * sizeof(float), cudaMemcpyDeviceToHost);
-	for(int i = 0; i < needleImageCount; i++) {
-	    std::cout << debug_needleAverages[i] << ", ";
-	}
-	std::cout << std::endl;
-	for(int i = 0; i < haystackImageCount; i++) {
-		std::cout << debug_sampleAverages[i] << ", ";
-	}
-	std::cout << std::endl;
-	delete[] debug_needleAverages;
-	delete[] debug_sampleAverages;
-
 	// Step 2: Perform search
 
 	size_t searchResultBufferSize = needleImageCount * sizeof(ImageSearchResults);

@@ -292,7 +292,7 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 	}
 }
 
-array<classicSpinImagePixelType> createClassicDescriptors(DeviceMesh device_mesh, cudaDeviceProp device_information, size_t sampleCount)
+array<classicSpinImagePixelType> generateSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information, size_t sampleCount)
 {
 	size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
 	size_t descriptorBufferSize = sizeof(float) * descriptorBufferLength;

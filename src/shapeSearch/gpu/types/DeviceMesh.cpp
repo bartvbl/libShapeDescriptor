@@ -18,8 +18,8 @@ DeviceMesh duplicateDeviceMesh(DeviceMesh mesh) {
     checkCudaErrors(cudaMalloc(&outMesh.vertices_z, bufferSize));
 
     checkCudaErrors(cudaMemcpy(outMesh.normals_x, mesh.normals_x, bufferSize, cudaMemcpyDeviceToDevice));
-    checkCudaErrors(cudaMemcpy(outMesh.normals_x, mesh.normals_y, bufferSize, cudaMemcpyDeviceToDevice));
-    checkCudaErrors(cudaMemcpy(outMesh.normals_x, mesh.normals_z, bufferSize, cudaMemcpyDeviceToDevice));
+    checkCudaErrors(cudaMemcpy(outMesh.normals_y, mesh.normals_y, bufferSize, cudaMemcpyDeviceToDevice));
+    checkCudaErrors(cudaMemcpy(outMesh.normals_z, mesh.normals_z, bufferSize, cudaMemcpyDeviceToDevice));
 
     checkCudaErrors(cudaMemcpy(outMesh.vertices_x, mesh.vertices_x, bufferSize, cudaMemcpyDeviceToDevice));
     checkCudaErrors(cudaMemcpy(outMesh.vertices_y, mesh.vertices_y, bufferSize, cudaMemcpyDeviceToDevice));

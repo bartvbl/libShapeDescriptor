@@ -194,7 +194,7 @@ __global__ void sampleMesh(DeviceMesh mesh, array<float> areaArray, array<float3
 // @TODO: Determine whether all coordinates checked agains the cube grid are in cube grid space.
 
 // Run once for every vertex index
-__global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, array<classicSpinImagePixelType> descriptors, array<float> areaArray, int sampleCount, float spinImageWidth)
+__global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, array<classicSpinImagePixelType> descriptors, array<float> areaArray, int sampleCount, float oneOverSpinImagePixelWidth)
 {
 	int spinImageIndexIndex = blockIdx.x;
 
@@ -234,8 +234,8 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 			float3 samplePoint = pointSamples.content[sampleIndex];
 			float2 sampleAlphaBeta = calculateAlphaBeta(vertex, normal, samplePoint);
 
-			float floatSpinImageCoordinateX = (sampleAlphaBeta.x / spinImageWidth);
-			float floatSpinImageCoordinateY = (sampleAlphaBeta.y / spinImageWidth);
+			float floatSpinImageCoordinateX = (sampleAlphaBeta.x * oneOverSpinImagePixelWidth);
+			float floatSpinImageCoordinateY = (sampleAlphaBeta.y * oneOverSpinImagePixelWidth);
 
 			int baseSpinImageCoordinateX = (int) floorf(floatSpinImageCoordinateX);
 			int baseSpinImageCoordinateY = (int) floorf(floatSpinImageCoordinateY);
@@ -292,7 +292,7 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 	}
 }
 
-array<classicSpinImagePixelType> generateSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information, size_t sampleCount)
+array<classicSpinImagePixelType> generateSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information, float spinImageWidth, size_t sampleCount)
 {
 	size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
 	size_t descriptorBufferSize = sizeof(float) * descriptorBufferLength;
@@ -344,7 +344,7 @@ array<classicSpinImagePixelType> generateSpinImages(DeviceMesh device_mesh, cuda
 
 	auto start = std::chrono::steady_clock::now();
 
-	createDescriptors <<<device_mesh.vertexCount, SPIN_IMAGE_GENERATION_WARP_SIZE >>>(device_mesh, device_pointSamples, device_descriptors, device_cumulativeAreaArray, sampleCount, 1.0f);
+	createDescriptors <<<device_mesh.vertexCount, SPIN_IMAGE_GENERATION_WARP_SIZE >>>(device_mesh, device_pointSamples, device_descriptors, device_cumulativeAreaArray, sampleCount, float(spinImageWidthPixels)/spinImageWidth);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 

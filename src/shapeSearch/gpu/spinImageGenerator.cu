@@ -196,7 +196,7 @@ __global__ void sampleMesh(DeviceMesh mesh, array<float> areaArray, array<float3
 // Run once for every vertex index
 __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, array<classicSpinImagePixelType> descriptors, array<float> areaArray, int sampleCount, float oneOverSpinImagePixelWidth)
 {
-	int spinImageIndexIndex = blockIdx.x;
+#define spinImageIndexIndex blockIdx.x
 
 	if(spinImageIndexIndex >= mesh.vertexCount)
 	{
@@ -349,13 +349,7 @@ array<classicSpinImagePixelType> generateSpinImages(DeviceMesh device_mesh, cuda
 	checkCudaErrors(cudaGetLastError());
 
 	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
-	std::cout << "Execution time:" << duration.count() << std::endl;
-
-	/*array<classicSpinImagePixelType> host_descriptors;
-	host_descriptors.content = new classicSpinImagePixelType[descriptorBufferLength];
-	host_descriptors.length = device_descriptors.length;
-
-	checkCudaErrors(cudaMemcpy(host_descriptors.content, device_descriptors.content, descriptorBufferSize, cudaMemcpyDeviceToHost));*/
+	std::cout << "\t\t\tExecution time:" << duration.count() << std::endl;
 
 	checkCudaErrors(cudaFree(device_areaArray.content));
 	checkCudaErrors(cudaFree(device_cumulativeAreaArray.content));

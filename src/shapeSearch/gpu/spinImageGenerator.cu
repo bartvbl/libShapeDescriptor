@@ -351,19 +351,18 @@ array<classicSpinImagePixelType> generateSpinImages(DeviceMesh device_mesh, cuda
 	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
 	std::cout << "Execution time:" << duration.count() << std::endl;
 
-	array<classicSpinImagePixelType> host_descriptors;
+	/*array<classicSpinImagePixelType> host_descriptors;
 	host_descriptors.content = new classicSpinImagePixelType[descriptorBufferLength];
 	host_descriptors.length = device_descriptors.length;
 
-	checkCudaErrors(cudaMemcpy(host_descriptors.content, device_descriptors.content, descriptorBufferSize, cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpy(host_descriptors.content, device_descriptors.content, descriptorBufferSize, cudaMemcpyDeviceToHost));*/
 
-	checkCudaErrors(cudaFree(device_descriptors.content));
 	checkCudaErrors(cudaFree(device_areaArray.content));
 	checkCudaErrors(cudaFree(device_cumulativeAreaArray.content));
 	checkCudaErrors(cudaFree(device_pointSamples.content));
 	checkCudaErrors(cudaFree(device_randomState));
 	checkCudaErrors(cudaFree(device_coefficients.content));
 
-	return host_descriptors;
+	return device_descriptors;
 }
 

@@ -11,6 +11,8 @@
 #include "nvidia/helper_cuda.h"
 #include "quasiSpinImageSearcher.cuh"
 
+#define SEARCH_RESULT_COUNT 128
+
 __inline__ __device__ float warpAllReduceSum(float val) {
 	for (int mask = warpSize/2; mask > 0; mask /= 2)
 		val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
@@ -100,15 +102,14 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
 									  ImageSearchResults* searchResults,
 									  float* needleImageAverages,
 									  float* haystackImageAverages) {
-	// This kernel assumes one warp per triangle
-	assert(blockDim.x == 32);
 
 	size_t needleImageIndex = blockIdx.x;
 
 	// Pearson correlation, which is used as distance measure, means closer to 1 is better
 	// We thus initialise the score to the absolute minimum, so that any score is higher.
-	size_t threadSearchResultImageIndex = UINT_MAX;
-	float threadSearchResultScore = -FLT_MAX; // FLT_MIN represents smallest POSITIVE float
+	static_assert(SEARCH_RESULT_COUNT == 128, "Array initialisation needs to change if search result count is changed");
+	size_t threadSearchResultImageIndexes[SEARCH_RESULT_COUNT / 32] = {UINT_MAX, UINT_MAX, UINT_MAX, UINT_MAX};
+	float threadSearchResultScores[SEARCH_RESULT_COUNT / 32] = {-FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX}; // FLT_MIN represents smallest POSITIVE float
 
 	float needleImageAverage = needleImageAverages[needleImageIndex];
 
@@ -142,27 +143,42 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
 					break;
 				}
 			}*/
-		    assert(__activemask() == 0xFFFFFFFF);
 
             unsigned int foundIndex = 0;
-            for(; foundIndex < blockDim.x; foundIndex++) {
-                float threadValue = __shfl_sync(0xFFFFFFFF, threadSearchResultScore, foundIndex);
+            for(; foundIndex < SEARCH_RESULT_COUNT; foundIndex++) {
+                float threadValue = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[foundIndex / 32], foundIndex % 32);
                 if(threadValue < correlation) {
                     break;
                 }
             }
 
-			// Binary search complete. pivotIndex is now the index at which the found value should be inserted.
+            int foundThreadIndex = foundIndex % 32;
+            int startBlock = foundIndex / 32;
+            const int endBlock = (SEARCH_RESULT_COUNT / 32) - 1;
+            for(int block = endBlock; block > startBlock; block--) {
+				int targetThread = int(threadIdx.x) - 1;
+				int targetBlock = block;
+				if(targetThread == -1) {
+					targetThread = 31;
+					targetBlock = block - 1;
+				}
+
+				threadSearchResultScores[targetBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[targetBlock], targetThread);
+				threadSearchResultImageIndexes[targetBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[targetBlock], targetThread);
+            }
 			if(threadIdx.x >= foundIndex) {
+				int targetThread = int(threadIdx.x) - 1;
+
 				// Shift all values one thread to the right
-				threadSearchResultScore = __shfl_sync(0xFFFFFFFF, threadSearchResultScore, threadIdx.x - 1);
-				threadSearchResultImageIndex = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndex, threadIdx.x - 1);
+				threadSearchResultScores[startBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[startBlock], targetThread);
+				threadSearchResultImageIndexes[startBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[startBlock], targetThread);
 
 				if(threadIdx.x == foundIndex) {
-					threadSearchResultScore = correlation;
-					threadSearchResultImageIndex = haystackImageIndex;
+					threadSearchResultScores[startBlock] = correlation;
+					threadSearchResultImageIndexes[startBlock] = haystackImageIndex;
 				}
 			}
+
 		}
 	}
 

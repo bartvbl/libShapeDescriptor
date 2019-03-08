@@ -1,5 +1,5 @@
 #include <shapeSearch/gpu/types/DeviceMesh.h>
-#include <cuda_runtime_api.h>
+#include <cuda_runtime.h>
 #include <shapeSearch/libraryBuildSettings.h>
 #include <curand_mtgp32_kernel.h>
 #include <tgmath.h>
@@ -17,8 +17,9 @@ __inline__ __device__ float warpAllReduceSum(float val) {
 	return val;
 }
 
-__device__ float computeImagePairCorrelation(newSpinImagePixelType* descriptors,
-                                             newSpinImagePixelType* otherDescriptors,
+template<typename pixelType>
+__device__ float computeImagePairCorrelation(pixelType* descriptors,
+											 pixelType* otherDescriptors,
                                              size_t spinImageIndex,
                                              size_t otherImageIndex,
                                              float averageX, float averageY) {
@@ -32,11 +33,11 @@ __device__ float computeImagePairCorrelation(newSpinImagePixelType* descriptors,
 		{
             const size_t spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
 
-            newSpinImagePixelType pixelValueX = descriptors[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
-            newSpinImagePixelType pixelValueY = otherDescriptors[otherImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
+			pixelType pixelValueX = descriptors[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
+			pixelType pixelValueY = otherDescriptors[otherImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
 
-			float deltaX = pixelValueX - averageX;
-			float deltaY = pixelValueY - averageY;
+			float deltaX = float(pixelValueX) - averageX;
+			float deltaY = float(pixelValueY) - averageY;
 
 			threadSquaredSumX += deltaX * deltaX;
 			threadSquaredSumY += deltaY * deltaY;
@@ -59,7 +60,8 @@ __device__ float computeImagePairCorrelation(newSpinImagePixelType* descriptors,
     return correlation;
 }
 
-__device__ float computeImageAverage(newSpinImagePixelType* descriptors, size_t spinImageIndex)
+template<typename pixelType>
+__device__ float computeImageAverage(pixelType* descriptors, size_t spinImageIndex)
 {
 	const unsigned int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
 
@@ -69,7 +71,7 @@ __device__ float computeImageAverage(newSpinImagePixelType* descriptors, size_t 
 	{
 		for (int x = threadIdx.x; x < spinImageWidthPixels; x += blockDim.x)
 		{
-			float pixelValue = descriptors[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
+			float pixelValue = float(descriptors[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)]);
 			threadPartialSum += pixelValue;
 		}
 	}
@@ -77,21 +79,23 @@ __device__ float computeImageAverage(newSpinImagePixelType* descriptors, size_t 
 	return warpAllReduceSum(threadPartialSum) / float(spinImageElementCount);
 }
 
-__global__ void calculateImageAverages(newSpinImagePixelType* images, float* averages) {
+template<typename pixelType>
+__global__ void calculateImageAverages(pixelType* images, float* averages) {
 	// This kernel assumes one warp per image
 	assert(blockDim.x == 32);
 
 	size_t imageIndex = blockIdx.x;
 
-	float average = computeImageAverage(images, imageIndex);
+	float average = computeImageAverage<pixelType>(images, imageIndex);
 
 	if(threadIdx.x == 0) {
 		averages[imageIndex] = average;
 	}
 }
 
-__global__ void generateSearchResults(newSpinImagePixelType* needleDescriptors,
-									  newSpinImagePixelType* haystackDescriptors,
+template<typename pixelType>
+__global__ void generateSearchResults(pixelType* needleDescriptors,
+									  pixelType* haystackDescriptors,
 									  size_t haystackImageCount,
 									  ImageSearchResults* searchResults,
 									  float* needleImageAverages,
@@ -168,10 +172,11 @@ __global__ void generateSearchResults(newSpinImagePixelType* needleDescriptors,
 
 }
 
-array<ImageSearchResults> findDescriptorsInHaystack(
-                                 array<newSpinImagePixelType> device_needleDescriptors,
+template<typename pixelType>
+array<ImageSearchResults> doFindDescriptorsInHaystack(
+                                 array<pixelType> device_needleDescriptors,
                                  size_t needleImageCount,
-                                 array<newSpinImagePixelType> device_haystackDescriptors,
+                                 array<pixelType> device_haystackDescriptors,
                                  size_t haystackImageCount)
 {
     // Step 1: Compute image averages, since they're constant and are needed for each comparison
@@ -182,8 +187,8 @@ array<ImageSearchResults> findDescriptorsInHaystack(
 	checkCudaErrors(cudaMalloc(&device_haystackImageAverages, haystackImageCount * sizeof(float)));
 
 	std::cout << "\t\tComputing image averages.." << std::endl;
-	calculateImageAverages<<<needleImageCount, 32>>>(device_needleDescriptors.content, device_needleImageAverages);
-	calculateImageAverages<<<haystackImageCount, 32>>>(device_haystackDescriptors.content, device_haystackImageAverages);
+	calculateImageAverages<pixelType><<<needleImageCount, 32>>>(device_needleDescriptors.content, device_needleImageAverages);
+	calculateImageAverages<pixelType><<<haystackImageCount, 32>>>(device_haystackDescriptors.content, device_haystackImageAverages);
 	checkCudaErrors(cudaDeviceSynchronize());
 
 	// Step 2: Perform search
@@ -221,4 +226,20 @@ array<ImageSearchResults> findDescriptorsInHaystack(
 	cudaFree(device_searchResults);
 
 	return searchResults;
+}
+
+array<ImageSearchResults> findDescriptorsInHaystack(
+		array<classicSpinImagePixelType > device_needleDescriptors,
+		size_t needleImageCount,
+		array<classicSpinImagePixelType > device_haystackDescriptors,
+		size_t haystackImageCount) {
+	return doFindDescriptorsInHaystack<classicSpinImagePixelType>(device_needleDescriptors, needleImageCount, device_haystackDescriptors, haystackImageCount);
+}
+
+array<ImageSearchResults> findDescriptorsInHaystack(
+		array<newSpinImagePixelType> device_needleDescriptors,
+		size_t needleImageCount,
+		array<newSpinImagePixelType > device_haystackDescriptors,
+		size_t haystackImageCount) {
+	return doFindDescriptorsInHaystack<newSpinImagePixelType>(device_needleDescriptors, needleImageCount, device_haystackDescriptors, haystackImageCount);
 }

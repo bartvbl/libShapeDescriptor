@@ -7,7 +7,13 @@ struct ImageSearchResults {
 };
 
 array<ImageSearchResults> findDescriptorsInHaystack(
+        array<classicSpinImagePixelType > device_needleDescriptors,
+        size_t needleImageCount,
+        array<classicSpinImagePixelType > device_haystackDescriptors,
+        size_t haystackImageCount);
+
+array<ImageSearchResults> findDescriptorsInHaystack(
         array<newSpinImagePixelType> device_needleDescriptors,
-        size_t referenceImageCount,
-        array<newSpinImagePixelType> device_haystackDescriptors,
+        size_t needleImageCount,
+        array<newSpinImagePixelType > device_haystackDescriptors,
         size_t haystackImageCount);

@@ -126,50 +126,41 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
 		// Since most images will not make it into the top ranking, we do a quick check to avoid a search
 		// This saves a few instructions.
 		if(correlation > __shfl_sync(0xFFFFFFFF, threadSearchResultScores[(SEARCH_RESULT_COUNT / 32) - 1], 31)) {
-
-		    // Issue: does not insert correctly in an empty list
-		    /*unsigned int leftBound = 0;
-			unsigned int rightBound = blockDim.x - 1;
-			unsigned int pivotIndex = (leftBound + rightBound) / 2;
-
-			while(leftBound <= rightBound) {
-				pivotIndex = (leftBound + rightBound) / 2;
-				float pivotThreadValue = __shfl_sync(0xFFFFFFFF, threadSearchResultScore, pivotIndex);
-				if(pivotThreadValue < correlation) {
-					leftBound = pivotIndex + 1;
-				} else if(pivotThreadValue > correlation) {
-					rightBound = pivotIndex - 1;
-				} else {
-					break;
-				}
-			}*/
-
+            const int blockCount = (SEARCH_RESULT_COUNT / 32);
             unsigned int foundIndex = 0;
-            for(; foundIndex < SEARCH_RESULT_COUNT; foundIndex++) {
-                float threadValue = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[foundIndex / 32], foundIndex % 32);
-                if(threadValue < correlation) {
-                    break;
+            for(int block = 0; block < blockCount; block++) {
+                bool threadExceeds = threadSearchResultScores[block] < correlation;
+                unsigned int bitString = __ballot_sync(0xFFFFFFFF, threadExceeds);
+                unsigned int firstSet = __ffs(bitString);
+                if(firstSet < 32) {
+                    foundIndex = block * 32 + firstSet;
                 }
             }
 
             int foundThreadIndex = foundIndex % 32;
             int startBlock = foundIndex / 32;
-            const int endBlock = (SEARCH_RESULT_COUNT / 32) - 1;
+            const int endBlock = blockCount - 1;
+
+            // We first shift all values to the right for "full" 32-value blocks
+            // Afterwards, we do one final iteration to shift only the values that are
+            // block will never be 0, which ensures the loop body does not go out of range
             for(int block = endBlock; block > startBlock; block--) {
-				int targetThread = int(threadIdx.x) - 1;
-				int targetBlock = block;
-				if(targetThread == -1) {
-					targetThread = 31;
-					targetBlock = block - 1;
+				int sourceThread = int(threadIdx.x) - 1;
+				int sourceBlock = block;
+				int destinationBlock = block;
+
+				if(threadIdx.x == 0) {
+					sourceThread = 31;
+				} else if(threadIdx.x == 31){
+                    sourceBlock = block - 1;
 				}
 
-				threadSearchResultScores[targetBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[targetBlock], targetThread);
-				threadSearchResultImageIndexes[targetBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[targetBlock], targetThread);
+				threadSearchResultScores[destinationBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[sourceBlock], sourceThread);
+				threadSearchResultImageIndexes[destinationBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[sourceBlock], sourceThread);
             }
 			if(threadIdx.x >= foundIndex) {
 				int targetThread = int(threadIdx.x) - 1;
 
-				// Shift all values one thread to the right
 				threadSearchResultScores[startBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[startBlock], targetThread);
 				threadSearchResultImageIndexes[startBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[startBlock], targetThread);
 

@@ -111,6 +111,8 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
 	size_t threadSearchResultImageIndexes[SEARCH_RESULT_COUNT / 32] = {UINT_MAX, UINT_MAX, UINT_MAX, UINT_MAX};
 	float threadSearchResultScores[SEARCH_RESULT_COUNT / 32] = {-FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX}; // FLT_MIN represents smallest POSITIVE float
 
+    const int blockCount = (SEARCH_RESULT_COUNT / 32);
+
 	float needleImageAverage = needleImageAverages[needleImageIndex];
 
 	for(size_t haystackImageIndex = 0; haystackImageIndex < haystackImageCount; haystackImageIndex++) {
@@ -123,17 +125,19 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
 														needleImageAverage,
 														haystackImageAverage);
 
+
+
 		// Since most images will not make it into the top ranking, we do a quick check to avoid a search
 		// This saves a few instructions.
 		if(correlation > __shfl_sync(0xFFFFFFFF, threadSearchResultScores[(SEARCH_RESULT_COUNT / 32) - 1], 31)) {
-            const int blockCount = (SEARCH_RESULT_COUNT / 32);
-            unsigned int foundIndex = 0;
+		    unsigned int foundIndex = 0;
             for(int block = 0; block < blockCount; block++) {
                 bool threadExceeds = threadSearchResultScores[block] < correlation;
                 unsigned int bitString = __ballot_sync(0xFFFFFFFF, threadExceeds);
-                unsigned int firstSet = __ffs(bitString);
-                if(firstSet < 32) {
-                    foundIndex = block * 32 + firstSet;
+                unsigned int firstSet = __ffs(bitString) - 1;
+                if(firstSet > 0 && firstSet < 32) {
+                    foundIndex = (block * 32) + (firstSet);
+                    break;
                 }
             }
 
@@ -158,6 +162,9 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
 				threadSearchResultScores[destinationBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[sourceBlock], sourceThread);
 				threadSearchResultImageIndexes[destinationBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[sourceBlock], sourceThread);
             }
+
+            // This shifts over values in the block where we're inserting the new value.
+            // As such it requires some more fine-grained control.
 			if(threadIdx.x >= foundIndex) {
 				int targetThread = int(threadIdx.x) - 1;
 
@@ -174,9 +181,9 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
 	}
 
 	// Storing search results
-	for(int block = 0; block < SEARCH_RESULT_COUNT / 32; block++) {
-        searchResults[needleImageIndex].resultIndices[block * SEARCH_RESULT_COUNT + threadIdx.x] = threadSearchResultImageIndexes[block];
-        searchResults[needleImageIndex].resultScores[block * SEARCH_RESULT_COUNT + threadIdx.x] = threadSearchResultScores[block];
+	for(int block = 0; block < blockCount; block++) {
+        searchResults[needleImageIndex].resultIndices[block * 32 + threadIdx.x] = threadSearchResultImageIndexes[block];
+        searchResults[needleImageIndex].resultScores[block * 32 + threadIdx.x] = threadSearchResultScores[block];
     }
 
 }

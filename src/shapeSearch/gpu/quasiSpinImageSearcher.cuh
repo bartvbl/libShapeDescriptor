@@ -1,9 +1,11 @@
 #include "shapeSearch/gpu/types/DeviceMesh.h"
 #include "shapeSearch/common/types/array.h"
 
+#define SEARCH_RESULT_COUNT 128
+
 struct ImageSearchResults {
-    size_t resultIndices[32];
-    float resultScores[32];
+    size_t resultIndices[SEARCH_RESULT_COUNT];
+    float resultScores[SEARCH_RESULT_COUNT];
 };
 
 array<ImageSearchResults> findDescriptorsInHaystack(

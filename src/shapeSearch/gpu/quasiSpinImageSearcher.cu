@@ -11,7 +11,7 @@
 #include "nvidia/helper_cuda.h"
 #include "quasiSpinImageSearcher.cuh"
 
-#define SEARCH_RESULT_COUNT 128
+
 
 __inline__ __device__ float warpAllReduceSum(float val) {
 	for (int mask = warpSize/2; mask > 0; mask /= 2)
@@ -125,7 +125,7 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
 
 		// Since most images will not make it into the top ranking, we do a quick check to avoid a search
 		// This saves a few instructions.
-		if(correlation > __shfl_sync(0xFFFFFFFF, threadSearchResultScore, 31)) {
+		if(correlation > __shfl_sync(0xFFFFFFFF, threadSearchResultScores[(SEARCH_RESULT_COUNT / 32) - 1], 31)) {
 
 		    // Issue: does not insert correctly in an empty list
 		    /*unsigned int leftBound = 0;
@@ -183,8 +183,10 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
 	}
 
 	// Storing search results
-	searchResults[needleImageIndex].resultIndices[threadIdx.x] = threadSearchResultImageIndex;
-	searchResults[needleImageIndex].resultScores[threadIdx.x] = threadSearchResultScore;
+	for(int block = 0; block < SEARCH_RESULT_COUNT / 32; block++) {
+        searchResults[needleImageIndex].resultIndices[block * SEARCH_RESULT_COUNT + threadIdx.x] = threadSearchResultImageIndexes[block];
+        searchResults[needleImageIndex].resultScores[block * SEARCH_RESULT_COUNT + threadIdx.x] = threadSearchResultScores[block];
+    }
 
 }
 

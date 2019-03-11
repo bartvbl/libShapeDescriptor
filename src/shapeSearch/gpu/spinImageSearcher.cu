@@ -11,6 +11,7 @@
 #include "nvidia/helper_cuda.h"
 #include "spinImageSearcher.cuh"
 
+const unsigned int warpCount = 2;
 
 
 __inline__ __device__ float warpAllReduceSum(float val) {
@@ -97,13 +98,18 @@ __global__ void calculateImageAverages(pixelType* images, float* averages) {
 
 template<typename pixelType>
 __global__ void generateSearchResults(pixelType* needleDescriptors,
+									  size_t needleImageCount,
 									  pixelType* haystackDescriptors,
 									  size_t haystackImageCount,
 									  ImageSearchResults* searchResults,
 									  float* needleImageAverages,
 									  float* haystackImageAverages) {
 
-	size_t needleImageIndex = blockIdx.x;
+	size_t needleImageIndex = warpCount * blockIdx.x + (threadIdx.x / 32);
+
+	if(needleImageIndex >= needleImageCount) {
+	    return;
+	}
 
 	// Pearson correlation, which is used as distance measure, means closer to 1 is better
 	// We thus initialise the score to the absolute minimum, so that any score is higher.
@@ -141,21 +147,21 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
                 }
             }
 
-            int foundThreadIndex = foundIndex % 32;
             int startBlock = foundIndex / 32;
             const int endBlock = blockCount - 1;
+			const int laneID = threadIdx.x % 32;
 
             // We first shift all values to the right for "full" 32-value blocks
             // Afterwards, we do one final iteration to shift only the values that are
             // block will never be 0, which ensures the loop body does not go out of range
             for(int block = endBlock; block > startBlock; block--) {
-				int sourceThread = int(threadIdx.x) - 1;
+				int sourceThread = laneID - 1;
 				int sourceBlock = block;
 				int destinationBlock = block;
 
-				if(threadIdx.x == 0) {
+				if(laneID == 0) {
 					sourceThread = 31;
-				} else if(threadIdx.x == 31){
+				} else if(laneID == 31){
                     sourceBlock = block - 1;
 				}
 
@@ -165,13 +171,13 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
 
             // This shifts over values in the block where we're inserting the new value.
             // As such it requires some more fine-grained control.
-			if(threadIdx.x >= foundIndex) {
-				int targetThread = int(threadIdx.x) - 1;
+			if(laneID >= foundIndex) {
+				int targetThread = laneID - 1;
 
 				threadSearchResultScores[startBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[startBlock], targetThread);
 				threadSearchResultImageIndexes[startBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[startBlock], targetThread);
 
-				if(threadIdx.x == foundIndex) {
+				if(laneID == foundIndex) {
 					threadSearchResultScores[startBlock] = correlation;
 					threadSearchResultImageIndexes[startBlock] = haystackImageIndex;
 				}
@@ -180,10 +186,12 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
 		}
 	}
 
+
+    const unsigned int laneID = threadIdx.x % 32;
 	// Storing search results
 	for(int block = 0; block < blockCount; block++) {
-        searchResults[needleImageIndex].resultIndices[block * 32 + threadIdx.x] = threadSearchResultImageIndexes[block];
-        searchResults[needleImageIndex].resultScores[block * 32 + threadIdx.x] = threadSearchResultScores[block];
+        searchResults[needleImageIndex].resultIndices[block * 32 + laneID] = threadSearchResultImageIndexes[block];
+        searchResults[needleImageIndex].resultScores[block * 32 + laneID] = threadSearchResultScores[block];
     }
 
 }
@@ -216,7 +224,9 @@ array<ImageSearchResults> doFindDescriptorsInHaystack(
 	std::cout << "\t\tPerforming search.." << std::endl;
     auto start = std::chrono::steady_clock::now();
 
-    generateSearchResults<<<needleImageCount, 32>>>(device_needleDescriptors.content,
+    generateSearchResults<<<(needleImageCount / warpCount) + 1, 32 * warpCount>>>(
+                                                    device_needleDescriptors.content,
+													needleImageCount,
 													device_haystackDescriptors.content,
 													haystackImageCount,
 													device_searchResults,

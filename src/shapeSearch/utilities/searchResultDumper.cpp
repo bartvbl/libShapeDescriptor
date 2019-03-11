@@ -6,10 +6,15 @@ void dumpSearchResults(array<ImageSearchResults> searchResults, size_t imageCoun
     outputFile.open(outputFilePath);
 
     for(size_t image = 0; image < imageCount; image++) {
+        outputFile << "Scores: ";
         for (unsigned int i = 0; i < SEARCH_RESULT_COUNT; i++) {
-            outputFile << "Scores: " << searchResults.content[image].resultScores[i] << (i == 31 ? "\r\n" : ", ");
-            outputFile << "Indices: " <<  searchResults.content[image].resultIndices[i] << (i == 31 ? "\r\n" : ", ");
+            outputFile << searchResults.content[image].resultScores[i] << (i == SEARCH_RESULT_COUNT-1 ? "\r\n" : ", ");
         }
+        outputFile << "Indices: ";
+        for (unsigned int i = 0; i < SEARCH_RESULT_COUNT; i++) {
+            outputFile << searchResults.content[image].resultIndices[i] << (i == SEARCH_RESULT_COUNT-1 ? "\r\n" : ", ");
+        }
+        outputFile << "\r\n";
     }
 
     outputFile.close();

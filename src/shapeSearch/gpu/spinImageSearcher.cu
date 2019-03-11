@@ -9,7 +9,7 @@
 #include <cfloat>
 #include <chrono>
 #include "nvidia/helper_cuda.h"
-#include "quasiSpinImageSearcher.cuh"
+#include "spinImageSearcher.cuh"
 
 
 

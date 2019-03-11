@@ -1,7 +1,6 @@
 #include "shapeSearch/gpu/types/DeviceMesh.h"
 #include "shapeSearch/common/types/array.h"
-
-#define SEARCH_RESULT_COUNT 128
+#include "shapeSearch/libraryBuildSettings.h"
 
 struct ImageSearchResults {
     size_t resultIndices[SEARCH_RESULT_COUNT];

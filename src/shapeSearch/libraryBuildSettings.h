@@ -24,6 +24,10 @@
 // This is the maximum difference between two floating numbers such that they are considered equal.
 #define MAX_EQUIVALENCE_ROUNDING_ERROR 0.0001
 
+// How many search results the spinImageSearcher should generate. Higher numbers means more register/memory usage.
+// Due to the implementation, this value MUST be a multiple of 32.
+#define SEARCH_RESULT_COUNT 128
+
 // Unsupported at the moment.
 #define spinImageSupportAngle 60
 

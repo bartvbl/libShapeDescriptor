@@ -1,3 +1,5 @@
+#pragma once
+
 #include "shapeSearch/gpu/types/DeviceMesh.h"
 #include "shapeSearch/common/types/array.h"
 #include "shapeSearch/libraryBuildSettings.h"

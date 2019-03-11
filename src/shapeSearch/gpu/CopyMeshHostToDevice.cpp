@@ -81,7 +81,6 @@ DeviceMesh copyMeshToGPU(HostMesh hostMesh)
     device_mesh.normals_z = device_normals_z;
 
     device_mesh.vertexCount = hostMesh.vertexCount;
-    device_mesh.indexCount = hostMesh.indexCount;
 
     return device_mesh;
 }

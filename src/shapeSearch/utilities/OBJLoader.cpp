@@ -236,7 +236,23 @@ float3_cpu hostComputeTriangleNormal(std::vector<float3_cpu> &vertices, unsigned
     glm::vec3 glmSide0 = glmSide0NonNormalised;
     glm::vec3 glmSide1 = glmSide1NonNormalised;
 
-    glm::vec3 glmNormal = normalize(glm::cross(glmSide0, glmSide1));
+    glm::vec3 glmNormal = glm::cross(glmSide0, glmSide1);
+
+    float length = glm::length(glmNormal);
+
+    if(length != 0) {
+		glmNormal.x /= length;
+		glmNormal.y /= length;
+		glmNormal.z /= length;
+    } else {
+    	// Some objects may have zero-area triangles. In that case, we use an arbitrarily chosen fallback normal
+    	glmNormal = {0, 0, 1};
+    }
+
+
+
+    // GIVES INCORRECT RESULTS (0, -0.76, 0) -> (-1, 0, 0) for SOME reason
+    //glmNormal = glm::normalize(glmNormal);
 
     float3_cpu normal = make_float3_cpu(glmNormal.x, glmNormal.y, glmNormal.z);
 

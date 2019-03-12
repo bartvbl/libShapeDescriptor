@@ -32,7 +32,8 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
 
 	for (int y = 0; y < spinImageWidthPixels; y++)
 	{
-		for (int x = threadIdx.x; x < spinImageWidthPixels; x += blockDim.x)
+		const int warpSize = 32;
+	    for (int x = threadIdx.x; x < spinImageWidthPixels; x += warpSize)
 		{
             const size_t spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
 
@@ -141,7 +142,7 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
                 bool threadExceeds = threadSearchResultScores[block] < correlation;
                 unsigned int bitString = __ballot_sync(0xFFFFFFFF, threadExceeds);
                 unsigned int firstSet = __ffs(bitString) - 1;
-                if(firstSet > 0 && firstSet < 32) {
+                if(firstSet < 32) {
                     foundIndex = (block * 32) + (firstSet);
                     break;
                 }

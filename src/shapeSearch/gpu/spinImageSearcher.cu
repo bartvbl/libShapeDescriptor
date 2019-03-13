@@ -172,13 +172,13 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
 
             // This shifts over values in the block where we're inserting the new value.
             // As such it requires some more fine-grained control.
-			if(laneID >= foundIndex) {
+			if(laneID >= foundIndex % 32) {
 				int targetThread = laneID - 1;
 
 				threadSearchResultScores[startBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[startBlock], targetThread);
 				threadSearchResultImageIndexes[startBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[startBlock], targetThread);
 
-				if(laneID == foundIndex) {
+				if(laneID == foundIndex % 32) {
 					threadSearchResultScores[startBlock] = correlation;
 					threadSearchResultImageIndexes[startBlock] = haystackImageIndex;
 				}

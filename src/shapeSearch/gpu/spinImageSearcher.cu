@@ -264,9 +264,9 @@ array<ImageSearchResults> doFindDescriptorsInHaystack(
 }
 
 array<ImageSearchResults> findDescriptorsInHaystack(
-		array<classicSpinImagePixelType > device_needleDescriptors,
+		array<classicSpinImagePixelType> device_needleDescriptors,
 		size_t needleImageCount,
-		array<classicSpinImagePixelType > device_haystackDescriptors,
+		array<classicSpinImagePixelType> device_haystackDescriptors,
 		size_t haystackImageCount) {
 	return doFindDescriptorsInHaystack<classicSpinImagePixelType>(device_needleDescriptors, needleImageCount, device_haystackDescriptors, haystackImageCount);
 }
@@ -274,7 +274,75 @@ array<ImageSearchResults> findDescriptorsInHaystack(
 array<ImageSearchResults> findDescriptorsInHaystack(
 		array<newSpinImagePixelType> device_needleDescriptors,
 		size_t needleImageCount,
-		array<newSpinImagePixelType > device_haystackDescriptors,
+		array<newSpinImagePixelType> device_haystackDescriptors,
 		size_t haystackImageCount) {
 	return doFindDescriptorsInHaystack<newSpinImagePixelType>(device_needleDescriptors, needleImageCount, device_haystackDescriptors, haystackImageCount);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+template<typename pixelType>
+__global__ void generateElementWiseSearchResults(
+									  pixelType* needleDescriptors,
+									  size_t needleImageCount,
+									  pixelType* haystackDescriptors,
+									  size_t haystackImageCount,
+									  ImageSearchResults* searchResults,
+									  float* needleImageAverages,
+									  float* haystackImageAverages) {
+
+	size_t needleImageIndex = warpCount * blockIdx.x + (threadIdx.x / 32);
+
+	if (needleImageIndex >= needleImageCount) {
+		return;
+	}
+
+	float referenceCorrelation =
+}
+
+template<typename pixelType>
+array<size_t> doFindCorrespondingSearchResultIndices(
+		array<pixelType> device_needleDescriptors,
+		size_t needleImageCount,
+		array<pixelType> device_haystackDescriptors,
+		size_t haystackImageCount)
+{
+
+}
+
+
+array<size_t> findCorrespondingSearchResultIndices(
+		array<classicSpinImagePixelType> device_needleDescriptors,
+		size_t needleImageCount,
+		array<classicSpinImagePixelType> device_haystackDescriptors,
+		size_t haystackImageCount) {
+
+}
+
+array<size_t> findCorrespondingSearchResultIndices(
+		array<newSpinImagePixelType> device_needleDescriptors,
+		size_t needleImageCount,
+		array<newSpinImagePixelType> device_haystackDescriptors,
+		size_t haystackImageCount) {
+
 }

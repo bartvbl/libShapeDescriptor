@@ -55,10 +55,18 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
 
     float correlation = -1;
 
-    // Avoid zero divisions
-    if(squaredSumX != 0 && squaredSumY != 0)
+    if(squaredSumX != 0 || squaredSumY != 0)
     {
+        // Avoiding zero divisions
+        const float smallestNonZeroFactor = 0.0001;
+        squaredSumX = max(squaredSumX, smallestNonZeroFactor);
+        squaredSumY = max(squaredSumY, smallestNonZeroFactor);
+        multiplicativeSum = max(multiplicativeSum, smallestNonZeroFactor * smallestNonZeroFactor);
+
         correlation = multiplicativeSum / (squaredSumX * squaredSumY);
+    } else if(squaredSumX == 0 && squaredSumY == 0) {
+        // If both sums are 0, both sequences must be identical
+        correlation = 1;
     }
 
     return correlation;
@@ -132,8 +140,6 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
 														needleImageAverage,
 														haystackImageAverage);
 
-
-
 		// Since most images will not make it into the top ranking, we do a quick check to avoid a search
 		// This saves a few instructions.
 		if(correlation > __shfl_sync(0xFFFFFFFF, threadSearchResultScores[(SEARCH_RESULT_COUNT / 32) - 1], 31)) {
@@ -142,6 +148,7 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
                 bool threadExceeds = threadSearchResultScores[block] < correlation;
                 unsigned int bitString = __ballot_sync(0xFFFFFFFF, threadExceeds);
                 unsigned int firstSet = __ffs(bitString) - 1;
+
                 if(firstSet < 32) {
                     foundIndex = (block * 32) + (firstSet);
                     break;
@@ -156,18 +163,18 @@ __global__ void generateSearchResults(pixelType* needleDescriptors,
             // Afterwards, we do one final iteration to shift only the values that are
             // block will never be 0, which ensures the loop body does not go out of range
             for(int block = endBlock; block > startBlock; block--) {
-				int sourceThread = laneID - 1;
-				int sourceBlock = block;
-				int destinationBlock = block;
+                int sourceThread = laneID - 1;
+                int sourceBlock = block;
 
-				if(laneID == 0) {
-					sourceThread = 31;
-				} else if(laneID == 31){
+                if(laneID == 0) {
+                    sourceThread = 31;
+                }
+                if(laneID == 31) {
                     sourceBlock = block - 1;
-				}
+                }
 
-				threadSearchResultScores[destinationBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[sourceBlock], sourceThread);
-				threadSearchResultImageIndexes[destinationBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[sourceBlock], sourceThread);
+				threadSearchResultScores[block] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[sourceBlock], sourceThread);
+				threadSearchResultImageIndexes[block] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[sourceBlock], sourceThread);
             }
 
             // This shifts over values in the block where we're inserting the new value.
@@ -213,6 +220,7 @@ array<ImageSearchResults> doFindDescriptorsInHaystack(
 
 	std::cout << "\t\tComputing image averages.." << std::endl;
 	calculateImageAverages<pixelType><<<needleImageCount, 32>>>(device_needleDescriptors.content, device_needleImageAverages);
+    checkCudaErrors(cudaDeviceSynchronize());
 	calculateImageAverages<pixelType><<<haystackImageCount, 32>>>(device_haystackDescriptors.content, device_haystackImageAverages);
 	checkCudaErrors(cudaDeviceSynchronize());
 

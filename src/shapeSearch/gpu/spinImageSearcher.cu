@@ -33,7 +33,7 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
 	for (int y = 0; y < spinImageWidthPixels; y++)
 	{
 		const int warpSize = 32;
-	    for (int x = threadIdx.x; x < spinImageWidthPixels; x += warpSize)
+	    for (int x = threadIdx.x % 32; x < spinImageWidthPixels; x += warpSize)
 		{
             const size_t spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
 

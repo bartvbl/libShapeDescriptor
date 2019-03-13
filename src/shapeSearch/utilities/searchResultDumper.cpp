@@ -6,6 +6,7 @@ void dumpSearchResults(array<ImageSearchResults> searchResults, size_t imageCoun
     outputFile.open(outputFilePath);
 
     for(size_t image = 0; image < imageCount; image++) {
+        outputFile << "----- Image " << image << " -----" << std::endl;
         outputFile << "Scores: ";
         for (unsigned int i = 0; i < SEARCH_RESULT_COUNT; i++) {
             outputFile << searchResults.content[image].resultScores[i] << (i == SEARCH_RESULT_COUNT-1 ? "\r\n" : ", ");

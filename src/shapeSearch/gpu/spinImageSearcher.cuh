@@ -20,3 +20,17 @@ array<ImageSearchResults> findDescriptorsInHaystack(
         size_t needleImageCount,
         array<newSpinImagePixelType > device_haystackDescriptors,
         size_t haystackImageCount);
+
+
+
+array<size_t> computeSearchResultRanks(
+        array<classicSpinImagePixelType> device_needleDescriptors,
+        size_t needleImageCount,
+        array<classicSpinImagePixelType> device_haystackDescriptors,
+        size_t haystackImageCount);
+
+array<size_t> computeSearchResultRanks(
+        array<newSpinImagePixelType> device_needleDescriptors,
+        size_t needleImageCount,
+        array<newSpinImagePixelType> device_haystackDescriptors,
+        size_t haystackImageCount);

@@ -264,9 +264,9 @@ array<ImageSearchResults> doFindDescriptorsInHaystack(
 }
 
 array<ImageSearchResults> findDescriptorsInHaystack(
-		array<classicSpinImagePixelType > device_needleDescriptors,
+		array<classicSpinImagePixelType> device_needleDescriptors,
 		size_t needleImageCount,
-		array<classicSpinImagePixelType > device_haystackDescriptors,
+		array<classicSpinImagePixelType> device_haystackDescriptors,
 		size_t haystackImageCount) {
 	return doFindDescriptorsInHaystack<classicSpinImagePixelType>(device_needleDescriptors, needleImageCount, device_haystackDescriptors, haystackImageCount);
 }
@@ -274,7 +274,164 @@ array<ImageSearchResults> findDescriptorsInHaystack(
 array<ImageSearchResults> findDescriptorsInHaystack(
 		array<newSpinImagePixelType> device_needleDescriptors,
 		size_t needleImageCount,
-		array<newSpinImagePixelType > device_haystackDescriptors,
+		array<newSpinImagePixelType> device_haystackDescriptors,
 		size_t haystackImageCount) {
 	return doFindDescriptorsInHaystack<newSpinImagePixelType>(device_needleDescriptors, needleImageCount, device_haystackDescriptors, haystackImageCount);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+template<typename pixelType>
+__global__ void generateElementWiseSearchResults(
+									  pixelType* needleDescriptors,
+									  size_t needleImageCount,
+									  pixelType* haystackDescriptors,
+									  size_t haystackImageCount,
+									  size_t* searchResults,
+									  float* needleImageAverages,
+									  float* haystackImageAverages) {
+
+	size_t needleImageIndex = warpCount * blockIdx.x + (threadIdx.x / 32);
+
+	if (needleImageIndex >= needleImageCount) {
+		return;
+	}
+
+	float needleImageAverage = needleImageAverages[needleImageIndex];
+	float correspondingImageAverage = haystackImageAverages[needleImageIndex];
+
+	float referenceCorrelation = computeImagePairCorrelation(needleDescriptors,
+															 haystackDescriptors,
+															 needleImageIndex,
+                                                             needleImageIndex,
+															 needleImageAverage,
+															 correspondingImageAverage);
+
+	if(referenceCorrelation == 1) {
+		if(threadIdx.x % 32 == 0) {
+			searchResults[needleImageIndex] = 0;
+		}
+		return;
+	}
+
+	size_t searchResultRank = 0;
+
+	for(size_t haystackImageIndex = 0; haystackImageIndex < haystackImageCount; haystackImageIndex++) {
+		if(needleImageIndex == haystackImageIndex) {
+			continue;
+		}
+
+		float haystackImageAverage = haystackImageAverages[haystackImageIndex];
+
+		float correlation = computeImagePairCorrelation(needleDescriptors,
+														haystackDescriptors,
+														needleImageIndex,
+														haystackImageIndex,
+														needleImageAverage,
+														haystackImageAverage);
+
+		if(correlation > referenceCorrelation) {
+			searchResultRank++;
+		}
+	}
+
+	if(threadIdx.x % 32 == 0) {
+		searchResults[needleImageIndex] = searchResultRank;
+	}
+}
+
+template<typename pixelType>
+array<size_t> doFindCorrespondingSearchResultIndices(
+		array<pixelType> device_needleDescriptors,
+		size_t needleImageCount,
+		array<pixelType> device_haystackDescriptors,
+		size_t haystackImageCount)
+{
+	// Step 1: Compute image averages, since they're constant and are needed for each comparison
+
+	float* device_needleImageAverages;
+	float* device_haystackImageAverages;
+	checkCudaErrors(cudaMalloc(&device_needleImageAverages, needleImageCount * sizeof(float)));
+	checkCudaErrors(cudaMalloc(&device_haystackImageAverages, haystackImageCount * sizeof(float)));
+
+	std::cout << "\t\tComputing image averages.." << std::endl;
+	calculateImageAverages<pixelType><<<needleImageCount, 32>>>(device_needleDescriptors.content, device_needleImageAverages);
+	checkCudaErrors(cudaDeviceSynchronize());
+	calculateImageAverages<pixelType><<<haystackImageCount, 32>>>(device_haystackDescriptors.content, device_haystackImageAverages);
+	checkCudaErrors(cudaDeviceSynchronize());
+
+	// Step 2: Perform search
+
+	size_t searchResultBufferSize = needleImageCount * sizeof(size_t);
+	size_t* device_searchResults;
+	checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
+
+	std::cout << "\t\tPerforming search.." << std::endl;
+	auto start = std::chrono::steady_clock::now();
+
+	generateElementWiseSearchResults<<<(needleImageCount / warpCount) + 1, 32 * warpCount>>>(
+					device_needleDescriptors.content,
+					needleImageCount,
+					device_haystackDescriptors.content,
+					haystackImageCount,
+					device_searchResults,
+					device_needleImageAverages,
+					device_haystackImageAverages);
+	checkCudaErrors(cudaDeviceSynchronize());
+
+	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+	std::cout << "\t\t\tExecution time: " << duration.count() << std::endl;
+
+	// Step 3: Copying results to CPU
+
+	array<size_t> resultIndices;
+	resultIndices.content = new size_t[needleImageCount];
+	resultIndices.length = needleImageCount;
+
+	checkCudaErrors(cudaMemcpy(resultIndices.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));
+
+	// Cleanup
+
+	cudaFree(device_needleImageAverages);
+	cudaFree(device_haystackImageAverages);
+	cudaFree(device_searchResults);
+
+	return resultIndices;
+}
+
+
+array<size_t> computeSearchResultRanks(
+		array<classicSpinImagePixelType> device_needleDescriptors,
+		size_t needleImageCount,
+		array<classicSpinImagePixelType> device_haystackDescriptors,
+		size_t haystackImageCount) {
+    return doFindCorrespondingSearchResultIndices<classicSpinImagePixelType>(device_needleDescriptors, needleImageCount, device_haystackDescriptors, haystackImageCount);
+}
+
+array<size_t> computeSearchResultRanks(
+		array<newSpinImagePixelType> device_needleDescriptors,
+		size_t needleImageCount,
+		array<newSpinImagePixelType> device_haystackDescriptors,
+		size_t haystackImageCount) {
+    return doFindCorrespondingSearchResultIndices<newSpinImagePixelType>(device_needleDescriptors, needleImageCount, device_haystackDescriptors, haystackImageCount);
 }

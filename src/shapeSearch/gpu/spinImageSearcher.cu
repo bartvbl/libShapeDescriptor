@@ -8,6 +8,12 @@
 #include <climits>
 #include <cfloat>
 #include <chrono>
+#include <algorithm>
+#include <vector>
+#include <utility>
+#include <typeinfo>
+#include <shapeSearch/utilities/Histogram.h>
+
 #include "nvidia/helper_cuda.h"
 #include "spinImageSearcher.cuh"
 
@@ -309,7 +315,8 @@ __global__ void generateElementWiseSearchResults(
 									  size_t haystackImageCount,
 									  size_t* searchResults,
 									  float* needleImageAverages,
-									  float* haystackImageAverages) {
+									  float* haystackImageAverages,
+									  float* debug_correlations) {
 
 	size_t needleImageIndex = warpCount * blockIdx.x + (threadIdx.x / 32);
 
@@ -338,7 +345,8 @@ __global__ void generateElementWiseSearchResults(
 
 	for(size_t haystackImageIndex = 0; haystackImageIndex < haystackImageCount; haystackImageIndex++) {
 		if(needleImageIndex == haystackImageIndex) {
-			continue;
+			debug_correlations[(needleImageIndex * haystackImageCount) + haystackImageIndex] = referenceCorrelation;
+		    continue;
 		}
 
 		float haystackImageAverage = haystackImageAverages[haystackImageIndex];
@@ -352,6 +360,10 @@ __global__ void generateElementWiseSearchResults(
 
 		if(correlation > referenceCorrelation) {
 			searchResultRank++;
+		}
+
+		if(threadIdx.x % 32 == 0) {
+            debug_correlations[(needleImageIndex * haystackImageCount) + haystackImageIndex] = correlation;
 		}
 	}
 
@@ -373,6 +385,10 @@ array<size_t> doFindCorrespondingSearchResultIndices(
 	float* device_haystackImageAverages;
 	checkCudaErrors(cudaMalloc(&device_needleImageAverages, needleImageCount * sizeof(float)));
 	checkCudaErrors(cudaMalloc(&device_haystackImageAverages, haystackImageCount * sizeof(float)));
+
+	float* device_debugCorrelations;
+	checkCudaErrors(cudaMalloc(&device_debugCorrelations, sizeof(float) * needleImageCount * haystackImageCount));
+
 
 	std::cout << "\t\tComputing image averages.." << std::endl;
 	calculateImageAverages<pixelType><<<needleImageCount, 32>>>(device_needleDescriptors.content, device_needleImageAverages);
@@ -396,11 +412,50 @@ array<size_t> doFindCorrespondingSearchResultIndices(
 					haystackImageCount,
 					device_searchResults,
 					device_needleImageAverages,
-					device_haystackImageAverages);
+					device_haystackImageAverages,
+					device_debugCorrelations);
 	checkCudaErrors(cudaDeviceSynchronize());
 
 	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
 	std::cout << "\t\t\tExecution time: " << duration.count() << std::endl;
+
+    if (typeid(pixelType) == typeid(unsigned int)) {
+
+
+        float *debug_correlations = new float[needleImageCount * haystackImageCount];
+        checkCudaErrors(cudaMemcpy(debug_correlations, device_debugCorrelations,
+                                   sizeof(float) * needleImageCount * haystackImageCount, cudaMemcpyDeviceToHost));
+        Histogram hist;
+        std::ofstream outFile("correlation output.txt");
+        for (int image = 0; image < needleImageCount; image++) {
+            std::vector<std::pair<float, size_t>> indices;
+            outFile << "Image " << image << std::endl;
+            for (int other = 0; other < haystackImageCount; other++) {
+                indices.push_back(std::make_pair(debug_correlations[image * haystackImageCount + other], other));
+            }
+            std::sort(indices.begin(), indices.end());
+            std::reverse(indices.begin(), indices.end());
+            outFile << std::endl;
+            int lastEquivalentIndex = 0;
+            float lastEquivalentValue = -10;
+            for (int other = 0; other < haystackImageCount; other++) {
+                if(indices.at(other).first != lastEquivalentValue) {
+                    lastEquivalentValue = indices.at(other).first;
+                    lastEquivalentIndex = other;
+                }
+                outFile << "(" << indices.at(other).first << " -> " << indices.at(other).second << ")" << std::endl;
+                if(image == indices.at(other).second) {
+                    hist.count(lastEquivalentIndex);
+                }
+            }
+            indices.resize(0);
+        }
+        std::cout << hist.toJSON() << std::endl;
+
+        outFile.close();
+        delete[] debug_correlations;
+    }
+    cudaFree(device_debugCorrelations);
 
 	// Step 3: Copying results to CPU
 

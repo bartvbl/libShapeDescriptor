@@ -72,7 +72,7 @@ float3_cpu hostTransformCoordinate(float3_cpu vertex, float3_cpu spinImageVertex
 	return transformedCoordinate;
 }
 
-void hostRasteriseTriangle(array<unsigned int> descriptor, float3_cpu *vertices, CPURasterisationSettings settings)
+void hostRasteriseTriangle(array<newSpinImagePixelType> descriptor, float3_cpu *vertices, CPURasterisationSettings settings)
 {
 	vertices[0] = hostTransformCoordinate(vertices[0], settings.spinImageVertex, settings.spinImageNormal);
 	vertices[1] = hostTransformCoordinate(vertices[1], settings.spinImageVertex, settings.spinImageNormal);
@@ -255,7 +255,7 @@ void hostRasteriseTriangle(array<unsigned int> descriptor, float3_cpu *vertices,
 	}
 }
 
-void hostGenerateQSI(array<unsigned int> descriptor, CPURasterisationSettings settings)
+void hostGenerateQSI(array<newSpinImagePixelType> descriptor, CPURasterisationSettings settings)
 {
 	for (int triangleIndex = 0; triangleIndex < settings.mesh.indexCount / 3; triangleIndex += 1)
 	{
@@ -273,10 +273,10 @@ void hostGenerateQSI(array<unsigned int> descriptor, CPURasterisationSettings se
 	}
 }
 
-array<unsigned int> hostGenerateQSIAllVertices(CPURasterisationSettings settings) {
-	array<unsigned int> descriptors;
+array<newSpinImagePixelType> hostGenerateQSIAllVertices(CPURasterisationSettings settings) {
+	array<newSpinImagePixelType> descriptors;
 	size_t descriptorElementCount = spinImageWidthPixels * spinImageWidthPixels * settings.mesh.vertexCount;
-	descriptors.content = new unsigned int[descriptorElementCount];
+	descriptors.content = new newSpinImagePixelType[descriptorElementCount];
 	descriptors.length = descriptorElementCount;
 
 	// Reset the output descriptor

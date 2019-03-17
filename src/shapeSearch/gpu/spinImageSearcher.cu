@@ -11,7 +11,7 @@
 #include "nvidia/helper_cuda.h"
 #include "spinImageSearcher.cuh"
 
-const unsigned int warpCount = 2;
+const unsigned int warpCount = 16;
 
 
 __inline__ __device__ float warpAllReduceSum(float val) {
@@ -317,12 +317,19 @@ __global__ void generateElementWiseSearchResults(
 		return;
 	}
 
+	__shared__ pixelType referenceImage[spinImageWidthPixels * spinImageWidthPixels];
+	for(unsigned int index = threadIdx.x; index < spinImageWidthPixels * spinImageWidthPixels; index += blockDim.x) {
+		referenceImage[index] = needleDescriptors[spinImageWidthPixels * spinImageWidthPixels * needleImageIndex + index];
+	}
+
+	__syncthreads();
+
 	float needleImageAverage = needleImageAverages[needleImageIndex];
 	float correspondingImageAverage = haystackImageAverages[needleImageIndex];
 
-	float referenceCorrelation = computeImagePairCorrelation(needleDescriptors,
+	float referenceCorrelation = computeImagePairCorrelation(referenceImage,
 															 haystackDescriptors,
-															 needleImageIndex,
+															 0,
                                                              needleImageIndex,
 															 needleImageAverage,
 															 correspondingImageAverage);
@@ -343,9 +350,9 @@ __global__ void generateElementWiseSearchResults(
 
 		float haystackImageAverage = haystackImageAverages[haystackImageIndex];
 
-		float correlation = computeImagePairCorrelation(needleDescriptors,
+		float correlation = computeImagePairCorrelation(referenceImage,
 														haystackDescriptors,
-														needleImageIndex,
+														0,
 														haystackImageIndex,
 														needleImageAverage,
 														haystackImageAverage);

@@ -426,14 +426,14 @@ array<size_t> doFindCorrespondingSearchResultIndices(
 	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
 	std::cout << "\t\t\tExecution time: " << duration.count() << std::endl;
 
-    if (typeid(pixelType) == typeid(unsigned int)) {
-
+    if (typeid(pixelType) == typeid(float)) {
+        std::cout << "Dumping debug GPU correlations.." << std::endl;
 
         float *debug_correlations = new float[needleImageCount * haystackImageCount];
         checkCudaErrors(cudaMemcpy(debug_correlations, device_debugCorrelations,
                                    sizeof(float) * needleImageCount * haystackImageCount, cudaMemcpyDeviceToHost));
         Histogram hist;
-        std::ofstream outFile("correlation output.txt");
+        std::ofstream outFile("out_gpu.txt");
         for (int image = 0; image < needleImageCount; image++) {
             std::vector<std::pair<float, size_t>> indices;
             outFile << "Image " << image << std::endl;

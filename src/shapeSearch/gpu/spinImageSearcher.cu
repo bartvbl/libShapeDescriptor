@@ -409,6 +409,7 @@ array<size_t> doFindCorrespondingSearchResultIndices(
 	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
 	std::cout << "\t\t\tExecution time: " << duration.count() << std::endl;
 
+
 	// Step 3: Copying results to CPU
 
 	array<size_t> resultIndices;

@@ -25,6 +25,7 @@ include_directories (
         lib/glm/
         lib/nvidia-samples-common/
         lib/lodepng/
+        lib/Catch2/single_include/
         ${CUDA_INCLUDE_DIRS}
 )
 
@@ -37,6 +38,7 @@ file (GLOB_RECURSE LIBRARY_SOURCES src/*.cpp
                                    src/*.cxx
                                    src/*.cc
                                    src/*.c
+                                   tests/*.cpp
                                    lib/lodepng/lodepng.cpp)
 
 cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})

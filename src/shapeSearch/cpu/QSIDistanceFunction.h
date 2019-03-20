@@ -1,3 +1,7 @@
 #pragma once
 
-float compareQuasiSpinImagesCPU(unsigned int* referenceImage, unsigned int* sampleImage);
+namespace SpinImage {
+    namespace cpu {
+        float computeQuasiSpinImageDistance(unsigned int *referenceImage, unsigned int *sampleImage);
+    }
+}

@@ -1,6 +1,6 @@
 #include <shapeSearch/common/types/array.h>
 #include "QSIDistanceFunction.h"
 
-float compareQuasiSpinImagesCPU(unsigned int* referenceImage, unsigned int* sampleImage) {
+float SpinImage::cpu::computeQuasiSpinImageDistance(unsigned int *referenceImage, unsigned int *sampleImage) {
 
 }

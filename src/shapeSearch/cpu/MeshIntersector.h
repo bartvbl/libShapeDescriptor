@@ -24,8 +24,13 @@ struct IntersectionCluster {
     std::vector<IntersectionLineSegment> contents;
 };
 
-void computePlaneIntersections(glm::vec4 vertices[], unsigned int triangleCount, glm::mat4 transformations[], std::vector<IntersectionLineSegment> intersections[], int planeStepCount);
-
-glm::mat4 generateAlignmentTransformation(const float3_cpu &origin, const float3_cpu &normal, const float &planeAngleRadians);
-std::vector<IntersectionCluster> linkIntersectionEdges(std::vector<IntersectionLineSegment> intersectingEdges);
-std::vector<IntersectionLineSegment> intersectPlane(HostMesh mesh, float3_cpu origin, float3_cpu normal, float planeAngle);
+namespace SpinImage {
+	namespace cpu {
+		void computeMeshPlaneIntersections(
+				glm::vec4 vertices[],
+				unsigned int triangleCount,
+				glm::mat4 transformations[],
+				std::vector<IntersectionLineSegment> intersections[],
+				const int planeStepCount);
+	}
+}

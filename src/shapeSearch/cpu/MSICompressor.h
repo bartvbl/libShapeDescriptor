@@ -2,4 +2,8 @@
 
 #include "shapeSearch/common/types/array.h"
 
-void compressMSI(array<unsigned int> msiImage, unsigned long long* compressedImage);
+namespace SpinImage {
+    namespace cpu {
+        void convertQSIToMSIImage(array<unsigned int> msiImage, unsigned long long *compressedImage);
+    }
+}

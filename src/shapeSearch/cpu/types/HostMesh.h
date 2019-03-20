@@ -40,5 +40,9 @@ struct HostMesh {
 	}
 };
 
-void freeHostMesh(HostMesh &mesh);
+namespace SpinImage {
+	namespace cpu {
+		void freeHostMesh(HostMesh &mesh);
+	}
+}
 

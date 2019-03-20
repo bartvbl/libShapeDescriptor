@@ -2,7 +2,7 @@
 #include <shapeSearch/libraryBuildSettings.h>
 #include <cmath>
 #include <nvidia/helper_math.h>
-#include "QSIGenerator.hpp"
+#include "QSIGenerator.h"
 
 float hostTransformNormalX(QSIPrecalculatedSettings pre_settings, float3_cpu spinImageNormal)
 {
@@ -254,7 +254,7 @@ void hostRasteriseTriangle(array<quasiSpinImagePixelType> descriptor, float3_cpu
 	}
 }
 
-void hostGenerateQSI(array<quasiSpinImagePixelType> descriptor, CPURasterisationSettings settings)
+void SpinImage::cpu::generateQSI(array<quasiSpinImagePixelType> descriptor, CPURasterisationSettings settings)
 {
 	for (int triangleIndex = 0; triangleIndex < settings.mesh.indexCount / 3; triangleIndex += 1)
 	{
@@ -272,7 +272,7 @@ void hostGenerateQSI(array<quasiSpinImagePixelType> descriptor, CPURasterisation
 	}
 }
 
-array<quasiSpinImagePixelType> hostGenerateQSIAllVertices(CPURasterisationSettings settings) {
+array<quasiSpinImagePixelType> SpinImage::cpu::generateQSIAllVertices(CPURasterisationSettings settings) {
 	array<quasiSpinImagePixelType> descriptors;
 	size_t descriptorElementCount = spinImageWidthPixels * spinImageWidthPixels * settings.mesh.vertexCount;
 	descriptors.content = new quasiSpinImagePixelType[descriptorElementCount];
@@ -286,7 +286,7 @@ array<quasiSpinImagePixelType> hostGenerateQSIAllVertices(CPURasterisationSettin
 		settings.vertexIndexIndex = vertex;
 		settings.spinImageVertex = settings.mesh.vertices[vertex];
 		settings.spinImageNormal = settings.mesh.normals[vertex];
-		hostGenerateQSI(descriptors, settings);
+		SpinImage::cpu::generateQSI(descriptors, settings);
 	}
 	return descriptors;
 }

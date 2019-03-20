@@ -17,7 +17,7 @@
 #include <shapeSearch/gpu/types/DeviceMesh.h>
 #include <shapeSearch/gpu/types/CudaLaunchDimensions.h>
 #include <shapeSearch/gpu/setValue.cuh>
-#include <shapeSearch/utilities/spinImageDumper.h>
+#include <shapeSearch/utilities/dumpers/spinImageDumper.h>
 
 #define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
 
@@ -194,7 +194,7 @@ __global__ void sampleMesh(DeviceMesh mesh, array<float> areaArray, array<float3
 // @TODO: Determine whether all coordinates checked agains the cube grid are in cube grid space.
 
 // Run once for every vertex index
-__global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, array<classicSpinImagePixelType> descriptors, array<float> areaArray, int sampleCount, float oneOverSpinImagePixelWidth)
+__global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, array<spinImagePixelType> descriptors, array<float> areaArray, int sampleCount, float oneOverSpinImagePixelWidth)
 {
 #define spinImageIndexIndex blockIdx.x
 
@@ -292,7 +292,7 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 	}
 }
 
-array<classicSpinImagePixelType> generateSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information, float spinImageWidth, size_t sampleCount)
+array<spinImagePixelType> SpinImage::gpu::generateSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information, float spinImageWidth, size_t sampleCount)
 {
 	size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
 	size_t descriptorBufferSize = sizeof(float) * descriptorBufferLength;
@@ -301,7 +301,7 @@ array<classicSpinImagePixelType> generateSpinImages(DeviceMesh device_mesh, cuda
 	curandState* device_randomState;
 	array<float2> device_coefficients;
 
-	array<classicSpinImagePixelType> device_descriptors;
+	array<spinImagePixelType> device_descriptors;
 	array<float> device_areaArray;
 	array<float> device_cumulativeAreaArray;
 	array<float3> device_pointSamples;
@@ -322,7 +322,7 @@ array<classicSpinImagePixelType> generateSpinImages(DeviceMesh device_mesh, cuda
     CudaLaunchDimensions areaSettings = calculateCudaLaunchDimensions(device_areaArray.length, device_information);
     CudaLaunchDimensions cumulativeAreaSettings = calculateCudaLaunchDimensions(device_areaArray.length, device_information);
 
-	setValue <classicSpinImagePixelType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.content, descriptorBufferLength, 0);
+	setValue <spinImagePixelType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.content, descriptorBufferLength, 0);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 

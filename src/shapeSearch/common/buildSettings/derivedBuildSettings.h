@@ -1,17 +1,17 @@
 #pragma once
 
 #if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT
-typedef unsigned int newSpinImagePixelType;
+typedef unsigned int quasiSpinImagePixelType;
 #elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
-typedef unsigned short newSpinImagePixelType;
+typedef unsigned short quasiSpinImagePixelType;
 #elif QSI_PIXEL_DATATYPE == DATATYPE_FLOAT32
-typedef float newSpinImagePixelType;
+typedef float quasiSpinImagePixelType;
 #else
 #error No valid datatype has been specified for the Quasi Spin Image
 #endif
 
 #if SI_PIXEL_DATATYPE == DATATYPE_FLOAT
-typedef float classicSpinImagePixelType;
+typedef float spinImagePixelType;
 #else
 #error No valid datatype has been specified for the Spin Image
 #endif

@@ -1,9 +1,9 @@
 #include <shapeSearch/libraryBuildSettings.h>
 #include <shapeSearch/cpu/types/CPURasterisationSettings.h>
 #include "MSIGenerator.h"
-#include "QSIGenerator.hpp"
+#include "QSIGenerator.h"
 
-void hostComputeMSI_fallingHorizontal(array<unsigned int> MSIDescriptor, array<unsigned int> QSIDescriptor) {
+void SpinImage::cpu::computeMSIFallingHorizontal(array<unsigned int> MSIDescriptor, array<unsigned int> QSIDescriptor) {
     for (int y = 0; y < spinImageWidthPixels; y++)
     {
         for (int x = 0; x < spinImageWidthPixels - 1; x++)
@@ -13,7 +13,7 @@ void hostComputeMSI_fallingHorizontal(array<unsigned int> MSIDescriptor, array<u
     }
 }
 
-void hostComputeMSI_risingHorizontal(array<unsigned int> MSIDescriptor, array<unsigned int> QSIDescriptor) {
+void SpinImage::cpu::computeMSIRisingHorizontal(array<unsigned int> MSIDescriptor, array<unsigned int> QSIDescriptor) {
     for (int y = 0; y < spinImageWidthPixels; y++)
     {
         for (int x = 0; x < spinImageWidthPixels - 1; x++)

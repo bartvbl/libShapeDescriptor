@@ -2,8 +2,7 @@
 #include <shapeSearch/libraryBuildSettings.h>
 #include <cmath>
 #include <nvidia/helper_math.h>
-#include "QSIGenerator.hpp"
-#include "SpinImageSizeCalculator.h"
+#include "QSIGenerator.h"
 
 float hostTransformNormalX(QSIPrecalculatedSettings pre_settings, float3_cpu spinImageNormal)
 {
@@ -72,7 +71,7 @@ float3_cpu hostTransformCoordinate(float3_cpu vertex, float3_cpu spinImageVertex
 	return transformedCoordinate;
 }
 
-void hostRasteriseTriangle(array<newSpinImagePixelType> descriptor, float3_cpu *vertices, CPURasterisationSettings settings)
+void hostRasteriseTriangle(array<quasiSpinImagePixelType> descriptor, float3_cpu *vertices, CPURasterisationSettings settings)
 {
 	vertices[0] = hostTransformCoordinate(vertices[0], settings.spinImageVertex, settings.spinImageNormal);
 	vertices[1] = hostTransformCoordinate(vertices[1], settings.spinImageVertex, settings.spinImageNormal);
@@ -255,9 +254,9 @@ void hostRasteriseTriangle(array<newSpinImagePixelType> descriptor, float3_cpu *
 	}
 }
 
-void hostGenerateQSI(array<newSpinImagePixelType> descriptor, CPURasterisationSettings settings)
+void SpinImage::cpu::generateQuasiSpinImage(array<quasiSpinImagePixelType> descriptor, CPURasterisationSettings settings)
 {
-	for (int triangleIndex = 0; triangleIndex < settings.mesh.indexCount / 3; triangleIndex += 1)
+	for (size_t triangleIndex = 0; triangleIndex < settings.mesh.indexCount / 3; triangleIndex += 1)
 	{
 		float3_cpu vertices[3];
 
@@ -273,21 +272,21 @@ void hostGenerateQSI(array<newSpinImagePixelType> descriptor, CPURasterisationSe
 	}
 }
 
-array<newSpinImagePixelType> hostGenerateQSIAllVertices(CPURasterisationSettings settings) {
-	array<newSpinImagePixelType> descriptors;
+array<quasiSpinImagePixelType> SpinImage::cpu::generateQuasiSpinImages(CPURasterisationSettings settings) {
+	array<quasiSpinImagePixelType> descriptors;
 	size_t descriptorElementCount = spinImageWidthPixels * spinImageWidthPixels * settings.mesh.vertexCount;
-	descriptors.content = new newSpinImagePixelType[descriptorElementCount];
+	descriptors.content = new quasiSpinImagePixelType[descriptorElementCount];
 	descriptors.length = descriptorElementCount;
 
 	// Reset the output descriptor
 	std::fill(descriptors.content, descriptors.content + descriptors.length, 0);
 
 #pragma omp parallel for
-	for(int vertex = 0; vertex < settings.mesh.vertexCount; vertex++) {
+	for(size_t vertex = 0; vertex < settings.mesh.vertexCount; vertex++) {
 		settings.vertexIndexIndex = vertex;
 		settings.spinImageVertex = settings.mesh.vertices[vertex];
 		settings.spinImageNormal = settings.mesh.normals[vertex];
-		hostGenerateQSI(descriptors, settings);
+		SpinImage::cpu::generateQuasiSpinImage(descriptors, settings);
 	}
 	return descriptors;
 }

@@ -2,7 +2,7 @@
 #include <shapeSearch/libraryBuildSettings.h>
 #include "MSICompressor.h"
 
-void compressMSI(array<unsigned int> msiImage, unsigned long long* compressedImage) {
+void SpinImage::cpu::convertQSIToMSIImage(array<unsigned int> msiImage, unsigned long long *compressedImage) {
 	for(unsigned int row = 0; row < spinImageWidthPixels; row++) {
 		unsigned long long pixelRow = 0;
 		std::bitset<spinImageWidthPixels> pixelRowBits(pixelRow);

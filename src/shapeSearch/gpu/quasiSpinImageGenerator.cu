@@ -91,10 +91,10 @@ __device__ __inline__ float calculateTransformedZCoordinate(GPURasterisationSett
 	return transformedZ;
 }
 
-__device__ __inline__ void rasteriseRow(int pixelBaseIndex, newSpinImagePixelType* descriptorArray, unsigned int pixelStart, unsigned int pixelEnd, const unsigned int singleMask, const unsigned int doubleMask, const unsigned int initialMask)
+__device__ __inline__ void rasteriseRow(int pixelBaseIndex, quasiSpinImagePixelType* descriptorArray, unsigned int pixelStart, unsigned int pixelEnd, const unsigned int singleMask, const unsigned int doubleMask, const unsigned int initialMask)
 {
 	// First we calculate a base pointer for the first short value that should be updated
-	newSpinImagePixelType* rowStartPointer = descriptorArray + pixelBaseIndex;
+	quasiSpinImagePixelType* rowStartPointer = descriptorArray + pixelBaseIndex;
 	// Next, since atomicAdd() requires an integer pointer, we force a cast to an integer pointer
 	// while preserving the address of the original
 	unsigned int* jobBasePixelPointer = (unsigned int*)((void*)(rowStartPointer));
@@ -197,9 +197,9 @@ __device__ __inline__ QSIPrecalculatedSettings calculateRotationSettings(float3 
 
 __device__ __inline__ void rasteriseTriangle(
 #if ENABLE_SHARED_MEMORY_IMAGE
-		newSpinImagePixelType* sharedDescriptorArray,
+		quasiSpinImagePixelType* sharedDescriptorArray,
 #else
-		newSpinImagePixelType* descriptors,
+		quasiSpinImagePixelType* descriptors,
 #endif
 		float3 vertices[3], GPURasterisationSettings settings)
 {
@@ -427,10 +427,10 @@ __device__ __inline__ void rasteriseTriangle(
 #elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
 				int jobBaseIndex = jobSpinImageBaseIndex + jobDoubleIntersectionStartPixels;
-				newSpinImagePixelType* descriptorArrayPointer = descriptors.content;
+				quasiSpinImagePixelType* descriptorArrayPointer = descriptors.content;
 	#else
 				int jobBaseIndex = jobPixelYCoordinate * spinImageWidthPixels + jobDoubleIntersectionStartPixels;
-				newSpinImagePixelType* descriptorArrayPointer = sharedDescriptorArray;
+				quasiSpinImagePixelType* descriptorArrayPointer = sharedDescriptorArray;
 	#endif
 				rasteriseRow(jobBaseIndex, descriptorArrayPointer, jobDoubleIntersectionStartPixels, jobRowStartPixels, SHORT_DOUBLE_ONE_MASK, SHORT_DOUBLE_BOTH_MASK, SHORT_DOUBLE_FIRST_MASK);
 #endif
@@ -454,10 +454,10 @@ __device__ __inline__ void rasteriseTriangle(
 #elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
 			int jobBaseIndex = jobSpinImageBaseIndex + jobRowStartPixels;
-			newSpinImagePixelType* descriptorArrayPointer = descriptors.content;
+			quasiSpinImagePixelType* descriptorArrayPointer = descriptors.content;
 	#else
 			int jobBaseIndex = jobPixelYCoordinate * spinImageWidthPixels + jobRowStartPixels;
-			newSpinImagePixelType* descriptorArrayPointer = sharedDescriptorArray;
+			quasiSpinImagePixelType* descriptorArrayPointer = sharedDescriptorArray;
 	#endif
 			rasteriseRow(jobBaseIndex, descriptorArrayPointer, jobRowStartPixels, jobRowEndPixels, SHORT_SINGLE_ONE_MASK, SHORT_SINGLE_BOTH_MASK, SHORT_SINGLE_FIRST_MASK);
 #endif
@@ -466,7 +466,7 @@ __device__ __inline__ void rasteriseTriangle(
 }
 
 __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImage(
-		newSpinImagePixelType* descriptors,
+		quasiSpinImagePixelType* descriptors,
 		DeviceMesh mesh)
 {
     GPURasterisationSettings settings;
@@ -486,7 +486,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImag
 	assert(__activemask() == 0xFFFFFFFF);
 
 	// Creating a copy of the image in shared memory, then copying it into main memory
-	__shared__ newSpinImagePixelType descriptorArrayPointer[spinImageWidthPixels * spinImageWidthPixels];
+	__shared__ quasiSpinImagePixelType descriptorArrayPointer[spinImageWidthPixels * spinImageWidthPixels];
 
 	// Initialising the values in memory to 0
 	for(int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += RASTERISATION_WARP_SIZE)
@@ -570,21 +570,21 @@ __global__ void scaleMesh(DeviceMesh mesh, float scaleFactor) {
     mesh.vertices_z[vertexIndex] *= scaleFactor;
 }
 
-array<newSpinImagePixelType> generateQuasiSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information,
+array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information,
 													 float spinImageWidth)
 {
 	size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
-	size_t descriptorBufferSize = sizeof(newSpinImagePixelType) * descriptorBufferLength;
+	size_t descriptorBufferSize = sizeof(quasiSpinImagePixelType) * descriptorBufferLength;
 
 	DeviceMesh device_meshCopy = duplicateDeviceMesh(device_mesh);
 	scaleMesh<<<(device_meshCopy.vertexCount / 128) + 1, 128>>>(device_meshCopy, float(spinImageWidthPixels)/spinImageWidth);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 
-	newSpinImagePixelType* device_descriptors_content;
+	quasiSpinImagePixelType* device_descriptors_content;
 	checkCudaErrors(cudaMalloc(&device_descriptors_content, descriptorBufferSize));
 
-    array<newSpinImagePixelType> device_descriptors;
+    array<quasiSpinImagePixelType> device_descriptors;
 	size_t imageCount = device_meshCopy.vertexCount;
 	device_descriptors.content = device_descriptors_content;
 	device_descriptors.length = imageCount;
@@ -592,7 +592,7 @@ array<newSpinImagePixelType> generateQuasiSpinImages(DeviceMesh device_mesh, cud
 
 
 	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength, device_information);
-	setValue<newSpinImagePixelType><< <valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >> > (device_descriptors.content, descriptorBufferLength, 0);
+	setValue<quasiSpinImagePixelType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.content, descriptorBufferLength, 0);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 

@@ -7,11 +7,30 @@
 
 #include "MeshIntersector.h"
 
-std::vector<IntersectionCluster> linkEdgeChains(std::vector<IntersectionLineSegment> vector);
-std::vector<IntersectionLineSegment> findPlaneIntersections(const HostMesh &mesh, const glm::mat4 &alignmentTransformation);
-glm::mat4 generateAlignmentTransformation(const float3_cpu &origin, const float3_cpu &normal, const float &planeAngle);
+void computePlaneIntersections(
+        glm::vec4 vertices[],
+        unsigned int triangleCount,
+        glm::mat4 transformations[],
+        std::vector<IntersectionLineSegment> intersections[],
+        int planeStepCount);
+
+glm::mat4 generateAlignmentTransformation(
+        const float3_cpu &origin,
+        const float3_cpu &normal,
+        const float &planeAngleRadians);
+
+std::vector<IntersectionCluster> linkIntersectionEdges(
+        std::vector<IntersectionLineSegment> intersectingEdges);
+
+std::vector<IntersectionCluster> linkEdgeChains(
+        std::vector<IntersectionLineSegment> vector);
+
 float3_cpu vec4tofloat3(glm::vec4 in);
-void assignEdge(VertexAtZeroCrossing &edge, glm::vec4 vertex0, glm::vec4 vertex1);
+
+void assignEdge(
+        VertexAtZeroCrossing &edge,
+        glm::vec4 vertex0,
+        glm::vec4 vertex1);
 
 enum ClusterSide {
     START, END
@@ -62,7 +81,7 @@ glm::mat4 generateAlignmentTransformation(const float3_cpu &origin, const float3
     return alignmentTransformation;
 }
 
-void computePlaneIntersections(glm::vec4 vertices[], unsigned int triangleCount, glm::mat4 transformations[], std::vector<IntersectionLineSegment> intersections[], const int planeStepCount) {
+void SpinImage::cpu::computeMeshPlaneIntersections(glm::vec4 vertices[], unsigned int triangleCount, glm::mat4 transformations[], std::vector<IntersectionLineSegment> intersections[], const int planeStepCount) {
 
 #pragma omp for
     for(unsigned int triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {

@@ -48,7 +48,8 @@ inline unsigned int compareImageRows(unsigned long long needleRow, unsigned long
 	return score;
 }
 
-unsigned int compareImages(const unsigned long long* needleImage, const unsigned long long* hayStackImage) {
+unsigned int SpinImage::cpu::computeMicroShapeImageDistance(const unsigned long long *needleImage,
+															const unsigned long long *hayStackImage) {
 	assert(spinImageWidthPixels == 8 * sizeof(unsigned long long));
 
 	unsigned int totalScore = 0;

@@ -2,4 +2,8 @@
 
 #include "shapeSearch/cpu/types/HostMesh.h"
 
-HostMesh hostLoadOBJ(std::string src, bool recomputeNormals = false);
+namespace SpinImage {
+    namespace utilities {
+        HostMesh loadOBJ(std::string src, bool recomputeNormals = false);
+    }
+}

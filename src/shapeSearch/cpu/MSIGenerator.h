@@ -2,5 +2,9 @@
 
 #include <shapeSearch/common/types/array.h>
 
-void hostComputeMSI_risingHorizontal(array<unsigned int> MSIDescriptor, array<unsigned int> QSIDescriptor);
-void hostComputeMSI_fallingHorizontal(array<unsigned int> MSIDescriptor, array<unsigned int> QSIDescriptor);
+namespace SpinImage {
+    namespace cpu {
+        void computeMSIRisingHorizontal(array<unsigned int> MSIDescriptor, array<unsigned int> QSIDescriptor);
+        void computeMSIFallingHorizontal(array<unsigned int> MSIDescriptor, array<unsigned int> QSIDescriptor);
+    }
+}

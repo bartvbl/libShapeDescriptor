@@ -196,11 +196,7 @@ __device__ __inline__ QSIPrecalculatedSettings calculateRotationSettings(float3 
 }
 
 __device__ __inline__ void rasteriseTriangle(
-#if ENABLE_SHARED_MEMORY_IMAGE
-		quasiSpinImagePixelType* sharedDescriptorArray,
-#else
 		quasiSpinImagePixelType* descriptors,
-#endif
 		float3 vertices[3], GPURasterisationSettings settings)
 {
 	vertices[0] = transformCoordinate(vertices[0], settings);
@@ -401,7 +397,11 @@ __device__ __inline__ void rasteriseTriangle(
 			jobRowStartPixels = min((unsigned int)spinImageWidthPixels, max(0, jobRowStartPixels));
 			jobRowEndPixels = min((unsigned int)spinImageWidthPixels, jobRowEndPixels);
 
+#if !ENABLE_SHARED_MEMORY_IMAGE
 			size_t jobSpinImageBaseIndex = size_t(renderedSpinImageIndex) * spinImageWidthPixels * spinImageWidthPixels + jobPixelYCoordinate * spinImageWidthPixels;
+#else
+			size_t jobSpinImageBaseIndex = jobPixelYCoordinate * spinImageWidthPixels;
+#endif
 
 			// Step 9: Fill pixels
 			if (jobHasDoubleIntersection)
@@ -415,14 +415,8 @@ __device__ __inline__ void rasteriseTriangle(
 				for (int jobX = jobDoubleIntersectionStartPixels; jobX < jobRowStartPixels; jobX++)
 				{
 					// Increment pixel by 2 because 2 intersections occurred.
-#if !ENABLE_SHARED_MEMORY_IMAGE
 					size_t jobPixelIndex = jobSpinImageBaseIndex + jobX;
 					atomicAdd(&(descriptors[jobPixelIndex]), 2);
-#else
-					int jobPixelIndex = jobPixelYCoordinate * spinImageWidthPixels + jobX;
-					atomicAdd(&(sharedDescriptorArray[jobPixelIndex]), 2);
-#endif
-
 				}
 #elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
@@ -443,13 +437,8 @@ __device__ __inline__ void rasteriseTriangle(
 			// It's imperative the condition of this loop is a < comparison
 			for (int jobX = jobRowStartPixels; jobX < jobRowEndPixels; jobX++)
 			{
-	#if !ENABLE_SHARED_MEMORY_IMAGE
 				size_t jobPixelIndex = jobSpinImageBaseIndex + jobX;
 				atomicAdd(&(descriptors[jobPixelIndex]), 1);
-	#else
-				int jobPixelIndex = jobPixelYCoordinate * spinImageWidthPixels + jobX;
-				atomicAdd(&(sharedDescriptorArray[jobPixelIndex]), 1);
-	#endif
 			}
 #elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE

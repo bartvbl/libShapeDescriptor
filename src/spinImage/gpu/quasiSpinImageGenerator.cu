@@ -472,8 +472,6 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImag
 	assert(__activemask() == 0xFFFFFFFF);
 
 #if ENABLE_SHARED_MEMORY_IMAGE
-	assert(__activemask() == 0xFFFFFFFF);
-
 	// Creating a copy of the image in shared memory, then copying it into main memory
 	__shared__ quasiSpinImagePixelType descriptorArrayPointer[spinImageWidthPixels * spinImageWidthPixels];
 
@@ -525,16 +523,16 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImag
 	__syncthreads();
 	// Image finished. Copying into main memory
 	// Assumption: entire warp processes same spin image
-	int jobSpinImageBaseIndex = renderedSpinImageIndex * spinImageWidthPixels * spinImageWidthPixels;
+	size_t jobSpinImageBaseIndex = renderedSpinImageIndex * spinImageWidthPixels * spinImageWidthPixels;
 
 	for (int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += RASTERISATION_WARP_SIZE)
 	{
-		atomicAdd(&descriptors.content[jobSpinImageBaseIndex + i], descriptorArrayPointer[i]);
+		atomicAdd(&descriptors[jobSpinImageBaseIndex + i], descriptorArrayPointer[i]);
 	}
 #elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	size_t jobSpinImageBaseIndex = size_t(renderedSpinImageIndex) * spinImageWidthPixels * spinImageWidthPixels;
 
-	unsigned int* integerBasePointer = (unsigned int*)((void*)(descriptors.content + jobSpinImageBaseIndex));
+	unsigned int* integerBasePointer = (unsigned int*)((void*)(descriptors + jobSpinImageBaseIndex));
 	unsigned int* sharedImageIntPointer = (unsigned int*)((void*)(descriptorArrayPointer));
 
 	// Divide update count by 2 because we update two pixels at a time

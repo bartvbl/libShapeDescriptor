@@ -7,25 +7,25 @@
 
 namespace SpinImage {
     namespace dump {
-        void dumpImages(
+        void descriptors(
                 array<newSpinImagePixelType> hostDescriptors,
                 std::string imageDestinationFile,
                 bool logarithmicImage,
                 unsigned int imagesPerRow);
 
-        void dumpImages(
+        void descriptors(
                 array<classicSpinImagePixelType> hostDescriptors,
                 std::string imageDestinationFile,
                 bool logarithmicImage,
                 unsigned int imagesPerRow);
 
-        void dumpCompressedImages(
+        void compressedImages(
                 array<unsigned int> compressedDescriptors,
                 std::string imageDestinationFile,
                 bool logarithmicImage,
                 unsigned int imagesPerRow);
 
-        void dumpRawCompressedImages(
+        void rawCompressedImages(
                 array<unsigned int> compressedDescriptors,
                 std::string destination,
                 unsigned int imagesPerRow);

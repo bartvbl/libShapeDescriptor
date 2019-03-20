@@ -134,17 +134,17 @@ void performSpinDump(array<spinPixelType> descriptors, std::string imageDestinat
 	}
 }
 
-void SpinImage::dump::dumpImages(array<classicSpinImagePixelType> hostDescriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void SpinImage::dump::descriptors(array<classicSpinImagePixelType> hostDescriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
 	performSpinDump<classicSpinImagePixelType>(hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void SpinImage::dump::dumpImages(array<newSpinImagePixelType> hostDescriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void SpinImage::dump::descriptors(array<newSpinImagePixelType> hostDescriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
 	performSpinDump<newSpinImagePixelType> (hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void SpinImage::dump::dumpCompressedImages(array<unsigned int> compressedDescriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
+void SpinImage::dump::compressedImages(array<unsigned int> compressedDescriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
 	array<unsigned int> decompressedDesciptors;
 	size_t imageTotalPixelCount = compressedDescriptors.length * spinImageWidthPixels * spinImageWidthPixels;
 
@@ -165,7 +165,7 @@ void SpinImage::dump::dumpCompressedImages(array<unsigned int> compressedDescrip
 	performSpinDump<unsigned int>(decompressedDesciptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void SpinImage::dump::dumpRawCompressedImages(array<unsigned int> compressedDescriptors, std::string destination, unsigned int imagesPerRow) {
+void SpinImage::dump::rawCompressedImages(array<unsigned int> compressedDescriptors, std::string destination, unsigned int imagesPerRow) {
 	std::cout << "Dumping raw compressed images to: " << destination << std::endl;
 
 	unsigned int itemCount = unsigned(compressedDescriptors.length);

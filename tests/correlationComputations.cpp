@@ -1,10 +1,10 @@
 #include "correlationComputations.h"
 #include <catch2/catch.hpp>
-#include <shapeSearch/common/buildSettings/derivedBuildSettings.h>
-#include <shapeSearch/common/types/array.h>
-#include <shapeSearch/libraryBuildSettings.h>
+#include <spinImage/common/buildSettings/derivedBuildSettings.h>
+#include <spinImage/common/types/array.h>
+#include <spinImage/libraryBuildSettings.h>
+#include <spinImage/utilities/CUDAContextCreator.h>
 #include <cuda_runtime.h>
-#include <shapeSearch/utilities/CUDAContextCreator.h>
 #include <nvidia/helper_cuda.h>
 
 template<typename pixelType>

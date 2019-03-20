@@ -1,7 +1,7 @@
 #include "vectorTypes.h"
 #include <catch2/catch.hpp>
-#include <shapeSearch/cpu/types/float2_cpu.h>
-#include <shapeSearch/cpu/types/float3_cpu.h>
+#include <spinImage/cpu/types/float2_cpu.h>
+#include <spinImage/cpu/types/float3_cpu.h>
 
 TEST_CASE("float vector structs", "[vectors]" ) {
 

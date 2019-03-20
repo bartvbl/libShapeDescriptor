@@ -1,4 +1,4 @@
-project(ShapeSearch CXX CUDA)
+project(SpinImage CXX CUDA)
 
 cmake_minimum_required (VERSION 3.0)
 
@@ -46,4 +46,4 @@ target_include_directories(${PROJECT_NAME} PUBLIC src/)
 
 add_subdirectory(lib/Catch2)
 add_executable(runTests ${TEST_SOURCES})
-target_link_libraries(runTests ShapeSearch Catch2::Catch2)
+target_link_libraries(runTests SpinImage Catch2::Catch2)

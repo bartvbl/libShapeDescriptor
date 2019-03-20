@@ -5,27 +5,29 @@
 
 #include <string>
 
-namespace SpinImage::dump {
-    void dumpImages(
-            array<newSpinImagePixelType> hostDescriptors,
-            std::string imageDestinationFile,
-            bool logarithmicImage,
-            unsigned int imagesPerRow);
+namespace SpinImage {
+    namespace dump {
+        void dumpImages(
+                array<newSpinImagePixelType> hostDescriptors,
+                std::string imageDestinationFile,
+                bool logarithmicImage,
+                unsigned int imagesPerRow);
 
-    void dumpImages(
-            array<classicSpinImagePixelType> hostDescriptors,
-            std::string imageDestinationFile,
-            bool logarithmicImage,
-            unsigned int imagesPerRow);
+        void dumpImages(
+                array<classicSpinImagePixelType> hostDescriptors,
+                std::string imageDestinationFile,
+                bool logarithmicImage,
+                unsigned int imagesPerRow);
 
-    void dumpCompressedImages(
-            array<unsigned int> compressedDescriptors,
-            std::string imageDestinationFile,
-            bool logarithmicImage,
-            unsigned int imagesPerRow);
+        void dumpCompressedImages(
+                array<unsigned int> compressedDescriptors,
+                std::string imageDestinationFile,
+                bool logarithmicImage,
+                unsigned int imagesPerRow);
 
-    void dumpRawCompressedImages(
-            array<unsigned int> compressedDescriptors,
-            std::string destination,
-            unsigned int imagesPerRow);
+        void dumpRawCompressedImages(
+                array<unsigned int> compressedDescriptors,
+                std::string destination,
+                unsigned int imagesPerRow);
+    }
 }

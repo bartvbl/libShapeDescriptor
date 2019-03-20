@@ -263,7 +263,7 @@ array<ImageSearchResults> doFindDescriptorsInHaystack(
 	return searchResults;
 }
 
-array<ImageSearchResults> findDescriptorsInHaystack(
+array<ImageSearchResults> SpinImage::gpu::findDescriptorsInHaystack(
 		array<classicSpinImagePixelType> device_needleDescriptors,
 		size_t needleImageCount,
 		array<classicSpinImagePixelType> device_haystackDescriptors,
@@ -271,7 +271,7 @@ array<ImageSearchResults> findDescriptorsInHaystack(
 	return doFindDescriptorsInHaystack<classicSpinImagePixelType>(device_needleDescriptors, needleImageCount, device_haystackDescriptors, haystackImageCount);
 }
 
-array<ImageSearchResults> findDescriptorsInHaystack(
+array<ImageSearchResults> SpinImage::gpu::findDescriptorsInHaystack(
 		array<newSpinImagePixelType> device_needleDescriptors,
 		size_t needleImageCount,
 		array<newSpinImagePixelType> device_haystackDescriptors,
@@ -428,7 +428,7 @@ array<size_t> doFindCorrespondingSearchResultIndices(
 }
 
 
-array<size_t> computeSearchResultRanks(
+array<size_t> SpinImage::gpu::computeSearchResultRanks(
 		array<classicSpinImagePixelType> device_needleDescriptors,
 		size_t needleImageCount,
 		array<classicSpinImagePixelType> device_haystackDescriptors,
@@ -436,7 +436,7 @@ array<size_t> computeSearchResultRanks(
     return doFindCorrespondingSearchResultIndices<classicSpinImagePixelType>(device_needleDescriptors, needleImageCount, device_haystackDescriptors, haystackImageCount);
 }
 
-array<size_t> computeSearchResultRanks(
+array<size_t> SpinImage::gpu::computeSearchResultRanks(
 		array<newSpinImagePixelType> device_needleDescriptors,
 		size_t needleImageCount,
 		array<newSpinImagePixelType> device_haystackDescriptors,

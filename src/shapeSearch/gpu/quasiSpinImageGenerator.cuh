@@ -5,4 +5,9 @@
 
 #include "cuda_runtime.h"
 
-array<newSpinImagePixelType> generateQuasiSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information, float spinImageWidth);
+namespace SpinImage {
+    namespace gpu {
+        array<newSpinImagePixelType>
+        generateQuasiSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information, float spinImageWidth);
+    }
+}

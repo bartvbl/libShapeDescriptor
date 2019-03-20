@@ -254,9 +254,9 @@ void hostRasteriseTriangle(array<quasiSpinImagePixelType> descriptor, float3_cpu
 	}
 }
 
-void SpinImage::cpu::generateQSI(array<quasiSpinImagePixelType> descriptor, CPURasterisationSettings settings)
+void SpinImage::cpu::generateQuasiSpinImage(array<quasiSpinImagePixelType> descriptor, CPURasterisationSettings settings)
 {
-	for (int triangleIndex = 0; triangleIndex < settings.mesh.indexCount / 3; triangleIndex += 1)
+	for (size_t triangleIndex = 0; triangleIndex < settings.mesh.indexCount / 3; triangleIndex += 1)
 	{
 		float3_cpu vertices[3];
 
@@ -272,7 +272,7 @@ void SpinImage::cpu::generateQSI(array<quasiSpinImagePixelType> descriptor, CPUR
 	}
 }
 
-array<quasiSpinImagePixelType> SpinImage::cpu::generateQSIAllVertices(CPURasterisationSettings settings) {
+array<quasiSpinImagePixelType> SpinImage::cpu::generateQuasiSpinImages(CPURasterisationSettings settings) {
 	array<quasiSpinImagePixelType> descriptors;
 	size_t descriptorElementCount = spinImageWidthPixels * spinImageWidthPixels * settings.mesh.vertexCount;
 	descriptors.content = new quasiSpinImagePixelType[descriptorElementCount];
@@ -282,11 +282,11 @@ array<quasiSpinImagePixelType> SpinImage::cpu::generateQSIAllVertices(CPURasteri
 	std::fill(descriptors.content, descriptors.content + descriptors.length, 0);
 
 #pragma omp parallel for
-	for(int vertex = 0; vertex < settings.mesh.vertexCount; vertex++) {
+	for(size_t vertex = 0; vertex < settings.mesh.vertexCount; vertex++) {
 		settings.vertexIndexIndex = vertex;
 		settings.spinImageVertex = settings.mesh.vertices[vertex];
 		settings.spinImageNormal = settings.mesh.normals[vertex];
-		SpinImage::cpu::generateQSI(descriptors, settings);
+		SpinImage::cpu::generateQuasiSpinImage(descriptors, settings);
 	}
 	return descriptors;
 }

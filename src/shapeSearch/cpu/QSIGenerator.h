@@ -9,8 +9,11 @@
 
 namespace SpinImage {
     namespace cpu {
-        void generateQSI(array<quasiSpinImagePixelType> descriptor, CPURasterisationSettings settings);
+        void generateQuasiSpinImage(
+                array<quasiSpinImagePixelType> descriptor,
+                CPURasterisationSettings settings);
 
-        array<quasiSpinImagePixelType> generateQSIAllVertices(CPURasterisationSettings settings);
+        array<quasiSpinImagePixelType> generateQuasiSpinImages(
+                CPURasterisationSettings settings);
     }
 }

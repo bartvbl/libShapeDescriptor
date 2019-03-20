@@ -3,4 +3,6 @@
 #include <shapeSearch/cpu/types/HostMesh.h>
 #include <shapeSearch/gpu/types/DeviceMesh.h>
 
-DeviceMesh copyMeshToGPU(HostMesh hostMesh);
+namespace SpinImage::copy {
+    DeviceMesh hostMeshToDevice(HostMesh hostMesh);
+}

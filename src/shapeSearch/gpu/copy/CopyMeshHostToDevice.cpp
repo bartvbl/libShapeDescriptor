@@ -5,7 +5,7 @@
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
 
-DeviceMesh copyMeshToGPU(HostMesh hostMesh)
+DeviceMesh SpinImage::copy::hostMeshToDevice(HostMesh hostMesh)
 {
     size_t vertexCount = hostMesh.vertexCount;
     size_t normalCount = hostMesh.vertexCount;

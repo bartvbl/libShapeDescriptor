@@ -17,7 +17,7 @@
 #include <shapeSearch/gpu/types/DeviceMesh.h>
 #include <shapeSearch/gpu/types/CudaLaunchDimensions.h>
 #include <shapeSearch/gpu/setValue.cuh>
-#include <shapeSearch/utilities/spinImageDumper.h>
+#include <shapeSearch/utilities/dumpers/spinImageDumper.h>
 
 #define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
 

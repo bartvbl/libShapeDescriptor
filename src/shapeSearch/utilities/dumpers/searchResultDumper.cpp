@@ -1,7 +1,7 @@
 #include <fstream>
 #include "searchResultDumper.h"
 
-void dumpSearchResults(array<ImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath) {
+void SpinImage::dump::searchResults(array<ImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath) {
     std::ofstream outputFile;
     outputFile.open(outputFilePath);
 
@@ -21,7 +21,7 @@ void dumpSearchResults(array<ImageSearchResults> searchResults, size_t imageCoun
     outputFile.close();
 }
 
-void dumpSearchResults(std::vector<std::vector<DescriptorSearchResult>> searchResults, std::string outputFilePath) {
+void SpinImage::dump::searchResults(std::vector<std::vector<DescriptorSearchResult>> searchResults, std::string outputFilePath) {
     std::ofstream outputFile;
     outputFile.open(outputFilePath);
 

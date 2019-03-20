@@ -11,14 +11,14 @@ struct DescriptorSearchResult {
 
 namespace ShapeSearchCPU {
     std::vector<std::vector<DescriptorSearchResult>> findDescriptorsInHaystack(
-            array<classicSpinImagePixelType> device_needleDescriptors,
+            array<spinImagePixelType> device_needleDescriptors,
             size_t needleImageCount,
-            array<classicSpinImagePixelType> device_haystackDescriptors,
+            array<spinImagePixelType> device_haystackDescriptors,
             size_t haystackImageCount);
 
     std::vector<std::vector<DescriptorSearchResult>> findDescriptorsInHaystack(
-            array<newSpinImagePixelType> device_needleDescriptors,
+            array<quasiSpinImagePixelType> device_needleDescriptors,
             size_t needleImageCount,
-            array<newSpinImagePixelType> device_haystackDescriptors,
+            array<quasiSpinImagePixelType> device_haystackDescriptors,
             size_t haystackImageCount);
 }

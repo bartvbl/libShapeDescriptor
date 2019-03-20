@@ -7,5 +7,5 @@
 #include "shapeSearch/utilities/OBJLoader.h"
 #include "shapeSearch/common/types/array.h"
 
-void hostGenerateQSI(array<newSpinImagePixelType> descriptor, CPURasterisationSettings settings);
-array<newSpinImagePixelType> hostGenerateQSIAllVertices(CPURasterisationSettings settings);
+void hostGenerateQSI(array<quasiSpinImagePixelType> descriptor, CPURasterisationSettings settings);
+array<quasiSpinImagePixelType> hostGenerateQSIAllVertices(CPURasterisationSettings settings);

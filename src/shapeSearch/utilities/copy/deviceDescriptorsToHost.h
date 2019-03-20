@@ -5,10 +5,10 @@
 
 namespace SpinImage {
     namespace copy {
-        array<newSpinImagePixelType>
-        QSIDescriptorsToHost(array<newSpinImagePixelType> device_descriptors, size_t imageCount);
+        array<quasiSpinImagePixelType>
+        QSIDescriptorsToHost(array<quasiSpinImagePixelType> device_descriptors, size_t imageCount);
 
-        array<classicSpinImagePixelType>
-        spinImageDescriptorsToHost(array<classicSpinImagePixelType> device_descriptors, size_t imageCount);
+        array<spinImagePixelType>
+        spinImageDescriptorsToHost(array<spinImagePixelType> device_descriptors, size_t imageCount);
     }
 }

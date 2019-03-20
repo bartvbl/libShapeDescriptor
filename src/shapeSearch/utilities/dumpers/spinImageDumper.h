@@ -8,13 +8,13 @@
 namespace SpinImage {
     namespace dump {
         void descriptors(
-                array<newSpinImagePixelType> hostDescriptors,
+                array<quasiSpinImagePixelType> hostDescriptors,
                 std::string imageDestinationFile,
                 bool logarithmicImage,
                 unsigned int imagesPerRow);
 
         void descriptors(
-                array<classicSpinImagePixelType> hostDescriptors,
+                array<spinImagePixelType> hostDescriptors,
                 std::string imageDestinationFile,
                 bool logarithmicImage,
                 unsigned int imagesPerRow);

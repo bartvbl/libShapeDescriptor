@@ -119,17 +119,17 @@ std::vector<std::vector<DescriptorSearchResult>> computeCorrelations(
 }
 
 std::vector<std::vector<DescriptorSearchResult>> ShapeSearchCPU::findDescriptorsInHaystack(
-        array<classicSpinImagePixelType> needleDescriptors,
+        array<spinImagePixelType> needleDescriptors,
         size_t needleImageCount,
-        array<classicSpinImagePixelType> haystackDescriptors,
+        array<spinImagePixelType> haystackDescriptors,
         size_t haystackImageCount) {
-    return computeCorrelations<classicSpinImagePixelType>(needleDescriptors, needleImageCount, haystackDescriptors, haystackImageCount);
+    return computeCorrelations<spinImagePixelType>(needleDescriptors, needleImageCount, haystackDescriptors, haystackImageCount);
 }
 
 std::vector<std::vector<DescriptorSearchResult>> ShapeSearchCPU::findDescriptorsInHaystack(
-        array<newSpinImagePixelType> needleDescriptors,
+        array<quasiSpinImagePixelType> needleDescriptors,
         size_t needleImageCount,
-        array<newSpinImagePixelType> haystackDescriptors,
+        array<quasiSpinImagePixelType> haystackDescriptors,
         size_t haystackImageCount) {
-    return computeCorrelations<newSpinImagePixelType>(needleDescriptors, needleImageCount, haystackDescriptors, haystackImageCount);
+    return computeCorrelations<quasiSpinImagePixelType>(needleDescriptors, needleImageCount, haystackDescriptors, haystackImageCount);
 }

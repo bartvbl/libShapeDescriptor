@@ -2,4 +2,8 @@
 
 #include <shapeSearch/cpu/types/HostMesh.h>
 
-HostMesh hostScaleMesh(HostMesh &model, HostMesh &scaledModel, float spinImagePixelSize);
+namespace SpinImage {
+    namespace utilities {
+        HostMesh scaleHostMesh(HostMesh &model, HostMesh &scaledModel, float spinImagePixelSize);
+    }
+}

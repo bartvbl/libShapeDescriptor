@@ -47,7 +47,7 @@ inline float3_cpu elementWiseMax(float3_cpu v1, float3_cpu v2)
 	return output;
 }
 
-HostMesh hostLoadOBJ(std::string src, bool recomputeNormals)
+HostMesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
 {
 	std::vector<std::string> lineParts;
 	lineParts.reserve(32);

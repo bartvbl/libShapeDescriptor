@@ -3,7 +3,6 @@
 #include <cmath>
 #include <nvidia/helper_math.h>
 #include "QSIGenerator.hpp"
-#include "SpinImageSizeCalculator.h"
 
 float hostTransformNormalX(QSIPrecalculatedSettings pre_settings, float3_cpu spinImageNormal)
 {

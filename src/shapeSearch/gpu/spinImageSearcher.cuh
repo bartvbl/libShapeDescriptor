@@ -3,11 +3,7 @@
 #include "shapeSearch/gpu/types/DeviceMesh.h"
 #include "shapeSearch/common/types/array.h"
 #include "shapeSearch/libraryBuildSettings.h"
-
-struct ImageSearchResults {
-    size_t resultIndices[SEARCH_RESULT_COUNT];
-    float resultScores[SEARCH_RESULT_COUNT];
-};
+#include "shapeSearch/gpu/types/ImageSearchResults.h"
 
 namespace SpinImage {
     namespace gpu {

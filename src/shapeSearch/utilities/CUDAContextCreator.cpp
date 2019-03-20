@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-cudaDeviceProp createCUDAContext(int forceGPU = -1)
+cudaDeviceProp createCUDAContext(int forceGPU)
 {
 	int deviceCount;
 	checkCudaErrors(cudaGetDeviceCount(&deviceCount));

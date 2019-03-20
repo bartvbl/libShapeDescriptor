@@ -2,5 +2,5 @@
 
 #include "cuda_runtime.h"
 
-cudaDeviceProp createCUDAContext(int forceGPU);
+cudaDeviceProp createCUDAContext(int forceGPU = -1);
 void printGPUProperties(unsigned int deviceIndex);

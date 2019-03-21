@@ -60,32 +60,20 @@ struct QSIMesh {
 
 __device__ __inline__ float3 transformCoordinate(const float3 &vertex, const float3 &spinImageVertex, const float3 &spinImageNormal)
 {
-    const float2 sineCosineAlpha = normalize(make_float2(spinImageNormal.x, spinImageNormal.y));
+    float3 transformedCoordinate = vertex - spinImageVertex;
 
-    const bool is_n_a_not_zero = !((abs(spinImageNormal.x) < MAX_EQUIVALENCE_ROUNDING_ERROR) && (abs(spinImageNormal.y) < MAX_EQUIVALENCE_ROUNDING_ERROR));
+    if(spinImageNormal.x != 0 || spinImageNormal.y != 0 || spinImageNormal.z != 1) {
+		const float3 axis0 = spinImageNormal;
+		const float3 axis1 = cross(spinImageNormal, make_float3(0, 0, 1));
+		const float3 axis2 = cross(axis1, spinImageNormal);
 
-    const float alignmentProjection_n_ax = is_n_a_not_zero ? sineCosineAlpha.x : 1;
-    const float alignmentProjection_n_ay = is_n_a_not_zero ? sineCosineAlpha.y : 0;
+		float3 rotatedCoordinate;
+		rotatedCoordinate.x = dot(axis0, transformedCoordinate);
+		rotatedCoordinate.y = dot(axis1, transformedCoordinate);
+		rotatedCoordinate.z = dot(axis2, transformedCoordinate);
 
-	float3 transformedCoordinate = vertex - spinImageVertex;
-
-	const float initialTransformedX = transformedCoordinate.x;
-	transformedCoordinate.x = alignmentProjection_n_ax * transformedCoordinate.x + alignmentProjection_n_ay * transformedCoordinate.y;
-	transformedCoordinate.y = -alignmentProjection_n_ay * initialTransformedX + alignmentProjection_n_ax * transformedCoordinate.y;
-
-    const float transformedNormalX = alignmentProjection_n_ax * spinImageNormal.x + alignmentProjection_n_ay * spinImageNormal.y;
-
-    const float2 sineCosineBeta = normalize(make_float2(transformedNormalX, spinImageNormal.z));
-
-    const bool is_n_b_not_zero = !((abs(transformedNormalX) < MAX_EQUIVALENCE_ROUNDING_ERROR) && (abs(spinImageNormal.z) < MAX_EQUIVALENCE_ROUNDING_ERROR));
-
-    const float alignmentProjection_n_bx = is_n_b_not_zero ? sineCosineBeta.x : 1;
-    const float alignmentProjection_n_bz = is_n_b_not_zero ? sineCosineBeta.y : 0; // discrepancy between axis here is because we are using a 2D vector on 3D axis.
-
-	// Order matters here
-	const float initialTransformedX_2 = transformedCoordinate.x;
-	transformedCoordinate.x = alignmentProjection_n_bz * transformedCoordinate.x - alignmentProjection_n_bx * transformedCoordinate.z;
-	transformedCoordinate.z = alignmentProjection_n_bx * initialTransformedX_2 + alignmentProjection_n_bz * transformedCoordinate.z;
+		transformedCoordinate = rotatedCoordinate;
+    }
 
 	return transformedCoordinate;
 }

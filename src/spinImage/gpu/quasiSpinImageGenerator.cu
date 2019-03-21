@@ -155,18 +155,11 @@ __device__ __inline__ void rasteriseRow(int pixelBaseIndex, quasiSpinImagePixelT
 }
 #endif
 
-__forceinline__ __device__ unsigned lane_id()
-{
-	unsigned ret; 
-	asm volatile ("mov.u32 %0, %laneid;" : "=r"(ret));
-	return ret;
-}
-
 __device__ __inline__ void rasteriseTriangle(
 		quasiSpinImagePixelType* descriptors,
 		float3 vertices[3],
-		const float3 spinImageVertex,
-		const float3 spinImageNormal)
+		const float3 &spinImageVertex,
+		const float3 &spinImageNormal)
 {
 	vertices[0] = transformCoordinate(vertices[0], spinImageVertex, spinImageNormal);
 	vertices[1] = transformCoordinate(vertices[1], spinImageVertex, spinImageNormal);
@@ -360,7 +353,7 @@ __device__ __inline__ void rasteriseTriangle(
 				quasiSpinImagePixelType* descriptorArrayPointer = descriptors.content;
 	#else
 				int jobBaseIndex = jobPixelYCoordinate * spinImageWidthPixels + jobDoubleIntersectionStartPixels;
-				quasiSpinImagePixelType* descriptorArrayPointer = sharedDescriptorArray;
+				quasiSpinImagePixelType* descriptorArrayPointer = descriptors;
 	#endif
 				rasteriseRow(jobBaseIndex, descriptorArrayPointer, jobDoubleIntersectionStartPixels, jobRowStartPixels, SHORT_DOUBLE_ONE_MASK, SHORT_DOUBLE_BOTH_MASK, SHORT_DOUBLE_FIRST_MASK);
 #endif
@@ -378,7 +371,7 @@ __device__ __inline__ void rasteriseTriangle(
 			quasiSpinImagePixelType* descriptorArrayPointer = descriptors.content;
 	#else
 			int jobBaseIndex = jobPixelYCoordinate * spinImageWidthPixels + jobRowStartPixels;
-			quasiSpinImagePixelType* descriptorArrayPointer = sharedDescriptorArray;
+			quasiSpinImagePixelType* descriptorArrayPointer = descriptors;
 	#endif
 			rasteriseRow(jobBaseIndex, descriptorArrayPointer, jobRowStartPixels, jobRowEndPixels, SHORT_SINGLE_ONE_MASK, SHORT_SINGLE_BOTH_MASK, SHORT_SINGLE_FIRST_MASK);
 #endif

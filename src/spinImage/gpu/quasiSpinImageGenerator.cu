@@ -32,7 +32,7 @@ const int SHORT_DOUBLE_FIRST_MASK = 0x00020000;
 
 #define renderedSpinImageIndex blockIdx.x
 
-const int RASTERISATION_WARP_SIZE = 640;
+const int RASTERISATION_WARP_SIZE = 768;
 
 struct QSIMesh {
     float* vertex_0_x;
@@ -230,81 +230,47 @@ __device__ __inline__ void rasteriseTriangle(
 	const int minPixels = clamp(int(floor(minVector.z)), (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
 	const int maxPixels = clamp(int(floor(maxVector.z)), (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
 
-	int jobCount = maxPixels - minPixels;
+	int pixelRowCount = maxPixels - minPixels;
 
 	// Filter out job batches with no work in them
-	if(jobCount == 0) {
+	if(pixelRowCount == 0) {
 		return;
 	}
 
 	// + 1 because we go from minPixels to <= maxPixels
-	jobCount++;
+	pixelRowCount++;
 
-	jobCount = min(minPixels + jobCount, (spinImageWidthPixels / 2)) - minPixels;
+	pixelRowCount = min(minPixels + pixelRowCount, (spinImageWidthPixels / 2)) - minPixels;
 
-	for(int jobID = 0; jobID < jobCount; jobID++) 
+	for(int pixelRowID = 0; pixelRowID < pixelRowCount; pixelRowID++)
 	{
-		const int jobMinYPixels = minPixels;
-		const int jobPixelY = jobMinYPixels + jobID;
-
-		const float2 jobMinXY = minXY;
-		const float2 jobMidXY = midXY;
-
-		const float jobMinVectorZ = minVector.z;
-		const float jobMidVectorZ = midVector.z;
-
-		const float jobDeltaMinMidZ = deltaMinMid.z;
-		const float jobDeltaMidMaxZ = deltaMidMax.z;
-
-		const float2 jobDeltaMinMidXY = deltaMinMidXY;
-		const float2 jobDeltaMidMaxXY = deltaMidMaxXY;
-
-        float jobShortDeltaVectorZ;
-        float jobShortVectorStartZ;
-        float2 jobShortVectorStartXY;
-        float2 jobShortTransformedDelta;
+		const int pixelY = minPixels + pixelRowID;
 
 		// Verified: this should be <=, because it fails for the cube tests case
-		if (float(jobPixelY) <= jobMidVectorZ)
-		{
-			// shortVectorStartXY, Bottom: minXY
-			jobShortVectorStartXY = jobMinXY;
-			// shortVectorStart, Bottom: minVector
-			jobShortVectorStartZ = jobMinVectorZ;
-			// shortDeltaVector, Bottom: deltaMinMid
-			jobShortDeltaVectorZ = jobDeltaMinMidZ;
-			// shortTransformedDelta, Bottom: deltaMinMidXY
-			jobShortTransformedDelta = jobDeltaMinMidXY;
-		}
-		else
-		{
-			// shortVectorStartXY, Top: midXY
-			jobShortVectorStartXY = jobMidXY;
-			// shortVectorStart, Top: midVector
-			jobShortVectorStartZ = jobMidVectorZ;
-			// shortDeltaVector, Top: deltaMidMax
-			jobShortDeltaVectorZ = jobDeltaMidMaxZ;
-			// shortTransformedDelta, Top: deltaMidMaxXY
-			jobShortTransformedDelta = jobDeltaMidMaxXY;
-		}
+		const bool isBottomSection = float(pixelY) <= midVector.z;
 
-		const float jobZLevel = float(jobPixelY);
-		const float jobLongDistanceInTriangle = jobZLevel - jobMinVectorZ;
-        const float jobLongInterpolationFactor = jobLongDistanceInTriangle / deltaMinMax.z;
-        const float jobShortDistanceInTriangle = jobZLevel - jobShortVectorStartZ;
-        const float jobShortInterpolationFactor = (jobShortDeltaVectorZ == 0) ? 1.0f : jobShortDistanceInTriangle / jobShortDeltaVectorZ;
+		const float shortDeltaVectorZ = isBottomSection ? deltaMinMid.z : deltaMidMax.z;
+		const float shortVectorStartZ = isBottomSection ? minVector.z : midVector.z;
+		const float2 shortVectorStartXY = isBottomSection ? minXY : midXY;
+		const float2 shortTransformedDelta = isBottomSection ? deltaMinMidXY : deltaMidMaxXY;
+
+		const float zLevel = float(pixelY);
+		const float longDistanceInTriangle = zLevel - minVector.z;
+        const float longInterpolationFactor = longDistanceInTriangle / deltaMinMax.z;
+        const float shortDistanceInTriangle = zLevel - shortVectorStartZ;
+        const float shortInterpolationFactor = (shortDeltaVectorZ == 0) ? 1.0f : shortDistanceInTriangle / shortDeltaVectorZ;
 		// Set value to 1 because we want to avoid a zero division, and we define the job Z level to be at its maximum height
 
-        const int jobPixelYCoordinate = jobPixelY + (spinImageWidthPixels / 2);
+        const int jobPixelYCoordinate = pixelY + (spinImageWidthPixels / 2);
 		// Avoid overlap situations, only rasterise is the interpolation factors are valid
-		if (jobLongDistanceInTriangle > 0 && jobShortDistanceInTriangle > 0)
+		if (longDistanceInTriangle > 0 && shortDistanceInTriangle > 0)
 		{
 			// y-coordinates of both interpolated values are always equal. As such we only need to interpolate that direction once.
 			// They must be equal because we have aligned the direction of the horizontal-triangle plane with the x-axis.
-			const float jobIntersectionY = jobMinXY.y + (jobLongInterpolationFactor * deltaMinMaxXY.y);
+			const float jobIntersectionY = minXY.y + (longInterpolationFactor * deltaMinMaxXY.y);
 			// The other two x-coordinates are interpolated separately.
-            const float jobIntersection1X = jobShortVectorStartXY.x + (jobShortInterpolationFactor * jobShortTransformedDelta.x);
-            const float jobIntersection2X = jobMinXY.x + (jobLongInterpolationFactor * deltaMinMaxXY.x);
+            const float jobIntersection1X = shortVectorStartXY.x + (shortInterpolationFactor * shortTransformedDelta.x);
+            const float jobIntersection2X = minXY.x + (longInterpolationFactor * deltaMinMaxXY.x);
 
             const float jobIntersection1Distance = length(make_float2(jobIntersection1X, jobIntersectionY));
             const float jobIntersection2Distance = length(make_float2(jobIntersection2X, jobIntersectionY));
@@ -442,7 +408,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImag
 	__syncthreads();
 	// Image finished. Copying into main memory
 	// Assumption: entire warp processes same spin image
-	size_t jobSpinImageBaseIndex = renderedSpinImageIndex * spinImageWidthPixels * spinImageWidthPixels;
+	const size_t jobSpinImageBaseIndex = renderedSpinImageIndex * spinImageWidthPixels * spinImageWidthPixels;
 
 	for (int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += RASTERISATION_WARP_SIZE)
 	{

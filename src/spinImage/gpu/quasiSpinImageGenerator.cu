@@ -4,7 +4,6 @@
 #include "device_launch_parameters.h"
 
 #include <spinImage/gpu/types/DeviceMesh.h>
-#include <spinImage/gpu/types/GPURasterisationSettings.h>
 #include <spinImage/gpu/types/CudaLaunchDimensions.h>
 #include <spinImage/gpu/setValue.cuh>
 #include <spinImage/libraryBuildSettings.h>
@@ -59,27 +58,34 @@ struct QSIMesh {
     size_t vertexCount;
 };
 
-__device__ __inline__ QSIPrecalculatedSettings calculateRotationSettings(float3 spinImageNormal);
-
-__device__ __inline__ float transformNormalX(QSIPrecalculatedSettings pre_settings, float3 spinImageNormal)
+__device__ __inline__ float3 transformCoordinate(const float3 &vertex, const float3 &spinImageVertex, const float3 &spinImageNormal)
 {
-	return pre_settings.alignmentProjection_n_ax * spinImageNormal.x + pre_settings.alignmentProjection_n_ay * spinImageNormal.y;
-}
+    const float2 sineCosineAlpha = normalize(make_float2(spinImageNormal.x, spinImageNormal.y));
 
-__device__ __inline__ float3 transformCoordinate(float3 vertex, GPURasterisationSettings settings)
-{
-	QSIPrecalculatedSettings spinImageSettings = calculateRotationSettings(settings.spinImageNormal);
+    const bool is_n_a_not_zero = !((abs(spinImageNormal.x) < MAX_EQUIVALENCE_ROUNDING_ERROR) && (abs(spinImageNormal.y) < MAX_EQUIVALENCE_ROUNDING_ERROR));
 
-	float3 transformedCoordinate = vertex - settings.spinImageVertex;
+    const float alignmentProjection_n_ax = is_n_a_not_zero ? sineCosineAlpha.x : 1;
+    const float alignmentProjection_n_ay = is_n_a_not_zero ? sineCosineAlpha.y : 0;
 
-	float initialTransformedX = transformedCoordinate.x;
-	transformedCoordinate.x = spinImageSettings.alignmentProjection_n_ax * transformedCoordinate.x + spinImageSettings.alignmentProjection_n_ay * transformedCoordinate.y;
-	transformedCoordinate.y = -spinImageSettings.alignmentProjection_n_ay * initialTransformedX + spinImageSettings.alignmentProjection_n_ax * transformedCoordinate.y;
+	float3 transformedCoordinate = vertex - spinImageVertex;
+
+	const float initialTransformedX = transformedCoordinate.x;
+	transformedCoordinate.x = alignmentProjection_n_ax * transformedCoordinate.x + alignmentProjection_n_ay * transformedCoordinate.y;
+	transformedCoordinate.y = -alignmentProjection_n_ay * initialTransformedX + alignmentProjection_n_ax * transformedCoordinate.y;
+
+    const float transformedNormalX = alignmentProjection_n_ax * spinImageNormal.x + alignmentProjection_n_ay * spinImageNormal.y;
+
+    const float2 sineCosineBeta = normalize(make_float2(transformedNormalX, spinImageNormal.z));
+
+    const bool is_n_b_not_zero = !((abs(transformedNormalX) < MAX_EQUIVALENCE_ROUNDING_ERROR) && (abs(spinImageNormal.z) < MAX_EQUIVALENCE_ROUNDING_ERROR));
+
+    const float alignmentProjection_n_bx = is_n_b_not_zero ? sineCosineBeta.x : 1;
+    const float alignmentProjection_n_bz = is_n_b_not_zero ? sineCosineBeta.y : 0; // discrepancy between axis here is because we are using a 2D vector on 3D axis.
 
 	// Order matters here
-	initialTransformedX = transformedCoordinate.x;
-	transformedCoordinate.x = spinImageSettings.alignmentProjection_n_bz * transformedCoordinate.x - spinImageSettings.alignmentProjection_n_bx * transformedCoordinate.z;
-	transformedCoordinate.z = spinImageSettings.alignmentProjection_n_bx * initialTransformedX + spinImageSettings.alignmentProjection_n_bz * transformedCoordinate.z;
+	const float initialTransformedX_2 = transformedCoordinate.x;
+	transformedCoordinate.x = alignmentProjection_n_bz * transformedCoordinate.x - alignmentProjection_n_bx * transformedCoordinate.z;
+	transformedCoordinate.z = alignmentProjection_n_bx * initialTransformedX_2 + alignmentProjection_n_bz * transformedCoordinate.z;
 
 	return transformedCoordinate;
 }
@@ -92,29 +98,7 @@ __device__ __inline__ float2 alignWithPositiveX(float2 midLineDirection, float2 
 	return transformed;
 }
 
-__device__ __inline__ float calculateTransformedZCoordinate(GPURasterisationSettings settings, float3 vertex)
-{
-	QSIPrecalculatedSettings pre_settings = calculateRotationSettings(settings.spinImageNormal);
-
-	// Translate to origin
-	vertex -= settings.spinImageVertex;
-
-	// Since we're looking at 2 axis of a 3D normal vector, both axis may be 0.
-	// In this first case: if x = 0 and y = 0, z = 1 or z = -1. This is already part of the vertical plane we'd like the rotated
-	// coordinates to be in, so nothing needs to be done.
-	float transformedX = pre_settings.alignmentProjection_n_ax * vertex.x + pre_settings.alignmentProjection_n_ay * vertex.y;
-
-	// In this second case: if x = 0 and z = 0, y = 1 or y = -1. In both cases the previous step already rotated the vector to the correct
-	// direction, and nothing else needs to be done.
-	//float transformedZ = settings.alignmentProjection_n_bx * transformedX + settings.alignmentProjection_n_bz * triangleVertices[i].z;
-	float transformedZ = pre_settings.alignmentProjection_n_bx * transformedX + pre_settings.alignmentProjection_n_bz * vertex.z;
-
-	// Account for that samples of pixels are considered centred. We thus need to add a distance value to each z-coordinate.
-	//transformedZ -= settings.nudgeDistance;
-
-	return transformedZ;
-}
-
+#if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 __device__ __inline__ void rasteriseRow(int pixelBaseIndex, quasiSpinImagePixelType* descriptorArray, unsigned int pixelStart, unsigned int pixelEnd, const unsigned int singleMask, const unsigned int doubleMask, const unsigned int initialMask)
 {
 	// First we calculate a base pointer for the first short value that should be updated
@@ -169,6 +153,7 @@ __device__ __inline__ void rasteriseRow(int pixelBaseIndex, quasiSpinImagePixelT
 		currentMask = pixelCount == 1 ? singleMask : doubleMask;
 	}
 }
+#endif
 
 __forceinline__ __device__ unsigned lane_id()
 {
@@ -177,63 +162,15 @@ __forceinline__ __device__ unsigned lane_id()
 	return ret;
 }
 
-__device__ __inline__ QSIPrecalculatedSettings calculateRotationSettings(float3 spinImageNormal) {
-
-// Calculating the transformation factors
-	QSIPrecalculatedSettings pre_settings;
-
-	float2 sineCosineAlpha = normalize(make_float2(spinImageNormal.x, spinImageNormal.y));
-
-	bool is_n_a_not_zero = !((abs(spinImageNormal.x) < MAX_EQUIVALENCE_ROUNDING_ERROR) && (abs(spinImageNormal.y) < MAX_EQUIVALENCE_ROUNDING_ERROR));
-
-	if (is_n_a_not_zero)
-	{
-		pre_settings.alignmentProjection_n_ax = sineCosineAlpha.x;
-		pre_settings.alignmentProjection_n_ay = sineCosineAlpha.y;
-	}
-	else
-	{
-		// Leave values unchanged
-		pre_settings.alignmentProjection_n_ax = 1;
-		pre_settings.alignmentProjection_n_ay = 0;
-	}
-
-	float transformedNormalX = transformNormalX(pre_settings, spinImageNormal);
-
-	float2 sineCosineBeta = normalize(make_float2(transformedNormalX, spinImageNormal.z));
-
-	bool is_n_b_not_zero = !((abs(transformedNormalX) < MAX_EQUIVALENCE_ROUNDING_ERROR) && (abs(spinImageNormal.z) < MAX_EQUIVALENCE_ROUNDING_ERROR));
-
-	if (is_n_b_not_zero)
-	{
-		pre_settings.alignmentProjection_n_bx = sineCosineBeta.x;
-		pre_settings.alignmentProjection_n_bz = sineCosineBeta.y; // discrepancy between axis here is because we are using a 2D vector on 3D axis.
-	}
-	else
-	{
-		// Leave input values unchanged
-		pre_settings.alignmentProjection_n_bx = 1;
-		pre_settings.alignmentProjection_n_bz = 0;
-	}
-
-	return pre_settings;
-}
-
 __device__ __inline__ void rasteriseTriangle(
 		quasiSpinImagePixelType* descriptors,
-		float3 vertices[3], GPURasterisationSettings settings)
+		float3 vertices[3],
+		const float3 spinImageVertex,
+		const float3 spinImageNormal)
 {
-	vertices[0] = transformCoordinate(vertices[0], settings);
-	vertices[1] = transformCoordinate(vertices[1], settings);
-	vertices[2] = transformCoordinate(vertices[2], settings);
-
-	float3 minVector = { 0, 0, 0 };
-	float3 midVector = { 0, 0, 0 };
-	float3 maxVector = { 0, 0, 0 };
-
-	float3 deltaMinMid = { 0, 0, 0 };
-	float3 deltaMidMax = { 0, 0, 0 };
-	float3 deltaMinMax = { 0, 0, 0 };
+	vertices[0] = transformCoordinate(vertices[0], spinImageVertex, spinImageNormal);
+	vertices[1] = transformCoordinate(vertices[1], spinImageVertex, spinImageNormal);
+	vertices[2] = transformCoordinate(vertices[2], spinImageVertex, spinImageNormal);
 
 	// Sort vertices by z-coordinate
 
@@ -261,15 +198,15 @@ __device__ __inline__ void rasteriseTriangle(
 		maxIndex = _temp;
 	}
 
-	minVector = vertices[minIndex];
-	midVector = vertices[midIndex];
-	maxVector = vertices[maxIndex];
+    const float3 minVector = vertices[minIndex];
+	const float3 midVector = vertices[midIndex];
+	const float3 maxVector = vertices[maxIndex];
 
 	// Calculate deltas
 
-	deltaMinMid = midVector - minVector;
-	deltaMidMax = maxVector - midVector;
-	deltaMinMax = maxVector - minVector;
+    const float3 deltaMinMid = midVector - minVector;
+    const float3 deltaMidMax = maxVector - midVector;
+    const float3 deltaMinMax = maxVector - minVector;
 
 	// Horizontal triangles are most likely not to register, and cause zero divisions, so it's easier to just get rid of them.
 	if (deltaMinMax.z < MAX_EQUIVALENCE_ROUNDING_ERROR)
@@ -277,42 +214,28 @@ __device__ __inline__ void rasteriseTriangle(
 		return;
 	}
 
-	float2 minXY = { 0, 0 };
-	float2 midXY = { 0, 0 };
-	float2 maxXY = { 0, 0 };
-
-	float2 deltaMinMidXY = { 0, 0 };
-	float2 deltaMidMaxXY = { 0, 0 };
-	float2 deltaMinMaxXY = { 0, 0 };
-
-	int minPixels = 0;
-	int maxPixels = 0;
-
 	// Step 6: Calculate centre line
-	float centreLineFactor = deltaMinMid.z / deltaMinMax.z;
-	float2 centreLineDelta = centreLineFactor * make_float2(deltaMinMax.x, deltaMinMax.y);
-	float2 centreLineDirection = centreLineDelta - make_float2(deltaMinMid.x, deltaMinMid.y);
-	float2 centreDirection = normalize(centreLineDirection);
+	const float centreLineFactor = deltaMinMid.z / deltaMinMax.z;
+    const float2 centreLineDelta = centreLineFactor * make_float2(deltaMinMax.x, deltaMinMax.y);
+    const float2 centreLineDirection = centreLineDelta - make_float2(deltaMinMid.x, deltaMinMid.y);
+    const float2 centreDirection = normalize(centreLineDirection);
 
 	// Step 7: Rotate coordinates around origin
 	// From here on out, variable names follow these conventions:
 	// - X: physical relative distance to closest point on intersection line
 	// - Y: Distance from origin
-	minXY = alignWithPositiveX(centreDirection, make_float2(minVector.x, minVector.y));
-	midXY = alignWithPositiveX(centreDirection, make_float2(midVector.x, midVector.y));
-	maxXY = alignWithPositiveX(centreDirection, make_float2(maxVector.x, maxVector.y));
+	const float2 minXY = alignWithPositiveX(centreDirection, make_float2(minVector.x, minVector.y));
+    const float2 midXY = alignWithPositiveX(centreDirection, make_float2(midVector.x, midVector.y));
+    const float2 maxXY = alignWithPositiveX(centreDirection, make_float2(maxVector.x, maxVector.y));
 
-	deltaMinMidXY = midXY - minXY;
-	deltaMidMaxXY = maxXY - midXY;
-	deltaMinMaxXY = maxXY - minXY;
+    const float2 deltaMinMidXY = midXY - minXY;
+    const float2 deltaMidMaxXY = maxXY - midXY;
+    const float2 deltaMinMaxXY = maxXY - minXY;
 
 	// Step 8: For each row, do interpolation
-	minPixels = int(floor(minVector.z /** settings.oneOverPixelSize*/));
-	maxPixels = int(floor(maxVector.z /** settings.oneOverPixelSize*/));
-
-	// Ensure we only rasterise within bounds
-	minPixels = clamp(minPixels, (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
-	maxPixels = clamp(maxPixels, (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
+	// And ensure we only rasterise within bounds
+	const int minPixels = clamp(int(floor(minVector.z)), (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
+	const int maxPixels = clamp(int(floor(maxVector.z)), (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
 
 	int jobCount = maxPixels - minPixels;
 
@@ -328,35 +251,25 @@ __device__ __inline__ void rasteriseTriangle(
 
 	for(int jobID = 0; jobID < jobCount; jobID++) 
 	{
+		const int jobMinYPixels = minPixels;
+		const int jobPixelY = jobMinYPixels + jobID;
 
-		float jobMinVectorZ;
-		float jobMidVectorZ;
-		float jobDeltaMinMidZ;
-		float jobDeltaMidMaxZ;
-		float jobShortDeltaVectorZ;
-		float jobShortVectorStartZ;
-		float2 jobMinXY;
-		float2 jobMidXY;
-		float2 jobDeltaMinMidXY;
-		float2 jobDeltaMidMaxXY;
-		float2 jobShortVectorStartXY;
-		float2 jobShortTransformedDelta;
+		const float2 jobMinXY = minXY;
+		const float2 jobMidXY = midXY;
 
-		int jobMinYPixels = minPixels;
-		int jobPixelY = jobMinYPixels + jobID;
+		const float jobMinVectorZ = minVector.z;
+		const float jobMidVectorZ = midVector.z;
 
-		jobMinXY = minXY;
-		jobMidXY = midXY;
+		const float jobDeltaMinMidZ = deltaMinMid.z;
+		const float jobDeltaMidMaxZ = deltaMidMax.z;
 
-		jobMinVectorZ = minVector.z;
-		jobMidVectorZ = midVector.z;
+		const float2 jobDeltaMinMidXY = deltaMinMidXY;
+		const float2 jobDeltaMidMaxXY = deltaMidMaxXY;
 
-		jobDeltaMinMidZ = deltaMinMid.z;
-		jobDeltaMidMaxZ = deltaMidMax.z;
-
-		jobDeltaMinMidXY = deltaMinMidXY;
-
-		jobDeltaMidMaxXY = deltaMidMaxXY;
+        float jobShortDeltaVectorZ;
+        float jobShortVectorStartZ;
+        float2 jobShortVectorStartXY;
+        float2 jobShortTransformedDelta;
 
 		// Verified: this should be <=, because it fails for the cube tests case
 		if (float(jobPixelY) <= jobMidVectorZ)
@@ -382,56 +295,56 @@ __device__ __inline__ void rasteriseTriangle(
 			jobShortTransformedDelta = jobDeltaMidMaxXY;
 		}
 
-		float jobZLevel = float(jobPixelY);
-		float jobLongDistanceInTriangle = jobZLevel - jobMinVectorZ;
-		float jobLongInterpolationFactor = jobLongDistanceInTriangle / deltaMinMax.z;
-		float jobShortDistanceInTriangle = jobZLevel - jobShortVectorStartZ;
-		float jobShortInterpolationFactor = (jobShortDeltaVectorZ == 0) ? 1.0f : jobShortDistanceInTriangle / jobShortDeltaVectorZ;
+		const float jobZLevel = float(jobPixelY);
+		const float jobLongDistanceInTriangle = jobZLevel - jobMinVectorZ;
+        const float jobLongInterpolationFactor = jobLongDistanceInTriangle / deltaMinMax.z;
+        const float jobShortDistanceInTriangle = jobZLevel - jobShortVectorStartZ;
+        const float jobShortInterpolationFactor = (jobShortDeltaVectorZ == 0) ? 1.0f : jobShortDistanceInTriangle / jobShortDeltaVectorZ;
 		// Set value to 1 because we want to avoid a zero division, and we define the job Z level to be at its maximum height
 
-		int jobPixelYCoordinate = jobPixelY + (spinImageWidthPixels / 2);
+        const int jobPixelYCoordinate = jobPixelY + (spinImageWidthPixels / 2);
 		// Avoid overlap situations, only rasterise is the interpolation factors are valid
 		if (jobLongDistanceInTriangle > 0 && jobShortDistanceInTriangle > 0)
 		{
 			// y-coordinates of both interpolated values are always equal. As such we only need to interpolate that direction once.
 			// They must be equal because we have aligned the direction of the horizontal-triangle plane with the x-axis.
-			float jobIntersectionY = jobMinXY.y + (jobLongInterpolationFactor * deltaMinMaxXY.y);
+			const float jobIntersectionY = jobMinXY.y + (jobLongInterpolationFactor * deltaMinMaxXY.y);
 			// The other two x-coordinates are interpolated separately.
-			float jobIntersection1X = jobShortVectorStartXY.x + (jobShortInterpolationFactor * jobShortTransformedDelta.x);
-			float jobIntersection2X = jobMinXY.x + (jobLongInterpolationFactor * deltaMinMaxXY.x);
+            const float jobIntersection1X = jobShortVectorStartXY.x + (jobShortInterpolationFactor * jobShortTransformedDelta.x);
+            const float jobIntersection2X = jobMinXY.x + (jobLongInterpolationFactor * deltaMinMaxXY.x);
 
-			float jobIntersection1Distance = length(make_float2(jobIntersection1X, jobIntersectionY));
-			float jobIntersection2Distance = length(make_float2(jobIntersection2X, jobIntersectionY));
+            const float jobIntersection1Distance = length(make_float2(jobIntersection1X, jobIntersectionY));
+            const float jobIntersection2Distance = length(make_float2(jobIntersection2X, jobIntersectionY));
 
 			// Check < 0 because we omit the case where there is exactly one point with a double intersection
-			bool jobHasDoubleIntersection = (jobIntersection1X * jobIntersection2X) < 0;
+            const bool jobHasDoubleIntersection = (jobIntersection1X * jobIntersection2X) < 0;
 
 			// If both values are positive or both values are negative, there is no double intersection.
 			// iF the signs of the two values is different, the result will be negative or 0.
 			// Having different signs implies the existence of double intersections.
-			float jobDoubleIntersectionDistance = abs(jobIntersectionY);
+            const float jobDoubleIntersectionDistance = abs(jobIntersectionY);
 
-			float jobMinDistance = jobIntersection1Distance < jobIntersection2Distance ? jobIntersection1Distance : jobIntersection2Distance;
-			float jobMaxDistance = jobIntersection1Distance > jobIntersection2Distance ? jobIntersection1Distance : jobIntersection2Distance;
+            const float jobMinDistance = jobIntersection1Distance < jobIntersection2Distance ? jobIntersection1Distance : jobIntersection2Distance;
+            const float jobMaxDistance = jobIntersection1Distance > jobIntersection2Distance ? jobIntersection1Distance : jobIntersection2Distance;
 
-			unsigned int jobRowStartPixels = unsigned(floor(jobMinDistance)); // * settings.oneOverPixelSize
-			unsigned int jobRowEndPixels = unsigned(floor(jobMaxDistance)); // * settings.oneOverPixelSize
+            unsigned int jobRowStartPixels = unsigned(floor(jobMinDistance)); // * settings.oneOverPixelSize
+            unsigned int jobRowEndPixels = unsigned(floor(jobMaxDistance)); // * settings.oneOverPixelSize
 
 			// Ensure we are only rendering within bounds
 			jobRowStartPixels = min((unsigned int)spinImageWidthPixels, max(0, jobRowStartPixels));
 			jobRowEndPixels = min((unsigned int)spinImageWidthPixels, jobRowEndPixels);
 
 #if !ENABLE_SHARED_MEMORY_IMAGE
-			size_t jobSpinImageBaseIndex = size_t(renderedSpinImageIndex) * spinImageWidthPixels * spinImageWidthPixels + jobPixelYCoordinate * spinImageWidthPixels;
+			const size_t jobSpinImageBaseIndex = size_t(renderedSpinImageIndex) * spinImageWidthPixels * spinImageWidthPixels + jobPixelYCoordinate * spinImageWidthPixels;
 #else
-			size_t jobSpinImageBaseIndex = jobPixelYCoordinate * spinImageWidthPixels;
+			const size_t jobSpinImageBaseIndex = jobPixelYCoordinate * spinImageWidthPixels;
 #endif
 
 			// Step 9: Fill pixels
 			if (jobHasDoubleIntersection)
 			{
 				// since this is an absolute value, it can only be 0 or higher.
-				int jobDoubleIntersectionStartPixels = int(floor(jobDoubleIntersectionDistance));// * settings.oneOverPixelSize
+				const int jobDoubleIntersectionStartPixels = int(floor(jobDoubleIntersectionDistance));
 
 				// rowStartPixels must already be in bounds, and doubleIntersectionStartPixels can not be smaller than 0.
 				// Hence the values in this loop are in-bounds.
@@ -439,8 +352,7 @@ __device__ __inline__ void rasteriseTriangle(
 				for (int jobX = jobDoubleIntersectionStartPixels; jobX < jobRowStartPixels; jobX++)
 				{
 					// Increment pixel by 2 because 2 intersections occurred.
-					size_t jobPixelIndex = jobSpinImageBaseIndex + jobX;
-					atomicAdd(&(descriptors[jobPixelIndex]), 2);
+					atomicAdd(&(descriptors[jobSpinImageBaseIndex + jobX]), 2);
 				}
 #elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
@@ -452,17 +364,13 @@ __device__ __inline__ void rasteriseTriangle(
 	#endif
 				rasteriseRow(jobBaseIndex, descriptorArrayPointer, jobDoubleIntersectionStartPixels, jobRowStartPixels, SHORT_DOUBLE_ONE_MASK, SHORT_DOUBLE_BOTH_MASK, SHORT_DOUBLE_FIRST_MASK);
 #endif
-				// Now that we have already covered single intersections in the range minPixels -> doubleIntersectionEndPixels, we move the starting point for the next loop.
-				// Not needed because the double intersection range is always smaller than the closest edge point
-				//rowStartPixels = doubleIntersectionStartPixels + 1;
 			}
 
 #if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT || QSI_PIXEL_DATATYPE == DATATYPE_FLOAT32
 			// It's imperative the condition of this loop is a < comparison
 			for (int jobX = jobRowStartPixels; jobX < jobRowEndPixels; jobX++)
 			{
-				size_t jobPixelIndex = jobSpinImageBaseIndex + jobX;
-				atomicAdd(&(descriptors[jobPixelIndex]), 1);
+				atomicAdd(&(descriptors[jobSpinImageBaseIndex + jobX]), 1);
 			}
 #elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
@@ -482,16 +390,16 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImag
 		quasiSpinImagePixelType* descriptors,
         QSIMesh mesh)
 {
-    GPURasterisationSettings settings;
-
 	// Copying over precalculated values
-	settings.spinImageVertex.x = mesh.vertices_x[renderedSpinImageIndex];
-	settings.spinImageVertex.y = mesh.vertices_y[renderedSpinImageIndex];
-	settings.spinImageVertex.z = mesh.vertices_z[renderedSpinImageIndex];
+	float3 spinImageVertex;
+	spinImageVertex.x = mesh.vertices_x[renderedSpinImageIndex];
+    spinImageVertex.y = mesh.vertices_y[renderedSpinImageIndex];
+	spinImageVertex.z = mesh.vertices_z[renderedSpinImageIndex];
 
-	settings.spinImageNormal.x = mesh.normals_x[renderedSpinImageIndex];
-	settings.spinImageNormal.y = mesh.normals_y[renderedSpinImageIndex];
-	settings.spinImageNormal.z = mesh.normals_z[renderedSpinImageIndex];
+	float3 spinImageNormal;
+	spinImageNormal.x = mesh.normals_x[renderedSpinImageIndex];
+	spinImageNormal.y = mesh.normals_y[renderedSpinImageIndex];
+	spinImageNormal.z = mesh.normals_z[renderedSpinImageIndex];
 
 	assert(__activemask() == 0xFFFFFFFF);
 
@@ -528,7 +436,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImag
 		vertices[2].z = mesh.vertex_2_z[triangleIndex];
 
 	#if ENABLE_SHARED_MEMORY_IMAGE
-		rasteriseTriangle(descriptorArrayPointer, vertices, settings);
+		rasteriseTriangle(descriptorArrayPointer, vertices, spinImageVertex, spinImageNormal);
 	#else
 		rasteriseTriangle(descriptors, vertices, settings);
 	#endif
@@ -598,8 +506,7 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(DeviceMes
 
 	DeviceMesh device_meshCopy = duplicateDeviceMesh(device_mesh);
 	scaleMesh<<<(device_meshCopy.vertexCount / 128) + 1, 128>>>(device_meshCopy, float(spinImageWidthPixels)/spinImageWidth);
-	cudaDeviceSynchronize();
-	checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
 
     QSIMesh qsiMesh;
     qsiMesh.vertexCount = device_meshCopy.vertexCount;
@@ -620,6 +527,7 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(DeviceMes
     checkCudaErrors(cudaMalloc(&qsiMesh.vertex_2_z, (device_meshCopy.vertexCount / 3) * sizeof(float)));
 
     redistributeMesh<<<(device_meshCopy.vertexCount / 3), 1>>>(device_meshCopy, qsiMesh);
+    checkCudaErrors(cudaDeviceSynchronize());
 
 	quasiSpinImagePixelType* device_descriptors_content;
 	checkCudaErrors(cudaMalloc(&device_descriptors_content, descriptorBufferSize));
@@ -633,14 +541,12 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(DeviceMes
 
 	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength, device_information);
 	setValue<quasiSpinImagePixelType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.content, descriptorBufferLength, 0);
-	cudaDeviceSynchronize();
-	checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
 
 	auto start = std::chrono::steady_clock::now();
 
 	generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors_content, qsiMesh);
-	cudaDeviceSynchronize();
-	checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
 
 	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
 	std::cout << "\t\t\tExecution time: " << duration.count() << std::endl;

@@ -33,7 +33,31 @@ const int SHORT_DOUBLE_FIRST_MASK = 0x00020000;
 
 #define renderedSpinImageIndex blockIdx.x
 
-const int RASTERISATION_WARP_SIZE = 1024;
+const int RASTERISATION_WARP_SIZE = 640;
+
+struct QSIMesh {
+    float* vertex_0_x;
+    float* vertex_0_y;
+    float* vertex_0_z;
+
+    float* vertex_1_x;
+    float* vertex_1_y;
+    float* vertex_1_z;
+
+    float* vertex_2_x;
+    float* vertex_2_y;
+    float* vertex_2_z;
+
+    float* vertices_x;
+    float* vertices_y;
+    float* vertices_z;
+
+    float* normals_x;
+    float* normals_y;
+    float* normals_z;
+
+    size_t vertexCount;
+};
 
 __device__ __inline__ QSIPrecalculatedSettings calculateRotationSettings(float3 spinImageNormal);
 
@@ -456,7 +480,7 @@ __device__ __inline__ void rasteriseTriangle(
 
 __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImage(
 		quasiSpinImagePixelType* descriptors,
-		DeviceMesh mesh)
+        QSIMesh mesh)
 {
     GPURasterisationSettings settings;
 
@@ -491,23 +515,17 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImag
 	{
 		float3 vertices[3];
 
-		size_t triangleBaseIndex = 3 * triangleIndex;
+		vertices[0].x = mesh.vertex_0_x[triangleIndex];
+		vertices[0].y = mesh.vertex_0_y[triangleIndex];
+		vertices[0].z = mesh.vertex_0_z[triangleIndex];
 
-		size_t threadTriangleIndex0 = triangleBaseIndex + 0;
-		size_t threadTriangleIndex1 = triangleBaseIndex + 1;
-		size_t threadTriangleIndex2 = triangleBaseIndex + 2;
+		vertices[1].x = mesh.vertex_1_x[triangleIndex];
+		vertices[1].y = mesh.vertex_1_y[triangleIndex];
+		vertices[1].z = mesh.vertex_1_z[triangleIndex];
 
-		vertices[0].x = mesh.vertices_x[threadTriangleIndex0];
-		vertices[0].y = mesh.vertices_y[threadTriangleIndex0];
-		vertices[0].z = mesh.vertices_z[threadTriangleIndex0];
-
-		vertices[1].x = mesh.vertices_x[threadTriangleIndex1];
-		vertices[1].y = mesh.vertices_y[threadTriangleIndex1];
-		vertices[1].z = mesh.vertices_z[threadTriangleIndex1];
-
-		vertices[2].x = mesh.vertices_x[threadTriangleIndex2];
-		vertices[2].y = mesh.vertices_y[threadTriangleIndex2];
-		vertices[2].z = mesh.vertices_z[threadTriangleIndex2];
+		vertices[2].x = mesh.vertex_2_x[triangleIndex];
+		vertices[2].y = mesh.vertex_2_y[triangleIndex];
+		vertices[2].z = mesh.vertex_2_z[triangleIndex];
 
 	#if ENABLE_SHARED_MEMORY_IMAGE
 		rasteriseTriangle(descriptorArrayPointer, vertices, settings);
@@ -557,6 +575,21 @@ __global__ void scaleMesh(DeviceMesh mesh, float scaleFactor) {
     mesh.vertices_z[vertexIndex] *= scaleFactor;
 }
 
+__global__ void redistributeMesh(DeviceMesh mesh, QSIMesh qsiMesh) {
+    size_t triangleIndex = blockIdx.x;
+    size_t triangleBaseIndex = 3 * triangleIndex;
+
+    qsiMesh.vertex_0_x[triangleIndex] = mesh.vertices_x[triangleBaseIndex + 0];
+    qsiMesh.vertex_0_y[triangleIndex] = mesh.vertices_y[triangleBaseIndex + 0];
+    qsiMesh.vertex_0_z[triangleIndex] = mesh.vertices_z[triangleBaseIndex + 0];
+    qsiMesh.vertex_1_x[triangleIndex] = mesh.vertices_x[triangleBaseIndex + 1];
+    qsiMesh.vertex_1_y[triangleIndex] = mesh.vertices_y[triangleBaseIndex + 1];
+    qsiMesh.vertex_1_z[triangleIndex] = mesh.vertices_z[triangleBaseIndex + 1];
+    qsiMesh.vertex_2_x[triangleIndex] = mesh.vertices_x[triangleBaseIndex + 2];
+    qsiMesh.vertex_2_y[triangleIndex] = mesh.vertices_y[triangleBaseIndex + 2];
+    qsiMesh.vertex_2_z[triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
+}
+
 array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information,
 													 float spinImageWidth)
 {
@@ -567,6 +600,26 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(DeviceMes
 	scaleMesh<<<(device_meshCopy.vertexCount / 128) + 1, 128>>>(device_meshCopy, float(spinImageWidthPixels)/spinImageWidth);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
+
+    QSIMesh qsiMesh;
+    qsiMesh.vertexCount = device_meshCopy.vertexCount;
+    qsiMesh.vertices_x = device_meshCopy.vertices_x;
+    qsiMesh.vertices_y = device_meshCopy.vertices_y;
+    qsiMesh.vertices_z = device_meshCopy.vertices_z;
+    qsiMesh.normals_x = device_meshCopy.normals_x;
+    qsiMesh.normals_y = device_meshCopy.normals_y;
+    qsiMesh.normals_z = device_meshCopy.normals_z;
+    checkCudaErrors(cudaMalloc(&qsiMesh.vertex_0_x, (device_meshCopy.vertexCount / 3) * sizeof(float)));
+    checkCudaErrors(cudaMalloc(&qsiMesh.vertex_0_y, (device_meshCopy.vertexCount / 3) * sizeof(float)));
+    checkCudaErrors(cudaMalloc(&qsiMesh.vertex_0_z, (device_meshCopy.vertexCount / 3) * sizeof(float)));
+    checkCudaErrors(cudaMalloc(&qsiMesh.vertex_1_x, (device_meshCopy.vertexCount / 3) * sizeof(float)));
+    checkCudaErrors(cudaMalloc(&qsiMesh.vertex_1_y, (device_meshCopy.vertexCount / 3) * sizeof(float)));
+    checkCudaErrors(cudaMalloc(&qsiMesh.vertex_1_z, (device_meshCopy.vertexCount / 3) * sizeof(float)));
+    checkCudaErrors(cudaMalloc(&qsiMesh.vertex_2_x, (device_meshCopy.vertexCount / 3) * sizeof(float)));
+    checkCudaErrors(cudaMalloc(&qsiMesh.vertex_2_y, (device_meshCopy.vertexCount / 3) * sizeof(float)));
+    checkCudaErrors(cudaMalloc(&qsiMesh.vertex_2_z, (device_meshCopy.vertexCount / 3) * sizeof(float)));
+
+    redistributeMesh<<<(device_meshCopy.vertexCount / 3), 1>>>(device_meshCopy, qsiMesh);
 
 	quasiSpinImagePixelType* device_descriptors_content;
 	checkCudaErrors(cudaMalloc(&device_descriptors_content, descriptorBufferSize));
@@ -585,7 +638,7 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(DeviceMes
 
 	auto start = std::chrono::steady_clock::now();
 
-	generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors_content, device_meshCopy);
+	generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors_content, qsiMesh);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 
@@ -593,6 +646,16 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(DeviceMes
 	std::cout << "\t\t\tExecution time: " << duration.count() << std::endl;
 
 	freeDeviceMesh(device_meshCopy);
+
+	cudaFree(qsiMesh.vertex_0_x);
+    cudaFree(qsiMesh.vertex_0_y);
+    cudaFree(qsiMesh.vertex_0_z);
+    cudaFree(qsiMesh.vertex_1_x);
+    cudaFree(qsiMesh.vertex_1_y);
+    cudaFree(qsiMesh.vertex_1_z);
+    cudaFree(qsiMesh.vertex_2_x);
+    cudaFree(qsiMesh.vertex_2_y);
+    cudaFree(qsiMesh.vertex_2_z);
 
     return device_descriptors;
 }

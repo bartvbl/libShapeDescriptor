@@ -14,7 +14,7 @@ if (MSVC)
 endif()
 
 
-list(APPEND CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -Xptxas -O3,-v -gencode arch=compute_62,code=\"sm_62,compute_62\" -lcurand -lineinfo -lcudart)
+list(APPEND CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -Xptxas -O3,-v -gencode arch=compute_61,code=\"sm_61,compute_61\" -lcurand -lineinfo -lcudart)
 
 
 

@@ -32,7 +32,7 @@ const int SHORT_DOUBLE_FIRST_MASK = 0x00020000;
 
 #define renderedSpinImageIndex blockIdx.x
 
-const int RASTERISATION_WARP_SIZE = 1024;
+const int RASTERISATION_WARP_SIZE = 768;
 
 struct QSIMesh {
     float* vertex_0_x;
@@ -505,6 +505,7 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(DeviceMes
 
 	generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors_content, qsiMesh);
     checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
 
 	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
 	std::cout << "\t\t\tExecution time: " << duration.count() << std::endl;

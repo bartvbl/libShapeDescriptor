@@ -32,7 +32,7 @@ const int SHORT_DOUBLE_FIRST_MASK = 0x00020000;
 
 #define renderedSpinImageIndex blockIdx.x
 
-const int RASTERISATION_WARP_SIZE = 768;
+const int RASTERISATION_WARP_SIZE = 1024;
 
 struct QSIMesh {
     float* vertex_0_x;
@@ -90,7 +90,7 @@ __device__ __inline__ float3 transformCoordinate(const float3 &vertex, const flo
 	return transformedCoordinate;
 }
 
-__device__ __inline__ float2 alignWithPositiveX(float2 midLineDirection, float2 vertex)
+__device__ __inline__ float2 alignWithPositiveX(const float2 &midLineDirection, const float2 &vertex)
 {
 	float2 transformed;
 	transformed.x = midLineDirection.x * vertex.x + midLineDirection.y * vertex.y;
@@ -167,10 +167,10 @@ __device__ __inline__ void rasteriseTriangle(
 
 	// Sort vertices by z-coordinate
 
-	int minIndex = 0;
-	int midIndex = 1;
-	int maxIndex = 2;
-	int _temp;
+	char minIndex = 0;
+    char midIndex = 1;
+    char maxIndex = 2;
+    char _temp;
 
 	if (vertices[minIndex].z > vertices[midIndex].z)
 	{
@@ -227,8 +227,8 @@ __device__ __inline__ void rasteriseTriangle(
 
 	// Step 8: For each row, do interpolation
 	// And ensure we only rasterise within bounds
-	const int minPixels = clamp(int(floor(minVector.z)), (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
-	const int maxPixels = clamp(int(floor(maxVector.z)), (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
+	const short minPixels = clamp(short(floor(minVector.z)), (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
+	const short maxPixels = clamp(short(floor(maxVector.z)), (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
 
 	int pixelRowCount = maxPixels - minPixels;
 
@@ -242,9 +242,9 @@ __device__ __inline__ void rasteriseTriangle(
 
 	pixelRowCount = min(minPixels + pixelRowCount, (spinImageWidthPixels / 2)) - minPixels;
 
-	for(int pixelRowID = 0; pixelRowID < pixelRowCount; pixelRowID++)
+	for(short pixelRowID = 0; pixelRowID < pixelRowCount; pixelRowID++)
 	{
-		const int pixelY = minPixels + pixelRowID;
+		const short pixelY = minPixels + pixelRowID;
 
 		// Verified: this should be <=, because it fails for the cube tests case
 		const bool isBottomSection = float(pixelY) <= midVector.z;
@@ -261,54 +261,54 @@ __device__ __inline__ void rasteriseTriangle(
         const float shortInterpolationFactor = (shortDeltaVectorZ == 0) ? 1.0f : shortDistanceInTriangle / shortDeltaVectorZ;
 		// Set value to 1 because we want to avoid a zero division, and we define the job Z level to be at its maximum height
 
-        const int jobPixelYCoordinate = pixelY + (spinImageWidthPixels / 2);
+        const unsigned short pixelYCoordinate = (unsigned short)(pixelY + (spinImageWidthPixels / 2));
 		// Avoid overlap situations, only rasterise is the interpolation factors are valid
 		if (longDistanceInTriangle > 0 && shortDistanceInTriangle > 0)
 		{
 			// y-coordinates of both interpolated values are always equal. As such we only need to interpolate that direction once.
 			// They must be equal because we have aligned the direction of the horizontal-triangle plane with the x-axis.
-			const float jobIntersectionY = minXY.y + (longInterpolationFactor * deltaMinMaxXY.y);
+			const float intersectionY = minXY.y + (longInterpolationFactor * deltaMinMaxXY.y);
 			// The other two x-coordinates are interpolated separately.
-            const float jobIntersection1X = shortVectorStartXY.x + (shortInterpolationFactor * shortTransformedDelta.x);
-            const float jobIntersection2X = minXY.x + (longInterpolationFactor * deltaMinMaxXY.x);
+            const float intersection1X = shortVectorStartXY.x + (shortInterpolationFactor * shortTransformedDelta.x);
+            const float intersection2X = minXY.x + (longInterpolationFactor * deltaMinMaxXY.x);
 
-            const float jobIntersection1Distance = length(make_float2(jobIntersection1X, jobIntersectionY));
-            const float jobIntersection2Distance = length(make_float2(jobIntersection2X, jobIntersectionY));
+            const float intersection1Distance = length(make_float2(intersection1X, intersectionY));
+            const float intersection2Distance = length(make_float2(intersection2X, intersectionY));
 
 			// Check < 0 because we omit the case where there is exactly one point with a double intersection
-            const bool jobHasDoubleIntersection = (jobIntersection1X * jobIntersection2X) < 0;
+            const bool hasDoubleIntersection = (intersection1X * intersection2X) < 0;
 
 			// If both values are positive or both values are negative, there is no double intersection.
 			// iF the signs of the two values is different, the result will be negative or 0.
 			// Having different signs implies the existence of double intersections.
-            const float jobDoubleIntersectionDistance = abs(jobIntersectionY);
+            const float doubleIntersectionDistance = abs(intersectionY);
 
-            const float jobMinDistance = jobIntersection1Distance < jobIntersection2Distance ? jobIntersection1Distance : jobIntersection2Distance;
-            const float jobMaxDistance = jobIntersection1Distance > jobIntersection2Distance ? jobIntersection1Distance : jobIntersection2Distance;
+            const float minDistance = intersection1Distance < intersection2Distance ? intersection1Distance : intersection2Distance;
+            const float maxDistance = intersection1Distance > intersection2Distance ? intersection1Distance : intersection2Distance;
 
-            unsigned int jobRowStartPixels = unsigned(floor(jobMinDistance)); // * settings.oneOverPixelSize
-            unsigned int jobRowEndPixels = unsigned(floor(jobMaxDistance)); // * settings.oneOverPixelSize
+            unsigned short rowStartPixels = (unsigned short) (floor(minDistance));
+            unsigned short rowEndPixels = (unsigned short) (floor(maxDistance));
 
 			// Ensure we are only rendering within bounds
-			jobRowStartPixels = min((unsigned int)spinImageWidthPixels, max(0, jobRowStartPixels));
-			jobRowEndPixels = min((unsigned int)spinImageWidthPixels, jobRowEndPixels);
+			rowStartPixels = min((unsigned int)spinImageWidthPixels, max(0, rowStartPixels));
+			rowEndPixels = min((unsigned int)spinImageWidthPixels, rowEndPixels);
 
 #if !ENABLE_SHARED_MEMORY_IMAGE
-			const size_t jobSpinImageBaseIndex = size_t(renderedSpinImageIndex) * spinImageWidthPixels * spinImageWidthPixels + jobPixelYCoordinate * spinImageWidthPixels;
+			const size_t jobSpinImageBaseIndex = size_t(renderedSpinImageIndex) * spinImageWidthPixels * spinImageWidthPixels + pixelYCoordinate * spinImageWidthPixels;
 #else
-			const size_t jobSpinImageBaseIndex = jobPixelYCoordinate * spinImageWidthPixels;
+			const size_t jobSpinImageBaseIndex = pixelYCoordinate * ((unsigned short) spinImageWidthPixels);
 #endif
 
 			// Step 9: Fill pixels
-			if (jobHasDoubleIntersection)
+			if (hasDoubleIntersection)
 			{
 				// since this is an absolute value, it can only be 0 or higher.
-				const int jobDoubleIntersectionStartPixels = int(floor(jobDoubleIntersectionDistance));
+				const int jobDoubleIntersectionStartPixels = int(floor(doubleIntersectionDistance));
 
 				// rowStartPixels must already be in bounds, and doubleIntersectionStartPixels can not be smaller than 0.
 				// Hence the values in this loop are in-bounds.
 #if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT || QSI_PIXEL_DATATYPE == DATATYPE_FLOAT32
-				for (int jobX = jobDoubleIntersectionStartPixels; jobX < jobRowStartPixels; jobX++)
+				for (int jobX = jobDoubleIntersectionStartPixels; jobX < rowStartPixels; jobX++)
 				{
 					// Increment pixel by 2 because 2 intersections occurred.
 					atomicAdd(&(descriptors[jobSpinImageBaseIndex + jobX]), 2);
@@ -318,34 +318,34 @@ __device__ __inline__ void rasteriseTriangle(
 				int jobBaseIndex = jobSpinImageBaseIndex + jobDoubleIntersectionStartPixels;
 				quasiSpinImagePixelType* descriptorArrayPointer = descriptors.content;
 	#else
-				int jobBaseIndex = jobPixelYCoordinate * spinImageWidthPixels + jobDoubleIntersectionStartPixels;
+				int jobBaseIndex = pixelYCoordinate * spinImageWidthPixels + jobDoubleIntersectionStartPixels;
 				quasiSpinImagePixelType* descriptorArrayPointer = descriptors;
 	#endif
-				rasteriseRow(jobBaseIndex, descriptorArrayPointer, jobDoubleIntersectionStartPixels, jobRowStartPixels, SHORT_DOUBLE_ONE_MASK, SHORT_DOUBLE_BOTH_MASK, SHORT_DOUBLE_FIRST_MASK);
+				rasteriseRow(jobBaseIndex, descriptorArrayPointer, jobDoubleIntersectionStartPixels, rowStartPixels, SHORT_DOUBLE_ONE_MASK, SHORT_DOUBLE_BOTH_MASK, SHORT_DOUBLE_FIRST_MASK);
 #endif
 			}
 
 #if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT || QSI_PIXEL_DATATYPE == DATATYPE_FLOAT32
 			// It's imperative the condition of this loop is a < comparison
-			for (int jobX = jobRowStartPixels; jobX < jobRowEndPixels; jobX++)
+			for (int jobX = rowStartPixels; jobX < rowEndPixels; jobX++)
 			{
 				atomicAdd(&(descriptors[jobSpinImageBaseIndex + jobX]), 1);
 			}
 #elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
-			int jobBaseIndex = jobSpinImageBaseIndex + jobRowStartPixels;
+			int jobBaseIndex = jobSpinImageBaseIndex + rowStartPixels;
 			quasiSpinImagePixelType* descriptorArrayPointer = descriptors.content;
 	#else
-			int jobBaseIndex = jobPixelYCoordinate * spinImageWidthPixels + jobRowStartPixels;
+			int jobBaseIndex = pixelYCoordinate * spinImageWidthPixels + rowStartPixels;
 			quasiSpinImagePixelType* descriptorArrayPointer = descriptors;
 	#endif
-			rasteriseRow(jobBaseIndex, descriptorArrayPointer, jobRowStartPixels, jobRowEndPixels, SHORT_SINGLE_ONE_MASK, SHORT_SINGLE_BOTH_MASK, SHORT_SINGLE_FIRST_MASK);
+			rasteriseRow(jobBaseIndex, descriptorArrayPointer, rowStartPixels, rowEndPixels, SHORT_SINGLE_ONE_MASK, SHORT_SINGLE_BOTH_MASK, SHORT_SINGLE_FIRST_MASK);
 #endif
 		}
 	}
 }
 
-__launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImage(
+__launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinImage(
 		quasiSpinImagePixelType* descriptors,
         QSIMesh mesh)
 {
@@ -427,7 +427,6 @@ __launch_bounds__(RASTERISATION_WARP_SIZE) __global__ void generateQuasiSpinImag
 	}
 #endif
 #endif
-
 }
 
 __global__ void scaleMesh(DeviceMesh mesh, float scaleFactor) {

@@ -18,7 +18,7 @@
 
 // By default, the quasi spin image is generated entirely in main memory. This setting forces it to generate the image
 // in shared memory instead, copying it to main memory on completion instead.
-#define ENABLE_SHARED_MEMORY_IMAGE false
+#define ENABLE_SHARED_MEMORY_IMAGE true
 
 // In a few places we need to check for equivalence between floating point numbers.
 // This is the maximum difference between two floating numbers such that they are considered equal.

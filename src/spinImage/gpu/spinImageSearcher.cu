@@ -61,7 +61,11 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
         const float smallestNonZeroFactor = 0.0001;
         squaredSumX = max(squaredSumX, smallestNonZeroFactor);
         squaredSumY = max(squaredSumY, smallestNonZeroFactor);
-        multiplicativeSum = max(multiplicativeSum, smallestNonZeroFactor * smallestNonZeroFactor);
+		if(multiplicativeSum > 0) {
+			multiplicativeSum = std::max(multiplicativeSum, smallestNonZeroFactor * smallestNonZeroFactor);
+		} else {
+			multiplicativeSum = std::min(multiplicativeSum, -(smallestNonZeroFactor * smallestNonZeroFactor));
+		}
 
         correlation = multiplicativeSum / (squaredSumX * squaredSumY);
     } else if(squaredSumX == 0 && squaredSumY == 0) {

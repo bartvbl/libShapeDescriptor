@@ -47,7 +47,11 @@ float computePairCorrelation(pixelType* descriptors,
         const float smallestNonZeroFactor = 0.0001;
         squaredSumX = std::max(squaredSumX, smallestNonZeroFactor);
         squaredSumY = std::max(squaredSumY, smallestNonZeroFactor);
-        multiplicativeSum = std::max(multiplicativeSum, smallestNonZeroFactor * smallestNonZeroFactor);
+        if(multiplicativeSum > 0) {
+            multiplicativeSum = std::max(multiplicativeSum, smallestNonZeroFactor * smallestNonZeroFactor);
+        } else {
+            multiplicativeSum = std::min(multiplicativeSum, -(smallestNonZeroFactor * smallestNonZeroFactor));
+        }
 
         correlation = multiplicativeSum / (squaredSumX * squaredSumY);
     } else if(squaredSumX == 0 && squaredSumY == 0) {

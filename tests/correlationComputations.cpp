@@ -48,7 +48,7 @@ array<pixelType> generateRepeatingTemplateImage(
 TEST_CASE("Correlation computation", "[correlation]") {
     SpinImage::utilities::createCUDAContext();
 
-    SECTION("Equivalent images") {
+    SECTION("Equivalent images (spin image)") {
         array<spinImagePixelType> constantImage =
                 generateRepeatingTemplateImage<spinImagePixelType>(0, 1, 0, 1, 0, 1, 0, 1);
 
@@ -58,7 +58,17 @@ TEST_CASE("Correlation computation", "[correlation]") {
         REQUIRE(correlation == 1);
     }
 
-    SECTION("Opposite images") {
+    SECTION("Equivalent images (quasi spin image)") {
+        array<quasiSpinImagePixelType> constantImage =
+                generateRepeatingTemplateImage<quasiSpinImagePixelType>(0, 1, 0, 1, 0, 1, 0, 1);
+
+        float correlation = SpinImage::cpu::computeImagePairCorrelation(constantImage.content, constantImage.content, 0, 0);
+
+        delete[] constantImage.content;
+        REQUIRE(correlation == 1);
+    }
+
+    SECTION("Opposite images (spin image)") {
         array<spinImagePixelType> positiveImage = generateEmptyImages<spinImagePixelType>(1);
         array<spinImagePixelType> negativeImage = generateEmptyImages<spinImagePixelType>(1);
 
@@ -69,24 +79,63 @@ TEST_CASE("Correlation computation", "[correlation]") {
 
         float correlation = SpinImage::cpu::computeImagePairCorrelation(positiveImage.content, negativeImage.content, 0,
                                                                         0);
-
         delete[] positiveImage.content;
         delete[] negativeImage.content;
         REQUIRE(correlation == -1);
     }
 
-    SECTION("Equivalent constant images") {
+    SECTION("Opposite images (quasi spin image)") {
+        array<quasiSpinImagePixelType> positiveImage = generateEmptyImages<quasiSpinImagePixelType>(1);
+        array<quasiSpinImagePixelType> negativeImage = generateEmptyImages<quasiSpinImagePixelType>(1);
+
+        for(int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
+            positiveImage.content[i] = unsigned(i);
+            negativeImage.content[i] = unsigned(spinImageWidthPixels * spinImageWidthPixels - i);
+        }
+
+        float correlation = SpinImage::cpu::computeImagePairCorrelation(positiveImage.content, negativeImage.content, 0,
+                                                                        0);
+        delete[] positiveImage.content;
+        delete[] negativeImage.content;
+        REQUIRE(correlation == -1);
+    }
+
+    SECTION("Equivalent constant images (spin image)") {
         array<spinImagePixelType> positiveImage = generateRepeatingTemplateImage<spinImagePixelType>(5, 5, 5, 5, 5, 5, 5, 5);
         array<spinImagePixelType> negativeImage = generateRepeatingTemplateImage<spinImagePixelType>(5, 5, 5, 5, 5, 5, 5, 5);
 
         float correlation = SpinImage::cpu::computeImagePairCorrelation(positiveImage.content, negativeImage.content, 0,
                                                                         0);
-
         delete[] positiveImage.content;
         delete[] negativeImage.content;
         REQUIRE(correlation == 1);
     }
 
+    SECTION("Equivalent constant images (quasi spin image)") {
+        array<quasiSpinImagePixelType> positiveImage = generateRepeatingTemplateImage<quasiSpinImagePixelType>(5, 5, 5, 5, 5, 5, 5, 5);
+        array<quasiSpinImagePixelType> negativeImage = generateRepeatingTemplateImage<quasiSpinImagePixelType>(5, 5, 5, 5, 5, 5, 5, 5);
 
+        float correlation = SpinImage::cpu::computeImagePairCorrelation(positiveImage.content, negativeImage.content, 0,
+                                                                        0);
+        delete[] positiveImage.content;
+        delete[] negativeImage.content;
+        REQUIRE(correlation == 1);
+    }
+
+    SECTION("Ranking of search results") {
+        const int imageCount = spinImageWidthPixels * spinImageWidthPixels;
+        array<spinImagePixelType> imageSequence = generateEmptyImages<spinImagePixelType>(imageCount);
+
+        for(int image = 0; image < imageCount; image++) {
+            for(int highIndex = 0; highIndex < image; highIndex++) {
+
+            }
+            for(int lowIndex = image; lowIndex < imageCount; lowIndex++) {
+
+            }
+        }
+
+
+    }
 
 }

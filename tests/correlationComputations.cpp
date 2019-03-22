@@ -1,6 +1,7 @@
 #include "correlationComputations.h"
 #include <catch2/catch.hpp>
 #include <spinImage/common/buildSettings/derivedBuildSettings.h>
+#include <spinImage/cpu/spinImageSearcher.h>
 #include <spinImage/common/types/array.h>
 #include <spinImage/libraryBuildSettings.h>
 #include <spinImage/utilities/CUDAContextCreator.h>
@@ -30,17 +31,10 @@ array<pixelType> generateRepeatingTemplateImage(
         image[index + 6] = patternPart6;
         image[index + 7] = patternPart7;
     }
-
-    size_t bufferSize = sizeof(pixelType) * spinImageWidthPixels * spinImageWidthPixels;
-
-    array<pixelType> device_images;
-    device_images.length = spinImageWidthPixels * spinImageWidthPixels;
-    checkCudaErrors(cudaMalloc(&device_images.content, bufferSize));
-    checkCudaErrors(cudaMemcpy(device_images.content, image, bufferSize, cudaMemcpyHostToDevice));
-
-    delete[] image;
-
-    return device_images;
+    array<pixelType> images;
+    images.content = image;
+    images.length = spinImageWidthPixels * spinImageWidthPixels;
+    return images;
 }
 
 TEST_CASE("Correlation computation", "[correlation]") {
@@ -50,9 +44,9 @@ TEST_CASE("Correlation computation", "[correlation]") {
         array<spinImagePixelType> constantImage =
                 generateRepeatingTemplateImage<spinImagePixelType>(0, 1, 0, 1, 0, 1, 0, 1);
 
+        float correlation = SpinImage::cpu::computeImagePairCorrelation(constantImage.content, constantImage.content, 0, 0);
 
-
-        cudaFree(constantImage.content);
+        REQUIRE(correlation == 1);
     }
 
 }

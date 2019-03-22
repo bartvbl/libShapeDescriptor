@@ -75,6 +75,18 @@ TEST_CASE("Correlation computation", "[correlation]") {
         REQUIRE(correlation == -1);
     }
 
+    SECTION("Equivalent constant images") {
+        array<spinImagePixelType> positiveImage = generateRepeatingTemplateImage<spinImagePixelType>(5, 5, 5, 5, 5, 5, 5, 5);
+        array<spinImagePixelType> negativeImage = generateRepeatingTemplateImage<spinImagePixelType>(5, 5, 5, 5, 5, 5, 5, 5);
+
+        float correlation = SpinImage::cpu::computeImagePairCorrelation(positiveImage.content, negativeImage.content, 0,
+                                                                        0);
+
+        delete[] positiveImage.content;
+        delete[] negativeImage.content;
+        REQUIRE(correlation == 1);
+    }
+
 
 
 }

@@ -23,5 +23,15 @@ namespace SpinImage {
                 size_t needleImageCount,
                 array<quasiSpinImagePixelType> device_haystackDescriptors,
                 size_t haystackImageCount);
+
+        float computeImagePairCorrelation(quasiSpinImagePixelType* descriptors,
+                                          quasiSpinImagePixelType* otherDescriptors,
+                                          size_t spinImageIndex,
+                                          size_t otherImageIndex);
+
+        float computeImagePairCorrelation(spinImagePixelType* descriptors,
+                                          spinImagePixelType* otherDescriptors,
+                                          size_t spinImageIndex,
+                                          size_t otherImageIndex);
     }
 }

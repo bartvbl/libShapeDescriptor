@@ -194,10 +194,29 @@ TEST_CASE("Ranking of search results on GPU") {
 
     SpinImage::utilities::createCUDAContext();
 
-    SECTION("Ranking by computing rank indices") {
-        array<spinImagePixelType> imageSequence = generateKnownImageSequence<spinImagePixelType>(imageCount, pixelsPerImage);
+    array<spinImagePixelType> imageSequence = generateKnownImageSequence<spinImagePixelType>(imageCount, pixelsPerImage);
 
-        array<spinImagePixelType> device_haystackImages = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
+    array<spinImagePixelType> device_haystackImages = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
+
+    SECTION("Ranking by generating search results on GPU") {
+        array<ImageSearchResults> searchResults = SpinImage::gpu::findDescriptorsInHaystack(device_haystackImages, imageCount, device_haystackImages, imageCount);
+
+        for(int image = 0; image < imageCount; image++) {
+            // Allow for shared first places
+            int resultIndex = 0;
+            while (std::abs(searchResults.content[image].resultScores[resultIndex] - 1.0f) < correlationThreshold) {
+                if (searchResults.content[image].resultIndices[resultIndex] == image) {
+                    break;
+                }
+                resultIndex++;
+            }
+
+            REQUIRE(std::abs(searchResults.content[image].resultScores[resultIndex] - 1.0f) < correlationThreshold);
+            REQUIRE(searchResults.content[image].resultIndices[resultIndex] == image);
+        }
+    }
+
+    SECTION("Ranking by computing rank indices") {
 
         array<size_t> results = SpinImage::gpu::computeSearchResultRanks(device_haystackImages, imageCount, device_haystackImages, imageCount);
 
@@ -206,7 +225,8 @@ TEST_CASE("Ranking of search results on GPU") {
             REQUIRE(results.content[i] == 0);
         }
 
-        cudaFree(device_haystackImages.content);
     }
+
+    cudaFree(device_haystackImages.content);
 
 }

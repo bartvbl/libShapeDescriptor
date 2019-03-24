@@ -10,8 +10,8 @@
 #include <lodepng.h>
 
 template<typename spinPixelType>
-void performSpinDump(array<spinPixelType> descriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
-	size_t rowCount = (descriptors.length / imagesPerRow) + 1;
+void performSpinDump(array<spinPixelType> descriptors, const std::string &imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
+	size_t rowCount = (descriptors.length / imagesPerRow) + ((descriptors.length % imagesPerRow == 0) ? 0 : 1);
 	std::cout << "Dumping " << rowCount << " rows containing " << descriptors.length << " images." << std::endl;
 
 	unsigned int width = imagesPerRow * (spinImageWidthPixels + 1);

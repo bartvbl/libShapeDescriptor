@@ -7,6 +7,10 @@
 #include <spinImage/utilities/CUDAContextCreator.h>
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
+#include <spinImage/utilities/copy/hostDescriptorsToDevice.h>
+#include <spinImage/gpu/spinImageSearcher.cuh>
+#include <iostream>
+#include <spinImage/utilities/dumpers/spinImageDumper.h>
 
 template<typename pixelType>
 array<pixelType> generateEmptyImages(size_t imageCount) {
@@ -45,14 +49,32 @@ array<pixelType> generateRepeatingTemplateImage(
     return images;
 }
 
-TEST_CASE("Correlation computation", "[correlation]") {
-    SpinImage::utilities::createCUDAContext();
+template<typename pixelType>
+array<pixelType> generateKnownImageSequence(const int imageCount, const int pixelsPerImage) {
+    array<pixelType> imageSequence = generateEmptyImages<pixelType>(imageCount);
+
+    for(int image = 0; image < imageCount; image++) {
+        for(int highIndex = 0; highIndex < image; highIndex++) {
+            imageSequence.content[image * pixelsPerImage + highIndex] = 1;
+        }
+        for(int lowIndex = image; lowIndex < pixelsPerImage; lowIndex++) {
+            imageSequence.content[image * pixelsPerImage + lowIndex] = 0;
+        }
+    }
+
+    imageSequence.length = imageCount;
+    return imageSequence;
+}
+
+
+TEST_CASE("Basic correlation computation", "[correlation]") {
 
     SECTION("Equivalent images (spin image)") {
         array<spinImagePixelType> constantImage =
                 generateRepeatingTemplateImage<spinImagePixelType>(0, 1, 0, 1, 0, 1, 0, 1);
 
-        float correlation = SpinImage::cpu::computeImagePairCorrelation(constantImage.content, constantImage.content, 0, 0);
+        float correlation = SpinImage::cpu::computeImagePairCorrelation(constantImage.content, constantImage.content, 0,
+                                                                        0);
 
         delete[] constantImage.content;
         REQUIRE(correlation == 1);
@@ -62,7 +84,8 @@ TEST_CASE("Correlation computation", "[correlation]") {
         array<quasiSpinImagePixelType> constantImage =
                 generateRepeatingTemplateImage<quasiSpinImagePixelType>(0, 1, 0, 1, 0, 1, 0, 1);
 
-        float correlation = SpinImage::cpu::computeImagePairCorrelation(constantImage.content, constantImage.content, 0, 0);
+        float correlation = SpinImage::cpu::computeImagePairCorrelation(constantImage.content, constantImage.content, 0,
+                                                                        0);
 
         delete[] constantImage.content;
         REQUIRE(correlation == 1);
@@ -72,7 +95,7 @@ TEST_CASE("Correlation computation", "[correlation]") {
         array<spinImagePixelType> positiveImage = generateEmptyImages<spinImagePixelType>(1);
         array<spinImagePixelType> negativeImage = generateEmptyImages<spinImagePixelType>(1);
 
-        for(int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
+        for (int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
             positiveImage.content[i] = float(i);
             negativeImage.content[i] = float(i) * -1;
         }
@@ -88,7 +111,7 @@ TEST_CASE("Correlation computation", "[correlation]") {
         array<quasiSpinImagePixelType> positiveImage = generateEmptyImages<quasiSpinImagePixelType>(1);
         array<quasiSpinImagePixelType> negativeImage = generateEmptyImages<quasiSpinImagePixelType>(1);
 
-        for(int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
+        for (int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
             positiveImage.content[i] = unsigned(i);
             negativeImage.content[i] = unsigned(spinImageWidthPixels * spinImageWidthPixels - i);
         }
@@ -101,8 +124,10 @@ TEST_CASE("Correlation computation", "[correlation]") {
     }
 
     SECTION("Equivalent constant images (spin image)") {
-        array<spinImagePixelType> positiveImage = generateRepeatingTemplateImage<spinImagePixelType>(5, 5, 5, 5, 5, 5, 5, 5);
-        array<spinImagePixelType> negativeImage = generateRepeatingTemplateImage<spinImagePixelType>(5, 5, 5, 5, 5, 5, 5, 5);
+        array<spinImagePixelType> positiveImage = generateRepeatingTemplateImage<spinImagePixelType>(5, 5, 5, 5, 5, 5,
+                                                                                                     5, 5);
+        array<spinImagePixelType> negativeImage = generateRepeatingTemplateImage<spinImagePixelType>(5, 5, 5, 5, 5, 5,
+                                                                                                     5, 5);
 
         float correlation = SpinImage::cpu::computeImagePairCorrelation(positiveImage.content, negativeImage.content, 0,
                                                                         0);
@@ -112,8 +137,12 @@ TEST_CASE("Correlation computation", "[correlation]") {
     }
 
     SECTION("Equivalent constant images (quasi spin image)") {
-        array<quasiSpinImagePixelType> positiveImage = generateRepeatingTemplateImage<quasiSpinImagePixelType>(5, 5, 5, 5, 5, 5, 5, 5);
-        array<quasiSpinImagePixelType> negativeImage = generateRepeatingTemplateImage<quasiSpinImagePixelType>(5, 5, 5, 5, 5, 5, 5, 5);
+        array<quasiSpinImagePixelType> positiveImage = generateRepeatingTemplateImage<quasiSpinImagePixelType>(5, 5, 5,
+                                                                                                               5, 5, 5,
+                                                                                                               5, 5);
+        array<quasiSpinImagePixelType> negativeImage = generateRepeatingTemplateImage<quasiSpinImagePixelType>(5, 5, 5,
+                                                                                                               5, 5, 5,
+                                                                                                               5, 5);
 
         float correlation = SpinImage::cpu::computeImagePairCorrelation(positiveImage.content, negativeImage.content, 0,
                                                                         0);
@@ -121,21 +150,63 @@ TEST_CASE("Correlation computation", "[correlation]") {
         delete[] negativeImage.content;
         REQUIRE(correlation == 1);
     }
+}
 
-    SECTION("Ranking of search results") {
-        const int imageCount = spinImageWidthPixels * spinImageWidthPixels;
-        array<spinImagePixelType> imageSequence = generateEmptyImages<spinImagePixelType>(imageCount);
+const int imageCount = spinImageWidthPixels * spinImageWidthPixels + 1;
+const int pixelsPerImage = spinImageWidthPixels * spinImageWidthPixels;
+const float correlationThreshold = 0.000001f;
 
-        for(int image = 0; image < imageCount; image++) {
-            for(int highIndex = 0; highIndex < image; highIndex++) {
+TEST_CASE("Ranking of search results on CPU", "[correlation]") {
 
+    SECTION("Ranking by generating complete result set") {
+
+        array<spinImagePixelType> imageSequence = generateKnownImageSequence<spinImagePixelType>(imageCount,
+                                                                                                 pixelsPerImage);
+
+        std::vector<std::vector<DescriptorSearchResult>> resultsCPU = SpinImage::cpu::findDescriptorsInHaystack(
+                imageSequence, imageCount, imageSequence, imageCount);
+
+        for (int i = 0; i < imageCount; i++) {
+            float pairCorrelation = SpinImage::cpu::computeImagePairCorrelation(imageSequence.content,
+                                                                                imageSequence.content, i, i);
+
+            // We'll allow for some rounding errors here.
+            REQUIRE(std::abs(pairCorrelation - 1.0f) < correlationThreshold);
+
+            // Allow for shared first places
+            int resultIndex = 0;
+            while (std::abs(resultsCPU.at(i).at(resultIndex).correlation - 1.0f) < correlationThreshold) {
+                if (resultsCPU.at(i).at(resultIndex).imageIndex == i) {
+                    break;
+                }
+                resultIndex++;
             }
-            for(int lowIndex = image; lowIndex < imageCount; lowIndex++) {
 
-            }
+            REQUIRE(std::abs(resultsCPU.at(i).at(resultIndex).correlation - 1.0f) < correlationThreshold);
+            REQUIRE(resultsCPU.at(i).at(resultIndex).imageIndex == i);
         }
 
+        delete[] imageSequence.content;
+    }
+}
 
+TEST_CASE("Ranking of search results on GPU") {
+
+    SpinImage::utilities::createCUDAContext();
+
+    SECTION("Ranking by computing rank indices") {
+        array<spinImagePixelType> imageSequence = generateKnownImageSequence<spinImagePixelType>(imageCount, pixelsPerImage);
+
+        array<spinImagePixelType> device_haystackImages = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
+
+        array<size_t> results = SpinImage::gpu::computeSearchResultRanks(device_haystackImages, imageCount, device_haystackImages, imageCount);
+
+        for(int i = 0; i < imageCount; i++) {
+            std::cout << i << ": " << results.content[i] << std::endl;
+            REQUIRE(results.content[i] == 0);
+        }
+
+        cudaFree(device_haystackImages.content);
     }
 
 }

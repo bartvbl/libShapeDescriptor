@@ -40,6 +40,10 @@ void performSpinDump(array<spinPixelType> descriptors, const std::string &imageD
 	std::cout << "Image dumper: max is " << max << std::endl;
 	std::cout << "Image dumper: nonzero pixel count is: " << nonzeroPixelCount << std::endl;
 
+	if(max == 1) {
+		std::cout << "WARNING: ignoring logarithmic image parameter, as maximum pixel value is 1 (would cause 0 division)." << std::endl;
+	}
+
 	std::vector<unsigned char> imageData;
 	size_t pixelCount = width * height * 4;
 	imageData.resize(pixelCount);
@@ -93,8 +97,8 @@ void performSpinDump(array<spinPixelType> descriptors, const std::string &imageD
 					size_t pixel_index = size_t(spinImageWidthPixels) * size_t(spinImageWidthPixels) * imageIndex + size_t(spinImageWidthPixels) * y + x;
 					spinPixelType pixelValue = descriptors.content[pixel_index];
 					float normalised;
-					if (logarithmicImage) {
-						normalised = (std::log(std::max(0.0f, float(pixelValue))) / float(std::log(max))) * 255.0f;
+					if (logarithmicImage && max != 1.0f) {
+						normalised = (std::log(std::max(0.0f, float(pixelValue))) / std::log(float(max))) * 255.0f;
 					} else
 					{
 						normalised = (std::max(0.0f, float(pixelValue)) / float(max)) * 255.0f;

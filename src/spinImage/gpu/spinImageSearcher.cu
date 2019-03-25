@@ -69,7 +69,8 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
 
         correlation = multiplicativeSum / (squaredSumX * squaredSumY);
     } else if(squaredSumX == 0 && squaredSumY == 0) {
-        // If both sums are 0, both sequences must be identical
+        // If both sums are 0, both sequences must be constant
+        // If they are identical
         correlation = 1;
     }
 
@@ -312,7 +313,7 @@ array<ImageSearchResults> SpinImage::gpu::findDescriptorsInHaystack(
 
 
 
-
+const int indexBasedWarpCount = 4;
 
 template<typename pixelType>
 __global__ void generateElementWiseSearchResults(
@@ -343,7 +344,6 @@ __global__ void generateElementWiseSearchResults(
 															 needleImageAverage,
 															 correspondingImageAverage);
 
-	//printf("%f\n", referenceCorrelation);
 	if(referenceCorrelation == 1) {
 		if(threadIdx.x % 32 == 0) {
 			searchResults[needleImageIndex] = 0;
@@ -408,7 +408,7 @@ array<size_t> doFindCorrespondingSearchResultIndices(
 	std::cout << "\t\tPerforming search.." << std::endl;
 	auto start = std::chrono::steady_clock::now();
 
-	generateElementWiseSearchResults<<<needleImageCount, 32 * warpCount>>>(
+	generateElementWiseSearchResults<<<needleImageCount, 32 * indexBasedWarpCount>>>(
 					device_needleDescriptors.content,
 					needleImageCount,
 					device_haystackDescriptors.content,

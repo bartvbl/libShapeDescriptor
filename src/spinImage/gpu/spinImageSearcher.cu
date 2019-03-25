@@ -76,37 +76,46 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
     return correlation;
 }
 
-template<typename pixelType>
-__device__ float computeImageAverage(pixelType* descriptors, size_t spinImageIndex)
-{
-	const unsigned int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
-
-	float threadPartialSum = 0;
-
-	for (int y = 0; y < spinImageWidthPixels; y++)
-	{
-		for (int x = threadIdx.x; x < spinImageWidthPixels; x += blockDim.x)
-		{
-			float pixelValue = float(descriptors[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)]);
-			threadPartialSum += pixelValue;
-		}
-	}
-
-	return warpAllReduceSum(threadPartialSum) / float(spinImageElementCount);
-}
 
 template<typename pixelType>
 __global__ void calculateImageAverages(pixelType* images, float* averages) {
-	// This kernel assumes one warp per image
-	assert(blockDim.x == 32);
-
 	size_t imageIndex = blockIdx.x;
 
-	float average = computeImageAverage<pixelType>(images, imageIndex);
+	// Only support up to 32 warps
+	__shared__ float warpSums[32];
 
-	if(threadIdx.x == 0) {
-		averages[imageIndex] = average;
+	if(threadIdx.x < 32) {
+	    warpSums[threadIdx.x] = 0;
 	}
+
+	__syncthreads();
+
+    const unsigned int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
+
+    float threadPartialSum = 0;
+
+    for (int x = threadIdx.x; x < spinImageElementCount; x += blockDim.x)
+    {
+        float pixelValue = float(images[imageIndex * spinImageElementCount + x]);
+        threadPartialSum += pixelValue;
+    }
+
+    float warpSum = warpAllReduceSum(threadPartialSum);
+
+    if(threadIdx.x % 32 == 0) {
+        warpSums[threadIdx.x / 32] = warpSum;
+    }
+
+    __syncthreads();
+
+    if(threadIdx.x < 32) {
+        float threadSum = warpSums[threadIdx.x];
+        threadSum = warpAllReduceSum(threadSum);
+        if(threadIdx.x == 0) {
+            averages[imageIndex] = threadSum / float(spinImageElementCount);
+            printf("%i -> %f\n", imageIndex, threadSum / float(spinImageElementCount));
+        }
+    }
 }
 
 template<typename pixelType>

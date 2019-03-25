@@ -324,11 +324,7 @@ __global__ void generateElementWiseSearchResults(
 									  float* needleImageAverages,
 									  float* haystackImageAverages) {
 
-	size_t needleImageIndex = warpCount * blockIdx.x + (threadIdx.x / 32);
-
-	if (needleImageIndex >= needleImageCount) {
-		return;
-	}
+    size_t needleImageIndex = blockIdx.x;
 
 	__shared__ pixelType referenceImage[spinImageWidthPixels * spinImageWidthPixels];
 	for(unsigned int index = threadIdx.x; index < spinImageWidthPixels * spinImageWidthPixels; index += blockDim.x) {
@@ -347,6 +343,7 @@ __global__ void generateElementWiseSearchResults(
 															 needleImageAverage,
 															 correspondingImageAverage);
 
+	//printf("%f\n", referenceCorrelation);
 	if(referenceCorrelation == 1) {
 		if(threadIdx.x % 32 == 0) {
 			searchResults[needleImageIndex] = 0;
@@ -397,8 +394,10 @@ array<size_t> doFindCorrespondingSearchResultIndices(
 	std::cout << "\t\tComputing image averages.." << std::endl;
 	calculateImageAverages<pixelType><<<needleImageCount, 32>>>(device_needleDescriptors.content, device_needleImageAverages);
 	checkCudaErrors(cudaDeviceSynchronize());
+	checkCudaErrors(cudaGetLastError());
 	calculateImageAverages<pixelType><<<haystackImageCount, 32>>>(device_haystackDescriptors.content, device_haystackImageAverages);
 	checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
 
 	// Step 2: Perform search
 
@@ -409,7 +408,7 @@ array<size_t> doFindCorrespondingSearchResultIndices(
 	std::cout << "\t\tPerforming search.." << std::endl;
 	auto start = std::chrono::steady_clock::now();
 
-	generateElementWiseSearchResults<<<(needleImageCount / warpCount) + 1, 32 * warpCount>>>(
+	generateElementWiseSearchResults<<<needleImageCount, 32 * warpCount>>>(
 					device_needleDescriptors.content,
 					needleImageCount,
 					device_haystackDescriptors.content,
@@ -418,6 +417,7 @@ array<size_t> doFindCorrespondingSearchResultIndices(
 					device_needleImageAverages,
 					device_haystackImageAverages);
 	checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
 
 	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
 	std::cout << "\t\t\tExecution time: " << duration.count() << std::endl;

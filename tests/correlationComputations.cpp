@@ -266,6 +266,20 @@ TEST_CASE("Ranking of search results on GPU") {
 
     }
 
+    SECTION("Ranking by computing rank indices, reversed image sequence") {
+        std::reverse(imageSequence.content, imageSequence.content + imageCount * pixelsPerImage);
+
+        array<spinImagePixelType> device_haystackImages_reversed = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
+
+        array<unsigned int> results = SpinImage::gpu::computeSearchResultRanks(device_haystackImages_reversed, imageCount, device_haystackImages_reversed, imageCount);
+
+        for(int i = 0; i < imageCount; i++) {
+            REQUIRE(results.content[i] == 0);
+        }
+
+        cudaFree(device_haystackImages_reversed.content);
+    }
+
     cudaFree(device_haystackImages.content);
 
 }

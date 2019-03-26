@@ -20,13 +20,13 @@ namespace SpinImage {
                 size_t haystackImageCount);
 
 
-        array<size_t> computeSearchResultRanks(
+        array<unsigned int> computeSearchResultRanks(
                 array<spinImagePixelType> device_needleDescriptors,
                 size_t needleImageCount,
                 array<spinImagePixelType> device_haystackDescriptors,
                 size_t haystackImageCount);
 
-        array<size_t> computeSearchResultRanks(
+        array<unsigned int> computeSearchResultRanks(
                 array<quasiSpinImagePixelType> device_needleDescriptors,
                 size_t needleImageCount,
                 array<quasiSpinImagePixelType> device_haystackDescriptors,

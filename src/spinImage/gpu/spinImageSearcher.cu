@@ -80,7 +80,7 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
     } else {
         // In case both images are constant, but have different values,
         // we define the correlation to be the fraction of their pixel values
-        correlation = std::min(pixelValueX, pixelValueY) / std:max(pixelValueX, pixelValueY);
+        correlation = min(pixelValueX, pixelValueY) / max(pixelValueX, pixelValueY);
     }
 
     return correlation;
@@ -123,7 +123,6 @@ __global__ void calculateImageAverages(pixelType* images, float* averages) {
         threadSum = warpAllReduceSum(threadSum);
         if(threadIdx.x == 0) {
             averages[imageIndex] = threadSum / float(spinImageElementCount);
-            printf("%i -> %f\n", imageIndex, threadSum / float(spinImageElementCount));
         }
     }
 }
@@ -330,7 +329,7 @@ __global__ void generateElementWiseSearchResults(
 									  size_t needleImageCount,
 									  pixelType* haystackDescriptors,
 									  size_t haystackImageCount,
-									  size_t* searchResults,
+									  unsigned int* searchResults,
 									  float* needleImageAverages,
 									  float* haystackImageAverages) {
 
@@ -360,7 +359,7 @@ __global__ void generateElementWiseSearchResults(
 		return;
 	}
 
-	size_t searchResultRank = 0;
+	unsigned int searchResultRank = 0;
 
 	for(size_t haystackImageIndex = 0; haystackImageIndex < haystackImageCount; haystackImageIndex++) {
 		if(needleImageIndex == haystackImageIndex) {
@@ -387,7 +386,7 @@ __global__ void generateElementWiseSearchResults(
 }
 
 template<typename pixelType>
-array<size_t> doFindCorrespondingSearchResultIndices(
+array<unsigned int> doFindCorrespondingSearchResultIndices(
 		array<pixelType> device_needleDescriptors,
 		size_t needleImageCount,
 		array<pixelType> device_haystackDescriptors,
@@ -410,8 +409,8 @@ array<size_t> doFindCorrespondingSearchResultIndices(
 
 	// Step 2: Perform search
 
-	size_t searchResultBufferSize = needleImageCount * sizeof(size_t);
-	size_t* device_searchResults;
+	size_t searchResultBufferSize = needleImageCount * sizeof(unsigned int);
+	unsigned int* device_searchResults;
 	checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
 
 	std::cout << "\t\tPerforming search.." << std::endl;
@@ -434,8 +433,8 @@ array<size_t> doFindCorrespondingSearchResultIndices(
 
 	// Step 3: Copying results to CPU
 
-	array<size_t> resultIndices;
-	resultIndices.content = new size_t[needleImageCount];
+	array<unsigned int> resultIndices;
+	resultIndices.content = new unsigned int[needleImageCount];
 	resultIndices.length = needleImageCount;
 
 	checkCudaErrors(cudaMemcpy(resultIndices.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));
@@ -450,7 +449,7 @@ array<size_t> doFindCorrespondingSearchResultIndices(
 }
 
 
-array<size_t> SpinImage::gpu::computeSearchResultRanks(
+array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
 		array<spinImagePixelType> device_needleDescriptors,
 		size_t needleImageCount,
 		array<spinImagePixelType> device_haystackDescriptors,
@@ -458,7 +457,7 @@ array<size_t> SpinImage::gpu::computeSearchResultRanks(
     return doFindCorrespondingSearchResultIndices<spinImagePixelType>(device_needleDescriptors, needleImageCount, device_haystackDescriptors, haystackImageCount);
 }
 
-array<size_t> SpinImage::gpu::computeSearchResultRanks(
+array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
 		array<quasiSpinImagePixelType> device_needleDescriptors,
 		size_t needleImageCount,
 		array<quasiSpinImagePixelType> device_haystackDescriptors,

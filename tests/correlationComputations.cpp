@@ -218,10 +218,9 @@ TEST_CASE("Ranking of search results on GPU") {
 
     SECTION("Ranking by computing rank indices") {
 
-        array<size_t> results = SpinImage::gpu::computeSearchResultRanks(device_haystackImages, imageCount, device_haystackImages, imageCount);
+        array<unsigned int> results = SpinImage::gpu::computeSearchResultRanks(device_haystackImages, imageCount, device_haystackImages, imageCount);
 
         for(int i = 0; i < imageCount; i++) {
-            std::cout << i << ": " << results.content[i] << std::endl;
             REQUIRE(results.content[i] == 0);
         }
 

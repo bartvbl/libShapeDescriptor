@@ -241,18 +241,31 @@ TEST_CASE("Ranking of search results on GPU") {
     SECTION("Ranking by generating search results on GPU") {
         array<ImageSearchResults> searchResults = SpinImage::gpu::findDescriptorsInHaystack(device_haystackImages, imageCount, device_haystackImages, imageCount);
 
-        for(int image = 0; image < imageCount; image++) {
-            // Allow for shared first places
-            int resultIndex = 0;
-            while (std::abs(searchResults.content[image].resultScores[resultIndex] - 1.0f) < correlationThreshold) {
-                if (searchResults.content[image].resultIndices[resultIndex] == image) {
-                    break;
+        SECTION("Equivalent images are the top search results") {
+            for (int image = 0; image < imageCount; image++) {
+                // Allow for shared first places
+                int resultIndex = 0;
+                while (std::abs(searchResults.content[image].resultScores[resultIndex] - 1.0f) < correlationThreshold) {
+                    if (searchResults.content[image].resultIndices[resultIndex] == image) {
+                        break;
+                    }
+                    resultIndex++;
                 }
-                resultIndex++;
-            }
 
-            REQUIRE(std::abs(searchResults.content[image].resultScores[resultIndex] - 1.0f) < correlationThreshold);
-            REQUIRE(searchResults.content[image].resultIndices[resultIndex] == image);
+                REQUIRE(std::abs(searchResults.content[image].resultScores[resultIndex] - 1.0f) < correlationThreshold);
+                REQUIRE(searchResults.content[image].resultIndices[resultIndex] == image);
+            }
+        }
+
+        SECTION("Scores are properly sorted") {
+            for(int image = 0; image < imageCount; image++) {
+                for (int i = 0; i < SEARCH_RESULT_COUNT - 1; i++) {
+                    float firstImageCurrentScore = searchResults.content[image].resultScores[i];
+                    float firstImageNextScore = searchResults.content[image].resultScores[i + 1];
+
+                    REQUIRE(firstImageCurrentScore >= firstImageNextScore);
+                }
+            }
         }
     }
 

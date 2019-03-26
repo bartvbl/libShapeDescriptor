@@ -47,7 +47,7 @@ float computePairCorrelation(pixelType* descriptors,
     if(squaredSumX != 0 || squaredSumY != 0)
     {
         // Avoiding zero divisions
-        const float smallestNonZeroFactor = 0.0001;
+        const float smallestNonZeroFactor = 0.000001;
         squaredSumX = std::max(squaredSumX, smallestNonZeroFactor);
         squaredSumY = std::max(squaredSumY, smallestNonZeroFactor);
         if(multiplicativeSum > 0) {

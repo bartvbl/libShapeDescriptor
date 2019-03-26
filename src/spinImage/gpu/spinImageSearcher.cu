@@ -61,7 +61,7 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
     if(squaredSumX != 0 || squaredSumY != 0)
     {
         // Avoiding zero divisions
-        const float smallestNonZeroFactor = 0.0001;
+        const float smallestNonZeroFactor = 0.000001;
         squaredSumX = max(squaredSumX, smallestNonZeroFactor);
         squaredSumY = max(squaredSumY, smallestNonZeroFactor);
 		if(multiplicativeSum > 0) {
@@ -321,7 +321,7 @@ array<ImageSearchResults> SpinImage::gpu::findDescriptorsInHaystack(
 
 
 
-const int indexBasedWarpCount = 4;
+const int indexBasedWarpCount = 16;
 
 template<typename pixelType>
 __global__ void generateElementWiseSearchResults(

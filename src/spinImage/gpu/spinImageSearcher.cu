@@ -30,6 +30,9 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
 	float threadSquaredSumY = 0;
 	float threadMultiplicativeSum = 0;
 
+    pixelType pixelValueX;
+    pixelType pixelValueY;
+
 	for (int y = 0; y < spinImageWidthPixels; y++)
 	{
 		const int warpSize = 32;
@@ -37,8 +40,8 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
 		{
             const size_t spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
 
-			pixelType pixelValueX = descriptors[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
-			pixelType pixelValueY = otherDescriptors[otherImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
+			pixelValueX = descriptors[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
+			pixelValueY = otherDescriptors[otherImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
 
 			float deltaX = float(pixelValueX) - averageX;
 			float deltaY = float(pixelValueY) - averageY;
@@ -49,8 +52,8 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
 		}
 	}
 
-	float squaredSumX = sqrt(warpAllReduceSum(threadSquaredSumX));
-    float squaredSumY = sqrt(warpAllReduceSum(threadSquaredSumY));
+	float squaredSumX = float(sqrt(warpAllReduceSum(threadSquaredSumX)));
+    float squaredSumY = float(sqrt(warpAllReduceSum(threadSquaredSumY)));
     float multiplicativeSum = warpAllReduceSum(threadMultiplicativeSum);
 
     float correlation = -1;
@@ -68,10 +71,16 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
 		}
 
         correlation = multiplicativeSum / (squaredSumX * squaredSumY);
-    } else if(squaredSumX == 0 && squaredSumY == 0) {
+    } else if(squaredSumX == 0 && squaredSumY == 0 && pixelValueX == pixelValueY) {
         // If both sums are 0, both sequences must be constant
-        // If they are identical
+        // If any pair of pixels has the same value, by extension both images must be identical
+        // Therefore, even though correlation is not defined at constant sequences,
+        // the correlation value should be 1.
         correlation = 1;
+    } else {
+        // In case both images are constant, but have different values,
+        // we define the correlation to be the fraction of their pixel values
+        correlation = std::min(pixelValueX, pixelValueY) / std:max(pixelValueX, pixelValueY);
     }
 
     return correlation;

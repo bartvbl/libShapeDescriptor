@@ -150,6 +150,46 @@ TEST_CASE("Basic correlation computation", "[correlation]") {
         delete[] negativeImage.content;
         REQUIRE(correlation == 1);
     }
+
+    SECTION("Different constant images (spin image)") {
+        array<spinImagePixelType> positiveImage = generateRepeatingTemplateImage<spinImagePixelType>(
+                2, 2, 2,
+                2, 2, 2,
+                2, 2);
+        array<spinImagePixelType> negativeImage = generateRepeatingTemplateImage<spinImagePixelType>(
+                5, 5, 5,
+                5, 5, 5,
+                5, 5);
+
+        float correlation = SpinImage::cpu::computeImagePairCorrelation(positiveImage.content, negativeImage.content, 0, 0);
+
+        float otherCorrelation = SpinImage::cpu::computeImagePairCorrelation(negativeImage.content, positiveImage.content, 0, 0);
+
+        delete[] positiveImage.content;
+        delete[] negativeImage.content;
+        REQUIRE(correlation == 0.4f);
+        REQUIRE(otherCorrelation == 0.4f);
+    }
+
+    SECTION("Different constant images (quasi spin image)") {
+        array<quasiSpinImagePixelType> positiveImage = generateRepeatingTemplateImage<quasiSpinImagePixelType>(
+                2, 2, 2,
+                2, 2, 2,
+                2, 2);
+        array<quasiSpinImagePixelType> negativeImage = generateRepeatingTemplateImage<quasiSpinImagePixelType>(
+                5, 5, 5,
+                5, 5, 5,
+                5, 5);
+
+        float correlation = SpinImage::cpu::computeImagePairCorrelation(positiveImage.content, negativeImage.content, 0, 0);
+
+        float otherCorrelation = SpinImage::cpu::computeImagePairCorrelation(negativeImage.content, positiveImage.content, 0, 0);
+
+        delete[] positiveImage.content;
+        delete[] negativeImage.content;
+        REQUIRE(correlation == 0.4f);
+        REQUIRE(otherCorrelation == 0.4f);
+    }
 }
 
 const int imageCount = spinImageWidthPixels * spinImageWidthPixels + 1;

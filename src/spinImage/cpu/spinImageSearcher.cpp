@@ -66,7 +66,7 @@ float computePairCorrelation(pixelType* descriptors,
     } else {
         // In case both images are constant, but have different values,
         // we define the correlation to be the fraction of their pixel values
-        correlation = std::min(float(pixelValueX), float(pixelValueY)) / std::max(float(pixelValueX), float(pixelValueY));
+        correlation = std::min(float(pixelValueX), float(pixelValueY)) / std::abs(std::max(float(pixelValueX), float(pixelValueY)));
     }
 
     return correlation;

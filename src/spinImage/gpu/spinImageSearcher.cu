@@ -80,7 +80,7 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
     } else {
         // In case both images are constant, but have different values,
         // we define the correlation to be the fraction of their pixel values
-        correlation = min(float(pixelValueX), float(pixelValueY)) / max(float(pixelValueX), float(pixelValueY));
+        correlation = min(float(pixelValueX), float(pixelValueY)) / abs(max(float(pixelValueX), float(pixelValueY)));
     }
 
     return correlation;

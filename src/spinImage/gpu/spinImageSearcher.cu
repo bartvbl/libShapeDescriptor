@@ -361,7 +361,7 @@ __global__ void generateElementWiseSearchResults(
 
 	unsigned int searchResultRank = 0;
 
-	for(size_t haystackImageIndex = 0; haystackImageIndex < haystackImageCount; haystackImageIndex++) {
+	for(size_t haystackImageIndex = threadIdx.x / 32; haystackImageIndex < haystackImageCount; haystackImageIndex += indexBasedWarpCount) {
 		if(needleImageIndex == haystackImageIndex) {
 			continue;
 		}
@@ -380,8 +380,9 @@ __global__ void generateElementWiseSearchResults(
 		}
 	}
 
+	// Since we're running multiple warps, we need to add all indices together to get the correct ranks
 	if(threadIdx.x % 32 == 0) {
-		searchResults[needleImageIndex] = searchResultRank;
+		atomicAdd(&searchResults[needleImageIndex], searchResultRank);
 	}
 }
 
@@ -412,6 +413,7 @@ array<unsigned int> doFindCorrespondingSearchResultIndices(
 	size_t searchResultBufferSize = needleImageCount * sizeof(unsigned int);
 	unsigned int* device_searchResults;
 	checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
+	checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
 
 	std::cout << "\t\tPerforming search.." << std::endl;
 	auto start = std::chrono::steady_clock::now();

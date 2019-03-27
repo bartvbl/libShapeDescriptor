@@ -110,12 +110,28 @@ std::vector<std::vector<DescriptorSearchResult>> computeCorrelations(
 
     std::vector<std::vector<DescriptorSearchResult>> searchResults;
     searchResults.resize(needleImageCount);
+
+    float* needleImageAverages = new float[needleImageCount];
+    float* haystackImageAverages = new float[haystackImageCount];
+
+    for(size_t i = 0; i < needleImageCount; i++) {
+        needleImageAverages[i] = computeImageAverage<pixelType>(needleDescriptors.content, i);
+    }
+
+    for(size_t i = 0; i < needleImageCount; i++) {
+        haystackImageAverages[i] = computeImageAverage<pixelType>(haystackDescriptors.content, i);
+    }
+
 #pragma omp parallel for
     for(size_t image = 0; image < needleImageCount; image++) {
         std::vector<DescriptorSearchResult> imageResults;
+        float needleAverage = needleImageAverages[image];
 
         for(size_t haystackImage = 0; haystackImage < haystackImageCount; haystackImage++) {
-            float correlation = computeCorrelation<pixelType>(needleDescriptors, haystackDescriptors, image, haystackImage);
+            float haystackAverage = haystackImageAverages[haystackImage];
+
+            float correlation = computePairCorrelation<pixelType>(needleDescriptors.content,
+                                              haystackDescriptors.content, image, haystackImage, needleAverage, haystackAverage);
 
             DescriptorSearchResult entry;
             entry.correlation = correlation;
@@ -126,6 +142,9 @@ std::vector<std::vector<DescriptorSearchResult>> computeCorrelations(
         std::sort(imageResults.begin(), imageResults.end(), compareSearchResults);
         searchResults.at(image) = imageResults;
     }
+
+    delete[] needleImageAverages;
+    delete[] haystackImageAverages;
 
     std::cout << "Analysed " << searchResults.size() << " images on the CPU." << std::endl;
 

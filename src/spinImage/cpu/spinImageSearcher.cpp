@@ -18,17 +18,14 @@ float computePairCorrelation(pixelType* descriptors,
     float squaredSumY = 0;
     float multiplicativeSum = 0;
 
-    pixelType pixelValueX;
-    pixelType pixelValueY;
-
     for (int y = 0; y < spinImageWidthPixels; y++)
     {
         for (int x = 0; x < spinImageWidthPixels; x++)
         {
             const size_t spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
 
-            pixelValueX = descriptors[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
-            pixelValueY = otherDescriptors[otherImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
+            pixelType pixelValueX = descriptors[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
+            pixelType pixelValueY = otherDescriptors[otherImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
 
             float deltaX = float(pixelValueX) - averageX;
             float deltaY = float(pixelValueY) - averageY;
@@ -44,20 +41,17 @@ float computePairCorrelation(pixelType* descriptors,
 
     float correlation;
 
-    if(squaredSumX != 0 || squaredSumY != 0)
+    if(squaredSumX != 0 && squaredSumY != 0)
     {
-        // Avoiding zero divisions
-        const float smallestNonZeroFactor = 0.000001;
-        squaredSumX = std::max(squaredSumX, smallestNonZeroFactor);
-        squaredSumY = std::max(squaredSumY, smallestNonZeroFactor);
-        if(multiplicativeSum > 0) {
-            multiplicativeSum = std::max(multiplicativeSum, smallestNonZeroFactor * smallestNonZeroFactor);
-        } else {
-            multiplicativeSum = std::min(multiplicativeSum, -(smallestNonZeroFactor * smallestNonZeroFactor));
-        }
-
+        // In the usual case, we have non-constant images, and we compute the Pearson correlation
+        // coefficient without any issues.
         correlation = multiplicativeSum / (squaredSumX * squaredSumY);
-    } else if(squaredSumX == 0 && squaredSumY == 0 && pixelValueX == pixelValueY) {
+    } else if(squaredSumX == 0 && squaredSumY != 0) {
+
+
+    } else if(squaredSumX != 0 && squaredSumY == 0) {
+
+    } else if(squaredSumX == 0 && squaredSumY == 0 && averageX == averageY) {
         // If both sums are 0, both sequences must be constant
         // If any pair of pixels has the same value, by extension both images must be identical
         // Therefore, even though correlation is not defined at constant sequences,
@@ -66,7 +60,7 @@ float computePairCorrelation(pixelType* descriptors,
     } else {
         // In case both images are constant, but have different values,
         // we define the correlation to be the fraction of their pixel values
-        correlation = std::min(float(pixelValueX), float(pixelValueY)) / std::abs(std::max(float(pixelValueX), float(pixelValueY)));
+        correlation = std::min(averageX, averageY) / std::abs(std::max(averageX, averageY));
     }
 
     return correlation;

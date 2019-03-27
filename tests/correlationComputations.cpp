@@ -197,22 +197,22 @@ const int pixelsPerImage = spinImageWidthPixels * spinImageWidthPixels;
 const float correlationThreshold = 0.000001f;
 
 TEST_CASE("Ranking of search results on CPU", "[correlation]") {
+    array<spinImagePixelType> imageSequence = generateKnownImageSequence<spinImagePixelType>(imageCount,
+                                                                                             pixelsPerImage);
+    array<quasiSpinImagePixelType> quasiImageSequence = generateKnownImageSequence<quasiSpinImagePixelType>(imageCount,
+                                                                                             pixelsPerImage);
 
-    SECTION("Ranking by generating complete result set") {
-
-        array<spinImagePixelType> imageSequence = generateKnownImageSequence<spinImagePixelType>(imageCount,
-                                                                                                 pixelsPerImage);
-
-        std::vector<std::vector<DescriptorSearchResult>> resultsCPU = SpinImage::cpu::findDescriptorsInHaystack(
-                imageSequence, imageCount, imageSequence, imageCount);
-
+    SECTION("Ensuring equivalent images have a correlation of 1") {
         for (int i = 0; i < imageCount; i++) {
             float pairCorrelation = SpinImage::cpu::computeImagePairCorrelation(imageSequence.content,
                                                                                 imageSequence.content, i, i);
 
             // We'll allow for some rounding errors here.
             REQUIRE(std::abs(pairCorrelation - 1.0f) < correlationThreshold);
-    SECTION("Image averages make sense") {
+        }
+    }
+
+    SECTION("Image averages make sense (spin image)") {
         float previousAverage = SpinImage::cpu::computeImageAverage(imageSequence.content, 0);
         REQUIRE(previousAverage == 0);
 
@@ -227,6 +227,26 @@ TEST_CASE("Ranking of search results on CPU", "[correlation]") {
         REQUIRE(previousAverage == 1);
     }
 
+    SECTION("Image averages make sense (quasi spin image)") {
+        float previousAverage = SpinImage::cpu::computeImageAverage(quasiImageSequence.content, 0);
+        REQUIRE(previousAverage == 0);
+
+        for(int image = 1; image < imageCount; image++) {
+            float average = SpinImage::cpu::computeImageAverage(quasiImageSequence.content, image);
+
+            REQUIRE(previousAverage < average);
+
+            previousAverage = average;
+        }
+
+        REQUIRE(previousAverage == 1);
+    }
+
+    SECTION("Ranking of known images on CPU") {
+        std::vector<std::vector<DescriptorSearchResult>> resultsCPU = SpinImage::cpu::findDescriptorsInHaystack(
+                imageSequence, imageCount, imageSequence, imageCount);
+
+        for (int i = 0; i < imageCount; i++) {
             // Allow for shared first places
             int resultIndex = 0;
             while (std::abs(resultsCPU.at(i).at(resultIndex).correlation - 1.0f) < correlationThreshold) {
@@ -240,7 +260,28 @@ TEST_CASE("Ranking of search results on CPU", "[correlation]") {
             REQUIRE(resultsCPU.at(i).at(resultIndex).imageIndex == i);
         }
 
+
+
+        SpinImage::utilities::createCUDAContext();
+
+        // Compute the GPU equivalent
+        array<spinImagePixelType> device_haystackImages = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
+
+        array<ImageSearchResults> searchResults = SpinImage::gpu::findDescriptorsInHaystack(device_haystackImages, imageCount, device_haystackImages, imageCount);
+
+        for(int image = 0; image < imageCount; image++) {
+            for (int i = 0; i < SEARCH_RESULT_COUNT; i++) {
+                std::cout << "Image " << image << ", result " << i << ": scores(" << searchResults.content[image].resultScores[i] << ", " << resultsCPU.at(image).at(i).correlation << ") & indices (" << searchResults.content[image].resultIndices[i] << ", " << resultsCPU.at(image).at(i).imageIndex << ")" << std::endl;
+
+                //REQUIRE(searchResults.content[image].resultIndices[i] == resultsCPU.at(image).at(i).imageIndex);
+                REQUIRE(std::abs(searchResults.content[image].resultScores[i] - resultsCPU.at(image).at(i).correlation) < correlationThreshold);
+            }
+        }
+
         delete[] imageSequence.content;
+        cudaFree(device_haystackImages.content);
+
+
     }
 }
 

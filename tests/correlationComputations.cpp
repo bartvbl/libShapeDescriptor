@@ -212,6 +212,20 @@ TEST_CASE("Ranking of search results on CPU", "[correlation]") {
 
             // We'll allow for some rounding errors here.
             REQUIRE(std::abs(pairCorrelation - 1.0f) < correlationThreshold);
+    SECTION("Image averages make sense") {
+        float previousAverage = SpinImage::cpu::computeImageAverage(imageSequence.content, 0);
+        REQUIRE(previousAverage == 0);
+
+        for(int image = 1; image < imageCount; image++) {
+            float average = SpinImage::cpu::computeImageAverage(imageSequence.content, image);
+
+            REQUIRE(previousAverage < average);
+
+            previousAverage = average;
+        }
+
+        REQUIRE(previousAverage == 1);
+    }
 
             // Allow for shared first places
             int resultIndex = 0;

@@ -73,7 +73,7 @@ float computePairCorrelation(pixelType* descriptors,
 }
 
 template<typename pixelType>
-float computeImageAverage(pixelType* descriptors, size_t spinImageIndex)
+float computeAveragePixelValue(pixelType* descriptors, size_t spinImageIndex)
 {
     const unsigned int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
 
@@ -92,16 +92,6 @@ float computeImageAverage(pixelType* descriptors, size_t spinImageIndex)
 }
 
 template<typename pixelType>
-float computeCorrelation(const array<pixelType> &needleDescriptors, const array<pixelType> &haystackDescriptors,
-                          size_t needleImageIndex, size_t haystackImageIndex) {
-    float needleAverage = computeImageAverage<pixelType>(needleDescriptors.content, needleImageIndex);
-    float haystackAverage = computeImageAverage<pixelType>(haystackDescriptors.content, haystackImageIndex);
-
-    return computePairCorrelation<pixelType>(needleDescriptors.content,
-            haystackDescriptors.content, needleImageIndex, haystackImageIndex, needleAverage, haystackAverage);
-}
-
-template<typename pixelType>
 std::vector<std::vector<DescriptorSearchResult>> computeCorrelations(
         array<pixelType> needleDescriptors,
         size_t needleImageCount,
@@ -115,11 +105,11 @@ std::vector<std::vector<DescriptorSearchResult>> computeCorrelations(
     float* haystackImageAverages = new float[haystackImageCount];
 
     for(size_t i = 0; i < needleImageCount; i++) {
-        needleImageAverages[i] = computeImageAverage<pixelType>(needleDescriptors.content, i);
+        needleImageAverages[i] = computeAveragePixelValue<pixelType>(needleDescriptors.content, i);
     }
 
     for(size_t i = 0; i < needleImageCount; i++) {
-        haystackImageAverages[i] = computeImageAverage<pixelType>(haystackDescriptors.content, i);
+        haystackImageAverages[i] = computeAveragePixelValue<pixelType>(haystackDescriptors.content, i);
     }
 
 #pragma omp parallel for
@@ -171,8 +161,8 @@ float SpinImage::cpu::computeImagePairCorrelation(quasiSpinImagePixelType* descr
                                   quasiSpinImagePixelType* otherDescriptors,
                                   size_t spinImageIndex,
                                   size_t otherImageIndex) {
-    float averageX = computeImageAverage<quasiSpinImagePixelType>(descriptors, spinImageIndex);
-    float averageY = computeImageAverage<quasiSpinImagePixelType>(otherDescriptors, otherImageIndex);
+    float averageX = computeAveragePixelValue<quasiSpinImagePixelType>(descriptors, spinImageIndex);
+    float averageY = computeAveragePixelValue<quasiSpinImagePixelType>(otherDescriptors, otherImageIndex);
     return computePairCorrelation<quasiSpinImagePixelType>(descriptors, otherDescriptors, spinImageIndex, otherImageIndex, averageX, averageY);
 }
 
@@ -180,7 +170,15 @@ float SpinImage::cpu::computeImagePairCorrelation(spinImagePixelType* descriptor
                                   spinImagePixelType* otherDescriptors,
                                   size_t spinImageIndex,
                                   size_t otherImageIndex) {
-    float averageX = computeImageAverage<spinImagePixelType>(descriptors, spinImageIndex);
-    float averageY = computeImageAverage<spinImagePixelType>(otherDescriptors, otherImageIndex);
+    float averageX = computeAveragePixelValue<spinImagePixelType>(descriptors, spinImageIndex);
+    float averageY = computeAveragePixelValue<spinImagePixelType>(otherDescriptors, otherImageIndex);
     return computePairCorrelation<spinImagePixelType>(descriptors, otherDescriptors, spinImageIndex, otherImageIndex, averageX, averageY);
+}
+
+float SpinImage::cpu::computeImageAverage(spinImagePixelType* descriptors, size_t spinImageIndex) {
+    return computeAveragePixelValue<spinImagePixelType>(descriptors, spinImageIndex);
+}
+
+float SpinImage::cpu::computeImageAverage(quasiSpinImagePixelType* descriptors, size_t spinImageIndex) {
+    return computeAveragePixelValue<quasiSpinImagePixelType>(descriptors, spinImageIndex);
 }

@@ -33,5 +33,8 @@ namespace SpinImage {
                                           spinImagePixelType* otherDescriptors,
                                           size_t spinImageIndex,
                                           size_t otherImageIndex);
+
+        float computeImageAverage(spinImagePixelType* descriptors, size_t spinImageIndex);
+        float computeImageAverage(quasiSpinImagePixelType* descriptors, size_t spinImageIndex);
     }
 }

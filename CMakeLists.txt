@@ -14,7 +14,7 @@ if (MSVC)
 endif()
 
 
-list(APPEND CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -Xptxas -O3,-v -gencode arch=compute_62,code=\"sm_62,compute_62\" -lcurand -lineinfo -lcudart)
+list(APPEND CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -Xptxas -O3,-v -gencode arch=compute_62,code=\"sm_62,compute_62\" -lcurand -lineinfo -lcudart --relocatable-device-code true)
 
 
 
@@ -41,9 +41,13 @@ file (GLOB_RECURSE LIBRARY_SOURCES src/*.cpp
 file (GLOB_RECURSE TEST_SOURCES    tests/*.cpp)
 
 cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
+set_target_properties(${PROJECT_NAME} PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        POSITION_INDEPENDENT_CODE ON
+        CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 
 target_include_directories(${PROJECT_NAME} PUBLIC src/)
 
 add_subdirectory(lib/Catch2)
 add_executable(runTests ${TEST_SOURCES})
-target_link_libraries(runTests SpinImage Catch2::Catch2)
+target_link_libraries(runTests SpinImage Catch2::Catch2 cudadevrt)

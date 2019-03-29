@@ -46,20 +46,9 @@ float computePairCorrelation(pixelType* descriptors,
         // In the usual case, we have non-constant images, and we compute the Pearson correlation
         // coefficient without any issues.
         correlation = multiplicativeSum / (squaredSumX * squaredSumY);
-    } else if(squaredSumX == 0 && squaredSumY != 0) {
-
-
-    } else if(squaredSumX != 0 && squaredSumY == 0) {
-
-    } else if(squaredSumX == 0 && squaredSumY == 0 && averageX == averageY) {
-        // If both sums are 0, both sequences must be constant
-        // If any pair of pixels has the same value, by extension both images must be identical
-        // Therefore, even though correlation is not defined at constant sequences,
-        // the correlation value should be 1.
-        correlation = 1;
     } else {
-        // In case both images are constant, but have different values,
-        // we define the correlation to be the fraction of their pixel values
+        // As a backup solution, use the image averages instead.
+        // Not really correct, in particular when one of the averages is 0.
         correlation = std::min(averageX, averageY) / std::abs(std::max(averageX, averageY));
     }
 

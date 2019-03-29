@@ -8,6 +8,7 @@
 #include <climits>
 #include <cfloat>
 #include <chrono>
+#include <typeinfo>
 #include "nvidia/helper_cuda.h"
 #include "spinImageSearcher.cuh"
 
@@ -18,6 +19,12 @@ __inline__ __device__ float warpAllReduceSum(float val) {
 	for (int mask = warpSize/2; mask > 0; mask /= 2)
 		val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
 	return val;
+}
+
+__inline__ __device__ int warpAllReduceSum(int val) {
+    for (int mask = warpSize/2; mask > 0; mask /= 2)
+        val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
+    return val;
 }
 
 template<typename pixelType>
@@ -66,7 +73,7 @@ __device__ float computeImagePairCorrelation(pixelType* descriptors,
     } else {
         // As a backup solution, use the image averages instead.
         // Not really correct, in particular when one of the averages is 0.
-        correlation = std::min(averageX, averageY) / std::abs(std::max(averageX, averageY));
+        correlation = min(averageX, averageY) / abs(max(averageX, averageY));
     }
 
     return correlation;
@@ -309,10 +316,105 @@ array<ImageSearchResults> SpinImage::gpu::findDescriptorsInHaystack(
 
 const int indexBasedWarpCount = 16;
 
+
+__device__ int compareQuasiSpinImagePair(
+        quasiSpinImagePixelType* needleImages,
+        size_t needleImageIndex,
+        quasiSpinImagePixelType* haystackImages,
+        size_t haystackImageIndex) {
+    int threadScore = 0;
+    const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
+    const int laneIndex = threadIdx.x % 32;
+    for(int row = laneIndex; row < spinImageWidthPixels; row++) {
+
+        quasiSpinImagePixelType currentNeedlePixelValue =
+                needleImages[needleImageIndex * spinImageElementCount + (row * spinImageWidthPixels + laneIndex)];
+        quasiSpinImagePixelType currentHaystackPixelValue =
+                haystackImages[haystackImageIndex * spinImageElementCount + (row * spinImageWidthPixels + laneIndex)];
+
+        for(int col = laneIndex; col < spinImageWidthPixels - 32; col++) {
+            quasiSpinImagePixelType nextNeedlePixelValue =
+                    needleImages[needleImageIndex * spinImageElementCount + (row * spinImageWidthPixels + col)];
+            quasiSpinImagePixelType nextHaystackPixelValue =
+                    haystackImages[haystackImageIndex * spinImageElementCount + (row * spinImageWidthPixels + col)];
+
+            quasiSpinImagePixelType nextRankNeedlePixelValue = __shfl_sync(0xFFFFFFFF,
+                    // Input value
+                    (laneIndex == 0 ? nextNeedlePixelValue : currentNeedlePixelValue),
+                    // Target thread
+                    (laneIndex == 31 ? 0 : threadIdx.x + 1));
+            quasiSpinImagePixelType nextRankHaystackPixelValue = __shfl_sync(0xFFFFFFFF,
+                    // Input value
+                    (laneIndex == 0 ? nextHaystackPixelValue : currentHaystackPixelValue),
+                    // Target thread
+                    (laneIndex == 31 ? 0 : threadIdx.x + 1));
+
+            quasiSpinImagePixelType needleDelta = nextRankNeedlePixelValue - currentNeedlePixelValue;
+            quasiSpinImagePixelType haystackDelta = nextRankHaystackPixelValue - currentHaystackPixelValue;
+
+            threadScore += (needleDelta - haystackDelta) * (needleDelta - haystackDelta);
+
+            currentNeedlePixelValue = nextNeedlePixelValue;
+            currentHaystackPixelValue = nextHaystackPixelValue;
+        }
+
+        quasiSpinImagePixelType nextRankNeedlePixelValue = __shfl_sync(0xFFFFFFFF, currentNeedlePixelValue, laneIndex + 1);
+        quasiSpinImagePixelType nextRankHaystackPixelValue = __shfl_sync(0xFFFFFFFF, currentHaystackPixelValue, laneIndex + 1);
+
+        quasiSpinImagePixelType needleDelta = nextRankNeedlePixelValue - currentNeedlePixelValue;
+        quasiSpinImagePixelType haystackDelta = nextRankHaystackPixelValue - currentHaystackPixelValue;
+
+        threadScore += (needleDelta - haystackDelta) * (needleDelta - haystackDelta);
+    }
+
+    int imageScore = warpAllReduceSum(threadScore);
+
+    return imageScore;
+}
+
+__global__ void computeQuasiSpinImageSearchResultIndices(
+                                      quasiSpinImagePixelType* needleDescriptors,
+                                      quasiSpinImagePixelType* haystackDescriptors,
+                                      size_t haystackImageCount,
+                                      unsigned int* searchResults) {
+    size_t needleImageIndex = blockIdx.x;
+
+    __shared__ quasiSpinImagePixelType referenceImage[spinImageWidthPixels * spinImageWidthPixels];
+    for(unsigned int index = threadIdx.x; index < spinImageWidthPixels * spinImageWidthPixels; index += blockDim.x) {
+        referenceImage[index] = needleDescriptors[spinImageWidthPixels * spinImageWidthPixels * needleImageIndex + index];
+    }
+
+    __syncthreads();
+
+    int referenceScore = compareQuasiSpinImagePair(referenceImage, 0, haystackDescriptors, needleImageIndex);
+
+    if(referenceScore == 0) {
+        return;
+    }
+
+    unsigned int searchResultRank = 0;
+
+    for(size_t haystackImageIndex = threadIdx.x / 32; haystackImageIndex < haystackImageCount; haystackImageIndex += indexBasedWarpCount) {
+        if (needleImageIndex == haystackImageIndex) {
+            continue;
+        }
+
+        int pairScore = compareQuasiSpinImagePair(referenceImage, 0, haystackDescriptors, haystackImageIndex);
+
+        if(pairScore < referenceScore) {
+            searchResultRank++;
+        }
+    }
+
+    // Since we're running multiple warps, we need to add all indices together to get the correct ranks
+    if(threadIdx.x % 32 == 0) {
+        atomicAdd(&searchResults[needleImageIndex], searchResultRank);
+    }
+}
+
 template<typename pixelType>
-__global__ void generateElementWiseSearchResults(
+__global__ void computeSpinImageSearchResultIndices(
 									  pixelType* needleDescriptors,
-									  size_t needleImageCount,
 									  pixelType* haystackDescriptors,
 									  size_t haystackImageCount,
 									  unsigned int* searchResults,
@@ -339,9 +441,6 @@ __global__ void generateElementWiseSearchResults(
 															 correspondingImageAverage);
 
 	if(referenceCorrelation == 1) {
-		if(threadIdx.x % 32 == 0) {
-			searchResults[needleImageIndex] = 0;
-		}
 		return;
 	}
 
@@ -404,14 +503,21 @@ array<unsigned int> doFindCorrespondingSearchResultIndices(
 	std::cout << "\t\tPerforming search.." << std::endl;
 	auto start = std::chrono::steady_clock::now();
 
-	generateElementWiseSearchResults<<<needleImageCount, 32 * indexBasedWarpCount>>>(
-					device_needleDescriptors.content,
-					needleImageCount,
-					device_haystackDescriptors.content,
-					haystackImageCount,
-					device_searchResults,
-					device_needleImageAverages,
-					device_haystackImageAverages);
+	if(typeid(pixelType) == typeid(quasiSpinImagePixelType)) {
+        computeQuasiSpinImageSearchResultIndices<<<needleImageCount, 32 * indexBasedWarpCount>>>(
+                        (quasiSpinImagePixelType*) device_needleDescriptors.content,
+                        (quasiSpinImagePixelType*) device_haystackDescriptors.content,
+                        haystackImageCount,
+                        device_searchResults);
+	} else {
+        computeSpinImageSearchResultIndices<<<needleImageCount, 32 * indexBasedWarpCount>>>(
+                        device_needleDescriptors.content,
+                        device_haystackDescriptors.content,
+                        haystackImageCount,
+                        device_searchResults,
+                        device_needleImageAverages,
+                        device_haystackImageAverages);
+	}
 	checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 

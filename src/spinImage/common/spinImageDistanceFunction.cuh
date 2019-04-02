@@ -1,5 +1,7 @@
 #pragma once
 
+#include <spinImage/libraryBuildSettings.h>
+
 #ifndef __CUDACC__
 #define __host__
 #define __device__

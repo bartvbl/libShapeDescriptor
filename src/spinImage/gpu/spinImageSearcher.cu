@@ -1,6 +1,7 @@
 #include <spinImage/gpu/types/DeviceMesh.h>
 #include <spinImage/libraryBuildSettings.h>
 #include <spinImage/common/spinImageDistanceFunction.cuh>
+#include <spinImage/common/quasiSpinImageDistanceFunction.cuh>
 #include <cuda_runtime.h>
 #include <curand_mtgp32_kernel.h>
 #include <tgmath.h>
@@ -254,62 +255,6 @@ array<ImageSearchResults> SpinImage::gpu::findDescriptorsInHaystack(
 
 const int indexBasedWarpCount = 16;
 
-
-__device__ int compareQuasiSpinImagePair(
-        quasiSpinImagePixelType* needleImages,
-        size_t needleImageIndex,
-        quasiSpinImagePixelType* haystackImages,
-        size_t haystackImageIndex) {
-    int threadScore = 0;
-    const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
-    const int laneIndex = threadIdx.x % 32;
-    for(int row = laneIndex; row < spinImageWidthPixels; row++) {
-
-        quasiSpinImagePixelType currentNeedlePixelValue =
-                needleImages[needleImageIndex * spinImageElementCount + (row * spinImageWidthPixels + laneIndex)];
-        quasiSpinImagePixelType currentHaystackPixelValue =
-                haystackImages[haystackImageIndex * spinImageElementCount + (row * spinImageWidthPixels + laneIndex)];
-
-        for(int col = laneIndex; col < spinImageWidthPixels - 32; col++) {
-            quasiSpinImagePixelType nextNeedlePixelValue =
-                    needleImages[needleImageIndex * spinImageElementCount + (row * spinImageWidthPixels + col)];
-            quasiSpinImagePixelType nextHaystackPixelValue =
-                    haystackImages[haystackImageIndex * spinImageElementCount + (row * spinImageWidthPixels + col)];
-
-            quasiSpinImagePixelType nextRankNeedlePixelValue = __shfl_sync(0xFFFFFFFF,
-                    // Input value
-                    (laneIndex == 0 ? nextNeedlePixelValue : currentNeedlePixelValue),
-                    // Target thread
-                    (laneIndex == 31 ? 0 : threadIdx.x + 1));
-            quasiSpinImagePixelType nextRankHaystackPixelValue = __shfl_sync(0xFFFFFFFF,
-                    // Input value
-                    (laneIndex == 0 ? nextHaystackPixelValue : currentHaystackPixelValue),
-                    // Target thread
-                    (laneIndex == 31 ? 0 : threadIdx.x + 1));
-
-            quasiSpinImagePixelType needleDelta = nextRankNeedlePixelValue - currentNeedlePixelValue;
-            quasiSpinImagePixelType haystackDelta = nextRankHaystackPixelValue - currentHaystackPixelValue;
-
-            threadScore += (needleDelta - haystackDelta) * (needleDelta - haystackDelta);
-
-            currentNeedlePixelValue = nextNeedlePixelValue;
-            currentHaystackPixelValue = nextHaystackPixelValue;
-        }
-
-        quasiSpinImagePixelType nextRankNeedlePixelValue = __shfl_sync(0xFFFFFFFF, currentNeedlePixelValue, laneIndex + 1);
-        quasiSpinImagePixelType nextRankHaystackPixelValue = __shfl_sync(0xFFFFFFFF, currentHaystackPixelValue, laneIndex + 1);
-
-        quasiSpinImagePixelType needleDelta = nextRankNeedlePixelValue - currentNeedlePixelValue;
-        quasiSpinImagePixelType haystackDelta = nextRankHaystackPixelValue - currentHaystackPixelValue;
-
-        threadScore += (needleDelta - haystackDelta) * (needleDelta - haystackDelta);
-    }
-
-    int imageScore = warpAllReduceSum(threadScore);
-
-    return imageScore;
-}
-
 __global__ void computeQuasiSpinImageSearchResultIndices(
                                       quasiSpinImagePixelType* needleDescriptors,
                                       quasiSpinImagePixelType* haystackDescriptors,
@@ -324,7 +269,7 @@ __global__ void computeQuasiSpinImageSearchResultIndices(
 
     __syncthreads();
 
-    int referenceScore = compareQuasiSpinImagePair(referenceImage, 0, haystackDescriptors, needleImageIndex);
+    int referenceScore = compareQuasiSpinImagePairGPU(referenceImage, 0, haystackDescriptors, needleImageIndex);
 
     if(referenceScore == 0) {
         return;
@@ -337,7 +282,7 @@ __global__ void computeQuasiSpinImageSearchResultIndices(
             continue;
         }
 
-        int pairScore = compareQuasiSpinImagePair(referenceImage, 0, haystackDescriptors, haystackImageIndex);
+        int pairScore = compareQuasiSpinImagePairGPU(referenceImage, 0, haystackDescriptors, haystackImageIndex);
 
         if(pairScore < referenceScore) {
             searchResultRank++;
@@ -483,8 +428,8 @@ array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
     auto start = std::chrono::steady_clock::now();
 
     computeQuasiSpinImageSearchResultIndices<<<needleImageCount, 32 * indexBasedWarpCount>>>(
-            (quasiSpinImagePixelType*) device_needleDescriptors.content,
-            (quasiSpinImagePixelType*) device_haystackDescriptors.content,
+            device_needleDescriptors.content,
+            device_haystackDescriptors.content,
             haystackImageCount,
             device_searchResults);
 

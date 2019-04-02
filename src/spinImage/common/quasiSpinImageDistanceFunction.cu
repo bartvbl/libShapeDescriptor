@@ -43,7 +43,9 @@ __device__ __inline__ int compareQuasiSpinImagePairGPU(
             quasiSpinImagePixelType needleDelta = nextRankNeedlePixelValue - currentNeedlePixelValue;
             quasiSpinImagePixelType haystackDelta = nextRankHaystackPixelValue - currentHaystackPixelValue;
 
+            if(needleDelta != 0) {
                 threadScore += (needleDelta - haystackDelta) * (needleDelta - haystackDelta);
+            }
 
             currentNeedlePixelValue = nextNeedlePixelValue;
             currentHaystackPixelValue = nextHaystackPixelValue;

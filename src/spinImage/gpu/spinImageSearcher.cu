@@ -1,7 +1,5 @@
 #include <spinImage/gpu/types/DeviceMesh.h>
 #include <spinImage/libraryBuildSettings.h>
-#include <spinImage/common/spinImageDistanceFunction.cuh>
-#include <spinImage/common/quasiSpinImageDistanceFunction.cuh>
 #include <cuda_runtime.h>
 #include <curand_mtgp32_kernel.h>
 #include <tgmath.h>
@@ -27,6 +25,49 @@ __inline__ __device__ int warpAllReduceSum(int val) {
     for (int mask = warpSize/2; mask > 0; mask /= 2)
         val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
     return val;
+}
+
+
+__device__ float computeSpinImagePairCorrelationGPU(
+		spinImagePixelType* descriptors,
+		spinImagePixelType* otherDescriptors,
+		size_t spinImageIndex,
+		size_t otherImageIndex,
+		float averageX, float averageY) {
+
+	float threadSquaredSumX = 0;
+	float threadSquaredSumY = 0;
+	float threadMultiplicativeSum = 0;
+
+	spinImagePixelType pixelValueX;
+	spinImagePixelType pixelValueY;
+
+	for (int y = 0; y < spinImageWidthPixels; y++)
+	{
+		const int warpSize = 32;
+		for (int x = threadIdx.x % 32; x < spinImageWidthPixels; x += warpSize)
+		{
+			const size_t spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
+
+			pixelValueX = descriptors[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
+			pixelValueY = otherDescriptors[otherImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
+
+			float deltaX = float(pixelValueX) - averageX;
+			float deltaY = float(pixelValueY) - averageY;
+
+			threadSquaredSumX += deltaX * deltaX;
+			threadSquaredSumY += deltaY * deltaY;
+			threadMultiplicativeSum += deltaX * deltaY;
+		}
+	}
+
+	float squaredSumX = float(sqrt(warpAllReduceSum(threadSquaredSumX)));
+	float squaredSumY = float(sqrt(warpAllReduceSum(threadSquaredSumY)));
+	float multiplicativeSum = warpAllReduceSum(threadMultiplicativeSum);
+
+	float correlation = multiplicativeSum / (squaredSumX * squaredSumY);
+
+	return correlation;
 }
 
 __global__ void calculateImageAverages(spinImagePixelType* images, float* averages) {
@@ -254,6 +295,63 @@ array<ImageSearchResults> SpinImage::gpu::findDescriptorsInHaystack(
 
 
 const int indexBasedWarpCount = 16;
+
+__device__ int compareQuasiSpinImagePairGPU(
+		const quasiSpinImagePixelType* needleImages,
+		const size_t needleImageIndex,
+		const quasiSpinImagePixelType* haystackImages,
+		const size_t haystackImageIndex) {
+	int threadScore = 0;
+	const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
+	const int laneIndex = threadIdx.x % 32;
+	for(int row = laneIndex; row < spinImageWidthPixels; row++) {
+
+		quasiSpinImagePixelType currentNeedlePixelValue =
+				needleImages[needleImageIndex * spinImageElementCount + (row * spinImageWidthPixels + laneIndex)];
+		quasiSpinImagePixelType currentHaystackPixelValue =
+				haystackImages[haystackImageIndex * spinImageElementCount + (row * spinImageWidthPixels + laneIndex)];
+
+		for(int col = laneIndex; col < spinImageWidthPixels - 32; col += 32) {
+			quasiSpinImagePixelType nextNeedlePixelValue =
+					needleImages[needleImageIndex * spinImageElementCount + (row * spinImageWidthPixels + col)];
+			quasiSpinImagePixelType nextHaystackPixelValue =
+					haystackImages[haystackImageIndex * spinImageElementCount + (row * spinImageWidthPixels + col)];
+
+			quasiSpinImagePixelType nextRankNeedlePixelValue = __shfl_sync(0xFFFFFFFF,
+					// Input value
+																		   (laneIndex == 0 ? nextNeedlePixelValue : currentNeedlePixelValue),
+					// Target thread
+																		   (laneIndex == 31 ? 0 : threadIdx.x + 1));
+			quasiSpinImagePixelType nextRankHaystackPixelValue = __shfl_sync(0xFFFFFFFF,
+					// Input value
+																			 (laneIndex == 0 ? nextHaystackPixelValue : currentHaystackPixelValue),
+					// Target thread
+																			 (laneIndex == 31 ? 0 : threadIdx.x + 1));
+
+			quasiSpinImagePixelType needleDelta = nextRankNeedlePixelValue - currentNeedlePixelValue;
+			quasiSpinImagePixelType haystackDelta = nextRankHaystackPixelValue - currentHaystackPixelValue;
+
+			if(needleDelta != 0) {
+				threadScore += (needleDelta - haystackDelta) * (needleDelta - haystackDelta);
+			}
+
+			currentNeedlePixelValue = nextNeedlePixelValue;
+			currentHaystackPixelValue = nextHaystackPixelValue;
+		}
+
+		quasiSpinImagePixelType nextRankNeedlePixelValue = __shfl_sync(0xFFFFFFFF, currentNeedlePixelValue, laneIndex + 1);
+		quasiSpinImagePixelType nextRankHaystackPixelValue = __shfl_sync(0xFFFFFFFF, currentHaystackPixelValue, laneIndex + 1);
+
+		quasiSpinImagePixelType needleDelta = nextRankNeedlePixelValue - currentNeedlePixelValue;
+		quasiSpinImagePixelType haystackDelta = nextRankHaystackPixelValue - currentHaystackPixelValue;
+
+		threadScore += (needleDelta - haystackDelta) * (needleDelta - haystackDelta);
+	}
+
+	int imageScore = warpAllReduceSum(threadScore);
+
+	return imageScore;
+}
 
 __global__ void computeQuasiSpinImageSearchResultIndices(
                                       quasiSpinImagePixelType* needleDescriptors,

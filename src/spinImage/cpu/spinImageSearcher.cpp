@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <iostream>
 #include "spinImageSearcher.h"
-#include <spinImage/common/spinImageDistanceFunction.cuh>
 
 bool compareSearchResults(const DescriptorSearchResult &a, const DescriptorSearchResult &b)
 {
@@ -27,6 +26,46 @@ float computeAveragePixelValue(pixelType* descriptors, size_t spinImageIndex)
     }
 
     return sum / float(spinImageElementCount);
+}
+
+
+float computeSpinImagePairCorrelationCPU(
+        spinImagePixelType* descriptors,
+        spinImagePixelType* otherDescriptors,
+        size_t spinImageIndex,
+        size_t otherImageIndex,
+        float averageX, float averageY) {
+
+    float squaredSumX = 0;
+    float squaredSumY = 0;
+    float multiplicativeSum = 0;
+
+    for (int y = 0; y < spinImageWidthPixels; y++)
+    {
+        for (int x = 0; x < spinImageWidthPixels; x++)
+        {
+            const size_t spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
+
+            spinImagePixelType pixelValueX = descriptors[spinImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
+            spinImagePixelType pixelValueY = otherDescriptors[otherImageIndex * spinImageElementCount + (y * spinImageWidthPixels + x)];
+
+            float deltaX = float(pixelValueX) - averageX;
+            float deltaY = float(pixelValueY) - averageY;
+
+            squaredSumX += deltaX * deltaX;
+            squaredSumY += deltaY * deltaY;
+            multiplicativeSum += deltaX * deltaY;
+        }
+    }
+
+    squaredSumX = std::sqrt(squaredSumX);
+    squaredSumY = std::sqrt(squaredSumY);
+
+    // Assuming non-constant images
+    // Will return NaN otherwise
+    float correlation = multiplicativeSum / (squaredSumX * squaredSumY);
+
+    return correlation;
 }
 
 std::vector<std::vector<DescriptorSearchResult>> computeCorrelations(

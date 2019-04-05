@@ -456,8 +456,10 @@ __global__ void redistributeMesh(DeviceMesh mesh, QSIMesh qsiMesh) {
     qsiMesh.vertex_2_z[triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
 }
 
-array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information,
-													 float spinImageWidth)
+array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
+        DeviceMesh device_mesh,
+        float spinImageWidth,
+        SpinImage::debug::QSIRunInfo* runinfo)
 {
 	size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
 	size_t descriptorBufferSize = sizeof(quasiSpinImagePixelType) * descriptorBufferLength;
@@ -497,7 +499,7 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(DeviceMes
 
 
 
-	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength, device_information);
+	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength);
 	setValue<quasiSpinImagePixelType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.content, descriptorBufferLength, 0);
     checkCudaErrors(cudaDeviceSynchronize());
 

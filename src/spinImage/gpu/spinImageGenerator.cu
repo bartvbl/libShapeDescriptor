@@ -292,7 +292,7 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 	}
 }
 
-array<spinImagePixelType> SpinImage::gpu::generateSpinImages(DeviceMesh device_mesh, cudaDeviceProp device_information, float spinImageWidth, size_t sampleCount)
+array<spinImagePixelType> SpinImage::gpu::generateSpinImages(DeviceMesh device_mesh, float spinImageWidth, size_t sampleCount)
 {
 	size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
 	size_t descriptorBufferSize = sizeof(float) * descriptorBufferLength;
@@ -318,9 +318,9 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(DeviceMesh device_m
 	device_cumulativeAreaArray.length = (unsigned) areaArrayLength;
 	device_pointSamples.length = sampleCount;
 
-	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength, device_information);
-    CudaLaunchDimensions areaSettings = calculateCudaLaunchDimensions(device_areaArray.length, device_information);
-    CudaLaunchDimensions cumulativeAreaSettings = calculateCudaLaunchDimensions(device_areaArray.length, device_information);
+	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength);
+    CudaLaunchDimensions areaSettings = calculateCudaLaunchDimensions(device_areaArray.length);
+    CudaLaunchDimensions cumulativeAreaSettings = calculateCudaLaunchDimensions(device_areaArray.length);
 
 	setValue <spinImagePixelType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.content, descriptorBufferLength, 0);
 	cudaDeviceSynchronize();

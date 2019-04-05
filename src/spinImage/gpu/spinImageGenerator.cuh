@@ -7,7 +7,6 @@ namespace SpinImage {
     namespace gpu {
         array<spinImagePixelType> generateSpinImages(
                 DeviceMesh device_mesh,
-                cudaDeviceProp device_information,
                 float spinImageWidth,
                 size_t sampleCount);
     }

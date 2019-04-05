@@ -21,9 +21,7 @@
 
 #define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
 
-// Classical spin image generation constants
-// Number of threads per warp in classical spin image generation
-const int SPIN_IMAGE_GENERATION_WARP_SIZE = 32;
+
 
 __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNormal, float3 point)
 {
@@ -203,8 +201,6 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 		return;
 	}
 
-	int spinImageIndex = spinImageIndexIndex;
-
 	float3 vertex;
 	float3 normal;
 
@@ -216,7 +212,14 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 	normal.y = mesh.normals_y[spinImageIndexIndex];
 	normal.z = mesh.normals_z[spinImageIndexIndex];
 
-	for (int triangleIndex = threadIdx.x; triangleIndex < mesh.vertexCount / 3; triangleIndex += SPIN_IMAGE_GENERATION_WARP_SIZE)
+	__shared__ float localSpinImage[spinImageWidthPixels * spinImageWidthPixels];
+	for(int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += blockDim.x) {
+	    localSpinImage[i] = 0;
+	}
+
+	__syncthreads();
+
+	for (int triangleIndex = threadIdx.x; triangleIndex < mesh.vertexCount / 3; triangleIndex += blockDim.x)
 	{
 		SampleBounds bounds = calculateSampleBounds(areaArray, triangleIndex, sampleCount);
 
@@ -250,10 +253,10 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
                 baseSpinImageCoordinateY + 0 >= -halfSpinImageSizePixels &&
                 baseSpinImageCoordinateY + 0 < halfSpinImageSizePixels)
             {
-                size_t valueIndex = size_t(spinImageIndex) * spinImageWidthPixels * spinImageWidthPixels +
-                                 (baseSpinImageCoordinateY + 0 + spinImageWidthPixels / 2) * spinImageWidthPixels +
-                                  baseSpinImageCoordinateX + 0;
-                atomicAdd(&(descriptors.content[valueIndex]), (interPixelX) * (interPixelY));
+                size_t valueIndex = size_t(
+                		(baseSpinImageCoordinateY + 0 + spinImageWidthPixels / 2) * spinImageWidthPixels +
+                		 baseSpinImageCoordinateX + 0;
+                atomicAdd(&localSpinImage[valueIndex], (interPixelX) * (interPixelY)));
             }
 
             if (baseSpinImageCoordinateX + 1 >= 0 &&
@@ -261,10 +264,10 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
                 baseSpinImageCoordinateY + 0 >= -halfSpinImageSizePixels &&
                 baseSpinImageCoordinateY + 0 < halfSpinImageSizePixels)
             {
-                size_t valueIndex = size_t(spinImageIndex) * spinImageWidthPixels * spinImageWidthPixels +
-                                    (baseSpinImageCoordinateY + 0 + spinImageWidthPixels / 2) * spinImageWidthPixels +
-                                     baseSpinImageCoordinateX + 1;
-                atomicAdd(&(descriptors.content[valueIndex]), (1.0f - interPixelX) * (interPixelY));
+                size_t valueIndex = size_t(
+                		(baseSpinImageCoordinateY + 0 + spinImageWidthPixels / 2) * spinImageWidthPixels +
+						 baseSpinImageCoordinateX + 1);
+                atomicAdd(&localSpinImage[valueIndex], (1.0f - interPixelX) * (interPixelY));
             }
 
             if (baseSpinImageCoordinateX + 1 >= 0 &&
@@ -272,10 +275,10 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
                 baseSpinImageCoordinateY + 1 >= -halfSpinImageSizePixels &&
                 baseSpinImageCoordinateY + 1 < halfSpinImageSizePixels)
             {
-                size_t valueIndex = size_t(spinImageIndex) * spinImageWidthPixels * spinImageWidthPixels +
-                                    (baseSpinImageCoordinateY + 1 + spinImageWidthPixels / 2) * spinImageWidthPixels +
-                                     baseSpinImageCoordinateX + 1;
-                atomicAdd(&(descriptors.content[valueIndex]), (1.0f - interPixelX) * (1.0f - interPixelY));
+                size_t valueIndex = size_t(
+                		(baseSpinImageCoordinateY + 1 + spinImageWidthPixels / 2) * spinImageWidthPixels +
+						 baseSpinImageCoordinateX + 1);
+                atomicAdd(&localSpinImage[valueIndex], (1.0f - interPixelX) * (1.0f - interPixelY));
             }
 
             if (baseSpinImageCoordinateX + 0 >= 0 &&
@@ -283,13 +286,23 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
                 baseSpinImageCoordinateY + 1 >= -halfSpinImageSizePixels &&
                 baseSpinImageCoordinateY + 1 < halfSpinImageSizePixels)
             {
-                size_t valueIndex = size_t(spinImageIndex) * spinImageWidthPixels * spinImageWidthPixels +
-                                    (baseSpinImageCoordinateY + 1 + spinImageWidthPixels / 2) * spinImageWidthPixels +
-                                     baseSpinImageCoordinateX + 0;
-                atomicAdd(&(descriptors.content[valueIndex]), (interPixelX) * (1.0f - interPixelY));
+                size_t valueIndex = size_t(
+                		(baseSpinImageCoordinateY + 1 + spinImageWidthPixels / 2) * spinImageWidthPixels +
+						 baseSpinImageCoordinateX + 0);
+                atomicAdd(&localSpinImage[valueIndex], (interPixelX) * (1.0f - interPixelY));
             }
 		}
 	}
+
+	__syncthreads();
+
+	// Copy final image into memory
+
+	size_t imageBaseIndex = size_t(spinImageIndexIndex) * spinImageWidthPixels * spinImageWidthPixels;
+    for(size_t i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += blockDim.x) {
+        descriptors.content[imageBaseIndex + i] = localSpinImage[i];
+    }
+
 }
 
 array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
@@ -361,14 +374,14 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 	// -- Spin Image Generation --
 	auto generationStart = std::chrono::steady_clock::now();
 
-	    createDescriptors <<<device_mesh.vertexCount, SPIN_IMAGE_GENERATION_WARP_SIZE >>>(
+	    createDescriptors <<<device_mesh.vertexCount, 416>>>(
 	            device_mesh,
 	            device_pointSamples,
 	            device_descriptors,
 	            device_cumulativeAreaArray,
 	            sampleCount,
 	            float(spinImageWidthPixels)/spinImageWidth);
-	    cudaDeviceSynchronize();
+	    checkCudaErrors(cudaDeviceSynchronize());
 	    checkCudaErrors(cudaGetLastError());
 
 	std::chrono::milliseconds generationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - generationStart);

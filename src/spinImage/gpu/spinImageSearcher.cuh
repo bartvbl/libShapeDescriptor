@@ -6,6 +6,13 @@
 #include "spinImage/gpu/types/ImageSearchResults.h"
 
 namespace SpinImage {
+    namespace debug {
+        struct SISearchRunInfo {
+            double totalExecutionTime;
+            double searchExecutionTime;
+        };
+    }
+
     namespace gpu {
         array<ImageSearchResults> findDescriptorsInHaystack(
                 array<spinImagePixelType> device_needleDescriptors,
@@ -17,6 +24,7 @@ namespace SpinImage {
                 array<spinImagePixelType> device_needleDescriptors,
                 size_t needleImageCount,
                 array<spinImagePixelType> device_haystackDescriptors,
-                size_t haystackImageCount);
+                size_t haystackImageCount,
+                SpinImage::debug::SISearchRunInfo* runInfo = nullptr);
     }
 }

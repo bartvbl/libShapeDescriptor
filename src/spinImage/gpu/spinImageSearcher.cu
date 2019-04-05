@@ -352,7 +352,8 @@ array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
         array<spinImagePixelType> device_needleDescriptors,
         size_t needleImageCount,
         array<spinImagePixelType> device_haystackDescriptors,
-        size_t haystackImageCount) {
+        size_t haystackImageCount,
+        SpinImage::debug::SISearchRunInfo* runInfo) {
 
 	size_t searchResultBufferSize = needleImageCount * sizeof(unsigned int);
 	unsigned int* device_searchResults;
@@ -366,16 +367,18 @@ array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
     checkCudaErrors(cudaMalloc(&device_needleImageAverages, needleImageCount * sizeof(float)));
     checkCudaErrors(cudaMalloc(&device_haystackImageAverages, haystackImageCount * sizeof(float)));
 
-    std::cout << "\t\tComputing image averages.." << std::endl;
+    auto averagingStart = std::chrono::steady_clock::now();
 
-	auto start = std::chrono::steady_clock::now();
+        calculateImageAverages<<<needleImageCount, 32>>>(device_needleDescriptors.content, device_needleImageAverages);
+        checkCudaErrors(cudaDeviceSynchronize());
+        checkCudaErrors(cudaGetLastError());
+        calculateImageAverages<<<haystackImageCount, 32>>>(device_haystackDescriptors.content, device_haystackImageAverages);
+        checkCudaErrors(cudaDeviceSynchronize());
+        checkCudaErrors(cudaGetLastError());
 
-    calculateImageAverages<<<needleImageCount, 32>>>(device_needleDescriptors.content, device_needleImageAverages);
-    checkCudaErrors(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
-    calculateImageAverages<<<haystackImageCount, 32>>>(device_haystackDescriptors.content, device_haystackImageAverages);
-    checkCudaErrors(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
+    std::chrono::milliseconds averagingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - averagingStart);
+
+	auto searchStart = std::chrono::steady_clock::now();
 
     computeSpinImageSearchResultIndices<<<needleImageCount, 32 * indexBasedWarpCount>>>(
                     device_needleDescriptors.content,
@@ -388,8 +391,7 @@ array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
 	checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 
-	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
-	std::cout << "\t\t\tExecution time: " << duration.count() << std::endl;
+	std::chrono::milliseconds searchDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart);
 
 	array<unsigned int> resultIndices;
 	resultIndices.content = new unsigned int[needleImageCount];
@@ -402,6 +404,10 @@ array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
     cudaFree(device_needleImageAverages);
     cudaFree(device_haystackImageAverages);
 	cudaFree(device_searchResults);
+
+	if(runInfo != nullptr) {
+	    runInfo->searchExecutionTime = double(searchDuration.count()) / 1000.0;
+	}
 
 	return resultIndices;
 }

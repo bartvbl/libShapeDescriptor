@@ -488,17 +488,21 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
     qsiMesh.normals_z = device_meshCopy.normals_z;
 
     float* device_QSIMeshBasePointer;
-    checkCudaErrors(cudaMalloc(&device_QSIMeshBasePointer, (device_meshCopy.vertexCount / 3) * 9));
+    size_t triangleCount = device_meshCopy.vertexCount / (size_t) 3;
+    checkCudaErrors(cudaMalloc(&device_QSIMeshBasePointer, (9 * triangleCount) * sizeof(float)));
+    checkCudaErrors(cudaDeviceSynchronize());
 
-    qsiMesh.vertex_0_x = device_QSIMeshBasePointer + 0 * (device_meshCopy.vertexCount / 3);
-    qsiMesh.vertex_0_y = device_QSIMeshBasePointer + 1 * (device_meshCopy.vertexCount / 3);
-    qsiMesh.vertex_0_z = device_QSIMeshBasePointer + 2 * (device_meshCopy.vertexCount / 3);
-    qsiMesh.vertex_1_x = device_QSIMeshBasePointer + 3 * (device_meshCopy.vertexCount / 3);
-    qsiMesh.vertex_1_y = device_QSIMeshBasePointer + 4 * (device_meshCopy.vertexCount / 3);
-    qsiMesh.vertex_1_z = device_QSIMeshBasePointer + 5 * (device_meshCopy.vertexCount / 3);
-    qsiMesh.vertex_2_x = device_QSIMeshBasePointer + 6 * (device_meshCopy.vertexCount / 3);
-    qsiMesh.vertex_2_y = device_QSIMeshBasePointer + 7 * (device_meshCopy.vertexCount / 3);
-    qsiMesh.vertex_2_z = device_QSIMeshBasePointer + 8 * (device_meshCopy.vertexCount / 3);
+    qsiMesh.vertex_0_x = device_QSIMeshBasePointer + (0 * triangleCount);
+    qsiMesh.vertex_0_y = device_QSIMeshBasePointer + (1 * triangleCount);
+    qsiMesh.vertex_0_z = device_QSIMeshBasePointer + (2 * triangleCount);
+    qsiMesh.vertex_1_x = device_QSIMeshBasePointer + (3 * triangleCount);
+    qsiMesh.vertex_1_y = device_QSIMeshBasePointer + (4 * triangleCount);
+    qsiMesh.vertex_1_z = device_QSIMeshBasePointer + (5 * triangleCount);
+    qsiMesh.vertex_2_x = device_QSIMeshBasePointer + (6 * triangleCount);
+    qsiMesh.vertex_2_y = device_QSIMeshBasePointer + (7 * triangleCount);
+    qsiMesh.vertex_2_z = device_QSIMeshBasePointer + (8 * triangleCount);
+
+
 
     auto redistributeTimeStart = std::chrono::steady_clock::now();
 

@@ -292,9 +292,15 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 	}
 }
 
-array<spinImagePixelType> SpinImage::gpu::generateSpinImages(DeviceMesh device_mesh, float spinImageWidth, size_t sampleCount)
+array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
+        DeviceMesh device_mesh,
+        float spinImageWidth,
+        size_t sampleCount,
+        SpinImage::debug::SIRunInfo* runInfo)
 {
-	size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
+    auto totalExecutionTimeStart = std::chrono::steady_clock::now();
+
+    size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
 	size_t descriptorBufferSize = sizeof(float) * descriptorBufferLength;
 	size_t areaArrayLength = device_mesh.vertexCount / 3;
 	size_t areaArraySize = areaArrayLength * sizeof(float);
@@ -306,56 +312,83 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(DeviceMesh device_m
 	array<float> device_cumulativeAreaArray;
 	array<float3> device_pointSamples;
 
-	checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
-	checkCudaErrors(cudaMalloc(&device_areaArray.content, areaArraySize));
-	checkCudaErrors(cudaMalloc(&device_cumulativeAreaArray.content, areaArraySize));
-	checkCudaErrors(cudaMalloc(&device_pointSamples.content, sizeof(float3) * sampleCount));
-	checkCudaErrors(cudaMalloc(&device_randomState, sizeof(curandState) * (size_t)SAMPLE_COEFFICIENT_THREAD_COUNT));
-	checkCudaErrors(cudaMalloc(&device_coefficients.content, sizeof(float2) * sampleCount));
+	// -- Initialisation --
+	auto initialisationStart = std::chrono::steady_clock::now();
 
-	device_descriptors.length = device_mesh.vertexCount;
-	device_areaArray.length = (unsigned) areaArrayLength;
-	device_cumulativeAreaArray.length = (unsigned) areaArrayLength;
-	device_pointSamples.length = sampleCount;
+		checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
+		checkCudaErrors(cudaMalloc(&device_areaArray.content, areaArraySize));
+		checkCudaErrors(cudaMalloc(&device_cumulativeAreaArray.content, areaArraySize));
+		checkCudaErrors(cudaMalloc(&device_pointSamples.content, sizeof(float3) * sampleCount));
+		checkCudaErrors(cudaMalloc(&device_randomState, sizeof(curandState) * (size_t)SAMPLE_COEFFICIENT_THREAD_COUNT));
+		checkCudaErrors(cudaMalloc(&device_coefficients.content, sizeof(float2) * sampleCount));
 
-	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength);
-    CudaLaunchDimensions areaSettings = calculateCudaLaunchDimensions(device_areaArray.length);
-    CudaLaunchDimensions cumulativeAreaSettings = calculateCudaLaunchDimensions(device_areaArray.length);
+		device_descriptors.length = device_mesh.vertexCount;
+		device_areaArray.length = (unsigned) areaArrayLength;
+		device_cumulativeAreaArray.length = (unsigned) areaArrayLength;
+		device_pointSamples.length = sampleCount;
 
-	setValue <spinImagePixelType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.content, descriptorBufferLength, 0);
-	cudaDeviceSynchronize();
-	checkCudaErrors(cudaGetLastError());
+		CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength);
+		CudaLaunchDimensions areaSettings = calculateCudaLaunchDimensions(device_areaArray.length);
+		CudaLaunchDimensions cumulativeAreaSettings = calculateCudaLaunchDimensions(device_areaArray.length);
 
-	calculateAreas <<<areaSettings.blocksPerGrid, areaSettings.threadsPerBlock >>> (device_areaArray, device_mesh);
-	cudaDeviceSynchronize();
-	checkCudaErrors(cudaGetLastError());
+		setValue <spinImagePixelType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.content, descriptorBufferLength, 0);
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
 
-	calculateCumulativeAreas<<<cumulativeAreaSettings.blocksPerGrid, cumulativeAreaSettings.threadsPerBlock>>>(device_areaArray, device_cumulativeAreaArray);
-	cudaDeviceSynchronize();
-	checkCudaErrors(cudaGetLastError());
+	std::chrono::milliseconds initialisationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - initialisationStart);
 
-	generateRandomSampleCoefficients<<<SAMPLE_COEFFICIENT_THREAD_COUNT / 32, 32>>>(device_coefficients, device_randomState, sampleCount);
-	cudaDeviceSynchronize();
-	checkCudaErrors(cudaGetLastError());
+	// -- Mesh Sampling --
+	auto meshSamplingStart = std::chrono::steady_clock::now();
 
-	sampleMesh <<<areaSettings.blocksPerGrid, areaSettings.threadsPerBlock>>>(device_mesh, device_cumulativeAreaArray, device_pointSamples, device_coefficients, sampleCount);
-	cudaDeviceSynchronize();
-	checkCudaErrors(cudaGetLastError());
+		calculateAreas <<<areaSettings.blocksPerGrid, areaSettings.threadsPerBlock >>> (device_areaArray, device_mesh);
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
 
-	auto start = std::chrono::steady_clock::now();
+		calculateCumulativeAreas<<<cumulativeAreaSettings.blocksPerGrid, cumulativeAreaSettings.threadsPerBlock>>>(device_areaArray, device_cumulativeAreaArray);
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
 
-	createDescriptors <<<device_mesh.vertexCount, SPIN_IMAGE_GENERATION_WARP_SIZE >>>(device_mesh, device_pointSamples, device_descriptors, device_cumulativeAreaArray, sampleCount, float(spinImageWidthPixels)/spinImageWidth);
-	cudaDeviceSynchronize();
-	checkCudaErrors(cudaGetLastError());
+		generateRandomSampleCoefficients<<<SAMPLE_COEFFICIENT_THREAD_COUNT / 32, 32>>>(device_coefficients, device_randomState, sampleCount);
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
 
-	std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
-	std::cout << "\t\t\tExecution time:" << duration.count() << std::endl;
+		sampleMesh <<<areaSettings.blocksPerGrid, areaSettings.threadsPerBlock>>>(device_mesh, device_cumulativeAreaArray, device_pointSamples, device_coefficients, sampleCount);
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
+
+	std::chrono::milliseconds meshSamplingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - meshSamplingStart);
+
+	// -- Spin Image Generation --
+	auto generationStart = std::chrono::steady_clock::now();
+
+	    createDescriptors <<<device_mesh.vertexCount, SPIN_IMAGE_GENERATION_WARP_SIZE >>>(
+	            device_mesh,
+	            device_pointSamples,
+	            device_descriptors,
+	            device_cumulativeAreaArray,
+	            sampleCount,
+	            float(spinImageWidthPixels)/spinImageWidth);
+	    cudaDeviceSynchronize();
+	    checkCudaErrors(cudaGetLastError());
+
+	std::chrono::milliseconds generationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - generationStart);
+
+	// -- Cleanup --
 
 	checkCudaErrors(cudaFree(device_areaArray.content));
 	checkCudaErrors(cudaFree(device_cumulativeAreaArray.content));
 	checkCudaErrors(cudaFree(device_pointSamples.content));
 	checkCudaErrors(cudaFree(device_randomState));
 	checkCudaErrors(cudaFree(device_coefficients.content));
+
+    std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
+
+    if(runInfo != nullptr) {
+	    runInfo->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
+		runInfo->initialisationTimeSeconds = double(initialisationDuration.count()) / 1000.0;
+		runInfo->meshSamplingTimeSeconds = double(meshSamplingDuration.count()) / 1000.0;
+	    runInfo->generationTimeSeconds = double(generationDuration.count()) / 1000.0;
+	}
 
 	return device_descriptors;
 }

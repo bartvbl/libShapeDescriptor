@@ -5,6 +5,15 @@
 
 
 namespace SpinImage {
+    namespace debug {
+        struct QSIRunInfo {
+            double generationTimeSeconds;
+            double meshScaleTimeSeconds;
+            double redistributionTimeSeconds;
+            double totalExecutionTimeSeconds;
+        };
+    }
+
     namespace gpu {
         array<quasiSpinImagePixelType> generateQuasiSpinImages(
                 DeviceMesh device_mesh,

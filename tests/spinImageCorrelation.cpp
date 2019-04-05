@@ -66,8 +66,8 @@ TEST_CASE("Basic correlation computation (Spin Images)", "[correlation]") {
 
         delete[] positiveImage.content;
         delete[] negativeImage.content;
-        REQUIRE(correlation == 0.4f);
-        REQUIRE(otherCorrelation == 0.4f);
+        REQUIRE(std::isnan(correlation));
+        REQUIRE(std::isnan(otherCorrelation));
     }
 }
 

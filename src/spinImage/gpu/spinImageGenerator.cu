@@ -255,8 +255,8 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
             {
                 size_t valueIndex = size_t(
                 		(baseSpinImageCoordinateY + 0 + spinImageWidthPixels / 2) * spinImageWidthPixels +
-                		 baseSpinImageCoordinateX + 0;
-                atomicAdd(&localSpinImage[valueIndex], (interPixelX) * (interPixelY)));
+                		 baseSpinImageCoordinateX + 0);
+                atomicAdd(&localSpinImage[valueIndex], (interPixelX) * (interPixelY));
             }
 
             if (baseSpinImageCoordinateX + 1 >= 0 &&

@@ -355,12 +355,12 @@ array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
         size_t haystackImageCount,
         SpinImage::debug::SISearchRunInfo* runInfo) {
 
+	auto executionStart = std::chrono::steady_clock::now();
+
 	size_t searchResultBufferSize = needleImageCount * sizeof(unsigned int);
 	unsigned int* device_searchResults;
 	checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
 	checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
-
-	std::cout << "\t\tPerforming search.." << std::endl;
 
     float* device_needleImageAverages;
     float* device_haystackImageAverages;
@@ -405,8 +405,12 @@ array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
     cudaFree(device_haystackImageAverages);
 	cudaFree(device_searchResults);
 
+	std::chrono::milliseconds executionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - executionStart);
+
 	if(runInfo != nullptr) {
-	    runInfo->searchExecutionTime = double(searchDuration.count()) / 1000.0;
+	    runInfo->searchExecutionTimeSeconds = double(searchDuration.count()) / 1000.0;
+	    runInfo->totalExecutionTimeSeconds = double(executionDuration.count()) / 1000.0;
+	    runInfo->averagingExecutionTimeSeconds = double(averagingDuration.count()) / 1000.0;
 	}
 
 	return resultIndices;

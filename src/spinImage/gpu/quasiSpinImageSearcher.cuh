@@ -6,11 +6,19 @@
 #include "spinImage/gpu/types/ImageSearchResults.h"
 
 namespace SpinImage {
+    namespace debug {
+        struct QSISearchRunInfo {
+            double totalExecutionTimeSeconds;
+            double searchExecutionTimeSeconds;
+        };
+    }
+
     namespace gpu {
         array<unsigned int> computeSearchResultRanks(
                 array<quasiSpinImagePixelType> device_needleDescriptors,
                 size_t needleImageCount,
                 array<quasiSpinImagePixelType> device_haystackDescriptors,
-                size_t haystackImageCount);
+                size_t haystackImageCount,
+                SpinImage::debug::QSISearchRunInfo* runInfo = nullptr);
     }
 }

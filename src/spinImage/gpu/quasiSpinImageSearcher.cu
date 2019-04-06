@@ -122,15 +122,17 @@ array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
         array<quasiSpinImagePixelType> device_needleDescriptors,
         size_t needleImageCount,
         array<quasiSpinImagePixelType> device_haystackDescriptors,
-        size_t haystackImageCount) {
+        size_t haystackImageCount,
+        SpinImage::debug::QSISearchRunInfo* runInfo) {
+
+    auto executionStart = std::chrono::steady_clock::now();
 
     size_t searchResultBufferSize = needleImageCount * sizeof(unsigned int);
     unsigned int* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
     checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
 
-    std::cout << "\t\tPerforming search.." << std::endl;
-    auto start = std::chrono::steady_clock::now();
+    auto searchStart = std::chrono::steady_clock::now();
 
     computeQuasiSpinImageSearchResultIndices<<<needleImageCount, 32 * indexBasedWarpCount>>>(
             device_needleDescriptors.content,
@@ -141,8 +143,7 @@ array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 
-    std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
-    std::cout << "\t\t\tExecution time: " << duration.count() << std::endl;
+    std::chrono::milliseconds searchDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart);
 
     array<unsigned int> resultIndices;
     resultIndices.content = new unsigned int[needleImageCount];
@@ -153,6 +154,13 @@ array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
     // Cleanup
 
     cudaFree(device_searchResults);
+
+    std::chrono::milliseconds executionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - executionStart);
+
+    if(runInfo != nullptr) {
+        runInfo->searchExecutionTimeSeconds = double(searchDuration.count()) / 1000.0;
+        runInfo->totalExecutionTimeSeconds = double(executionDuration.count()) / 1000.0;
+    }
 
     return resultIndices;
 }

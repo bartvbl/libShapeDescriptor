@@ -8,8 +8,9 @@
 namespace SpinImage {
     namespace debug {
         struct SISearchRunInfo {
-            double totalExecutionTime;
-            double searchExecutionTime;
+            double totalExecutionTimeSeconds;
+            double searchExecutionTimeSeconds;
+            double averagingExecutionTimeSeconds;
         };
     }
 

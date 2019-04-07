@@ -21,7 +21,7 @@ TEST_CASE("Basic correlation computation (Spin Images)", "[correlation]") {
         array<spinImagePixelType> constantImage =
                 generateRepeatingTemplateSpinImage(0, 1, 0, 1, 0, 1, 0, 1);
 
-        float correlation = SpinImage::cpu::computeImagePairCorrelation(constantImage.content, constantImage.content, 0, 0);
+        float correlation = SpinImage::cpu::computeSpinImagePairCorrelation(constantImage.content, constantImage.content, 0, 0);
 
         delete[] constantImage.content;
         REQUIRE(correlation == 1);
@@ -36,7 +36,7 @@ TEST_CASE("Basic correlation computation (Spin Images)", "[correlation]") {
             negativeImage.content[i] = float(i) * -1;
         }
 
-        float correlation = SpinImage::cpu::computeImagePairCorrelation(positiveImage.content, negativeImage.content, 0, 0);
+        float correlation = SpinImage::cpu::computeSpinImagePairCorrelation(positiveImage.content, negativeImage.content, 0, 0);
         delete[] positiveImage.content;
         delete[] negativeImage.content;
         REQUIRE(correlation == -1);
@@ -48,7 +48,7 @@ TEST_CASE("Basic correlation computation (Spin Images)", "[correlation]") {
         array<spinImagePixelType> negativeImage = generateRepeatingTemplateSpinImage(
                 5, 5, 5, 5, 5, 5, 5, 5);
 
-        float correlation = SpinImage::cpu::computeImagePairCorrelation(positiveImage.content, negativeImage.content, 0, 0);
+        float correlation = SpinImage::cpu::computeSpinImagePairCorrelation(positiveImage.content, negativeImage.content, 0, 0);
         delete[] positiveImage.content;
         delete[] negativeImage.content;
         REQUIRE(std::isnan(correlation));
@@ -60,9 +60,9 @@ TEST_CASE("Basic correlation computation (Spin Images)", "[correlation]") {
         array<spinImagePixelType> negativeImage = generateRepeatingTemplateSpinImage(
                 5, 5, 5, 5, 5, 5, 5, 5);
 
-        float correlation = SpinImage::cpu::computeImagePairCorrelation(positiveImage.content, negativeImage.content, 0, 0);
+        float correlation = SpinImage::cpu::computeSpinImagePairCorrelation(positiveImage.content, negativeImage.content, 0, 0);
 
-        float otherCorrelation = SpinImage::cpu::computeImagePairCorrelation(negativeImage.content, positiveImage.content, 0, 0);
+        float otherCorrelation = SpinImage::cpu::computeSpinImagePairCorrelation(negativeImage.content, positiveImage.content, 0, 0);
 
         delete[] positiveImage.content;
         delete[] negativeImage.content;
@@ -81,7 +81,7 @@ TEST_CASE("Ranking of search results on CPU", "[correlation]") {
 
     SECTION("Ensuring equivalent images have a correlation of 1") {
         for (int i = 0; i < imageCount; i++) {
-            float pairCorrelation = SpinImage::cpu::computeImagePairCorrelation(imageSequence.content,
+            float pairCorrelation = SpinImage::cpu::computeSpinImagePairCorrelation(imageSequence.content,
                                                                                 imageSequence.content, i, i);
 
             // We'll allow for some rounding errors here.
@@ -104,23 +104,8 @@ TEST_CASE("Ranking of search results on CPU", "[correlation]") {
         REQUIRE(previousAverage == 1);
     }
 
-    SECTION("Image averages make sense (quasi spin image)") {
-        float previousAverage = SpinImage::cpu::computeImageAverage(quasiImageSequence.content, 0);
-        REQUIRE(previousAverage == 0);
-
-        for(int image = 1; image < imageCount; image++) {
-            float average = SpinImage::cpu::computeImageAverage(quasiImageSequence.content, image);
-
-            REQUIRE(previousAverage < average);
-
-            previousAverage = average;
-        }
-
-        REQUIRE(previousAverage == 1);
-    }
-
     SECTION("Ranking of known images on CPU") {
-        std::vector<std::vector<DescriptorSearchResult>> resultsCPU = SpinImage::cpu::findDescriptorsInHaystack(
+        std::vector<std::vector<SpinImageSearchResult>> resultsCPU = SpinImage::cpu::findSpinImagesInHaystack(
                 imageSequence, imageCount, imageSequence, imageCount);
 
         // First and last image are excluded because they are completely constant.

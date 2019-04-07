@@ -3,7 +3,7 @@
 #include <iostream>
 #include "spinImageSearcher.h"
 
-bool compareSearchResults(const DescriptorSearchResult &a, const DescriptorSearchResult &b)
+bool compareSearchResults(const SpinImageSearchResult &a, const SpinImageSearchResult &b)
 {
     return a.correlation > b.correlation;
 }
@@ -68,13 +68,13 @@ float computeSpinImagePairCorrelationCPU(
     return correlation;
 }
 
-std::vector<std::vector<DescriptorSearchResult>> computeCorrelations(
+std::vector<std::vector<SpinImageSearchResult>> computeCorrelations(
         array<spinImagePixelType> needleDescriptors,
         size_t needleImageCount,
         array<spinImagePixelType> haystackDescriptors,
         size_t haystackImageCount) {
 
-    std::vector<std::vector<DescriptorSearchResult>> searchResults;
+    std::vector<std::vector<SpinImageSearchResult>> searchResults;
     searchResults.resize(needleImageCount);
 
     float* needleImageAverages = new float[needleImageCount];
@@ -90,7 +90,7 @@ std::vector<std::vector<DescriptorSearchResult>> computeCorrelations(
 
 #pragma omp parallel for
     for(size_t image = 0; image < needleImageCount; image++) {
-        std::vector<DescriptorSearchResult> imageResults;
+        std::vector<SpinImageSearchResult> imageResults;
         float needleAverage = needleImageAverages[image];
 
         for(size_t haystackImage = 0; haystackImage < haystackImageCount; haystackImage++) {
@@ -102,7 +102,7 @@ std::vector<std::vector<DescriptorSearchResult>> computeCorrelations(
                     image, haystackImage,
                     needleAverage, haystackAverage);
 
-            DescriptorSearchResult entry;
+            SpinImageSearchResult entry;
             entry.correlation = correlation;
             entry.imageIndex = haystackImage;
             imageResults.push_back(entry);
@@ -120,7 +120,7 @@ std::vector<std::vector<DescriptorSearchResult>> computeCorrelations(
     return searchResults;
 }
 
-std::vector<std::vector<DescriptorSearchResult>> SpinImage::cpu::findDescriptorsInHaystack(
+std::vector<std::vector<SpinImageSearchResult>> SpinImage::cpu::findSpinImagesInHaystack(
         array<spinImagePixelType> needleDescriptors,
         size_t needleImageCount,
         array<spinImagePixelType> haystackDescriptors,
@@ -128,7 +128,7 @@ std::vector<std::vector<DescriptorSearchResult>> SpinImage::cpu::findDescriptors
     return computeCorrelations(needleDescriptors, needleImageCount, haystackDescriptors, haystackImageCount);
 }
 
-float SpinImage::cpu::computeImagePairCorrelation(spinImagePixelType* descriptors,
+float SpinImage::cpu::computeSpinImagePairCorrelation(spinImagePixelType* descriptors,
                                   spinImagePixelType* otherDescriptors,
                                   size_t spinImageIndex,
                                   size_t otherImageIndex) {
@@ -139,8 +139,4 @@ float SpinImage::cpu::computeImagePairCorrelation(spinImagePixelType* descriptor
 
 float SpinImage::cpu::computeImageAverage(spinImagePixelType* descriptors, size_t spinImageIndex) {
     return computeAveragePixelValue<spinImagePixelType>(descriptors, spinImageIndex);
-}
-
-float SpinImage::cpu::computeImageAverage(quasiSpinImagePixelType* descriptors, size_t spinImageIndex) {
-    return computeAveragePixelValue<quasiSpinImagePixelType>(descriptors, spinImageIndex);
 }

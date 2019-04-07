@@ -28,48 +28,49 @@ __device__ int compareQuasiSpinImagePairGPU(
     int threadScore = 0;
     const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
     const int laneIndex = threadIdx.x % 32;
-    for(int row = laneIndex; row < spinImageWidthPixels; row++) {
 
+    quasiSpinImagePixelType previousWarpLastNeedlePixelValue = 0;
+    quasiSpinImagePixelType previousWarpLastHaystackPixelValue = 0;
+
+    for(int pixel = laneIndex; pixel < spinImageWidthPixels * spinImageWidthPixels; pixel += warpSize) {
         quasiSpinImagePixelType currentNeedlePixelValue =
-                needleImages[needleImageIndex * spinImageElementCount + (row * spinImageWidthPixels + laneIndex)];
+            needleImages[needleImageIndex * spinImageElementCount + pixel];
         quasiSpinImagePixelType currentHaystackPixelValue =
-                haystackImages[haystackImageIndex * spinImageElementCount + (row * spinImageWidthPixels + laneIndex)];
+            haystackImages[haystackImageIndex * spinImageElementCount + pixel];
 
-        for(int col = laneIndex; col < spinImageWidthPixels - 32; col += 32) {
-            quasiSpinImagePixelType nextNeedlePixelValue =
-                    needleImages[needleImageIndex * spinImageElementCount + (row * spinImageWidthPixels + col)];
-            quasiSpinImagePixelType nextHaystackPixelValue =
-                    haystackImages[haystackImageIndex * spinImageElementCount + (row * spinImageWidthPixels + col)];
-
-            quasiSpinImagePixelType nextRankNeedlePixelValue = __shfl_sync(0xFFFFFFFF,
-                    // Input value
-                                                                           (laneIndex == 0 ? nextNeedlePixelValue : currentNeedlePixelValue),
-                    // Target thread
-                                                                           (laneIndex == 31 ? 0 : threadIdx.x + 1));
-            quasiSpinImagePixelType nextRankHaystackPixelValue = __shfl_sync(0xFFFFFFFF,
-                    // Input value
-                                                                             (laneIndex == 0 ? nextHaystackPixelValue : currentHaystackPixelValue),
-                    // Target thread
-                                                                             (laneIndex == 31 ? 0 : threadIdx.x + 1));
-
-            quasiSpinImagePixelType needleDelta = nextRankNeedlePixelValue - currentNeedlePixelValue;
-            quasiSpinImagePixelType haystackDelta = nextRankHaystackPixelValue - currentHaystackPixelValue;
-
-            if(needleDelta != 0) {
-                threadScore += (needleDelta - haystackDelta) * (needleDelta - haystackDelta);
-            }
-
-            currentNeedlePixelValue = nextNeedlePixelValue;
-            currentHaystackPixelValue = nextHaystackPixelValue;
+        int targetThread;
+        if(laneIndex > 0) {
+            targetThread = laneIndex - 1;
+        } else if(pixel % spinImageWidthPixels != 0) {
+            targetThread = 31;
+        } else {
+            targetThread = 0;
         }
 
-        quasiSpinImagePixelType nextRankNeedlePixelValue = __shfl_sync(0xFFFFFFFF, currentNeedlePixelValue, laneIndex + 1);
-        quasiSpinImagePixelType nextRankHaystackPixelValue = __shfl_sync(0xFFFFFFFF, currentHaystackPixelValue, laneIndex + 1);
+        quasiSpinImagePixelType threadNeedleValue;
+        quasiSpinImagePixelType threadHaystackValue;
 
-        quasiSpinImagePixelType needleDelta = nextRankNeedlePixelValue - currentNeedlePixelValue;
-        quasiSpinImagePixelType haystackDelta = nextRankHaystackPixelValue - currentHaystackPixelValue;
+        if(laneIndex == 31) {
+            threadNeedleValue = previousWarpLastNeedlePixelValue;
+            threadHaystackValue = previousWarpLastHaystackPixelValue;
+        } else {
+            threadNeedleValue = currentNeedlePixelValue;
+            threadHaystackValue = currentHaystackPixelValue;
+        }
 
-        threadScore += (needleDelta - haystackDelta) * (needleDelta - haystackDelta);
+        quasiSpinImagePixelType previousNeedlePixelValue = __shfl_sync(0xFFFFFFFF, targetThread, threadNeedleValue);
+        quasiSpinImagePixelType previousHaystackPixelValue = __shfl_sync(0xFFFFFFFF, targetThread, threadHaystackValue);
+
+        int needleDelta = int(currentNeedlePixelValue) - int(previousNeedlePixelValue);
+        int haystackDelta = int(currentHaystackPixelValue) - int(previousHaystackPixelValue);
+
+        if(needleDelta != 0) {
+            threadScore += (needleDelta - haystackDelta) * (needleDelta - haystackDelta);
+        }
+
+        // This only matters for thread 31, so no need to broadcast it using a shuffle instruction
+        previousWarpLastNeedlePixelValue = currentNeedlePixelValue;
+        previousWarpLastHaystackPixelValue = currentHaystackPixelValue;
     }
 
     int imageScore = warpAllReduceSum(threadScore);

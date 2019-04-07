@@ -21,7 +21,7 @@ void SpinImage::dump::searchResults(array<ImageSearchResults> searchResults, siz
     outputFile.close();
 }
 
-void SpinImage::dump::searchResults(std::vector<std::vector<DescriptorSearchResult>> searchResults, std::string outputFilePath) {
+void SpinImage::dump::searchResults(std::vector<std::vector<SpinImageSearchResult>> searchResults, std::string outputFilePath) {
     std::ofstream outputFile;
     outputFile.open(outputFilePath);
 

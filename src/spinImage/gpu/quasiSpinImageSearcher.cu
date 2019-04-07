@@ -58,8 +58,8 @@ __device__ int compareQuasiSpinImagePairGPU(
             threadHaystackValue = currentHaystackPixelValue;
         }
 
-        quasiSpinImagePixelType previousNeedlePixelValue = __shfl_sync(0xFFFFFFFF, targetThread, threadNeedleValue);
-        quasiSpinImagePixelType previousHaystackPixelValue = __shfl_sync(0xFFFFFFFF, targetThread, threadHaystackValue);
+        quasiSpinImagePixelType previousNeedlePixelValue = __shfl_sync(0xFFFFFFFF, threadNeedleValue, targetThread);
+        quasiSpinImagePixelType previousHaystackPixelValue = __shfl_sync(0xFFFFFFFF, threadHaystackValue, targetThread);
 
         int needleDelta = int(currentNeedlePixelValue) - int(previousNeedlePixelValue);
         int haystackDelta = int(currentHaystackPixelValue) - int(previousHaystackPixelValue);

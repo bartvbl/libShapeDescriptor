@@ -45,10 +45,10 @@ array<pixelType> generateKnownImageSequence(const int imageCount, const int pixe
     array<pixelType> imageSequence = generateEmptyImages<pixelType>(imageCount);
 
     for(int image = 0; image < imageCount; image++) {
-        for(int highIndex = 0; highIndex < image; highIndex++) {
+        for(int highIndex = 0; highIndex <= image; highIndex++) {
             imageSequence.content[image * pixelsPerImage + highIndex] = 1;
         }
-        for(int lowIndex = image; lowIndex < pixelsPerImage; lowIndex++) {
+        for(int lowIndex = image + 1; lowIndex < pixelsPerImage; lowIndex++) {
             imageSequence.content[image * pixelsPerImage + lowIndex] = 0;
         }
     }

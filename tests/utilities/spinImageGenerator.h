@@ -2,6 +2,9 @@
 #include <spinImage/common/types/array.h>
 #include <spinImage/libraryBuildSettings.h>
 
+const int imageCount = spinImageWidthPixels * spinImageWidthPixels + 1 - 2;
+const int pixelsPerImage = spinImageWidthPixels * spinImageWidthPixels;
+
 array<spinImagePixelType> generateEmptySpinImages(size_t imageCount);
 array<quasiSpinImagePixelType> generateEmptyQuasiSpinImages(size_t imageCount);
 

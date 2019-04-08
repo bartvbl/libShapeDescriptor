@@ -7,7 +7,8 @@
 
 namespace SpinImage {
     namespace dump {
-        void searchResults(array<ImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath);
-        void searchResults(std::vector<std::vector<DescriptorSearchResult>> searchResults, std::string outputFilePath);
+        void searchResults(array<SpinImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath);
+        void searchResults(array<QuasiSpinImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath);
+        void searchResults(std::vector<std::vector<SpinImageSearchResult>> searchResults, std::string outputFilePath);
     }
 }

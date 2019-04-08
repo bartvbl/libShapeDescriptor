@@ -28,6 +28,8 @@ __device__ int compareQuasiSpinImagePairGPU(
     int threadScore = 0;
     const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
     const int laneIndex = threadIdx.x % 32;
+    unsigned int threadSquaredSum = 0;
+    unsigned int threadDeltaSquaredSum = 0;
 
     quasiSpinImagePixelType previousWarpLastNeedlePixelValue = 0;
     quasiSpinImagePixelType previousWarpLastHaystackPixelValue = 0;
@@ -68,12 +70,26 @@ __device__ int compareQuasiSpinImagePairGPU(
             threadScore += (needleDelta - haystackDelta) * (needleDelta - haystackDelta);
         }
 
+        if(laneIndex != 31) {
+            int imageDelta = currentNeedlePixelValue - currentHaystackPixelValue;
+            threadSquaredSum += unsigned(needleDelta * needleDelta);
+            threadDeltaSquaredSum += unsigned(imageDelta * imageDelta);
+        }
+
         // This only matters for thread 31, so no need to broadcast it using a shuffle instruction
         previousWarpLastNeedlePixelValue = currentNeedlePixelValue;
         previousWarpLastHaystackPixelValue = currentHaystackPixelValue;
     }
 
     int imageScore = warpAllReduceSum(threadScore);
+
+    int squaredSum = warpAllReduceSum(threadSquaredSum);
+    int deltaSquaredSum = warpAllReduceSum(threadDeltaSquaredSum);
+
+    // image is constant
+    if(squaredSum == 0) {
+        imageScore = deltaSquaredSum;
+    }
 
     return imageScore;
 }

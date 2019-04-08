@@ -14,7 +14,13 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        array<unsigned int> computeSearchResultRanks(
+        array<QuasiSpinImageSearchResults> findQuasiSpinImagesInHaystack(
+                array<quasiSpinImagePixelType> device_needleDescriptors,
+                size_t needleImageCount,
+                array<quasiSpinImagePixelType> device_haystackDescriptors,
+                size_t haystackImageCount);
+
+        array<unsigned int> computeQuasiSpinImageSearchResultRanks(
                 array<quasiSpinImagePixelType> device_needleDescriptors,
                 size_t needleImageCount,
                 array<quasiSpinImagePixelType> device_haystackDescriptors,

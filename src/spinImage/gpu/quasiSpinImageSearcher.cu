@@ -135,7 +135,7 @@ __global__ void computeQuasiSpinImageSearchResultIndices(
 }
 
 
-array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
+array<unsigned int> SpinImage::gpu::computeQuasiSpinImageSearchResultRanks(
         array<quasiSpinImagePixelType> device_needleDescriptors,
         size_t needleImageCount,
         array<quasiSpinImagePixelType> device_haystackDescriptors,
@@ -180,4 +180,164 @@ array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
     }
 
     return resultIndices;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const unsigned int warpCount = 16;
+
+__global__ void generateSearchResults(quasiSpinImagePixelType* needleDescriptors,
+                                      size_t needleImageCount,
+                                      quasiSpinImagePixelType* haystackDescriptors,
+                                      size_t haystackImageCount,
+                                      QuasiSpinImageSearchResults* searchResults) {
+
+    size_t needleImageIndex = warpCount * blockIdx.x + (threadIdx.x / 32);
+
+    if(needleImageIndex >= needleImageCount) {
+        return;
+    }
+
+    static_assert(SEARCH_RESULT_COUNT == 128, "Array initialisation needs to change if search result count is changed");
+    size_t threadSearchResultImageIndexes[SEARCH_RESULT_COUNT / 32] = {UINT_MAX, UINT_MAX, UINT_MAX, UINT_MAX};
+    int threadSearchResultScores[SEARCH_RESULT_COUNT / 32] = {INT_MAX, INT_MAX, INT_MAX, INT_MAX};
+
+    const int blockCount = (SEARCH_RESULT_COUNT / 32);
+
+    for(size_t haystackImageIndex = 0; haystackImageIndex < haystackImageCount; haystackImageIndex++) {
+        int score = compareQuasiSpinImagePairGPU(
+                needleDescriptors,
+                needleImageIndex,
+                haystackDescriptors,
+                haystackImageIndex);
+
+        // Since most images will not make it into the top ranking, we do a quick check to avoid a search
+        // This saves a few instructions.
+        if(score < __shfl_sync(0xFFFFFFFF, threadSearchResultScores[(SEARCH_RESULT_COUNT / 32) - 1], 31)) {
+            unsigned int foundIndex = 0;
+            for(int block = 0; block < blockCount; block++) {
+                bool threadExceeds = threadSearchResultScores[block] > score;
+                unsigned int bitString = __ballot_sync(0xFFFFFFFF, threadExceeds);
+                unsigned int firstSet = __ffs(bitString) - 1;
+
+                if(firstSet < 32) {
+                    foundIndex = (block * 32) + (firstSet);
+                    break;
+                }
+            }
+
+            int startBlock = foundIndex / 32;
+            const int endBlock = blockCount - 1;
+            const int laneID = threadIdx.x % 32;
+
+            // We first shift all values to the right for "full" 32-value blocks
+            // Afterwards, we do one final iteration to shift only the values that are
+            // block will never be 0, which ensures the loop body does not go out of range
+            for(int block = endBlock; block > startBlock; block--) {
+                int sourceThread = laneID - 1;
+                int sourceBlock = block;
+
+                if(laneID == 0) {
+                    sourceThread = 31;
+                }
+                if(laneID == 31) {
+                    sourceBlock = block - 1;
+                }
+
+                threadSearchResultScores[block] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[sourceBlock], sourceThread);
+                threadSearchResultImageIndexes[block] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[sourceBlock], sourceThread);
+            }
+
+            // This shifts over values in the block where we're inserting the new value.
+            // As such it requires some more fine-grained control.
+            if(laneID >= foundIndex % 32) {
+                int targetThread = laneID - 1;
+
+                threadSearchResultScores[startBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[startBlock], targetThread);
+                threadSearchResultImageIndexes[startBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[startBlock], targetThread);
+
+                if(laneID == foundIndex % 32) {
+                    threadSearchResultScores[startBlock] = score;
+                    threadSearchResultImageIndexes[startBlock] = haystackImageIndex;
+                }
+            }
+
+        }
+    }
+
+
+    const unsigned int laneID = threadIdx.x % 32;
+    // Storing search results
+    for(int block = 0; block < blockCount; block++) {
+        searchResults[needleImageIndex].resultIndices[block * 32 + laneID] = threadSearchResultImageIndexes[block];
+        searchResults[needleImageIndex].resultScores[block * 32 + laneID] = threadSearchResultScores[block];
+    }
+
+}
+
+array<QuasiSpinImageSearchResults> SpinImage::gpu::findQuasiSpinImagesInHaystack(
+        array<quasiSpinImagePixelType> device_needleDescriptors,
+        size_t needleImageCount,
+        array<quasiSpinImagePixelType> device_haystackDescriptors,
+        size_t haystackImageCount) {
+
+    size_t searchResultBufferSize = needleImageCount * sizeof(QuasiSpinImageSearchResults);
+    QuasiSpinImageSearchResults* device_searchResults;
+    checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
+
+    std::cout << "\t\tPerforming search.." << std::endl;
+    auto start = std::chrono::steady_clock::now();
+
+    generateSearchResults<<<(needleImageCount / warpCount) + 1, 32 * warpCount>>>(
+            device_needleDescriptors.content,
+            needleImageCount,
+            device_haystackDescriptors.content,
+            haystackImageCount,
+            device_searchResults);
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+    std::cout << "\t\t\tExecution time: " << duration.count() << std::endl;
+
+    // Step 3: Copying results to CPU
+
+    array<QuasiSpinImageSearchResults> searchResults;
+    searchResults.content = new QuasiSpinImageSearchResults[needleImageCount];
+    searchResults.length = needleImageCount;
+
+    checkCudaErrors(cudaMemcpy(searchResults.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));
+
+    // Cleanup
+
+    cudaFree(device_searchResults);
+
+    return searchResults;
 }

@@ -15,13 +15,13 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        array<ImageSearchResults> findDescriptorsInHaystack(
+        array<SpinImageSearchResults> findSpinImagesInHaystack(
                 array<spinImagePixelType> device_needleDescriptors,
                 size_t needleImageCount,
                 array<spinImagePixelType> device_haystackDescriptors,
                 size_t haystackImageCount);
 
-        array<unsigned int> computeSearchResultRanks(
+        array<unsigned int> computeSpinImageSearchResultRanks(
                 array<spinImagePixelType> device_needleDescriptors,
                 size_t needleImageCount,
                 array<spinImagePixelType> device_haystackDescriptors,

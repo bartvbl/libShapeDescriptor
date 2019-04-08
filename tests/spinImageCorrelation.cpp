@@ -71,16 +71,14 @@ TEST_CASE("Basic correlation computation (Spin Images)", "[correlation]") {
     }
 }
 
-const int imageCount = spinImageWidthPixels * spinImageWidthPixels + 1;
-const int pixelsPerImage = spinImageWidthPixels * spinImageWidthPixels;
-const float correlationThreshold = 0.000001f;
+const float correlationThreshold = 0.00001f;
 
-TEST_CASE("Ranking of search results on CPU", "[correlation]") {
+TEST_CASE("Ranking of Spin Images on CPU", "[correlation]") {
     array<spinImagePixelType> imageSequence = generateKnownSpinImageSequence(imageCount, pixelsPerImage);
     array<quasiSpinImagePixelType> quasiImageSequence = generateKnownQuasiSpinImageSequence(imageCount, pixelsPerImage);
 
     SECTION("Ensuring equivalent images have a correlation of 1") {
-        for (int i = 0; i < imageCount; i++) {
+        for (int i = 1; i < imageCount - 1; i++) {
             float pairCorrelation = SpinImage::cpu::computeSpinImagePairCorrelation(imageSequence.content,
                                                                                 imageSequence.content, i, i);
 
@@ -89,9 +87,9 @@ TEST_CASE("Ranking of search results on CPU", "[correlation]") {
         }
     }
 
-    SECTION("Image averages make sense (spin image)") {
+    SECTION("Spin Image averages make sense") {
         float previousAverage = SpinImage::cpu::computeImageAverage(imageSequence.content, 0);
-        REQUIRE(previousAverage == 0);
+        REQUIRE(previousAverage == 1.0f / float(spinImageWidthPixels * spinImageWidthPixels));
 
         for(int image = 1; image < imageCount; image++) {
             float average = SpinImage::cpu::computeImageAverage(imageSequence.content, image);
@@ -111,7 +109,7 @@ TEST_CASE("Ranking of search results on CPU", "[correlation]") {
         // First and last image are excluded because they are completely constant.
         // For these the pearson correlation coefficient is not defined, and they don't
         // really occur in spin images anyway
-        for (int i = 1; i < imageCount - 1; i++) {
+        for (int i = 0; i < imageCount; i++) {
             // Allow for shared first places
             int resultIndex = 0;
             while (std::abs(resultsCPU.at(i).at(resultIndex).correlation - 1.0f) < correlationThreshold) {
@@ -132,7 +130,7 @@ TEST_CASE("Ranking of search results on CPU", "[correlation]") {
         // Compute the GPU equivalent
         array<spinImagePixelType> device_haystackImages = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
 
-        array<ImageSearchResults> searchResults = SpinImage::gpu::findDescriptorsInHaystack(device_haystackImages, imageCount, device_haystackImages, imageCount);
+        array<SpinImageSearchResults> searchResults = SpinImage::gpu::findSpinImagesInHaystack(device_haystackImages, imageCount, device_haystackImages, imageCount);
 
         for(int image = 0; image < imageCount; image++) {
             for (int i = 0; i < SEARCH_RESULT_COUNT; i++) {
@@ -159,7 +157,7 @@ TEST_CASE("Ranking of search results on GPU") {
     array<spinImagePixelType> device_haystackImages = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
 
     SECTION("Ranking by generating search results on GPU") {
-        array<ImageSearchResults> searchResults = SpinImage::gpu::findDescriptorsInHaystack(device_haystackImages, imageCount, device_haystackImages, imageCount);
+        array<SpinImageSearchResults> searchResults = SpinImage::gpu::findSpinImagesInHaystack(device_haystackImages, imageCount, device_haystackImages, imageCount);
 
         SECTION("Equivalent images are the top search results") {
             for (int image = 0; image < imageCount; image++) {
@@ -191,7 +189,7 @@ TEST_CASE("Ranking of search results on GPU") {
 
     SECTION("Ranking by computing rank indices") {
 
-        array<unsigned int> results = SpinImage::gpu::computeSearchResultRanks(device_haystackImages, imageCount, device_haystackImages, imageCount);
+        array<unsigned int> results = SpinImage::gpu::computeSpinImageSearchResultRanks(device_haystackImages, imageCount, device_haystackImages, imageCount);
 
         for(int i = 0; i < imageCount; i++) {
             REQUIRE(results.content[i] == 0);
@@ -204,7 +202,7 @@ TEST_CASE("Ranking of search results on GPU") {
 
         array<spinImagePixelType> device_haystackImages_reversed = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
 
-        array<unsigned int> results = SpinImage::gpu::computeSearchResultRanks(device_haystackImages_reversed, imageCount, device_haystackImages_reversed, imageCount);
+        array<unsigned int> results = SpinImage::gpu::computeSpinImageSearchResultRanks(device_haystackImages_reversed, imageCount, device_haystackImages_reversed, imageCount);
 
         for(int i = 0; i < imageCount; i++) {
             REQUIRE(results.content[i] == 0);

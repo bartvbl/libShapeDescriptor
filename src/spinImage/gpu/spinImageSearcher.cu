@@ -106,7 +106,7 @@ __global__ void generateSearchResults(spinImagePixelType* needleDescriptors,
 									  size_t needleImageCount,
                                       spinImagePixelType* haystackDescriptors,
 									  size_t haystackImageCount,
-									  ImageSearchResults* searchResults,
+									  SpinImageSearchResults* searchResults,
 									  float* needleImageAverages,
 									  float* haystackImageAverages) {
 
@@ -201,12 +201,12 @@ __global__ void generateSearchResults(spinImagePixelType* needleDescriptors,
 
 }
 
-array<ImageSearchResults> doFindDescriptorsInHaystack(
-                                 array<spinImagePixelType> device_needleDescriptors,
-                                 size_t needleImageCount,
-                                 array<spinImagePixelType> device_haystackDescriptors,
-                                 size_t haystackImageCount)
-{
+array<SpinImageSearchResults> SpinImage::gpu::findSpinImagesInHaystack(
+        array<spinImagePixelType> device_needleDescriptors,
+        size_t needleImageCount,
+        array<spinImagePixelType> device_haystackDescriptors,
+        size_t haystackImageCount) {
+
     // Step 1: Compute image averages, since they're constant and are needed for each comparison
 
 	float* device_needleImageAverages;
@@ -222,8 +222,8 @@ array<ImageSearchResults> doFindDescriptorsInHaystack(
 
 	// Step 2: Perform search
 
-	size_t searchResultBufferSize = needleImageCount * sizeof(ImageSearchResults);
-	ImageSearchResults* device_searchResults;
+	size_t searchResultBufferSize = needleImageCount * sizeof(SpinImageSearchResults);
+    SpinImageSearchResults* device_searchResults;
 	checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
 
 	std::cout << "\t\tPerforming search.." << std::endl;
@@ -244,8 +244,8 @@ array<ImageSearchResults> doFindDescriptorsInHaystack(
 
     // Step 3: Copying results to CPU
 
-	array<ImageSearchResults> searchResults;
-	searchResults.content = new ImageSearchResults[needleImageCount];
+	array<SpinImageSearchResults> searchResults;
+	searchResults.content = new SpinImageSearchResults[needleImageCount];
 	searchResults.length = needleImageCount;
 
 	checkCudaErrors(cudaMemcpy(searchResults.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));
@@ -257,14 +257,6 @@ array<ImageSearchResults> doFindDescriptorsInHaystack(
 	cudaFree(device_searchResults);
 
 	return searchResults;
-}
-
-array<ImageSearchResults> SpinImage::gpu::findDescriptorsInHaystack(
-		array<spinImagePixelType> device_needleDescriptors,
-		size_t needleImageCount,
-		array<spinImagePixelType> device_haystackDescriptors,
-		size_t haystackImageCount) {
-	return doFindDescriptorsInHaystack(device_needleDescriptors, needleImageCount, device_haystackDescriptors, haystackImageCount);
 }
 
 
@@ -348,7 +340,7 @@ __global__ void computeSpinImageSearchResultIndices(
 	}
 }
 
-array<unsigned int> SpinImage::gpu::computeSearchResultRanks(
+array<unsigned int> SpinImage::gpu::computeSpinImageSearchResultRanks(
         array<spinImagePixelType> device_needleDescriptors,
         size_t needleImageCount,
         array<spinImagePixelType> device_haystackDescriptors,

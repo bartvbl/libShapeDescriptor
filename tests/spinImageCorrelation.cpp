@@ -99,7 +99,7 @@ TEST_CASE("Ranking of Spin Images on CPU", "[correlation]") {
             previousAverage = average;
         }
 
-        REQUIRE(previousAverage == 1);
+        REQUIRE(previousAverage == 1.0f - (1.0f / float(spinImageWidthPixels * spinImageWidthPixels)));
     }
 
     SECTION("Ranking of known images on CPU") {
@@ -132,12 +132,16 @@ TEST_CASE("Ranking of Spin Images on CPU", "[correlation]") {
 
         array<SpinImageSearchResults> searchResults = SpinImage::gpu::findSpinImagesInHaystack(device_haystackImages, imageCount, device_haystackImages, imageCount);
 
+        // The GPU version has a different floating point computation path relative to the CPU equivalent
+        // This means the cumulative rounding can be noticeably different
+        // That's why this test has a wider error margin than others.
+        const float maxRoundingError = 0.001f;
+
         for(int image = 0; image < imageCount; image++) {
             for (int i = 0; i < SEARCH_RESULT_COUNT; i++) {
                 std::cout << "Image " << image << ", result " << i << ": scores(" << searchResults.content[image].resultScores[i] << ", " << resultsCPU.at(image).at(i).correlation << ") & indices (" << searchResults.content[image].resultIndices[i] << ", " << resultsCPU.at(image).at(i).imageIndex << ")" << std::endl;
 
-                //REQUIRE(searchResults.content[image].resultIndices[i] == resultsCPU.at(image).at(i).imageIndex);
-                REQUIRE(std::abs(searchResults.content[image].resultScores[i] - resultsCPU.at(image).at(i).correlation) < correlationThreshold);
+                REQUIRE(std::abs(searchResults.content[image].resultScores[i] - resultsCPU.at(image).at(i).correlation) < maxRoundingError);
             }
         }
 
@@ -148,7 +152,7 @@ TEST_CASE("Ranking of Spin Images on CPU", "[correlation]") {
     }
 }
 
-TEST_CASE("Ranking of search results on GPU") {
+TEST_CASE("Ranking of Spin Images on the GPU") {
 
     SpinImage::utilities::createCUDAContext();
 

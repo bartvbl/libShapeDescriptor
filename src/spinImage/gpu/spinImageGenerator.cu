@@ -192,7 +192,7 @@ __global__ void sampleMesh(DeviceMesh mesh, array<float> areaArray, array<float3
 // @TODO: Determine whether all coordinates checked agains the cube grid are in cube grid space.
 
 // Run once for every vertex index
-__global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, array<spinImagePixelType> descriptors, array<float> areaArray, int sampleCount, float oneOverSpinImagePixelWidth)
+__global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, array<spinImagePixelType> descriptors, array<float> areaArray, size_t sampleCount, float oneOverSpinImagePixelWidth)
 {
 #define spinImageIndexIndex blockIdx.x
 

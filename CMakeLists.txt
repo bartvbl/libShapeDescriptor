@@ -6,7 +6,7 @@ find_package(OpenMP)
 find_package(CUDA REQUIRED)
 
 if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -lpthread -Wall -std=c++17")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -lpthread -Wall -std=c++14")
 endif()
 
 if (MSVC)
@@ -14,7 +14,7 @@ if (MSVC)
 endif()
 
 
-set(CUDA_NVCC_FLAGS -arch=sm_61 -gencode arch=compute_61,code=\"sm_61,compute_61\" -Xptxas -O3,-v -lcurand -lineinfo -lcudart)
+set(CUDA_NVCC_FLAGS -arch=sm_61 -gencode arch=compute_61,code=\"sm_61,compute_61\" -Xptxas -O3,-v -lcurand -lineinfo -lcudart -std=c++14)
 
 
 

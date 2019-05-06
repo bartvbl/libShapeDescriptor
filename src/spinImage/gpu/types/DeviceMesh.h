@@ -18,5 +18,9 @@ struct DeviceMesh {
 	}
 };
 
-DeviceMesh duplicateDeviceMesh(DeviceMesh mesh);
-void freeDeviceMesh(DeviceMesh mesh);
+namespace SpinImage {
+    namespace gpu {
+        DeviceMesh duplicateDeviceMesh(DeviceMesh mesh);
+        void freeDeviceMesh(DeviceMesh mesh);
+    }
+}

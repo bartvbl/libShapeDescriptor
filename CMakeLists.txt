@@ -28,17 +28,18 @@ include_directories (
         ${CUDA_INCLUDE_DIRS}
 )
 
-file (GLOB_RECURSE LIBRARY_HEADERS src/*.hpp
-                                   src/*.h
-                                   src/*.cuh)
-file (GLOB_RECURSE LIBRARY_KERNELS src/*.cu
-                                   lib/nvidia-samples-common/*.cu)
-file (GLOB_RECURSE LIBRARY_SOURCES src/*.cpp
-                                   src/*.cxx
-                                   src/*.cc
-                                   src/*.c
-                                   lib/lodepng/lodepng.cpp)
-file (GLOB_RECURSE TEST_SOURCES    tests/*.cpp)
+file (GLOB_RECURSE LIBRARY_HEADERS        src/*.hpp
+                                          src/*.h
+                                          src/*.cuh)
+file (GLOB_RECURSE LIBRARY_KERNELS        src/*.cu
+                                          lib/nvidia-samples-common/*.cu)
+file (GLOB_RECURSE LIBRARY_SOURCES        src/*.cpp
+                                          src/*.cxx
+                                          src/*.cc
+                                          src/*.c
+                                          lib/lodepng/lodepng.cpp)
+file (GLOB_RECURSE TEST_SOURCES           tests/*.cpp)
+file (GLOB_RECURSE RENDER_TOOL_SOURCES    tools/imagerenderer/*.cpp)
 
 cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -51,3 +52,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC src/)
 add_subdirectory(lib/Catch2)
 add_executable(runTests ${TEST_SOURCES})
 target_link_libraries(runTests SpinImage Catch2::Catch2 cudadevrt)
+
+add_executable(imagerenderer ${RENDER_TOOL_SOURCES})
+target_link_libraries(imagerenderer SpinImage cudadevrt)

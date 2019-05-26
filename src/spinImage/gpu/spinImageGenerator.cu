@@ -32,7 +32,7 @@ struct DeviceVertexList {
         checkCudaErrors(cudaMalloc(&z, length * sizeof(float)));
     }
 
-    float3 at(size_t index) {
+    __device__ float3 at(size_t index) {
         float3 item;
         item.x = x[index];
         item.y = y[index];
@@ -40,7 +40,7 @@ struct DeviceVertexList {
         return item;
     }
 
-    void set(size_t index, float3 value) {
+    __device__ void set(size_t index, float3 value) {
         x[index] = value.x;
         y[index] = value.y;
         z[index] = value.z;
@@ -393,6 +393,7 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
         DeviceMesh device_mesh,
         float spinImageWidth,
         size_t sampleCount,
+        float supportAngleDegrees,
         SpinImage::debug::SIRunInfo* runInfo)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
@@ -407,6 +408,8 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 	array<spinImagePixelType> device_descriptors;
 	array<float> device_areaArray;
 	array<float> device_cumulativeAreaArray;
+
+	float supportAngleCosine = float(std::cos(supportAngleDegrees * (M_PI / 180.0)));
 
 	// -- Initialisation --
 	auto initialisationStart = std::chrono::steady_clock::now();
@@ -466,7 +469,7 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 	            device_cumulativeAreaArray,
 	            sampleCount,
 	            float(spinImageWidthPixels)/spinImageWidth,
-	            std::cos(supportAngle));
+	            supportAngleCosine);
 	    checkCudaErrors(cudaDeviceSynchronize());
 	    checkCudaErrors(cudaGetLastError());
 

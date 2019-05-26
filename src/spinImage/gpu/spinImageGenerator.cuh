@@ -18,6 +18,7 @@ namespace SpinImage {
                 DeviceMesh device_mesh,
                 float spinImageWidth,
                 size_t sampleCount,
+                float supportAngleDegrees,
                 SpinImage::debug::SIRunInfo* runInfo = nullptr);
     }
 }

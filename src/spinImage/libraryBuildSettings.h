@@ -28,9 +28,6 @@
 // Due to the implementation, this value MUST be a multiple of 32.
 #define SEARCH_RESULT_COUNT 128
 
-// Unsupported at the moment.
-#define spinImageSupportAngle 60
-
 
 
 #include <spinImage/common/buildSettings/derivedBuildSettings.h>

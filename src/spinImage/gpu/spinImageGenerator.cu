@@ -22,34 +22,34 @@
 #define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
 
 struct DeviceVertexList {
-    float* x;
-    float* y;
-    float* z;
+    float* array;
+    size_t length;
 
     DeviceVertexList(size_t length) {
-        checkCudaErrors(cudaMalloc(&x, length * sizeof(float)));
-        checkCudaErrors(cudaMalloc(&y, length * sizeof(float)));
-        checkCudaErrors(cudaMalloc(&z, length * sizeof(float)));
+        checkCudaErrors(cudaMalloc(&array, 3 * length * sizeof(float)));
+        this->length = length;
     }
 
     __device__ float3 at(size_t index) {
+        assert(index < length);
+
         float3 item;
-        item.x = x[index];
-        item.y = y[index];
-        item.z = z[index];
+        item.x = array[index];
+        item.y = array[index + length];
+        item.z = array[index + 2 * length];
         return item;
     }
 
     __device__ void set(size_t index, float3 value) {
-        x[index] = value.x;
-        y[index] = value.y;
-        z[index] = value.z;
+        assert(index < length);
+
+        array[index] = value.x;
+        array[index + length] = value.y;
+        array[index + 2 * length] = value.z;
     }
 
     void free() {
-        checkCudaErrors(cudaFree(x));
-        checkCudaErrors(cudaFree(y));
-        checkCudaErrors(cudaFree(z));
+        checkCudaErrors(cudaFree(array));
     }
 };
 
@@ -204,8 +204,8 @@ __global__ void generateRandomSampleCoefficients(array<float2> coefficients, cur
 __global__ void sampleMesh(
         DeviceMesh mesh,
         array<float> areaArray,
-        DeviceVertexList &pointSamples,
-        DeviceVertexList &pointNormals,
+        DeviceVertexList pointSamples,
+        DeviceVertexList pointNormals,
         array<float2> coefficients,
         int sampleCount) {
 	int triangleIndex = blockIdx.x * blockDim.x + threadIdx.x;
@@ -245,10 +245,8 @@ __global__ void sampleMesh(
         sampleNormal = normalize(sampleNormal);
 
 		assert(sampleIndex < sampleCount);
-
-        pointSamples.set(sampleIndex, samplePoint);
+		pointSamples.set(sampleIndex, samplePoint);
 		pointNormals.set(sampleIndex, sampleNormal);
-
 	}
 }
 

@@ -57,7 +57,7 @@ int main(int argc, const char** argv) {
 
     std::cout << "Generating images.. (this can take a while)" << std::endl;
     if(generationMode.value() == "spinimage") {
-        array<spinImagePixelType> descriptors = SpinImage::gpu::generateSpinImages(deviceMesh, spinImageWidth.value(), supportAngle.value(), spinImageSampleCount.value());
+        array<spinImagePixelType> descriptors = SpinImage::gpu::generateSpinImages(deviceMesh, spinImageWidth.value(), spinImageSampleCount.value(), supportAngle.value());
         std::cout << "Dumping results.. " << std::endl;
         array<spinImagePixelType> hostDescriptors = SpinImage::copy::spinImageDescriptorsToHost(descriptors, deviceMesh.vertexCount);
         if(imageLimit.value() != -1) {

@@ -313,7 +313,7 @@ __global__ void createDescriptors(
 
 			float sampleAngle = dot(sampleNormal, normal);
 
-			if(sampleAngle < supportAngleCosine) {
+			if(sampleAngle > supportAngleCosine) {
 			    continue;
 			}
 

@@ -311,10 +311,11 @@ __global__ void createDescriptors(
 			float3 samplePoint = pointSamples.at(sampleIndex);
 			float3 sampleNormal = pointNormals.at(sampleIndex);
 
-			float sampleAngle = dot(sampleNormal, normal);
+			float sampleAngleCosine = dot(sampleNormal, normal);
 
-			if(sampleAngle > supportAngleCosine) {
-			    continue;
+			if(sampleAngleCosine < supportAngleCosine) {
+			    // Discard the sample
+				continue;
 			}
 
 			float2 sampleAlphaBeta = calculateAlphaBeta(vertex, normal, samplePoint);

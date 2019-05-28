@@ -21,7 +21,37 @@
 
 #define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
 
+struct DeviceVertexList {
+    float* array;
+    size_t length;
 
+    DeviceVertexList(size_t length) {
+        checkCudaErrors(cudaMalloc(&array, 3 * length * sizeof(float)));
+        this->length = length;
+    }
+
+    __device__ float3 at(size_t index) {
+        assert(index < length);
+
+        float3 item;
+        item.x = array[index];
+        item.y = array[index + length];
+        item.z = array[index + 2 * length];
+        return item;
+    }
+
+    __device__ void set(size_t index, float3 value) {
+        assert(index < length);
+
+        array[index] = value.x;
+        array[index + length] = value.y;
+        array[index + 2 * length] = value.z;
+    }
+
+    void free() {
+        checkCudaErrors(cudaFree(array));
+    }
+};
 
 __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNormal, float3 point)
 {
@@ -61,9 +91,32 @@ __device__ __inline__ void lookupTriangleVertices(DeviceMesh mesh, int triangleI
 	triangleVertices[2].y = mesh.vertices_y[triangleBaseIndex + 2];
 	triangleVertices[2].z = mesh.vertices_z[triangleBaseIndex + 2];
 
-	assert(!isnan(triangleVertices[0].x) && !isnan(triangleVertices[0].y) && !isnan(triangleVertices[0].z));
+	/*assert(!isnan(triangleVertices[0].x) && !isnan(triangleVertices[0].y) && !isnan(triangleVertices[0].z));
 	assert(!isnan(triangleVertices[1].x) && !isnan(triangleVertices[1].y) && !isnan(triangleVertices[1].z));
-	assert(!isnan(triangleVertices[2].x) && !isnan(triangleVertices[2].y) && !isnan(triangleVertices[2].z));
+	assert(!isnan(triangleVertices[2].x) && !isnan(triangleVertices[2].y) && !isnan(triangleVertices[2].z));*/
+}
+
+__device__ __inline__ void lookupTriangleNormals(DeviceMesh mesh, int triangleIndex, float3 (&triangleNormals)[3]) {
+    assert(triangleIndex >= 0);
+    assert((3 * triangleIndex) + 2 < mesh.vertexCount);
+
+    unsigned int triangleBaseIndex = 3 * triangleIndex;
+
+    triangleNormals[0].x = mesh.normals_x[triangleBaseIndex];
+    triangleNormals[0].y = mesh.normals_y[triangleBaseIndex];
+    triangleNormals[0].z = mesh.normals_z[triangleBaseIndex];
+
+    triangleNormals[1].x = mesh.normals_x[triangleBaseIndex + 1];
+    triangleNormals[1].y = mesh.normals_y[triangleBaseIndex + 1];
+    triangleNormals[1].z = mesh.normals_z[triangleBaseIndex + 1];
+
+    triangleNormals[2].x = mesh.normals_x[triangleBaseIndex + 2];
+    triangleNormals[2].y = mesh.normals_y[triangleBaseIndex + 2];
+    triangleNormals[2].z = mesh.normals_z[triangleBaseIndex + 2];
+
+    /*assert(!isnan(triangleNormals[0].x) && !isnan(triangleNormals[0].y) && !isnan(triangleNormals[0].z));
+    assert(!isnan(triangleNormals[1].x) && !isnan(triangleNormals[1].y) && !isnan(triangleNormals[1].z));
+    assert(!isnan(triangleNormals[2].x) && !isnan(triangleNormals[2].y) && !isnan(triangleNormals[2].z));*/
 }
 
 struct SampleBounds {
@@ -148,8 +201,13 @@ __global__ void generateRandomSampleCoefficients(array<float2> coefficients, cur
 }
 
 // One thread = One triangle
-__global__ void sampleMesh(DeviceMesh mesh, array<float> areaArray, array<float3> pointSamples,
-						   array<float2> coefficients, int sampleCount) {
+__global__ void sampleMesh(
+        DeviceMesh mesh,
+        array<float> areaArray,
+        DeviceVertexList pointSamples,
+        DeviceVertexList pointNormals,
+        array<float2> coefficients,
+        int sampleCount) {
 	int triangleIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
 	if(triangleIndex >= mesh.vertexCount / 3)
@@ -159,6 +217,9 @@ __global__ void sampleMesh(DeviceMesh mesh, array<float> areaArray, array<float3
 
 	float3 triangleVertices[3];
 	lookupTriangleVertices(mesh, triangleIndex, triangleVertices);
+
+	float3 triangleNormals[3];
+    lookupTriangleNormals(mesh, triangleIndex, triangleNormals);
 
 	SampleBounds bounds = calculateSampleBounds(areaArray, triangleIndex, sampleCount);
 
@@ -171,14 +232,21 @@ __global__ void sampleMesh(DeviceMesh mesh, array<float> areaArray, array<float3
 
 		float v1 = coefficients.content[sampleIndex].x;
 		float v2 = coefficients.content[sampleIndex].y;
+
 		float3 samplePoint =
 				(1 - sqrt(v1)) * triangleVertices[0] +
 				(sqrt(v1) * (1 - v2)) * triangleVertices[1] +
 				(sqrt(v1) * v2) * triangleVertices[2];
 
+        float3 sampleNormal =
+                (1 - sqrt(v1)) * triangleNormals[0] +
+                (sqrt(v1) * (1 - v2)) * triangleNormals[1] +
+                (sqrt(v1) * v2) * triangleNormals[2];
+        sampleNormal = normalize(sampleNormal);
+
 		assert(sampleIndex < sampleCount);
-		assert(sampleIndex < pointSamples.length);
-		pointSamples.content[sampleIndex] = samplePoint;
+		pointSamples.set(sampleIndex, samplePoint);
+		pointNormals.set(sampleIndex, sampleNormal);
 	}
 }
 
@@ -192,7 +260,15 @@ __global__ void sampleMesh(DeviceMesh mesh, array<float> areaArray, array<float3
 // @TODO: Determine whether all coordinates checked agains the cube grid are in cube grid space.
 
 // Run once for every vertex index
-__global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, array<spinImagePixelType> descriptors, array<float> areaArray, size_t sampleCount, float oneOverSpinImagePixelWidth)
+__global__ void createDescriptors(
+        DeviceMesh mesh,
+        DeviceVertexList pointSamples,
+        DeviceVertexList pointNormals,
+        array<spinImagePixelType> descriptors,
+        array<float> areaArray,
+        size_t sampleCount,
+        float oneOverSpinImagePixelWidth,
+        float supportAngleCosine)
 {
 #define spinImageIndexIndex blockIdx.x
 
@@ -232,9 +308,15 @@ __global__ void createDescriptors(DeviceMesh mesh, array<float3> pointSamples, a
 				continue;
 			}
 
-			assert(sampleIndex < pointSamples.length);
+			float3 samplePoint = pointSamples.at(sampleIndex);
+			float3 sampleNormal = pointNormals.at(sampleIndex);
 
-			float3 samplePoint = pointSamples.content[sampleIndex];
+			float sampleAngle = dot(sampleNormal, normal);
+
+			if(sampleAngle > supportAngleCosine) {
+			    continue;
+			}
+
 			float2 sampleAlphaBeta = calculateAlphaBeta(vertex, normal, samplePoint);
 
 			float floatSpinImageCoordinateX = (sampleAlphaBeta.x * oneOverSpinImagePixelWidth);
@@ -309,6 +391,7 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
         DeviceMesh device_mesh,
         float spinImageWidth,
         size_t sampleCount,
+        float supportAngleDegrees,
         SpinImage::debug::SIRunInfo* runInfo)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
@@ -323,22 +406,24 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 	array<spinImagePixelType> device_descriptors;
 	array<float> device_areaArray;
 	array<float> device_cumulativeAreaArray;
-	array<float3> device_pointSamples;
+
+	float supportAngleCosine = float(std::cos(supportAngleDegrees * (M_PI / 180.0)));
 
 	// -- Initialisation --
 	auto initialisationStart = std::chrono::steady_clock::now();
 
+        DeviceVertexList device_pointSamples(sampleCount);
+        DeviceVertexList device_pointNormals(sampleCount);
+
 		checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
 		checkCudaErrors(cudaMalloc(&device_areaArray.content, areaArraySize));
 		checkCudaErrors(cudaMalloc(&device_cumulativeAreaArray.content, areaArraySize));
-		checkCudaErrors(cudaMalloc(&device_pointSamples.content, sizeof(float3) * sampleCount));
 		checkCudaErrors(cudaMalloc(&device_randomState, sizeof(curandState) * (size_t)SAMPLE_COEFFICIENT_THREAD_COUNT));
 		checkCudaErrors(cudaMalloc(&device_coefficients.content, sizeof(float2) * sampleCount));
 
 		device_descriptors.length = device_mesh.vertexCount;
 		device_areaArray.length = (unsigned) areaArrayLength;
 		device_cumulativeAreaArray.length = (unsigned) areaArrayLength;
-		device_pointSamples.length = sampleCount;
 
 		CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength);
 		CudaLaunchDimensions areaSettings = calculateCudaLaunchDimensions(device_areaArray.length);
@@ -365,7 +450,7 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 		cudaDeviceSynchronize();
 		checkCudaErrors(cudaGetLastError());
 
-		sampleMesh <<<areaSettings.blocksPerGrid, areaSettings.threadsPerBlock>>>(device_mesh, device_cumulativeAreaArray, device_pointSamples, device_coefficients, sampleCount);
+		sampleMesh <<<areaSettings.blocksPerGrid, areaSettings.threadsPerBlock>>>(device_mesh, device_cumulativeAreaArray, device_pointSamples, device_pointNormals, device_coefficients, sampleCount);
 		cudaDeviceSynchronize();
 		checkCudaErrors(cudaGetLastError());
 
@@ -377,10 +462,12 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 	    createDescriptors <<<device_mesh.vertexCount, 416>>>(
 	            device_mesh,
 	            device_pointSamples,
+	            device_pointNormals,
 	            device_descriptors,
 	            device_cumulativeAreaArray,
 	            sampleCount,
-	            float(spinImageWidthPixels)/spinImageWidth);
+	            float(spinImageWidthPixels)/spinImageWidth,
+	            supportAngleCosine);
 	    checkCudaErrors(cudaDeviceSynchronize());
 	    checkCudaErrors(cudaGetLastError());
 
@@ -390,9 +477,10 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 
 	checkCudaErrors(cudaFree(device_areaArray.content));
 	checkCudaErrors(cudaFree(device_cumulativeAreaArray.content));
-	checkCudaErrors(cudaFree(device_pointSamples.content));
 	checkCudaErrors(cudaFree(device_randomState));
 	checkCudaErrors(cudaFree(device_coefficients.content));
+	device_pointSamples.free();
+	device_pointNormals.free();
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 

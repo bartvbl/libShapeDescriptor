@@ -22,6 +22,8 @@ int main(int argc, const char** argv) {
             "spin-image-width", "The size of the spin image plane in 3D object space", '\0', arrrgh::Optional, 1.0f);
     const auto& imageLimit = parser.add<int>(
             "image-limit", "The maximum number of images to generate (in order to limit image size)", '\0', arrrgh::Optional, -1);
+    const auto& supportAngle = parser.add<float>(
+            "spin-image-support-angle", "The support angle to use for spin image generation", '\0', arrrgh::Optional, 90.0f);
     const auto& spinImageSampleCount = parser.add<int>(
             "spin-image-sample-count", "The number of uniformly sampled points to use for spin image generation", '\0', arrrgh::Optional, 1000000);
     const auto& outputFile = parser.add<std::string>(
@@ -55,7 +57,7 @@ int main(int argc, const char** argv) {
 
     std::cout << "Generating images.. (this can take a while)" << std::endl;
     if(generationMode.value() == "spinimage") {
-        array<spinImagePixelType> descriptors = SpinImage::gpu::generateSpinImages(deviceMesh, spinImageWidth.value(), spinImageSampleCount.value());
+        array<spinImagePixelType> descriptors = SpinImage::gpu::generateSpinImages(deviceMesh, spinImageWidth.value(), spinImageSampleCount.value(), supportAngle.value());
         std::cout << "Dumping results.. " << std::endl;
         array<spinImagePixelType> hostDescriptors = SpinImage::copy::spinImageDescriptorsToHost(descriptors, deviceMesh.vertexCount);
         if(imageLimit.value() != -1) {

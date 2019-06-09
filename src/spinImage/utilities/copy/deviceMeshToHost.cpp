@@ -40,7 +40,7 @@ HostMesh SpinImage::copy::deviceMeshToHost(DeviceMesh deviceMesh)
     delete[] tempVertexBuffer;
 
     for(size_t i = 0; i < vertexCount; i++) {
-        hostMesh.indices[i] = i + 1;
+        hostMesh.indices[i] = i;
     }
 
     return hostMesh;

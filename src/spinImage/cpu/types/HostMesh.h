@@ -14,17 +14,12 @@ struct HostMesh {
 	size_t vertexCount;
 	size_t indexCount;
 
-	float3_cpu boundingBoxMin;
-	float3_cpu boundingBoxMax;
-
 	HostMesh() {
 		vertices = nullptr;
 		normals = nullptr;
 		indices = nullptr;
 		vertexCount = 0;
 		indexCount = 0;
-		boundingBoxMin = {0, 0, 0};
-		boundingBoxMax = {0, 0, 0};
 	}
 
 	HostMesh(size_t vertCount, size_t numIndices) {
@@ -34,9 +29,6 @@ struct HostMesh {
 		indices = new unsigned int[numIndices];
 		indexCount = numIndices;
 		vertexCount = vertCount;
-
-		boundingBoxMin = {0, 0, 0};
-		boundingBoxMax = {5, 5, 5};
 	}
 };
 

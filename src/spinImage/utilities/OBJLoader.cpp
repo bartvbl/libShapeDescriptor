@@ -206,8 +206,8 @@ HostMesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
 		mesh.vertexCount = 3 * faceCount;
 		mesh.indexCount = 3 * faceCount;
 
-		mesh.boundingBoxMin = boundingBoxMin;
-		mesh.boundingBoxMax = boundingBoxMax;
+		//mesh.boundingBoxMin = boundingBoxMin;
+		//mesh.boundingBoxMax = boundingBoxMax;
 
 		return mesh;
 	}

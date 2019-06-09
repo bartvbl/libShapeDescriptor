@@ -249,6 +249,9 @@ __device__ __inline__ void rasteriseTriangle(
 		// Verified: this should be <=, because it fails for the cube tests case
 		const bool isBottomSection = float(pixelY) <= midVector.z;
 
+		// Technically I can rewrite this into two separate loops
+		// However, that would increase the thread divergence
+		// I believe this is the best option
 		const float shortDeltaVectorZ = isBottomSection ? deltaMinMid.z : deltaMidMax.z;
 		const float shortVectorStartZ = isBottomSection ? minVector.z : midVector.z;
 		const float2 shortVectorStartXY = isBottomSection ? minXY : midXY;

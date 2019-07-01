@@ -38,7 +38,6 @@ struct QSIMesh {
     float* geometryBasePointer;
     float* spinImageGeometryBasePointer;
 
-    size_t imageCount;
     size_t vertexCount;
 };
 
@@ -82,7 +81,7 @@ __device__ __inline__ float2 alignWithPositiveX(const float2 &midLineDirection, 
 	return transformed;
 }
 
-__device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInBytes) {
+__host__ __device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInBytes) {
     return (sizeInBytes + 127u) & ~((size_t) 127);
 }
 
@@ -343,7 +342,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinI
 	// Copying over precalculated values
 	float3 spinImageVertex;
 
-	const size_t spinComponentBlockSize = roundSizeToNearestCacheLine(mesh.imageCount);
+	const size_t spinComponentBlockSize = roundSizeToNearestCacheLine(mesh.vertexCount);
 
 	spinImageVertex.x = mesh.spinImageGeometryBasePointer[0 * spinComponentBlockSize + renderedSpinImageIndex];
     spinImageVertex.y = mesh.spinImageGeometryBasePointer[1 * spinComponentBlockSize + renderedSpinImageIndex];
@@ -456,7 +455,7 @@ __global__ void redistributeMesh(DeviceMesh mesh, QSIMesh qsiMesh) {
     qsiMesh.geometryBasePointer[8 * blockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
 }
 
-__global__ void removeDuplicates(DeviceMesh inputMesh, DeviceMesh outputMesh, size_t* totalVertexCount) {
+__global__ void removeDuplicates(DeviceMesh inputMesh, QSIMesh outMesh, size_t* totalVertexCount) {
     // Only a single warp to avoid complications related to divergence within a block
     // (syncthreads may hang indefinitely if some threads diverged)
     const int threadCount = 32;
@@ -514,14 +513,16 @@ __global__ void removeDuplicates(DeviceMesh inputMesh, DeviceMesh outputMesh, si
         unsigned int indicesBeforeMe = __popc(uniqueVerticesInWarp << (32 - threadIndex));
         size_t outVertexIndex = arrayPointer + indicesBeforeMe;
 
-        if(!shouldBeDiscarded) {
-            outputMesh.vertices_x[outVertexIndex] = vertex.x;
-            outputMesh.vertices_y[outVertexIndex] = vertex.y;
-            outputMesh.vertices_z[outVertexIndex] = vertex.z;
+        const size_t blockSize = roundSizeToNearestCacheLine(outMesh.vertexCount);
 
-            outputMesh.normals_x[outVertexIndex] = normal.x;
-            outputMesh.normals_y[outVertexIndex] = normal.y;
-            outputMesh.normals_z[outVertexIndex] = normal.z;
+        if(!shouldBeDiscarded) {
+            outMesh.spinImageGeometryBasePointer[0 * blockSize + outVertexIndex] = vertex.x;
+			outMesh.spinImageGeometryBasePointer[1 * blockSize + outVertexIndex] = vertex.y;
+			outMesh.spinImageGeometryBasePointer[2 * blockSize + outVertexIndex] = vertex.z;
+
+			outMesh.spinImageGeometryBasePointer[3 * blockSize + outVertexIndex] = normal.x;
+			outMesh.spinImageGeometryBasePointer[4 * blockSize + outVertexIndex] = normal.y;
+			outMesh.spinImageGeometryBasePointer[5 * blockSize + outVertexIndex] = normal.z;
         }
 
         if(threadIndex == 0) {
@@ -533,23 +534,20 @@ __global__ void removeDuplicates(DeviceMesh inputMesh, DeviceMesh outputMesh, si
     *totalVertexCount = arrayPointer;
 }
 
-DeviceMesh removeDuplicates(DeviceMesh mesh) {
+size_t removeDuplicates(DeviceMesh mesh, QSIMesh &outMesh) {
     std::cout << "Removing duplicate vertices.. " << std::endl;
     size_t* device_totalVertexCount;
     checkCudaErrors(cudaMalloc(&device_totalVertexCount, sizeof(size_t)));
 
-    DeviceMesh outputMesh = SpinImage::gpu::duplicateDeviceMesh(mesh);
-
-    removeDuplicates<<<1, 32>>>(mesh, outputMesh, device_totalVertexCount);
+    removeDuplicates<<<1, 32>>>(mesh, outMesh, device_totalVertexCount);
     checkCudaErrors(cudaDeviceSynchronize());
 
     size_t totalVertexCount = 0;
     checkCudaErrors(cudaMemcpy(&totalVertexCount, device_totalVertexCount, sizeof(size_t), cudaMemcpyDeviceToHost));
 
     std::cout << "\tReduced " << mesh.vertexCount << " vertices to " << totalVertexCount << "." << std::endl;
-    outputMesh.vertexCount = totalVertexCount;
 
-    return outputMesh;
+    return totalVertexCount;
 }
 
 array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
@@ -574,23 +572,15 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
 
     // -- Array Restructuring --
 
-    DeviceMesh deduplicatedMesh = removeDuplicates(device_meshCopy);
-
     QSIMesh qsiMesh;
-    qsiMesh.imageCount = deduplicatedMesh.vertexCount;
     qsiMesh.vertexCount = device_meshCopy.vertexCount;
-    qsiMesh.vertices_x = deduplicatedMesh.vertices_x;
-    qsiMesh.vertices_y = deduplicatedMesh.vertices_y;
-    qsiMesh.vertices_z = deduplicatedMesh.vertices_z;
-    qsiMesh.normals_x = deduplicatedMesh.normals_x;
-    qsiMesh.normals_y = deduplicatedMesh.normals_y;
-    qsiMesh.normals_z = deduplicatedMesh.normals_z;
-
 
     checkCudaErrors(cudaMalloc(&qsiMesh.spinImageGeometryBasePointer,
-            roundSizeToNearestCacheLine(qsiMesh.imageCount) * 2 * sizeof(float3)));
+            roundSizeToNearestCacheLine(qsiMesh.vertexCount) * 2 * sizeof(float3)));
     checkCudaErrors(cudaMalloc(&qsiMesh.geometryBasePointer,
             roundSizeToNearestCacheLine(qsiMesh.vertexCount) * 3 * sizeof(float3)));
+
+	size_t imageCount = removeDuplicates(device_meshCopy, qsiMesh);
 
     float* device_QSIMeshBasePointer;
     size_t triangleCount = device_meshCopy.vertexCount / (size_t) 3;
@@ -611,7 +601,6 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
 	checkCudaErrors(cudaMalloc(&device_descriptors_content, descriptorBufferSize));
 
     array<quasiSpinImagePixelType> device_descriptors;
-	size_t imageCount = device_meshCopy.vertexCount;
 	device_descriptors.content = device_descriptors_content;
 	device_descriptors.length = imageCount;
 

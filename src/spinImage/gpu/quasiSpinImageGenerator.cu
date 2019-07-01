@@ -35,26 +35,10 @@ const int SHORT_DOUBLE_FIRST_MASK = 0x00020000;
 const int RASTERISATION_WARP_SIZE = 1024;
 
 struct QSIMesh {
-    float* vertex_0_x;
-    float* vertex_0_y;
-    float* vertex_0_z;
+    float* geometryBasePointer;
+    float* spinImageGeometryBasePointer;
 
-    float* vertex_1_x;
-    float* vertex_1_y;
-    float* vertex_1_z;
-
-    float* vertex_2_x;
-    float* vertex_2_y;
-    float* vertex_2_z;
-
-    float* vertices_x;
-    float* vertices_y;
-    float* vertices_z;
-
-    float* normals_x;
-    float* normals_y;
-    float* normals_z;
-
+    size_t imageCount;
     size_t vertexCount;
 };
 
@@ -96,6 +80,10 @@ __device__ __inline__ float2 alignWithPositiveX(const float2 &midLineDirection, 
 	transformed.x = midLineDirection.x * vertex.x + midLineDirection.y * vertex.y;
 	transformed.y = -midLineDirection.y * vertex.x + midLineDirection.x * vertex.y;
 	return transformed;
+}
+
+__device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInBytes) {
+    return (sizeInBytes + 127u) & ~((size_t) 127);
 }
 
 #if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
@@ -354,14 +342,17 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinI
 {
 	// Copying over precalculated values
 	float3 spinImageVertex;
-	spinImageVertex.x = mesh.vertices_x[renderedSpinImageIndex];
-    spinImageVertex.y = mesh.vertices_y[renderedSpinImageIndex];
-	spinImageVertex.z = mesh.vertices_z[renderedSpinImageIndex];
+
+	const size_t spinComponentBlockSize = roundSizeToNearestCacheLine(mesh.imageCount);
+
+	spinImageVertex.x = mesh.spinImageGeometryBasePointer[0 * spinComponentBlockSize + renderedSpinImageIndex];
+    spinImageVertex.y = mesh.spinImageGeometryBasePointer[1 * spinComponentBlockSize + renderedSpinImageIndex];
+	spinImageVertex.z = mesh.spinImageGeometryBasePointer[2 * spinComponentBlockSize + renderedSpinImageIndex];
 
 	float3 spinImageNormal;
-	spinImageNormal.x = mesh.normals_x[renderedSpinImageIndex];
-	spinImageNormal.y = mesh.normals_y[renderedSpinImageIndex];
-	spinImageNormal.z = mesh.normals_z[renderedSpinImageIndex];
+	spinImageNormal.x = mesh.spinImageGeometryBasePointer[3 * spinComponentBlockSize + renderedSpinImageIndex];
+	spinImageNormal.y = mesh.spinImageGeometryBasePointer[4 * spinComponentBlockSize + renderedSpinImageIndex];
+	spinImageNormal.z = mesh.spinImageGeometryBasePointer[5 * spinComponentBlockSize + renderedSpinImageIndex];
 
 	assert(__activemask() == 0xFFFFFFFF);
 
@@ -385,17 +376,19 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinI
 	{
 		float3 vertices[3];
 
-		vertices[0].x = mesh.vertex_0_x[triangleIndex];
-		vertices[0].y = mesh.vertex_0_y[triangleIndex];
-		vertices[0].z = mesh.vertex_0_z[triangleIndex];
+        const size_t vertexComponentBlockSize = roundSizeToNearestCacheLine(mesh.vertexCount);
 
-		vertices[1].x = mesh.vertex_1_x[triangleIndex];
-		vertices[1].y = mesh.vertex_1_y[triangleIndex];
-		vertices[1].z = mesh.vertex_1_z[triangleIndex];
+		vertices[0].x = mesh.geometryBasePointer[0 * vertexComponentBlockSize + triangleIndex];
+		vertices[0].y = mesh.geometryBasePointer[1 * vertexComponentBlockSize + triangleIndex];
+		vertices[0].z = mesh.geometryBasePointer[2 * vertexComponentBlockSize + triangleIndex];
 
-		vertices[2].x = mesh.vertex_2_x[triangleIndex];
-		vertices[2].y = mesh.vertex_2_y[triangleIndex];
-		vertices[2].z = mesh.vertex_2_z[triangleIndex];
+		vertices[1].x = mesh.geometryBasePointer[3 * vertexComponentBlockSize + triangleIndex];
+		vertices[1].y = mesh.geometryBasePointer[4 * vertexComponentBlockSize + triangleIndex];
+		vertices[1].z = mesh.geometryBasePointer[5 * vertexComponentBlockSize + triangleIndex];
+
+		vertices[2].x = mesh.geometryBasePointer[6 * vertexComponentBlockSize + triangleIndex];
+		vertices[2].y = mesh.geometryBasePointer[7 * vertexComponentBlockSize + triangleIndex];
+		vertices[2].z = mesh.geometryBasePointer[8 * vertexComponentBlockSize + triangleIndex];
 
 	#if ENABLE_SHARED_MEMORY_IMAGE
 		rasteriseTriangle(descriptorArrayPointer, vertices, spinImageVertex, spinImageNormal);
@@ -448,15 +441,115 @@ __global__ void redistributeMesh(DeviceMesh mesh, QSIMesh qsiMesh) {
     size_t triangleIndex = blockIdx.x;
     size_t triangleBaseIndex = 3 * triangleIndex;
 
-    qsiMesh.vertex_0_x[triangleIndex] = mesh.vertices_x[triangleBaseIndex + 0];
-    qsiMesh.vertex_0_y[triangleIndex] = mesh.vertices_y[triangleBaseIndex + 0];
-    qsiMesh.vertex_0_z[triangleIndex] = mesh.vertices_z[triangleBaseIndex + 0];
-    qsiMesh.vertex_1_x[triangleIndex] = mesh.vertices_x[triangleBaseIndex + 1];
-    qsiMesh.vertex_1_y[triangleIndex] = mesh.vertices_y[triangleBaseIndex + 1];
-    qsiMesh.vertex_1_z[triangleIndex] = mesh.vertices_z[triangleBaseIndex + 1];
-    qsiMesh.vertex_2_x[triangleIndex] = mesh.vertices_x[triangleBaseIndex + 2];
-    qsiMesh.vertex_2_y[triangleIndex] = mesh.vertices_y[triangleBaseIndex + 2];
-    qsiMesh.vertex_2_z[triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
+    // Round up the triangle count to the nearest
+    size_t triangleCount = mesh.vertexCount / 3;
+    size_t blockSize = roundSizeToNearestCacheLine(triangleCount);
+
+    qsiMesh.geometryBasePointer[0 * blockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 0];
+    qsiMesh.geometryBasePointer[1 * blockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 0];
+    qsiMesh.geometryBasePointer[2 * blockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 0];
+    qsiMesh.geometryBasePointer[3 * blockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 1];
+    qsiMesh.geometryBasePointer[4 * blockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 1];
+    qsiMesh.geometryBasePointer[5 * blockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 1];
+    qsiMesh.geometryBasePointer[6 * blockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 2];
+    qsiMesh.geometryBasePointer[7 * blockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 2];
+    qsiMesh.geometryBasePointer[8 * blockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
+}
+
+__global__ void removeDuplicates(DeviceMesh inputMesh, DeviceMesh outputMesh, size_t* totalVertexCount) {
+    // Only a single warp to avoid complications related to divergence within a block
+    // (syncthreads may hang indefinitely if some threads diverged)
+    const int threadCount = 32;
+
+    // Kernel is made for a single block of threads for easy implementation
+    assert(gridDim.x == 1 && gridDim.y == 1 && gridDim.z == 1);
+    assert(blockDim.x == threadCount && blockDim.y == 1 && blockDim.z == 1);
+
+    int threadIndex = threadIdx.x;
+
+    __shared__ size_t arrayPointer;
+
+    arrayPointer = 0;
+
+    for(size_t vertexIndex = threadIndex; vertexIndex < inputMesh.vertexCount; vertexIndex += threadCount) {
+        float3 vertex = make_float3(
+                inputMesh.vertices_x[vertexIndex],
+                inputMesh.vertices_y[vertexIndex],
+                inputMesh.vertices_z[vertexIndex]);
+        float3 normal = make_float3(
+                inputMesh.normals_x[vertexIndex],
+                inputMesh.normals_y[vertexIndex],
+                inputMesh.normals_z[vertexIndex]);
+
+        bool shouldBeDiscarded = false;
+
+        for(size_t otherIndex = 0; otherIndex < vertexIndex; otherIndex++) {
+            float3 otherVertex = make_float3(
+                    inputMesh.vertices_x[otherIndex],
+                    inputMesh.vertices_y[otherIndex],
+                    inputMesh.vertices_z[otherIndex]);
+            float3 otherNormal = make_float3(
+                    inputMesh.normals_x[otherIndex],
+                    inputMesh.normals_y[otherIndex],
+                    inputMesh.normals_z[otherIndex]);
+
+            // We're looking for exact matches here. Given that vertex duplications should
+            // yield equivalent vertex coordinates, testing floating point numbers for
+            // exact equivalence is warranted.
+            if( vertex.x == otherVertex.x &&
+                vertex.y == otherVertex.y &&
+                vertex.z == otherVertex.z &&
+                normal.x == otherNormal.x &&
+                normal.y == otherNormal.y &&
+                normal.z == otherNormal.z) {
+
+                shouldBeDiscarded = true;
+                break;
+            }
+        }
+
+        unsigned int uniqueVerticesInWarp = __ballot_sync(0xFFFFFFFF, !shouldBeDiscarded);
+        unsigned int uniqueVertexCount = __popc(uniqueVerticesInWarp);
+
+        unsigned int indicesBeforeMe = __popc(uniqueVerticesInWarp << (32 - threadIndex));
+        size_t outVertexIndex = arrayPointer + indicesBeforeMe;
+
+        if(!shouldBeDiscarded) {
+            outputMesh.vertices_x[outVertexIndex] = vertex.x;
+            outputMesh.vertices_y[outVertexIndex] = vertex.y;
+            outputMesh.vertices_z[outVertexIndex] = vertex.z;
+
+            outputMesh.normals_x[outVertexIndex] = normal.x;
+            outputMesh.normals_y[outVertexIndex] = normal.y;
+            outputMesh.normals_z[outVertexIndex] = normal.z;
+        }
+
+        if(threadIndex == 0) {
+            arrayPointer += uniqueVertexCount;
+        }
+    }
+
+    // Returning the new size
+    *totalVertexCount = arrayPointer;
+}
+
+DeviceMesh removeDuplicates(DeviceMesh mesh) {
+    std::cout << "Removing duplicate vertices.. " << std::endl;
+    size_t* device_totalVertexCount;
+    checkCudaErrors(cudaMalloc(&device_totalVertexCount, sizeof(size_t)));
+
+    DeviceMesh outputMesh = SpinImage::gpu::duplicateDeviceMesh(mesh);
+
+    removeDuplicates<<<1, 32>>>(mesh, outputMesh, device_totalVertexCount);
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    size_t totalVertexCount = 0;
+    checkCudaErrors(cudaMemcpy(&totalVertexCount, device_totalVertexCount, sizeof(size_t), cudaMemcpyDeviceToHost));
+
+    std::cout << "\tReduced " << mesh.vertexCount << " vertices to " << totalVertexCount << "." << std::endl;
+    outputMesh.vertexCount = totalVertexCount;
+
+    return outputMesh;
 }
 
 array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
@@ -481,31 +574,28 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
 
     // -- Array Restructuring --
 
+    DeviceMesh deduplicatedMesh = removeDuplicates(device_meshCopy);
+
     QSIMesh qsiMesh;
+    qsiMesh.imageCount = deduplicatedMesh.vertexCount;
     qsiMesh.vertexCount = device_meshCopy.vertexCount;
-    qsiMesh.vertices_x = device_meshCopy.vertices_x;
-    qsiMesh.vertices_y = device_meshCopy.vertices_y;
-    qsiMesh.vertices_z = device_meshCopy.vertices_z;
-    qsiMesh.normals_x = device_meshCopy.normals_x;
-    qsiMesh.normals_y = device_meshCopy.normals_y;
-    qsiMesh.normals_z = device_meshCopy.normals_z;
+    qsiMesh.vertices_x = deduplicatedMesh.vertices_x;
+    qsiMesh.vertices_y = deduplicatedMesh.vertices_y;
+    qsiMesh.vertices_z = deduplicatedMesh.vertices_z;
+    qsiMesh.normals_x = deduplicatedMesh.normals_x;
+    qsiMesh.normals_y = deduplicatedMesh.normals_y;
+    qsiMesh.normals_z = deduplicatedMesh.normals_z;
+
+
+    checkCudaErrors(cudaMalloc(&qsiMesh.spinImageGeometryBasePointer,
+            roundSizeToNearestCacheLine(qsiMesh.imageCount) * 2 * sizeof(float3)));
+    checkCudaErrors(cudaMalloc(&qsiMesh.geometryBasePointer,
+            roundSizeToNearestCacheLine(qsiMesh.vertexCount) * 3 * sizeof(float3)));
 
     float* device_QSIMeshBasePointer;
     size_t triangleCount = device_meshCopy.vertexCount / (size_t) 3;
     checkCudaErrors(cudaMalloc(&device_QSIMeshBasePointer, (9 * triangleCount) * sizeof(float)));
     checkCudaErrors(cudaDeviceSynchronize());
-
-    qsiMesh.vertex_0_x = device_QSIMeshBasePointer + (0 * triangleCount);
-    qsiMesh.vertex_0_y = device_QSIMeshBasePointer + (1 * triangleCount);
-    qsiMesh.vertex_0_z = device_QSIMeshBasePointer + (2 * triangleCount);
-    qsiMesh.vertex_1_x = device_QSIMeshBasePointer + (3 * triangleCount);
-    qsiMesh.vertex_1_y = device_QSIMeshBasePointer + (4 * triangleCount);
-    qsiMesh.vertex_1_z = device_QSIMeshBasePointer + (5 * triangleCount);
-    qsiMesh.vertex_2_x = device_QSIMeshBasePointer + (6 * triangleCount);
-    qsiMesh.vertex_2_y = device_QSIMeshBasePointer + (7 * triangleCount);
-    qsiMesh.vertex_2_z = device_QSIMeshBasePointer + (8 * triangleCount);
-
-
 
     auto redistributeTimeStart = std::chrono::steady_clock::now();
 

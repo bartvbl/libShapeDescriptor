@@ -21,5 +21,5 @@ std::vector<std::string> listDir(std::string directory) {
 		assert(false);
 	}
 
-	return directoryContents;
+    return directoryContents;
 }

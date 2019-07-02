@@ -3,6 +3,7 @@
 #include <spinImage/common/types/array.h>
 #include <spinImage/libraryBuildSettings.h>
 #include <spinImage/gpu/types/DeviceMesh.h>
+#include <spinImage/gpu/types/DeviceOrientedPoint.h>
 
 
 namespace SpinImage {

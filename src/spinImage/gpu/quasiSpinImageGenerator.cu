@@ -19,6 +19,7 @@
 #include <iomanip>
 #include <chrono>
 #include <sstream>
+#include <spinImage/gpu/types/DeviceOrientedPoint.h>
 
 #if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 const int SHORT_SINGLE_BOTH_MASK = 0x00010001;

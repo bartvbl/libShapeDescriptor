@@ -390,6 +390,7 @@ __global__ void createDescriptors(
 
 array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
         DeviceMesh device_mesh,
+        array<DeviceOrientedPoint> device_spinImageOrigins,
         float spinImageWidth,
         size_t sampleCount,
         float supportAngleDegrees,

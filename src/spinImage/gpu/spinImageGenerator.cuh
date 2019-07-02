@@ -17,6 +17,7 @@ namespace SpinImage {
     namespace gpu {
         array<spinImagePixelType> generateSpinImages(
                 DeviceMesh device_mesh,
+                array<DeviceOrientedPoint> device_spinImageOrigins,
                 float spinImageWidth,
                 size_t sampleCount,
                 float supportAngleDegrees,

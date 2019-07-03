@@ -37,7 +37,7 @@ const int RASTERISATION_WARP_SIZE = 1024;
 
 struct QSIMesh {
     float* geometryBasePointer;
-    float* spinImageGeometryBasePointer;
+    float* spinOriginsBasePointer;
 
     size_t vertexCount;
 };
@@ -345,14 +345,14 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinI
 
 	const size_t spinComponentBlockSize = roundSizeToNearestCacheLine(mesh.vertexCount);
 
-	spinImageVertex.x = mesh.spinImageGeometryBasePointer[0 * spinComponentBlockSize + renderedSpinImageIndex];
-    spinImageVertex.y = mesh.spinImageGeometryBasePointer[1 * spinComponentBlockSize + renderedSpinImageIndex];
-	spinImageVertex.z = mesh.spinImageGeometryBasePointer[2 * spinComponentBlockSize + renderedSpinImageIndex];
+	spinImageVertex.x = mesh.spinOriginsBasePointer[0 * spinComponentBlockSize + renderedSpinImageIndex];
+    spinImageVertex.y = mesh.spinOriginsBasePointer[1 * spinComponentBlockSize + renderedSpinImageIndex];
+	spinImageVertex.z = mesh.spinOriginsBasePointer[2 * spinComponentBlockSize + renderedSpinImageIndex];
 
 	float3 spinImageNormal;
-	spinImageNormal.x = mesh.spinImageGeometryBasePointer[3 * spinComponentBlockSize + renderedSpinImageIndex];
-	spinImageNormal.y = mesh.spinImageGeometryBasePointer[4 * spinComponentBlockSize + renderedSpinImageIndex];
-	spinImageNormal.z = mesh.spinImageGeometryBasePointer[5 * spinComponentBlockSize + renderedSpinImageIndex];
+	spinImageNormal.x = mesh.spinOriginsBasePointer[3 * spinComponentBlockSize + renderedSpinImageIndex];
+	spinImageNormal.y = mesh.spinOriginsBasePointer[4 * spinComponentBlockSize + renderedSpinImageIndex];
+	spinImageNormal.z = mesh.spinOriginsBasePointer[5 * spinComponentBlockSize + renderedSpinImageIndex];
 
 	assert(__activemask() == 0xFFFFFFFF);
 
@@ -464,39 +464,38 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
-    size_t descriptorBufferLength = device_mesh.vertexCount * spinImageWidthPixels * spinImageWidthPixels;
-	size_t descriptorBufferSize = sizeof(quasiSpinImagePixelType) * descriptorBufferLength;
+    size_t imageCount = device_QSIOrigins.length;
+    size_t meshVertexCount = device_mesh.vertexCount;
+    size_t triangleCount = meshVertexCount / (size_t) 3;
 
     // -- Mesh Scaling --
+    // The mesh is scaled to where 1 distance unit is one pixel.
+    // This saves a lot of divisions when rendering the images.
 
 	auto meshScaleTimeStart = std::chrono::steady_clock::now();
 
 	    DeviceMesh device_meshCopy = duplicateDeviceMesh(device_mesh);
-	    scaleMesh<<<(device_meshCopy.vertexCount / 128) + 1, 128>>>(device_meshCopy, float(spinImageWidthPixels)/spinImageWidth);
+	    scaleMesh<<<(meshVertexCount / 128) + 1, 128>>>(device_meshCopy, float(spinImageWidthPixels)/spinImageWidth);
         checkCudaErrors(cudaDeviceSynchronize());
+
+// TODO: SCALE ORIGINS
 
     std::chrono::milliseconds meshScaleDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - meshScaleTimeStart);
 
     // -- Array Restructuring --
+    // In order to optimise memory access patterns, we rearrange the memory layout of the input data
 
     QSIMesh qsiMesh;
-    qsiMesh.vertexCount = device_meshCopy.vertexCount;
+    qsiMesh.vertexCount = meshVertexCount;
 
-    checkCudaErrors(cudaMalloc(&qsiMesh.spinImageGeometryBasePointer,
-            roundSizeToNearestCacheLine(qsiMesh.vertexCount) * 2 * sizeof(float3)));
+    checkCudaErrors(cudaMalloc(&qsiMesh.spinOriginsBasePointer,
+            roundSizeToNearestCacheLine(imageCount) * 2 * sizeof(float3)));
     checkCudaErrors(cudaMalloc(&qsiMesh.geometryBasePointer,
-            roundSizeToNearestCacheLine(qsiMesh.vertexCount) * 3 * sizeof(float3)));
-
-	size_t imageCount = removeDuplicates(device_meshCopy, qsiMesh);
-
-    float* device_QSIMeshBasePointer;
-    size_t triangleCount = device_meshCopy.vertexCount / (size_t) 3;
-    checkCudaErrors(cudaMalloc(&device_QSIMeshBasePointer, (9 * triangleCount) * sizeof(float)));
-    checkCudaErrors(cudaDeviceSynchronize());
+            roundSizeToNearestCacheLine(meshVertexCount) * 3 * sizeof(float3)));
 
     auto redistributeTimeStart = std::chrono::steady_clock::now();
 
-        redistributeMesh<<<(device_meshCopy.vertexCount / 3), 1>>>(device_meshCopy, qsiMesh);
+        redistributeMesh<<<triangleCount, 1>>>(device_meshCopy, qsiMesh);
         checkCudaErrors(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
 
@@ -504,15 +503,15 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
 
     // -- Descriptor Array Allocation and Initialisation --
 
-    quasiSpinImagePixelType* device_descriptors_content;
-	checkCudaErrors(cudaMalloc(&device_descriptors_content, descriptorBufferSize));
+    size_t descriptorBufferLength = imageCount * spinImageWidthPixels * spinImageWidthPixels;
+    size_t descriptorBufferSize = sizeof(quasiSpinImagePixelType) * descriptorBufferLength;
+
 
     array<quasiSpinImagePixelType> device_descriptors;
-	device_descriptors.content = device_descriptors_content;
+	checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
 	device_descriptors.length = imageCount;
 
-	CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength);
-	setValue<quasiSpinImagePixelType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.content, descriptorBufferLength, 0);
+	setValue<quasiSpinImagePixelType><<<(descriptorBufferLength / 64) + 1, 64>>> (device_descriptors.content, descriptorBufferLength, 0);
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 
@@ -520,7 +519,7 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
 
 	auto generationStart = std::chrono::steady_clock::now();
 
-	    generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors_content, qsiMesh);
+	    generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors.content, qsiMesh);
         checkCudaErrors(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
 
@@ -529,8 +528,8 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
 	// -- Cleanup --
 
 	freeDeviceMesh(device_meshCopy);
-
-	cudaFree(device_QSIMeshBasePointer);
+	cudaFree(qsiMesh.spinOriginsBasePointer);
+	cudaFree(qsiMesh.geometryBasePointer);
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 

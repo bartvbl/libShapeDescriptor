@@ -31,6 +31,7 @@ const int SHORT_DOUBLE_ONE_MASK = 0x00000002;
 const int SHORT_DOUBLE_FIRST_MASK = 0x00020000;
 #endif
 
+#define spinOriginCount gridDim.x
 #define renderedSpinImageIndex blockIdx.x
 
 const int RASTERISATION_WARP_SIZE = 1024;
@@ -343,7 +344,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinI
 	// Copying over precalculated values
 	float3 spinImageVertex;
 
-	const size_t spinComponentBlockSize = roundSizeToNearestCacheLine(mesh.vertexCount);
+	const size_t spinComponentBlockSize = roundSizeToNearestCacheLine(spinOriginCount);
 
 	spinImageVertex.x = mesh.spinOriginsBasePointer[0 * spinComponentBlockSize + renderedSpinImageIndex];
     spinImageVertex.y = mesh.spinOriginsBasePointer[1 * spinComponentBlockSize + renderedSpinImageIndex];
@@ -455,17 +456,34 @@ __global__ void redistributeMesh(DeviceMesh mesh, QSIMesh qsiMesh) {
 
     // Round up the triangle count to the nearest
     size_t triangleCount = mesh.vertexCount / 3;
-    size_t blockSize = roundSizeToNearestCacheLine(triangleCount);
+    size_t geometryBlockSize = roundSizeToNearestCacheLine(triangleCount);
 
-    qsiMesh.geometryBasePointer[0 * blockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 0];
-    qsiMesh.geometryBasePointer[1 * blockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 0];
-    qsiMesh.geometryBasePointer[2 * blockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 0];
-    qsiMesh.geometryBasePointer[3 * blockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 1];
-    qsiMesh.geometryBasePointer[4 * blockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 1];
-    qsiMesh.geometryBasePointer[5 * blockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 1];
-    qsiMesh.geometryBasePointer[6 * blockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 2];
-    qsiMesh.geometryBasePointer[7 * blockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 2];
-    qsiMesh.geometryBasePointer[8 * blockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
+    qsiMesh.geometryBasePointer[0 * geometryBlockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 0];
+    qsiMesh.geometryBasePointer[1 * geometryBlockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 0];
+    qsiMesh.geometryBasePointer[2 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 0];
+    qsiMesh.geometryBasePointer[3 * geometryBlockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 1];
+    qsiMesh.geometryBasePointer[4 * geometryBlockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 1];
+    qsiMesh.geometryBasePointer[5 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 1];
+    qsiMesh.geometryBasePointer[6 * geometryBlockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 2];
+    qsiMesh.geometryBasePointer[7 * geometryBlockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 2];
+    qsiMesh.geometryBasePointer[8 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
+}
+
+__global__ void redistributeSpinOrigins(DeviceOrientedPoint* spinOrigins, size_t imageCount, QSIMesh qsiMesh) {
+    assert(imageCount == gridDim.x);
+    size_t imageIndex = blockIdx.x;
+
+    size_t spinOriginsBlockSize = roundSizeToNearestCacheLine(imageCount);
+
+    DeviceOrientedPoint spinOrigin = spinOrigins[imageIndex];
+
+    qsiMesh.spinOriginsBasePointer[0 * spinOriginsBlockSize + renderedSpinImageIndex] = spinOrigin.vertex.x;
+    qsiMesh.spinOriginsBasePointer[1 * spinOriginsBlockSize + renderedSpinImageIndex] = spinOrigin.vertex.y;
+    qsiMesh.spinOriginsBasePointer[2 * spinOriginsBlockSize + renderedSpinImageIndex] = spinOrigin.vertex.z;
+
+    qsiMesh.spinOriginsBasePointer[3 * spinOriginsBlockSize + renderedSpinImageIndex] = spinOrigin.normal.x;
+    qsiMesh.spinOriginsBasePointer[4 * spinOriginsBlockSize + renderedSpinImageIndex] = spinOrigin.normal.y;
+    qsiMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + renderedSpinImageIndex] = spinOrigin.normal.z;
 }
 
 array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
@@ -493,10 +511,10 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
         checkCudaErrors(cudaDeviceSynchronize());
 
         DeviceOrientedPoint* device_editableSpinOriginsCopy;
-        checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_QSIOrigins, imageCount * sizeof(DeviceOrientedPoint), cudaMemcpyDeviceToDevice));
-        scaleSpinOrigins<<<(imageCount / 128) + 1>>>(device_editableSpinOriginsCopy, imageCount, scaleFactor);
+        checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_QSIOrigins.content, imageCount * sizeof(DeviceOrientedPoint), cudaMemcpyDeviceToDevice));
+        scaleSpinOrigins<<<(imageCount / 128) + 1, 128>>>(device_editableSpinOriginsCopy, imageCount, scaleFactor);
         checkCudaErrors(cudaDeviceSynchronize());
-        
+
     std::chrono::milliseconds meshScaleDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - meshScaleTimeStart);
 
     // -- Array Restructuring --
@@ -513,6 +531,7 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
     auto redistributeTimeStart = std::chrono::steady_clock::now();
 
         redistributeMesh<<<triangleCount, 1>>>(device_editableMeshCopy, qsiMesh);
+        redistributeSpinOrigins<<<imageCount, 1>>>(device_editableSpinOriginsCopy, imageCount, qsiMesh);
         checkCudaErrors(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
 
@@ -536,6 +555,7 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
 
 	auto generationStart = std::chrono::steady_clock::now();
 
+	    // Warning: kernel assumes the grid dimensions are equivalent to imageCount.
 	    generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors.content, qsiMesh);
         checkCudaErrors(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());

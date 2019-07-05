@@ -27,6 +27,8 @@ int main(int argc, const char** argv) {
             "spin-image-support-angle", "The support angle to use for spin image generation", '\0', arrrgh::Optional, 90.0f);
     const auto& spinImageSampleCount = parser.add<int>(
             "spin-image-sample-count", "The number of uniformly sampled points to use for spin image generation", '\0', arrrgh::Optional, 1000000);
+    const auto& imagesPerRow = parser.add<int>(
+            "images-per-row", "The number of images the output image should contain per row", '\0', arrrgh::Optional, 50);
     const auto& outputFile = parser.add<std::string>(
             "output", "The maximum number of images to generate (in order to limit image size)", '\0', arrrgh::Optional, "out.png");
 
@@ -72,7 +74,7 @@ int main(int argc, const char** argv) {
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
-        SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, 25);
+        SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, imagesPerRow.value());
 
         cudaFree(descriptors.content);
         delete[] hostDescriptors.content;
@@ -87,7 +89,7 @@ int main(int argc, const char** argv) {
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
-        SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, 25);
+        SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, imagesPerRow.value());
 
         cudaFree(descriptors.content);
         delete[] hostDescriptors.content;

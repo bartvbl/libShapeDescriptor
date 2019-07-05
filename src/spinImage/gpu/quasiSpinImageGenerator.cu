@@ -477,13 +477,13 @@ __global__ void redistributeSpinOrigins(DeviceOrientedPoint* spinOrigins, size_t
 
     DeviceOrientedPoint spinOrigin = spinOrigins[imageIndex];
 
-    qsiMesh.spinOriginsBasePointer[0 * spinOriginsBlockSize + renderedSpinImageIndex] = spinOrigin.vertex.x;
-    qsiMesh.spinOriginsBasePointer[1 * spinOriginsBlockSize + renderedSpinImageIndex] = spinOrigin.vertex.y;
-    qsiMesh.spinOriginsBasePointer[2 * spinOriginsBlockSize + renderedSpinImageIndex] = spinOrigin.vertex.z;
+    qsiMesh.spinOriginsBasePointer[0 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.x;
+    qsiMesh.spinOriginsBasePointer[1 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.y;
+    qsiMesh.spinOriginsBasePointer[2 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.z;
 
-    qsiMesh.spinOriginsBasePointer[3 * spinOriginsBlockSize + renderedSpinImageIndex] = spinOrigin.normal.x;
-    qsiMesh.spinOriginsBasePointer[4 * spinOriginsBlockSize + renderedSpinImageIndex] = spinOrigin.normal.y;
-    qsiMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + renderedSpinImageIndex] = spinOrigin.normal.z;
+    qsiMesh.spinOriginsBasePointer[3 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.x;
+    qsiMesh.spinOriginsBasePointer[4 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.y;
+    qsiMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
 
 array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(

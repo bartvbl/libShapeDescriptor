@@ -511,6 +511,7 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
         checkCudaErrors(cudaDeviceSynchronize());
 
         DeviceOrientedPoint* device_editableSpinOriginsCopy;
+        checkCudaErrors(cudaMalloc(&device_editableSpinOriginsCopy, imageCount * sizeof(DeviceOrientedPoint)));
         checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_QSIOrigins.content, imageCount * sizeof(DeviceOrientedPoint), cudaMemcpyDeviceToDevice));
         scaleSpinOrigins<<<(imageCount / 128) + 1, 128>>>(device_editableSpinOriginsCopy, imageCount, scaleFactor);
         checkCudaErrors(cudaDeviceSynchronize());

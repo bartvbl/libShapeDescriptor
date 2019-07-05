@@ -271,14 +271,9 @@ __global__ void createDescriptors(
         float oneOverSpinImagePixelWidth,
         float supportAngleCosine)
 {
-#define spinImageIndexIndex blockIdx.x
+#define spinImageIndex blockIdx.x
 
-	if(spinImageIndexIndex >= mesh.vertexCount)
-	{
-		return;
-	}
-
-	const DeviceOrientedPoint spinOrigin = device_spinImageOrigins[spinImageIndexIndex];
+	const DeviceOrientedPoint spinOrigin = device_spinImageOrigins[spinImageIndex];
 
 	const float3 vertex = spinOrigin.vertex;
 	const float3 normal = spinOrigin.normal;
@@ -376,7 +371,7 @@ __global__ void createDescriptors(
 
 	// Copy final image into memory
 
-	size_t imageBaseIndex = size_t(spinImageIndexIndex) * spinImageWidthPixels * spinImageWidthPixels;
+	size_t imageBaseIndex = size_t(spinImageIndex) * spinImageWidthPixels * spinImageWidthPixels;
     for(size_t i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += blockDim.x) {
         descriptors.content[imageBaseIndex + i] = localSpinImage[i];
     }

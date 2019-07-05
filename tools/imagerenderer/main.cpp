@@ -57,6 +57,7 @@ int main(int argc, const char** argv) {
     DeviceMesh deviceMesh = SpinImage::copy::hostMeshToDevice(mesh);
 
     array<DeviceOrientedPoint> spinOrigins = SpinImage::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
+    size_t imageCount = spinOrigins.length;
 
     std::cout << "Generating images.. (this can take a while)" << std::endl;
     if(generationMode.value() == "spinimage") {
@@ -67,11 +68,11 @@ int main(int argc, const char** argv) {
                 spinImageSampleCount.value(),
                 supportAngle.value());
         std::cout << "Dumping results.. " << std::endl;
-        array<spinImagePixelType> hostDescriptors = SpinImage::copy::spinImageDescriptorsToHost(descriptors, deviceMesh.vertexCount);
+        array<spinImagePixelType> hostDescriptors = SpinImage::copy::spinImageDescriptorsToHost(descriptors, imageCount);
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
-        SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, 50);
+        SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, 25);
 
         cudaFree(descriptors.content);
         delete[] hostDescriptors.content;
@@ -82,11 +83,11 @@ int main(int argc, const char** argv) {
                 spinOrigins,
                 spinImageWidth.value());
         std::cout << "Dumping results.. " << std::endl;
-        array<quasiSpinImagePixelType> hostDescriptors = SpinImage::copy::QSIDescriptorsToHost(descriptors, deviceMesh.vertexCount);
+        array<quasiSpinImagePixelType> hostDescriptors = SpinImage::copy::QSIDescriptorsToHost(descriptors, imageCount);
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
-        SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, 50);
+        SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, 25);
 
         cudaFree(descriptors.content);
         delete[] hostDescriptors.content;

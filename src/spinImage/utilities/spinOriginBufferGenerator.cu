@@ -100,7 +100,6 @@ array<DeviceOrientedPoint> removeDuplicates(DeviceMesh mesh) {
     device_spinOrigins.length = totalVertexCount;
 
     checkCudaErrors(cudaFree(device_totalVertexCount));
-    checkCudaErrors(cudaFree(device_spinOrigins.content));
 
     return device_spinOrigins;
 }

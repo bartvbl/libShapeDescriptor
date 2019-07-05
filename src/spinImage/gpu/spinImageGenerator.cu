@@ -262,6 +262,7 @@ __global__ void sampleMesh(
 // Run once for every vertex index
 __global__ void createDescriptors(
         DeviceMesh mesh,
+        DeviceOrientedPoint* device_spinImageOrigins,
         DeviceVertexList pointSamples,
         DeviceVertexList pointNormals,
         array<spinImagePixelType> descriptors,
@@ -277,16 +278,10 @@ __global__ void createDescriptors(
 		return;
 	}
 
-	float3 vertex;
-	float3 normal;
+	const DeviceOrientedPoint spinOrigin = device_spinImageOrigins[spinImageIndexIndex];
 
-	vertex.x = mesh.vertices_x[spinImageIndexIndex];
-	vertex.y = mesh.vertices_y[spinImageIndexIndex];
-	vertex.z = mesh.vertices_z[spinImageIndexIndex];
-
-	normal.x = mesh.normals_x[spinImageIndexIndex];
-	normal.y = mesh.normals_y[spinImageIndexIndex];
-	normal.z = mesh.normals_z[spinImageIndexIndex];
+	const float3 vertex = spinOrigin.vertex;
+	const float3 normal = spinOrigin.normal;
 
 	__shared__ float localSpinImage[spinImageWidthPixels * spinImageWidthPixels];
 	for(int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += blockDim.x) {
@@ -467,6 +462,7 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 
 	    createDescriptors <<<imageCount, 416>>>(
 	            device_mesh,
+	            device_spinImageOrigins.content,
 	            device_pointSamples,
 	            device_pointNormals,
 	            device_descriptors,

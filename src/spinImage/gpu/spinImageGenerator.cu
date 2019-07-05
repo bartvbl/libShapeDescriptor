@@ -398,8 +398,6 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
-    // TODO: REFORMAT IMAGE ORIGINS AND USE THEM IN THE GENERATION KERNEL
-
     size_t imageCount = device_spinImageOrigins.length;
     size_t vertexCount = device_mesh.vertexCount;
     size_t triangleCount = vertexCount / 3;
@@ -430,8 +428,8 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 		checkCudaErrors(cudaMalloc(&device_coefficients.content, sizeof(float2) * sampleCount));
 
 		device_descriptors.length = imageCount;
-		device_areaArray.length = (unsigned) areaArrayLength;
-		device_cumulativeAreaArray.length = (unsigned) areaArrayLength;
+		device_areaArray.length = (size_t) areaArrayLength;
+		device_cumulativeAreaArray.length = (size_t) areaArrayLength;
 
 		CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength);
 		CudaLaunchDimensions areaSettings = calculateCudaLaunchDimensions(device_areaArray.length);

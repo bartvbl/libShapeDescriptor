@@ -437,6 +437,18 @@ __global__ void scaleMesh(DeviceMesh mesh, float scaleFactor) {
     mesh.vertices_z[vertexIndex] *= scaleFactor;
 }
 
+__global__ void scaleSpinOrigins(DeviceOrientedPoint* origins, size_t imageCount, float scaleFactor) {
+    size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if(vertexIndex >= imageCount) {
+        return;
+    }
+
+    origins[vertexIndex].vertex.x *= scaleFactor;
+    origins[vertexIndex].vertex.y *= scaleFactor;
+    origins[vertexIndex].vertex.z *= scaleFactor;
+}
+
 __global__ void redistributeMesh(DeviceMesh mesh, QSIMesh qsiMesh) {
     size_t triangleIndex = blockIdx.x;
     size_t triangleBaseIndex = 3 * triangleIndex;
@@ -474,12 +486,17 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
 
 	auto meshScaleTimeStart = std::chrono::steady_clock::now();
 
-	    DeviceMesh device_meshCopy = duplicateDeviceMesh(device_mesh);
-	    scaleMesh<<<(meshVertexCount / 128) + 1, 128>>>(device_meshCopy, float(spinImageWidthPixels)/spinImageWidth);
+	    float scaleFactor = float(spinImageWidthPixels)/spinImageWidth;
+
+	    DeviceMesh device_editableMeshCopy = duplicateDeviceMesh(device_mesh);
+	    scaleMesh<<<(meshVertexCount / 128) + 1, 128>>>(device_editableMeshCopy, scaleFactor);
         checkCudaErrors(cudaDeviceSynchronize());
 
-// TODO: SCALE ORIGINS
-
+        DeviceOrientedPoint* device_editableSpinOriginsCopy;
+        checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_QSIOrigins, imageCount * sizeof(DeviceOrientedPoint), cudaMemcpyDeviceToDevice));
+        scaleSpinOrigins<<<(imageCount / 128) + 1>>>(device_editableSpinOriginsCopy, imageCount, scaleFactor);
+        checkCudaErrors(cudaDeviceSynchronize());
+        
     std::chrono::milliseconds meshScaleDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - meshScaleTimeStart);
 
     // -- Array Restructuring --
@@ -495,7 +512,7 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
 
     auto redistributeTimeStart = std::chrono::steady_clock::now();
 
-        redistributeMesh<<<triangleCount, 1>>>(device_meshCopy, qsiMesh);
+        redistributeMesh<<<triangleCount, 1>>>(device_editableMeshCopy, qsiMesh);
         checkCudaErrors(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
 
@@ -527,9 +544,10 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
 
 	// -- Cleanup --
 
-	freeDeviceMesh(device_meshCopy);
+	freeDeviceMesh(device_editableMeshCopy);
 	cudaFree(qsiMesh.spinOriginsBasePointer);
 	cudaFree(qsiMesh.geometryBasePointer);
+	cudaFree(device_editableSpinOriginsCopy);
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 

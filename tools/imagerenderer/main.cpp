@@ -7,6 +7,7 @@
 #include <spinImage/utilities/copy/deviceDescriptorsToHost.h>
 #include "arrrgh.hpp"
 #include <spinImage/utilities/CUDAContextCreator.h>
+#include <spinImage/utilities/spinOriginBufferGenerator.h>
 
 int main(int argc, const char** argv) {
     arrrgh::parser parser("imagerenderer", "Generate (quasi) spin images from an input object and dump them into a PNG file");
@@ -55,9 +56,16 @@ int main(int argc, const char** argv) {
     HostMesh mesh = SpinImage::utilities::loadOBJ(inputFile.value());
     DeviceMesh deviceMesh = SpinImage::copy::hostMeshToDevice(mesh);
 
+    array<DeviceOrientedPoint> spinOrigins = SpinImage::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
+
     std::cout << "Generating images.. (this can take a while)" << std::endl;
     if(generationMode.value() == "spinimage") {
-        array<spinImagePixelType> descriptors = SpinImage::gpu::generateSpinImages(deviceMesh, spinImageWidth.value(), spinImageSampleCount.value(), supportAngle.value());
+        array<spinImagePixelType> descriptors = SpinImage::gpu::generateSpinImages(
+                deviceMesh,
+                spinOrigins,
+                spinImageWidth.value(),
+                spinImageSampleCount.value(),
+                supportAngle.value());
         std::cout << "Dumping results.. " << std::endl;
         array<spinImagePixelType> hostDescriptors = SpinImage::copy::spinImageDescriptorsToHost(descriptors, deviceMesh.vertexCount);
         if(imageLimit.value() != -1) {
@@ -69,7 +77,10 @@ int main(int argc, const char** argv) {
         delete[] hostDescriptors.content;
 
     } else if(generationMode.value() == "quasispinimage") {
-        array<quasiSpinImagePixelType> descriptors = SpinImage::gpu::generateQuasiSpinImages(deviceMesh, spinImageWidth.value());
+        array<quasiSpinImagePixelType> descriptors = SpinImage::gpu::generateQuasiSpinImages(
+                deviceMesh,
+                spinOrigins,
+                spinImageWidth.value());
         std::cout << "Dumping results.. " << std::endl;
         array<quasiSpinImagePixelType> hostDescriptors = SpinImage::copy::QSIDescriptorsToHost(descriptors, deviceMesh.vertexCount);
         if(imageLimit.value() != -1) {
@@ -87,4 +98,5 @@ int main(int argc, const char** argv) {
 
     SpinImage::cpu::freeHostMesh(mesh);
     SpinImage::gpu::freeDeviceMesh(deviceMesh);
+
 }

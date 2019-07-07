@@ -377,7 +377,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinI
 	{
 		float3 vertices[3];
 
-        const size_t vertexComponentBlockSize = roundSizeToNearestCacheLine(mesh.vertexCount);
+        const size_t vertexComponentBlockSize = roundSizeToNearestCacheLine(triangleCount);
 
 		vertices[0].x = mesh.geometryBasePointer[0 * vertexComponentBlockSize + triangleIndex];
 		vertices[0].y = mesh.geometryBasePointer[1 * vertexComponentBlockSize + triangleIndex];

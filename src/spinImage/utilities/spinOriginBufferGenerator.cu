@@ -57,6 +57,8 @@ __global__ void removeDuplicates(DeviceMesh inputMesh, DeviceOrientedPoint* comp
             }
         }
 
+        __syncthreads();
+
         unsigned int uniqueVerticesInWarp = __ballot_sync(0xFFFFFFFF, !shouldBeDiscarded);
         unsigned int uniqueVertexCount = __popc(uniqueVerticesInWarp);
 
@@ -77,8 +79,12 @@ __global__ void removeDuplicates(DeviceMesh inputMesh, DeviceOrientedPoint* comp
         }
     }
 
+    __syncthreads();
+
     // Returning the new size
-    *totalVertexCount = arrayPointer;
+    if(threadIndex == 0) {
+        *totalVertexCount = arrayPointer;
+    }
 }
 
 array<DeviceOrientedPoint> removeDuplicates(DeviceMesh mesh) {

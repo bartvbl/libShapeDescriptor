@@ -88,8 +88,6 @@ __global__ void removeDuplicates(DeviceMesh inputMesh, DeviceOrientedPoint* comp
 }
 
 array<DeviceOrientedPoint> removeDuplicates(DeviceMesh mesh) {
-    std::cout << "Removing duplicate vertices.. " << std::endl;
-
     size_t* device_totalVertexCount;
     checkCudaErrors(cudaMalloc(&device_totalVertexCount, sizeof(size_t)));
 
@@ -102,7 +100,6 @@ array<DeviceOrientedPoint> removeDuplicates(DeviceMesh mesh) {
     size_t totalVertexCount = 0;
     checkCudaErrors(cudaMemcpy(&totalVertexCount, device_totalVertexCount, sizeof(size_t), cudaMemcpyDeviceToHost));
 
-    std::cout << "\tReduced " << mesh.vertexCount << " vertices to " << totalVertexCount << "." << std::endl;
     device_spinOrigins.length = totalVertexCount;
 
     checkCudaErrors(cudaFree(device_totalVertexCount));

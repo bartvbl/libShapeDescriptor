@@ -184,12 +184,19 @@ __global__ void calculateCumulativeAreas(floatArray areaArray, floatArray device
 	device_cumulativeAreaArray.content[triangleIndex] = totalArea;
 }
 
-__global__ void generateRandomSampleCoefficients(array<float2> coefficients, curandState *randomState, int sampleCount) {
+__global__ void generateRandomSampleCoefficients(array<float2> coefficients, curandState *randomState, int sampleCount, size_t randomSeed) {
 	int rawThreadIndex = threadIdx.x+blockDim.x*blockIdx.x;
 
 	assert(rawThreadIndex < SAMPLE_COEFFICIENT_THREAD_COUNT);
 
-	curand_init(clock64(), rawThreadIndex, 0, &randomState[rawThreadIndex]);
+	if(randomSeed == 0) {
+		randomSeed = clock64();
+	}
+
+	// The addition of the thread index is overkill, but whatever. Randomness!
+	size_t skipFactor = rawThreadIndex + (gridDim.x * blockDim.x);
+
+	curand_init(randomSeed, skipFactor, 0, &randomState[rawThreadIndex]);
 
 	for(int i = rawThreadIndex; i < sampleCount; i += blockDim.x * gridDim.x) {
 		float v1 = curand_uniform(&(randomState[rawThreadIndex]));
@@ -384,6 +391,7 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
         float spinImageWidth,
         size_t sampleCount,
         float supportAngleDegrees,
+        size_t randomSamplingSeed,
         SpinImage::debug::SIRunInfo* runInfo)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
@@ -442,7 +450,7 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 		cudaDeviceSynchronize();
 		checkCudaErrors(cudaGetLastError());
 
-		generateRandomSampleCoefficients<<<SAMPLE_COEFFICIENT_THREAD_COUNT / 32, 32>>>(device_coefficients, device_randomState, sampleCount);
+		generateRandomSampleCoefficients<<<SAMPLE_COEFFICIENT_THREAD_COUNT / 32, 32>>>(device_coefficients, device_randomState, sampleCount, randomSamplingSeed);
 		cudaDeviceSynchronize();
 		checkCudaErrors(cudaGetLastError());
 

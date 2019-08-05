@@ -5,9 +5,10 @@
 #include <spinImage/gpu/quasiSpinImageGenerator.cuh>
 #include <spinImage/utilities/dumpers/spinImageDumper.h>
 #include <spinImage/utilities/copy/deviceDescriptorsToHost.h>
-#include "arrrgh.hpp"
 #include <spinImage/utilities/CUDAContextCreator.h>
 #include <spinImage/utilities/spinOriginBufferGenerator.h>
+
+#include <arrrgh.hpp>
 
 int main(int argc, const char** argv) {
     arrrgh::parser parser("imagerenderer", "Generate (quasi) spin images from an input object and dump them into a PNG file");

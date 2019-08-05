@@ -25,6 +25,7 @@ include_directories (
         lib/glm/
         lib/nvidia-samples-common/
         lib/lodepng/
+        lib/arrrgh/
         ${CUDA_INCLUDE_DIRS}
 )
 

@@ -6,8 +6,6 @@
 
 #include "device_launch_parameters.h"
 #include "cuda_runtime.h"
-#include <curand.h>
-#include <curand_kernel.h>
 
 #include <assert.h>
 #include <iostream>
@@ -16,42 +14,12 @@
 
 #include <spinImage/gpu/types/DeviceMesh.h>
 #include <spinImage/gpu/types/CudaLaunchDimensions.h>
-#include <spinImage/gpu/setValue.cuh>
+#include <spinImage/utilities/setValue.cuh>
+#include <spinImage/utilities/meshSampler.cuh>
 #include <spinImage/utilities/dumpers/spinImageDumper.h>
-
-#define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
-
-struct DeviceVertexList {
-    float* array;
-    size_t length;
-
-    DeviceVertexList(size_t length) {
-        checkCudaErrors(cudaMalloc(&array, 3 * length * sizeof(float)));
-        this->length = length;
-    }
-
-    __device__ float3 at(size_t index) {
-        assert(index < length);
-
-        float3 item;
-        item.x = array[index];
-        item.y = array[index + length];
-        item.z = array[index + 2 * length];
-        return item;
-    }
-
-    __device__ void set(size_t index, float3 value) {
-        assert(index < length);
-
-        array[index] = value.x;
-        array[index + length] = value.y;
-        array[index + 2 * length] = value.z;
-    }
-
-    void free() {
-        checkCudaErrors(cudaFree(array));
-    }
-};
+#include <spinImage/gpu/types/GPUPointCloud.h>
+#include <spinImage/gpu/types/DeviceVertexList.cuh>
+#include <spinImage/gpu/types/SampleBounds.h>
 
 __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNormal, float3 point)
 {
@@ -73,61 +41,8 @@ __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNo
 	return alphabeta;
 }
 
-__device__ __inline__ void lookupTriangleVertices(DeviceMesh mesh, int triangleIndex, float3 (&triangleVertices)[3]) {
-	assert(triangleIndex >= 0);
-	assert((3 * triangleIndex) + 2 < mesh.vertexCount);
-
-	unsigned int triangleBaseIndex = 3 * triangleIndex;
-
-	triangleVertices[0].x = mesh.vertices_x[triangleBaseIndex];
-	triangleVertices[0].y = mesh.vertices_y[triangleBaseIndex];
-	triangleVertices[0].z = mesh.vertices_z[triangleBaseIndex];
-
-	triangleVertices[1].x = mesh.vertices_x[triangleBaseIndex + 1];
-	triangleVertices[1].y = mesh.vertices_y[triangleBaseIndex + 1];
-	triangleVertices[1].z = mesh.vertices_z[triangleBaseIndex + 1];
-
-	triangleVertices[2].x = mesh.vertices_x[triangleBaseIndex + 2];
-	triangleVertices[2].y = mesh.vertices_y[triangleBaseIndex + 2];
-	triangleVertices[2].z = mesh.vertices_z[triangleBaseIndex + 2];
-
-	/*assert(!isnan(triangleVertices[0].x) && !isnan(triangleVertices[0].y) && !isnan(triangleVertices[0].z));
-	assert(!isnan(triangleVertices[1].x) && !isnan(triangleVertices[1].y) && !isnan(triangleVertices[1].z));
-	assert(!isnan(triangleVertices[2].x) && !isnan(triangleVertices[2].y) && !isnan(triangleVertices[2].z));*/
-}
-
-__device__ __inline__ void lookupTriangleNormals(DeviceMesh mesh, int triangleIndex, float3 (&triangleNormals)[3]) {
-    assert(triangleIndex >= 0);
-    assert((3 * triangleIndex) + 2 < mesh.vertexCount);
-
-    unsigned int triangleBaseIndex = 3 * triangleIndex;
-
-    triangleNormals[0].x = mesh.normals_x[triangleBaseIndex];
-    triangleNormals[0].y = mesh.normals_y[triangleBaseIndex];
-    triangleNormals[0].z = mesh.normals_z[triangleBaseIndex];
-
-    triangleNormals[1].x = mesh.normals_x[triangleBaseIndex + 1];
-    triangleNormals[1].y = mesh.normals_y[triangleBaseIndex + 1];
-    triangleNormals[1].z = mesh.normals_z[triangleBaseIndex + 1];
-
-    triangleNormals[2].x = mesh.normals_x[triangleBaseIndex + 2];
-    triangleNormals[2].y = mesh.normals_y[triangleBaseIndex + 2];
-    triangleNormals[2].z = mesh.normals_z[triangleBaseIndex + 2];
-
-    /*assert(!isnan(triangleNormals[0].x) && !isnan(triangleNormals[0].y) && !isnan(triangleNormals[0].z));
-    assert(!isnan(triangleNormals[1].x) && !isnan(triangleNormals[1].y) && !isnan(triangleNormals[1].z));
-    assert(!isnan(triangleNormals[2].x) && !isnan(triangleNormals[2].y) && !isnan(triangleNormals[2].z));*/
-}
-
-struct SampleBounds {
-	size_t sampleCount;
-	float areaStart;
-	float areaEnd;
-	size_t sampleStartIndex;
-};
-
-__device__ __inline__ SampleBounds calculateSampleBounds(const array<float> &areaArray, int triangleIndex, int sampleCount) {
-	SampleBounds sampleBounds;
+__device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const array<float> &areaArray, int triangleIndex, int sampleCount) {
+    SpinImage::SampleBounds sampleBounds;
 	float maxArea = areaArray.content[areaArray.length - 1];
 	float areaStepSize = maxArea / (float)sampleCount;
 
@@ -151,112 +66,6 @@ __device__ __inline__ SampleBounds calculateSampleBounds(const array<float> &are
 	return sampleBounds;
 }
 
-// One thread = One triangle
-__global__ void calculateAreas(floatArray areaArray, DeviceMesh mesh)
-{
-	int triangleIndex = blockDim.x * blockIdx.x + threadIdx.x;
-	if (triangleIndex >= areaArray.length)
-	{
-		return;
-	}
-	float3 vertices[3];
-	lookupTriangleVertices(mesh, triangleIndex, vertices);
-	float3 v1 = vertices[1] - vertices[0];
-	float3 v2 = vertices[2] - vertices[0];
-	float area = length(cross(v1, v2)) / 2.0;
-	areaArray.content[triangleIndex] = area;
-}
-
-__global__ void calculateCumulativeAreas(floatArray areaArray, floatArray device_cumulativeAreaArray) {
-	int triangleIndex = blockDim.x * blockIdx.x + threadIdx.x;
-	if (triangleIndex >= areaArray.length)
-	{
-		return;
-	}
-
-	float totalArea = 0;
-
-	for(int i = 0; i <= triangleIndex; i++) {
-		// Super inaccurate. Don't try this at home.
-		totalArea += areaArray.content[i];
-	}
-
-	device_cumulativeAreaArray.content[triangleIndex] = totalArea;
-}
-
-__global__ void generateRandomSampleCoefficients(array<float2> coefficients, curandState *randomState, int sampleCount, size_t randomSeed) {
-	int rawThreadIndex = threadIdx.x+blockDim.x*blockIdx.x;
-
-	assert(rawThreadIndex < SAMPLE_COEFFICIENT_THREAD_COUNT);
-
-	if(randomSeed == 0) {
-		randomSeed = clock64();
-	}
-
-	// The addition of the thread index is overkill, but whatever. Randomness!
-	size_t skipFactor = rawThreadIndex + (gridDim.x * blockDim.x);
-
-	curand_init(randomSeed, skipFactor, 0, &randomState[rawThreadIndex]);
-
-	for(int i = rawThreadIndex; i < sampleCount; i += blockDim.x * gridDim.x) {
-		float v1 = curand_uniform(&(randomState[rawThreadIndex]));
-		float v2 = curand_uniform(&(randomState[rawThreadIndex]));
-
-		coefficients.content[i].x = v1;
-		coefficients.content[i].y = v2;
-	}
-}
-
-// One thread = One triangle
-__global__ void sampleMesh(
-        DeviceMesh mesh,
-        array<float> areaArray,
-        DeviceVertexList pointSamples,
-        DeviceVertexList pointNormals,
-        array<float2> coefficients,
-        int sampleCount) {
-	int triangleIndex = blockIdx.x * blockDim.x + threadIdx.x;
-
-	if(triangleIndex >= mesh.vertexCount / 3)
-	{
-		return;
-	}
-
-	float3 triangleVertices[3];
-	lookupTriangleVertices(mesh, triangleIndex, triangleVertices);
-
-	float3 triangleNormals[3];
-    lookupTriangleNormals(mesh, triangleIndex, triangleNormals);
-
-	SampleBounds bounds = calculateSampleBounds(areaArray, triangleIndex, sampleCount);
-
-	for(int sample = 0; sample < bounds.sampleCount; sample++) {
-		size_t sampleIndex = bounds.sampleStartIndex + sample;
-
-		if(sampleIndex >= sampleCount) {
-		    continue;
-		}
-
-		float v1 = coefficients.content[sampleIndex].x;
-		float v2 = coefficients.content[sampleIndex].y;
-
-		float3 samplePoint =
-				(1 - sqrt(v1)) * triangleVertices[0] +
-				(sqrt(v1) * (1 - v2)) * triangleVertices[1] +
-				(sqrt(v1) * v2) * triangleVertices[2];
-
-        float3 sampleNormal =
-                (1 - sqrt(v1)) * triangleNormals[0] +
-                (sqrt(v1) * (1 - v2)) * triangleNormals[1] +
-                (sqrt(v1) * v2) * triangleNormals[2];
-        sampleNormal = normalize(sampleNormal);
-
-		assert(sampleIndex < sampleCount);
-		pointSamples.set(sampleIndex, samplePoint);
-		pointNormals.set(sampleIndex, sampleNormal);
-	}
-}
-
 // @TODO: Descriptors are created on a vertex by vertex basis, as of yet not on an arbitrary point by point basis. 
 // Feature points with high curvature tend to lie on edges. In triangle meshes, you need vertices to lie on these edges or corners to create the shape
 // As such vertex by vertex might not be an entirely bad way of getting hold of corresponding features
@@ -270,8 +79,7 @@ __global__ void sampleMesh(
 __global__ void createDescriptors(
         DeviceMesh mesh,
         DeviceOrientedPoint* device_spinImageOrigins,
-        DeviceVertexList pointSamples,
-        DeviceVertexList pointNormals,
+        SpinImage::GPUPointCloud pointCloud,
         array<spinImagePixelType> descriptors,
         array<float> areaArray,
         size_t sampleCount,
@@ -294,7 +102,7 @@ __global__ void createDescriptors(
 
 	for (int triangleIndex = threadIdx.x; triangleIndex < mesh.vertexCount / 3; triangleIndex += blockDim.x)
 	{
-		SampleBounds bounds = calculateSampleBounds(areaArray, triangleIndex, sampleCount);
+        SpinImage::SampleBounds bounds = calculateSampleBounds(areaArray, triangleIndex, sampleCount);
 
 		for(unsigned int sample = 0; sample < bounds.sampleCount; sample++)
 		{
@@ -305,8 +113,8 @@ __global__ void createDescriptors(
 				continue;
 			}
 
-			float3 samplePoint = pointSamples.at(sampleIndex);
-			float3 sampleNormal = pointNormals.at(sampleIndex);
+			float3 samplePoint = pointCloud.vertices.at(sampleIndex);
+			float3 sampleNormal = pointCloud.normals.at(sampleIndex);
 
 			float sampleAngleCosine = dot(sampleNormal, normal);
 
@@ -397,41 +205,22 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t imageCount = device_spinImageOrigins.length;
-    size_t vertexCount = device_mesh.vertexCount;
-    size_t triangleCount = vertexCount / 3;
 
     size_t descriptorBufferLength = imageCount * spinImageWidthPixels * spinImageWidthPixels;
 	size_t descriptorBufferSize = sizeof(float) * descriptorBufferLength;
-	size_t areaArrayLength = triangleCount;
-	size_t areaArraySize = areaArrayLength * sizeof(float);
-	curandState* device_randomState;
-	array<float2> device_coefficients;
 
 	array<spinImagePixelType> device_descriptors;
-	array<float> device_areaArray;
-	array<float> device_cumulativeAreaArray;
 
 	float supportAngleCosine = float(std::cos(supportAngleDegrees * (M_PI / 180.0)));
 
 	// -- Initialisation --
 	auto initialisationStart = std::chrono::steady_clock::now();
 
-        DeviceVertexList device_pointSamples(sampleCount);
-        DeviceVertexList device_pointNormals(sampleCount);
-
 		checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
-		checkCudaErrors(cudaMalloc(&device_areaArray.content, areaArraySize));
-		checkCudaErrors(cudaMalloc(&device_cumulativeAreaArray.content, areaArraySize));
-		checkCudaErrors(cudaMalloc(&device_randomState, sizeof(curandState) * (size_t)SAMPLE_COEFFICIENT_THREAD_COUNT));
-		checkCudaErrors(cudaMalloc(&device_coefficients.content, sizeof(float2) * sampleCount));
 
 		device_descriptors.length = imageCount;
-		device_areaArray.length = (size_t) areaArrayLength;
-		device_cumulativeAreaArray.length = (size_t) areaArrayLength;
 
 		CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength);
-		CudaLaunchDimensions areaSettings = calculateCudaLaunchDimensions(device_areaArray.length);
-		CudaLaunchDimensions cumulativeAreaSettings = calculateCudaLaunchDimensions(device_areaArray.length);
 
 		setValue <spinImagePixelType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.content, descriptorBufferLength, 0);
 		cudaDeviceSynchronize();
@@ -442,21 +231,9 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 	// -- Mesh Sampling --
 	auto meshSamplingStart = std::chrono::steady_clock::now();
 
-		calculateAreas <<<areaSettings.blocksPerGrid, areaSettings.threadsPerBlock >>> (device_areaArray, device_mesh);
-		cudaDeviceSynchronize();
-		checkCudaErrors(cudaGetLastError());
-
-		calculateCumulativeAreas<<<cumulativeAreaSettings.blocksPerGrid, cumulativeAreaSettings.threadsPerBlock>>>(device_areaArray, device_cumulativeAreaArray);
-		cudaDeviceSynchronize();
-		checkCudaErrors(cudaGetLastError());
-
-		generateRandomSampleCoefficients<<<SAMPLE_COEFFICIENT_THREAD_COUNT / 32, 32>>>(device_coefficients, device_randomState, sampleCount, randomSamplingSeed);
-		cudaDeviceSynchronize();
-		checkCudaErrors(cudaGetLastError());
-
-		sampleMesh <<<areaSettings.blocksPerGrid, areaSettings.threadsPerBlock>>>(device_mesh, device_cumulativeAreaArray, device_pointSamples, device_pointNormals, device_coefficients, sampleCount);
-		cudaDeviceSynchronize();
-		checkCudaErrors(cudaGetLastError());
+        SpinImage::internal::MeshSamplingBuffers sampleBuffers;
+        SpinImage::GPUPointCloud device_pointCloud = SpinImage::utilities::sampleMesh(device_mesh, sampleCount, randomSamplingSeed, &sampleBuffers);
+        array<float> device_cumulativeAreaArray = sampleBuffers.cumulativeAreaArray;
 
 	std::chrono::milliseconds meshSamplingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - meshSamplingStart);
 
@@ -466,8 +243,7 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 	    createDescriptors <<<imageCount, 416>>>(
 	            device_mesh,
 	            device_spinImageOrigins.content,
-	            device_pointSamples,
-	            device_pointNormals,
+                device_pointCloud,
 	            device_descriptors,
 	            device_cumulativeAreaArray,
 	            sampleCount,
@@ -480,12 +256,9 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 
 	// -- Cleanup --
 
-	checkCudaErrors(cudaFree(device_areaArray.content));
 	checkCudaErrors(cudaFree(device_cumulativeAreaArray.content));
-	checkCudaErrors(cudaFree(device_randomState));
-	checkCudaErrors(cudaFree(device_coefficients.content));
-	device_pointSamples.free();
-	device_pointNormals.free();
+	device_pointCloud.vertices.free();
+	device_pointCloud.normals.free();
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 

@@ -9,7 +9,7 @@ struct DeviceVertexList {
     size_t length;
 
     DeviceVertexList(size_t length) {
-        checkCudaErrors(cudaMalloc(&array, 3 * length * sizeof(float)));
+        checkCudaErrors(cudaMalloc((void**) &array, 3 * length * sizeof(float)));
         this->length = length;
     }
 

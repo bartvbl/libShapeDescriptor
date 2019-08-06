@@ -13,7 +13,7 @@ __global__ void setValue(valueType* target, size_t length, valueType value)
 	}
 }
 
-// DO NOTE REMOVE THIS FUNCTION, COMPILATION WILL FAIL WITHOUT IT
+// DO NOT REMOVE THIS FUNCTION, COMPILATION WILL FAIL WITHOUT IT
 __host__ void dummy()
 
 {

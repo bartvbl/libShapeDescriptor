@@ -5,7 +5,7 @@
 
 #include <spinImage/gpu/types/DeviceMesh.h>
 #include <spinImage/gpu/types/CudaLaunchDimensions.h>
-#include <spinImage/gpu/setValue.cuh>
+#include <spinImage/utilities/setValue.cuh>
 #include <spinImage/libraryBuildSettings.h>
 #include <spinImage/common/types/QSIPrecalculatedSettings.h>
 

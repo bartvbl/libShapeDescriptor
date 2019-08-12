@@ -78,7 +78,7 @@ __device__ __inline__ void lookupTriangleNormals(DeviceMesh mesh, int triangleIn
 
 
 // One thread = One triangle
-__global__ void calculateAreas(floatArray areaArray, DeviceMesh mesh)
+__global__ void calculateAreas(array<float> areaArray, DeviceMesh mesh)
 {
     int triangleIndex = blockDim.x * blockIdx.x + threadIdx.x;
     if (triangleIndex >= areaArray.length)
@@ -93,7 +93,7 @@ __global__ void calculateAreas(floatArray areaArray, DeviceMesh mesh)
     areaArray.content[triangleIndex] = area;
 }
 
-__global__ void calculateCumulativeAreas(floatArray areaArray, floatArray device_cumulativeAreaArray) {
+__global__ void calculateCumulativeAreas(array<float> areaArray, array<float> device_cumulativeAreaArray) {
     int triangleIndex = blockDim.x * blockIdx.x + threadIdx.x;
     if (triangleIndex >= areaArray.length)
     {

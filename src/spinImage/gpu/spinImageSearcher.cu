@@ -308,6 +308,7 @@ __global__ void computeSpinImageSearchResultIndices(
 	        needleImageAverage,
 	        correspondingImageAverage);
 
+	// No image pair can have a better correlation than 1, so we can just stop the search right here
 	if(referenceCorrelation == 1) {
 		return;
 	}
@@ -329,6 +330,8 @@ __global__ void computeSpinImageSearchResultIndices(
 		        needleImageAverage,
 		        haystackImageAverage);
 
+		// We've found a result that's better than the reference one. That means this search result would end up
+		// above ours in the search result list. We therefore move our search result down by 1.
 		if(correlation > referenceCorrelation) {
 			searchResultRank++;
 		}

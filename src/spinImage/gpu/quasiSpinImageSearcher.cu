@@ -12,6 +12,10 @@
 #include "nvidia/helper_cuda.h"
 #include "quasiSpinImageSearcher.cuh"
 
+#ifndef warpSize
+#define warpSize 32
+#endif
+
 __inline__ __device__ int warpAllReduceSum(int val) {
     for (int mask = warpSize/2; mask > 0; mask /= 2)
         val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
@@ -20,20 +24,106 @@ __inline__ __device__ int warpAllReduceSum(int val) {
 
 const int indexBasedWarpCount = 16;
 
+__device__ int computeImageSquaredSumGPU(
+        const quasiSpinImagePixelType* needleImages,
+        const size_t needleImageIndex) {
+
+    const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
+    const int laneIndex = threadIdx.x % 32;
+
+    unsigned int threadSquaredSum = 0;
+
+    static_assert(spinImageWidthPixels % 32 == 0);
+
+    // Scores are computed one row at a time.
+    // We differentiate between rows to ensure the final pixel of the previous row does not
+    // affect the first pixel of the next one.
+    for(int pixel = 0; pixel < spinImageElementCount; pixel++) {
+        quasiSpinImagePixelType previousWarpLastNeedlePixelValue = 0;
+        quasiSpinImagePixelType currentNeedlePixelValue =
+                needleImages[needleImageIndex * spinImageElementCount + pixel];
+
+        int targetThread;
+        if (laneIndex > 0) {
+            targetThread = laneIndex - 1;
+        } else if (pixel > 0) {
+            targetThread = 31;
+        } else {
+            targetThread = 0;
+        }
+
+        quasiSpinImagePixelType threadNeedleValue = 0;
+
+        if (laneIndex == 31) {
+            threadNeedleValue = previousWarpLastNeedlePixelValue;
+        } else {
+            threadNeedleValue = currentNeedlePixelValue;
+        }
+
+        quasiSpinImagePixelType previousNeedlePixelValue = __shfl_sync(0xFFFFFFFF, threadNeedleValue, targetThread);
+        int needleDelta = int(currentNeedlePixelValue) - int(previousNeedlePixelValue);
+
+        threadSquaredSum += unsigned(needleDelta * needleDelta);
+    }
+
+    int squaredSum = warpAllReduceSum(threadSquaredSum);
+
+    return squaredSum;
+}
+
+__device__ size_t compareConstantQuasiSpinImagePairGPU(
+        const quasiSpinImagePixelType* needleImages,
+        const size_t needleImageIndex,
+        const quasiSpinImagePixelType* haystackImages,
+        const size_t haystackImageIndex) {
+
+    const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
+    const int laneIndex = threadIdx.x % 32;
+
+    // Assumption: there will never be an intersection count over 65535 (which would cause this to overflow)
+    size_t threadDeltaSquaredSum = 0;
+
+    static_assert(spinImageWidthPixels % 32 == 0);
+
+
+    // Scores are computed one row at a time.
+    // We differentiate between rows to ensure the final pixel of the previous row does not
+    // affect the first pixel of the next one.
+    for(int row = 0; row < spinImageWidthPixels; row++) {
+        // Each thread processes one pixel, a warp processes therefore 32 pixels per iteration
+        for (int pixel = laneIndex; pixel < spinImageWidthPixels; pixel += warpSize) {
+            quasiSpinImagePixelType currentNeedlePixelValue =
+                    needleImages[needleImageIndex * spinImageElementCount + row * spinImageWidthPixels + pixel];
+            quasiSpinImagePixelType currentHaystackPixelValue =
+                    haystackImages[haystackImageIndex * spinImageElementCount + row * spinImageWidthPixels + pixel];
+
+            // This bit handles the case where an image is completely constant.
+            // In that case, we use the absolute sum of squares as a distance function instead
+            int imageDelta = int(currentNeedlePixelValue) - int(currentHaystackPixelValue);
+            threadDeltaSquaredSum += unsigned(imageDelta * imageDelta);
+        }
+    }
+
+    // image is constant.
+    // In those situations, imageScore would always be 0
+    // So we use an unfiltered squared sum instead
+    size_t imageScore = warpAllReduceSum(threadDeltaSquaredSum);
+
+    return imageScore;
+}
+
 __device__ int compareQuasiSpinImagePairGPU(
         const quasiSpinImagePixelType* needleImages,
         const size_t needleImageIndex,
         const quasiSpinImagePixelType* haystackImages,
         const size_t haystackImageIndex,
         const int distanceToBeat = INT_MAX) {
+
     int threadScore = 0;
     const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
     const int laneIndex = threadIdx.x % 32;
-    unsigned int threadSquaredSum = 0;
-    unsigned int threadDeltaSquaredSum = 0;
 
     static_assert(spinImageWidthPixels % 32 == 0);
-
 
     // Scores are computed one row at a time.
     // We differentiate between rows to ensure the final pixel of the previous row does not
@@ -58,7 +148,7 @@ __device__ int compareQuasiSpinImagePairGPU(
             }
             // For these last two: lane index is 0. The first pixel of each row receives special treatment, as
             // there is no pixel left of it you can compute a difference over
-            else if (pixel != 0) {
+            else if (pixel > 0) {
                 // If pixel is not the first pixel in the row, we read the difference value from the previous iteration
                 targetThread = 31;
             } else {
@@ -67,8 +157,8 @@ __device__ int compareQuasiSpinImagePairGPU(
                 targetThread = 0;
             }
 
-            quasiSpinImagePixelType threadNeedleValue;
-            quasiSpinImagePixelType threadHaystackValue;
+            quasiSpinImagePixelType threadNeedleValue = 0;
+            quasiSpinImagePixelType threadHaystackValue = 0;
 
             // Here we determine the outgoing value of the shuffle.
             // If we're the last thread in the warp, thread 0 will read from us if we're not processing the first batch
@@ -91,19 +181,11 @@ __device__ int compareQuasiSpinImagePairGPU(
             int needleDelta = int(currentNeedlePixelValue) - int(previousNeedlePixelValue);
             int haystackDelta = int(currentHaystackPixelValue) - int(previousHaystackPixelValue);
 
-            // This if statement makes a massive difference in the clutter resitant performance of this method
+            // This if statement makes a massive difference in the clutter resistant performance of this method
             // It only counts least squares differences if the needle image has a change in intersection count
             // Which is usually something very specific to that object.
             if (needleDelta != 0) {
                 threadScore += (needleDelta - haystackDelta) * (needleDelta - haystackDelta);
-            }
-
-            // This bit handles the case where an image is completely constant.
-            // In that case, we use the absolute sum of squares as a distance function instead
-            if (laneIndex != 31) {
-                int imageDelta = int(currentNeedlePixelValue) - int(currentHaystackPixelValue);
-                threadSquaredSum += unsigned(needleDelta * needleDelta);
-                threadDeltaSquaredSum += unsigned(imageDelta * imageDelta);
             }
 
             // This only matters for thread 31, so no need to broadcast it using a shuffle instruction
@@ -112,9 +194,10 @@ __device__ int compareQuasiSpinImagePairGPU(
         }
 
         // At the end of each block of 8 rows, check whether we can do an early exit
-        if(row % 2 == 1 && row != (spinImageWidthPixels - 1)) {
+        // This also works for the constant image
+        if(row != (spinImageWidthPixels - 1)) {
             int intermediateDistance = warpAllReduceSum(threadScore);
-            if(intermediateDistance > distanceToBeat) {
+            if(intermediateDistance >= distanceToBeat) {
                 return intermediateDistance;
             }
         }
@@ -122,21 +205,11 @@ __device__ int compareQuasiSpinImagePairGPU(
 
     int imageScore = warpAllReduceSum(threadScore);
 
-    int squaredSum = warpAllReduceSum(threadSquaredSum);
-
-    // image is constant. 
-    // In those situations, imageScore would always be 0
-    // So we use an unfiltered squared sum instead
-    if(squaredSum == 0) {
-        int deltaSquaredSum = warpAllReduceSum(threadDeltaSquaredSum);  
-        imageScore = deltaSquaredSum;
-    }
-
     return imageScore;
 }
 
 __global__ void computeQuasiSpinImageSearchResultIndices(
-        quasiSpinImagePixelType* needleDescriptors,
+        const quasiSpinImagePixelType* needleDescriptors,
         quasiSpinImagePixelType* haystackDescriptors,
         size_t haystackImageCount,
         unsigned int* searchResults) {
@@ -156,6 +229,10 @@ __global__ void computeQuasiSpinImageSearchResultIndices(
         return;
     }
 
+    int needleSquaredSum = computeImageSquaredSumGPU(referenceImage, 0);
+
+    bool needleImageIsConstant = needleSquaredSum == 0;
+
     unsigned int searchResultRank = 0;
 
     for(size_t haystackImageIndex = threadIdx.x / 32; haystackImageIndex < haystackImageCount; haystackImageIndex += indexBasedWarpCount) {
@@ -165,7 +242,15 @@ __global__ void computeQuasiSpinImageSearchResultIndices(
         }
 
         // For the current image pair, compute the distance score
-        int pairScore = compareQuasiSpinImagePairGPU(referenceImage, 0, haystackDescriptors, haystackImageIndex, referenceScore);
+        // This depends on whether the needle image is constant
+        int pairScore;
+        if(!needleImageIsConstant) {
+            // If there's variation in the image, we'll use the regular distance function
+            pairScore = compareQuasiSpinImagePairGPU(referenceImage, 0, haystackDescriptors, haystackImageIndex, referenceScore);
+        } else {
+            // If the image is constant, we use sum of squares as a fallback
+            pairScore = compareConstantQuasiSpinImagePairGPU(referenceImage, 0, haystackDescriptors, haystackImageIndex);
+        }
 
         // We found a better search result that will end up higher in the results list
         // Therefore we move our reference image one result down

@@ -222,16 +222,22 @@ __global__ void computeQuasiSpinImageSearchResultIndices(
 
     __syncthreads();
 
-    int referenceScore = compareQuasiSpinImagePairGPU(referenceImage, 0, haystackDescriptors, needleImageIndex);
+    int referenceScore;
+
+    int needleSquaredSum = computeImageSquaredSumGPU(referenceImage, 0);
+
+    bool needleImageIsConstant = needleSquaredSum == 0;
+
+    if(!needleImageIsConstant) {
+        referenceScore = compareQuasiSpinImagePairGPU(referenceImage, 0, haystackDescriptors, needleImageIndex);
+    } else {
+        referenceScore = compareConstantQuasiSpinImagePairGPU(referenceImage, 0, haystackDescriptors, needleImageIndex);
+    }
 
     // If the reference distance is 0, no image pair can beat the score. As such we can just skip it.
     if(referenceScore == 0) {
         return;
     }
-
-    int needleSquaredSum = computeImageSquaredSumGPU(referenceImage, 0);
-
-    bool needleImageIsConstant = needleSquaredSum == 0;
 
     unsigned int searchResultRank = 0;
 

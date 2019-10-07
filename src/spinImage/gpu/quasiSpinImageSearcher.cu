@@ -100,7 +100,7 @@ __device__ size_t compareConstantQuasiSpinImagePairGPU(
             // This bit handles the case where an image is completely constant.
             // In that case, we use the absolute sum of squares as a distance function instead
             int imageDelta = int(currentNeedlePixelValue) - int(currentHaystackPixelValue);
-            threadDeltaSquaredSum += unsigned(imageDelta * imageDelta);
+            threadDeltaSquaredSum += unsigned(imageDelta * imageDelta); // TODO: size_t?
         }
     }
 
@@ -111,6 +111,12 @@ __device__ size_t compareConstantQuasiSpinImagePairGPU(
 
     return imageScore;
 }
+
+
+
+
+
+
 
 __device__ int compareQuasiSpinImagePairGPU(
         const quasiSpinImagePixelType* needleImages,

@@ -212,7 +212,7 @@ HostMesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
 		return mesh;
 	}
 	else {
-		std::cout << "Something went wrong reading the file!" << std::endl;
+		std::cout << "OBJ file at " << src << " failed to load!" << std::endl;
 	}
 
 	return HostMesh();

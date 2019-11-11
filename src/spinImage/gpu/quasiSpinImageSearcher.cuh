@@ -7,7 +7,7 @@
 
 namespace SpinImage {
     namespace debug {
-        struct QSISearchRunInfo {
+        struct RICISearchRunInfo {
             double totalExecutionTimeSeconds;
             double searchExecutionTimeSeconds;
         };
@@ -25,6 +25,6 @@ namespace SpinImage {
                 size_t needleImageCount,
                 array<quasiSpinImagePixelType> device_haystackDescriptors,
                 size_t haystackImageCount,
-                SpinImage::debug::QSISearchRunInfo* runInfo = nullptr);
+                SpinImage::debug::RICISearchRunInfo* runInfo = nullptr);
     }
 }

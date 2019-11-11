@@ -19,7 +19,7 @@
 #include <sstream>
 #include <spinImage/gpu/types/DeviceOrientedPoint.h>
 
-#if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
+#if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 const int SHORT_SINGLE_BOTH_MASK = 0x00010001;
 const int SHORT_SINGLE_ONE_MASK = 0x00000001;
 const int SHORT_SINGLE_FIRST_MASK = 0x00010000;
@@ -34,7 +34,7 @@ const int SHORT_DOUBLE_FIRST_MASK = 0x00020000;
 
 const int RASTERISATION_WARP_SIZE = 1024;
 
-struct QSIMesh {
+struct RICIMesh {
     float* geometryBasePointer;
     float* spinOriginsBasePointer;
 
@@ -85,7 +85,7 @@ __host__ __device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInB
     return (sizeInBytes + 127u) & ~((size_t) 127);
 }
 
-#if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
+#if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 __device__ __inline__ void rasteriseRow(int pixelBaseIndex, quasiSpinImagePixelType* descriptorArray, unsigned int pixelStart, unsigned int pixelEnd, const unsigned int singleMask, const unsigned int doubleMask, const unsigned int initialMask)
 {
 	// First we calculate a base pointer for the first short value that should be updated
@@ -297,13 +297,13 @@ __device__ __inline__ void rasteriseTriangle(
 
 				// rowStartPixels must already be in bounds, and doubleIntersectionStartPixels can not be smaller than 0.
 				// Hence the values in this loop are in-bounds.
-#if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT || QSI_PIXEL_DATATYPE == DATATYPE_FLOAT32
+#if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT || RICI_PIXEL_DATATYPE == DATATYPE_FLOAT32
 				for (int jobX = jobDoubleIntersectionStartPixels; jobX < rowStartPixels; jobX++)
 				{
 					// Increment pixel by 2 because 2 intersections occurred.
 					atomicAdd(&(descriptors[jobSpinImageBaseIndex + jobX]), 2);
 				}
-#elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
+#elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
 				int jobBaseIndex = jobSpinImageBaseIndex + jobDoubleIntersectionStartPixels;
 				quasiSpinImagePixelType* descriptorArrayPointer = descriptors.content;
@@ -315,13 +315,13 @@ __device__ __inline__ void rasteriseTriangle(
 #endif
 			}
 
-#if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT || QSI_PIXEL_DATATYPE == DATATYPE_FLOAT32
+#if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT || RICI_PIXEL_DATATYPE == DATATYPE_FLOAT32
 			// It's imperative the condition of this loop is a < comparison
 			for (int jobX = rowStartPixels; jobX < rowEndPixels; jobX++)
 			{
 				atomicAdd(&(descriptors[jobSpinImageBaseIndex + jobX]), 1);
 			}
-#elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
+#elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
 			int jobBaseIndex = jobSpinImageBaseIndex + rowStartPixels;
 			quasiSpinImagePixelType* descriptorArrayPointer = descriptors.content;
@@ -337,7 +337,7 @@ __device__ __inline__ void rasteriseTriangle(
 
 __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinImage(
 		quasiSpinImagePixelType* descriptors,
-        QSIMesh mesh)
+        RICIMesh mesh)
 {
 	// Copying over precalculated values
 	float3 spinImageVertex;
@@ -398,7 +398,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinI
 	}
 #if ENABLE_SHARED_MEMORY_IMAGE
 
-#if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT
+#if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT
 
 	__syncthreads();
 	// Image finished. Copying into main memory
@@ -409,7 +409,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinI
 	{
 		atomicAdd(&descriptors[jobSpinImageBaseIndex + i], descriptorArrayPointer[i]);
 	}
-#elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
+#elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	size_t jobSpinImageBaseIndex = size_t(renderedSpinImageIndex) * spinImageWidthPixels * spinImageWidthPixels;
 
 	unsigned int* integerBasePointer = (unsigned int*)((void*)(descriptors + jobSpinImageBaseIndex));
@@ -448,7 +448,7 @@ __global__ void scaleSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* origins, s
     origins[vertexIndex].vertex.z *= scaleFactor;
 }
 
-__global__ void redistributeMesh(SpinImage::gpu::Mesh mesh, QSIMesh qsiMesh) {
+__global__ void redistributeMesh(SpinImage::gpu::Mesh mesh, RICIMesh riciMesh) {
     size_t triangleIndex = blockIdx.x;
     size_t triangleBaseIndex = 3 * triangleIndex;
 
@@ -456,18 +456,18 @@ __global__ void redistributeMesh(SpinImage::gpu::Mesh mesh, QSIMesh qsiMesh) {
     size_t triangleCount = mesh.vertexCount / 3;
     size_t geometryBlockSize = roundSizeToNearestCacheLine(triangleCount);
 
-    qsiMesh.geometryBasePointer[0 * geometryBlockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 0];
-    qsiMesh.geometryBasePointer[1 * geometryBlockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 0];
-    qsiMesh.geometryBasePointer[2 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 0];
-    qsiMesh.geometryBasePointer[3 * geometryBlockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 1];
-    qsiMesh.geometryBasePointer[4 * geometryBlockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 1];
-    qsiMesh.geometryBasePointer[5 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 1];
-    qsiMesh.geometryBasePointer[6 * geometryBlockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 2];
-    qsiMesh.geometryBasePointer[7 * geometryBlockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 2];
-    qsiMesh.geometryBasePointer[8 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
+    riciMesh.geometryBasePointer[0 * geometryBlockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 0];
+    riciMesh.geometryBasePointer[1 * geometryBlockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 0];
+    riciMesh.geometryBasePointer[2 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 0];
+    riciMesh.geometryBasePointer[3 * geometryBlockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 1];
+    riciMesh.geometryBasePointer[4 * geometryBlockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 1];
+    riciMesh.geometryBasePointer[5 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 1];
+    riciMesh.geometryBasePointer[6 * geometryBlockSize + triangleIndex] = mesh.vertices_x[triangleBaseIndex + 2];
+    riciMesh.geometryBasePointer[7 * geometryBlockSize + triangleIndex] = mesh.vertices_y[triangleBaseIndex + 2];
+    riciMesh.geometryBasePointer[8 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
 }
 
-__global__ void redistributeSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* spinOrigins, size_t imageCount, QSIMesh qsiMesh) {
+__global__ void redistributeSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* spinOrigins, size_t imageCount, RICIMesh riciMesh) {
     assert(imageCount == gridDim.x);
     size_t imageIndex = blockIdx.x;
 
@@ -475,24 +475,24 @@ __global__ void redistributeSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* spi
 
     SpinImage::gpu::DeviceOrientedPoint spinOrigin = spinOrigins[imageIndex];
 
-    qsiMesh.spinOriginsBasePointer[0 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.x;
-    qsiMesh.spinOriginsBasePointer[1 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.y;
-    qsiMesh.spinOriginsBasePointer[2 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.z;
+    riciMesh.spinOriginsBasePointer[0 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.x;
+    riciMesh.spinOriginsBasePointer[1 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.y;
+    riciMesh.spinOriginsBasePointer[2 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.z;
 
-    qsiMesh.spinOriginsBasePointer[3 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.x;
-    qsiMesh.spinOriginsBasePointer[4 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.y;
-    qsiMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
+    riciMesh.spinOriginsBasePointer[3 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.x;
+    riciMesh.spinOriginsBasePointer[4 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.y;
+    riciMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
 
 SpinImage::array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
         Mesh device_mesh,
-        array<DeviceOrientedPoint> device_QSIOrigins,
+        array<DeviceOrientedPoint> device_RICIOrigins,
         float spinImageWidth,
-        SpinImage::debug::QSIRunInfo* runinfo)
+        SpinImage::debug::RICIRunInfo* runinfo)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
-    size_t imageCount = device_QSIOrigins.length;
+    size_t imageCount = device_RICIOrigins.length;
     size_t meshVertexCount = device_mesh.vertexCount;
     size_t triangleCount = meshVertexCount / (size_t) 3;
 
@@ -510,7 +510,7 @@ SpinImage::array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImage
 
         DeviceOrientedPoint* device_editableSpinOriginsCopy;
         checkCudaErrors(cudaMalloc(&device_editableSpinOriginsCopy, imageCount * sizeof(DeviceOrientedPoint)));
-        checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_QSIOrigins.content, imageCount * sizeof(DeviceOrientedPoint), cudaMemcpyDeviceToDevice));
+        checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_RICIOrigins.content, imageCount * sizeof(DeviceOrientedPoint), cudaMemcpyDeviceToDevice));
         scaleSpinOrigins<<<(imageCount / 128) + 1, 128>>>(device_editableSpinOriginsCopy, imageCount, scaleFactor);
         checkCudaErrors(cudaDeviceSynchronize());
 
@@ -519,18 +519,18 @@ SpinImage::array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImage
     // -- Array Restructuring --
     // In order to optimise memory access patterns, we rearrange the memory layout of the input data
 
-    QSIMesh qsiMesh;
-    qsiMesh.vertexCount = meshVertexCount;
+    RICIMesh riciMesh;
+    riciMesh.vertexCount = meshVertexCount;
 
-    checkCudaErrors(cudaMalloc(&qsiMesh.spinOriginsBasePointer,
+    checkCudaErrors(cudaMalloc(&riciMesh.spinOriginsBasePointer,
             roundSizeToNearestCacheLine(imageCount) * 2 * sizeof(float3)));
-    checkCudaErrors(cudaMalloc(&qsiMesh.geometryBasePointer,
+    checkCudaErrors(cudaMalloc(&riciMesh.geometryBasePointer,
             roundSizeToNearestCacheLine(meshVertexCount) * 3 * sizeof(float3)));
 
     auto redistributeTimeStart = std::chrono::steady_clock::now();
 
-        redistributeMesh<<<triangleCount, 1>>>(device_editableMeshCopy, qsiMesh);
-        redistributeSpinOrigins<<<imageCount, 1>>>(device_editableSpinOriginsCopy, imageCount, qsiMesh);
+        redistributeMesh<<<triangleCount, 1>>>(device_editableMeshCopy, riciMesh);
+        redistributeSpinOrigins<<<imageCount, 1>>>(device_editableSpinOriginsCopy, imageCount, riciMesh);
         checkCudaErrors(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
 
@@ -555,7 +555,7 @@ SpinImage::array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImage
 	auto generationStart = std::chrono::steady_clock::now();
 
 	    // Warning: kernel assumes the grid dimensions are equivalent to imageCount.
-	    generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors.content, qsiMesh);
+	    generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors.content, riciMesh);
         checkCudaErrors(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
 
@@ -564,8 +564,8 @@ SpinImage::array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImage
 	// -- Cleanup --
 
     freeMesh(device_editableMeshCopy);
-	cudaFree(qsiMesh.spinOriginsBasePointer);
-	cudaFree(qsiMesh.geometryBasePointer);
+	cudaFree(riciMesh.spinOriginsBasePointer);
+	cudaFree(riciMesh.geometryBasePointer);
 	cudaFree(device_editableSpinOriginsCopy);
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);

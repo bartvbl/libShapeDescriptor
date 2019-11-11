@@ -284,7 +284,7 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeQuasiSpinImageSearchResult
         size_t needleImageCount,
         array<quasiSpinImagePixelType> device_haystackDescriptors,
         size_t haystackImageCount,
-        SpinImage::debug::QSISearchRunInfo* runInfo) {
+        SpinImage::debug::RICISearchRunInfo* runInfo) {
 
     auto executionStart = std::chrono::steady_clock::now();
 

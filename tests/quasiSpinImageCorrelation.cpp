@@ -25,7 +25,7 @@ TEST_CASE("Ranking of Quasi Spin Images on the GPU") {
     SECTION("Ranking by generating search results on GPU") {
         SpinImage::array<SpinImage::gpu::QuasiSpinImageSearchResults> searchResults = SpinImage::gpu::findQuasiSpinImagesInHaystack(device_haystackImages, imageCount, device_haystackImages, imageCount);
 
-        SpinImage::dump::searchResults(searchResults, imageCount, "qsi_another_dump.txt");
+        SpinImage::dump::searchResults(searchResults, imageCount, "rici_another_dump.txt");
 
         SECTION("Equivalent images are the top search results") {
             // First and last image are constant, which causes the pearson correlation to be undefined.

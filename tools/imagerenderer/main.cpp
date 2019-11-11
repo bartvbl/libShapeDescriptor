@@ -86,7 +86,7 @@ int main(int argc, const char** argv) {
                 spinOrigins,
                 spinImageWidth.value());
         std::cout << "Dumping results.. " << std::endl;
-        SpinImage::array<quasiSpinImagePixelType> hostDescriptors = SpinImage::copy::QSIDescriptorsToHost(descriptors, imageCount);
+        SpinImage::array<quasiSpinImagePixelType> hostDescriptors = SpinImage::copy::RICIDescriptorsToHost(descriptors, imageCount);
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }

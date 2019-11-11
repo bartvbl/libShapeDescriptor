@@ -6,7 +6,7 @@
 // Specifies the data type pixels should have for the different image generators.
 // Because preprocessor code changes are also applied, this is implemented as a define rather than a direct typedef.
 // Valid values are DATATYPE_UNSIGNED_SHORT, DATATYPE_UNSIGNED_INT, DATATYPE_FLOAT32
-#define QSI_PIXEL_DATATYPE DATATYPE_UNSIGNED_INT
+#define RICI_PIXEL_DATATYPE DATATYPE_UNSIGNED_INT
 
 // Same thing, for the spin image generator. Only DATATYPE_FLOAT is supported at this time.
 #define SI_PIXEL_DATATYPE DATATYPE_FLOAT

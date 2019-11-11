@@ -1,10 +1,10 @@
 #pragma once
 
-#if QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT
+#if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT
 typedef unsigned int quasiSpinImagePixelType;
-#elif QSI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
+#elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 typedef unsigned short quasiSpinImagePixelType;
-#elif QSI_PIXEL_DATATYPE == DATATYPE_FLOAT32
+#elif RICI_PIXEL_DATATYPE == DATATYPE_FLOAT32
 typedef float quasiSpinImagePixelType;
 #else
 #error No valid datatype has been specified for the Quasi Spin Image

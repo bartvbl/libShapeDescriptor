@@ -14,9 +14,9 @@ SpinImage::array<pixelType> copyDescriptorsToDevice(const SpinImage::array<pixel
     return deviceDescriptors;
 }
 
-SpinImage::array<quasiSpinImagePixelType>
-SpinImage::copy::hostDescriptorsToDevice(array<quasiSpinImagePixelType> hostDescriptors, size_t imageCount) {
-    return copyDescriptorsToDevice<quasiSpinImagePixelType>(hostDescriptors, imageCount);
+SpinImage::array<radialIntersectionCountImagePixelType>
+SpinImage::copy::hostDescriptorsToDevice(array<radialIntersectionCountImagePixelType> hostDescriptors, size_t imageCount) {
+    return copyDescriptorsToDevice<radialIntersectionCountImagePixelType>(hostDescriptors, imageCount);
 }
 
 SpinImage::array<spinImagePixelType>

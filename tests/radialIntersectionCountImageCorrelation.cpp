@@ -1,4 +1,4 @@
-#include "quasiSpinImageCorrelation.h"
+#include "radialIntersectionCountImageCorrelation.h"
 
 #include <catch2/catch.hpp>
 #include <spinImage/libraryBuildSettings.h>
@@ -6,7 +6,7 @@
 #include <spinImage/utilities/CUDAContextCreator.h>
 #include <spinImage/utilities/copy/hostDescriptorsToDevice.h>
 #include <spinImage/gpu/types/ImageSearchResults.h>
-#include <spinImage/gpu/quasiSpinImageSearcher.cuh>
+#include <spinImage/gpu/radialIntersectionCountImageSearcher.cuh>
 #include <iostream>
 #include <spinImage/utilities/dumpers/searchResultDumper.h>
 #include "utilities/spinImageGenerator.h"
@@ -18,12 +18,13 @@ TEST_CASE("Ranking of Quasi Spin Images on the GPU") {
 
     SpinImage::utilities::createCUDAContext();
 
-    SpinImage::array<quasiSpinImagePixelType> imageSequence = generateKnownQuasiSpinImageSequence(imageCount, pixelsPerImage);
+    SpinImage::array<radialIntersectionCountImagePixelType> imageSequence = generateKnownQuasiSpinImageSequence(imageCount, pixelsPerImage);
 
-    SpinImage::array<quasiSpinImagePixelType> device_haystackImages = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
+    SpinImage::array<radialIntersectionCountImagePixelType> device_haystackImages = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
 
     SECTION("Ranking by generating search results on GPU") {
-        SpinImage::array<SpinImage::gpu::QuasiSpinImageSearchResults> searchResults = SpinImage::gpu::findQuasiSpinImagesInHaystack(device_haystackImages, imageCount, device_haystackImages, imageCount);
+        SpinImage::array<SpinImage::gpu::RadialIntersectionCountImageSearchResults> searchResults = SpinImage::gpu::findRadialIntersectionCountImagesInHaystack(
+                device_haystackImages, imageCount, device_haystackImages, imageCount);
 
         SpinImage::dump::searchResults(searchResults, imageCount, "rici_another_dump.txt");
 
@@ -59,7 +60,8 @@ TEST_CASE("Ranking of Quasi Spin Images on the GPU") {
 
     SECTION("Ranking by computing rank indices") {
 
-        SpinImage::array<unsigned int> results = SpinImage::gpu::computeQuasiSpinImageSearchResultRanks(device_haystackImages, imageCount, device_haystackImages, imageCount);
+        SpinImage::array<unsigned int> results = SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
+                device_haystackImages, imageCount, device_haystackImages, imageCount);
 
         for(int i = 0; i < imageCount; i++) {
             REQUIRE(results.content[i] == 0);
@@ -70,9 +72,10 @@ TEST_CASE("Ranking of Quasi Spin Images on the GPU") {
     SECTION("Ranking by computing rank indices, reversed image sequence") {
         std::reverse(imageSequence.content, imageSequence.content + imageCount * pixelsPerImage);
 
-        SpinImage::array<quasiSpinImagePixelType> device_haystackImages_reversed = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
+        SpinImage::array<radialIntersectionCountImagePixelType> device_haystackImages_reversed = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
 
-        SpinImage::array<unsigned int> results = SpinImage::gpu::computeQuasiSpinImageSearchResultRanks(device_haystackImages_reversed, imageCount, device_haystackImages_reversed, imageCount);
+        SpinImage::array<unsigned int> results = SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
+                device_haystackImages_reversed, imageCount, device_haystackImages_reversed, imageCount);
 
         for(int i = 0; i < imageCount; i++) {
             REQUIRE(results.content[i] == 0);

@@ -1,4 +1,4 @@
-#include "quasiSpinImageGenerator.cuh"
+#include "radialIntersectionCountImageGenerator.cuh"
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
@@ -86,10 +86,10 @@ __host__ __device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInB
 }
 
 #if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
-__device__ __inline__ void rasteriseRow(int pixelBaseIndex, quasiSpinImagePixelType* descriptorArray, unsigned int pixelStart, unsigned int pixelEnd, const unsigned int singleMask, const unsigned int doubleMask, const unsigned int initialMask)
+__device__ __inline__ void rasteriseRow(int pixelBaseIndex, radialIntersectionCountImagePixelType* descriptorArray, unsigned int pixelStart, unsigned int pixelEnd, const unsigned int singleMask, const unsigned int doubleMask, const unsigned int initialMask)
 {
 	// First we calculate a base pointer for the first short value that should be updated
-	quasiSpinImagePixelType* rowStartPointer = descriptorArray + pixelBaseIndex;
+	radialIntersectionCountImagePixelType* rowStartPointer = descriptorArray + pixelBaseIndex;
 	// Next, since atomicAdd() requires an integer pointer, we force a cast to an integer pointer
 	// while preserving the address of the original
 	unsigned int* jobBasePixelPointer = (unsigned int*)((void*)(rowStartPointer));
@@ -143,10 +143,10 @@ __device__ __inline__ void rasteriseRow(int pixelBaseIndex, quasiSpinImagePixelT
 #endif
 
 __device__ __inline__ void rasteriseTriangle(
-		quasiSpinImagePixelType* descriptors,
-		float3 vertices[3],
-		const float3 &spinImageVertex,
-		const float3 &spinImageNormal)
+        radialIntersectionCountImagePixelType* descriptors,
+        float3 vertices[3],
+        const float3 &spinImageVertex,
+        const float3 &spinImageNormal)
 {
 	vertices[0] = transformCoordinate(vertices[0], spinImageVertex, spinImageNormal);
 	vertices[1] = transformCoordinate(vertices[1], spinImageVertex, spinImageNormal);
@@ -306,10 +306,10 @@ __device__ __inline__ void rasteriseTriangle(
 #elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
 				int jobBaseIndex = jobSpinImageBaseIndex + jobDoubleIntersectionStartPixels;
-				quasiSpinImagePixelType* descriptorArrayPointer = descriptors.content;
+				radialIntersectionCountImagePixelType* descriptorArrayPointer = descriptors.content;
 	#else
 				int jobBaseIndex = pixelYCoordinate * spinImageWidthPixels + jobDoubleIntersectionStartPixels;
-				quasiSpinImagePixelType* descriptorArrayPointer = descriptors;
+				radialIntersectionCountImagePixelType* descriptorArrayPointer = descriptors;
 	#endif
 				rasteriseRow(jobBaseIndex, descriptorArrayPointer, jobDoubleIntersectionStartPixels, rowStartPixels, SHORT_DOUBLE_ONE_MASK, SHORT_DOUBLE_BOTH_MASK, SHORT_DOUBLE_FIRST_MASK);
 #endif
@@ -324,10 +324,10 @@ __device__ __inline__ void rasteriseTriangle(
 #elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
 			int jobBaseIndex = jobSpinImageBaseIndex + rowStartPixels;
-			quasiSpinImagePixelType* descriptorArrayPointer = descriptors.content;
+			radialIntersectionCountImagePixelType* descriptorArrayPointer = descriptors.content;
 	#else
 			int jobBaseIndex = pixelYCoordinate * spinImageWidthPixels + rowStartPixels;
-			quasiSpinImagePixelType* descriptorArrayPointer = descriptors;
+			radialIntersectionCountImagePixelType* descriptorArrayPointer = descriptors;
 	#endif
 			rasteriseRow(jobBaseIndex, descriptorArrayPointer, rowStartPixels, rowEndPixels, SHORT_SINGLE_ONE_MASK, SHORT_SINGLE_BOTH_MASK, SHORT_SINGLE_FIRST_MASK);
 #endif
@@ -336,7 +336,7 @@ __device__ __inline__ void rasteriseTriangle(
 }
 
 __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinImage(
-		quasiSpinImagePixelType* descriptors,
+        radialIntersectionCountImagePixelType* descriptors,
         RICIMesh mesh)
 {
 	// Copying over precalculated values
@@ -357,7 +357,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinI
 
 #if ENABLE_SHARED_MEMORY_IMAGE
 	// Creating a copy of the image in shared memory, then copying it into main memory
-	__shared__ quasiSpinImagePixelType descriptorArrayPointer[spinImageWidthPixels * spinImageWidthPixels];
+	__shared__ radialIntersectionCountImagePixelType descriptorArrayPointer[spinImageWidthPixels * spinImageWidthPixels];
 
 	// Initialising the values in memory to 0
 	for(int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += RASTERISATION_WARP_SIZE)
@@ -484,15 +484,15 @@ __global__ void redistributeSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* spi
     riciMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
 
-SpinImage::array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
+SpinImage::array<radialIntersectionCountImagePixelType> SpinImage::gpu::generateRadialIntersectionCountImages(
         Mesh device_mesh,
-        array<DeviceOrientedPoint> device_RICIOrigins,
+        array<DeviceOrientedPoint> device_spinImageOrigins,
         float spinImageWidth,
         SpinImage::debug::RICIRunInfo* runinfo)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
-    size_t imageCount = device_RICIOrigins.length;
+    size_t imageCount = device_spinImageOrigins.length;
     size_t meshVertexCount = device_mesh.vertexCount;
     size_t triangleCount = meshVertexCount / (size_t) 3;
 
@@ -510,7 +510,7 @@ SpinImage::array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImage
 
         DeviceOrientedPoint* device_editableSpinOriginsCopy;
         checkCudaErrors(cudaMalloc(&device_editableSpinOriginsCopy, imageCount * sizeof(DeviceOrientedPoint)));
-        checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_RICIOrigins.content, imageCount * sizeof(DeviceOrientedPoint), cudaMemcpyDeviceToDevice));
+        checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_spinImageOrigins.content, imageCount * sizeof(DeviceOrientedPoint), cudaMemcpyDeviceToDevice));
         scaleSpinOrigins<<<(imageCount / 128) + 1, 128>>>(device_editableSpinOriginsCopy, imageCount, scaleFactor);
         checkCudaErrors(cudaDeviceSynchronize());
 
@@ -539,14 +539,14 @@ SpinImage::array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImage
     // -- Descriptor Array Allocation and Initialisation --
 
     size_t descriptorBufferLength = imageCount * spinImageWidthPixels * spinImageWidthPixels;
-    size_t descriptorBufferSize = sizeof(quasiSpinImagePixelType) * descriptorBufferLength;
+    size_t descriptorBufferSize = sizeof(radialIntersectionCountImagePixelType) * descriptorBufferLength;
 
 
-    array<quasiSpinImagePixelType> device_descriptors;
+    array<radialIntersectionCountImagePixelType> device_descriptors;
 	checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
 	device_descriptors.length = imageCount;
 
-	setValue<quasiSpinImagePixelType><<<(descriptorBufferLength / 64) + 1, 64>>> (device_descriptors.content, descriptorBufferLength, 0);
+    setValue<radialIntersectionCountImagePixelType> << < (descriptorBufferLength / 64) + 1, 64 >> > (device_descriptors.content, descriptorBufferLength, 0);
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 

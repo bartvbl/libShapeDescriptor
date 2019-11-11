@@ -1,11 +1,11 @@
 #pragma once
 
 #if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT
-typedef unsigned int quasiSpinImagePixelType;
+typedef unsigned int radialIntersectionCountImagePixelType;
 #elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
-typedef unsigned short quasiSpinImagePixelType;
+typedef unsigned short radialIntersectionCountImagePixelType;
 #elif RICI_PIXEL_DATATYPE == DATATYPE_FLOAT32
-typedef float quasiSpinImagePixelType;
+typedef float radialIntersectionCountImagePixelType;
 #else
 #error No valid datatype has been specified for the Quasi Spin Image
 #endif

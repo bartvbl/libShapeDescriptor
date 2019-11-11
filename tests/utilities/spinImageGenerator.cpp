@@ -61,8 +61,8 @@ SpinImage::array<spinImagePixelType> generateEmptySpinImages(size_t imageCount) 
     return generateEmptyImages<spinImagePixelType>(imageCount);
 }
 
-SpinImage::array<quasiSpinImagePixelType> generateEmptyQuasiSpinImages(size_t imageCount) {
-    return generateEmptyImages<quasiSpinImagePixelType>(imageCount);
+SpinImage::array<radialIntersectionCountImagePixelType> generateEmptyQuasiSpinImages(size_t imageCount) {
+    return generateEmptyImages<radialIntersectionCountImagePixelType>(imageCount);
 }
 
 SpinImage::array<spinImagePixelType> generateRepeatingTemplateSpinImage(
@@ -85,16 +85,16 @@ SpinImage::array<spinImagePixelType> generateRepeatingTemplateSpinImage(
             patternPart7);
 }
 
-SpinImage::array<quasiSpinImagePixelType> generateRepeatingTemplateQuasiSpinImage(
-        quasiSpinImagePixelType patternPart0,
-        quasiSpinImagePixelType patternPart1,
-        quasiSpinImagePixelType patternPart2,
-        quasiSpinImagePixelType patternPart3,
-        quasiSpinImagePixelType patternPart4,
-        quasiSpinImagePixelType patternPart5,
-        quasiSpinImagePixelType patternPart6,
-        quasiSpinImagePixelType patternPart7) {
-    return generateRepeatingTemplateImage<quasiSpinImagePixelType>(
+SpinImage::array<radialIntersectionCountImagePixelType> generateRepeatingTemplateQuasiSpinImage(
+        radialIntersectionCountImagePixelType patternPart0,
+        radialIntersectionCountImagePixelType patternPart1,
+        radialIntersectionCountImagePixelType patternPart2,
+        radialIntersectionCountImagePixelType patternPart3,
+        radialIntersectionCountImagePixelType patternPart4,
+        radialIntersectionCountImagePixelType patternPart5,
+        radialIntersectionCountImagePixelType patternPart6,
+        radialIntersectionCountImagePixelType patternPart7) {
+    return generateRepeatingTemplateImage<radialIntersectionCountImagePixelType>(
             patternPart0,
             patternPart1,
             patternPart2,
@@ -109,8 +109,8 @@ SpinImage::array<spinImagePixelType> generateKnownSpinImageSequence(const int im
     return generateKnownImageSequence<spinImagePixelType>(imageCount, pixelsPerImage);
 }
 
-SpinImage::array<quasiSpinImagePixelType> generateKnownQuasiSpinImageSequence(const int imageCount, const int pixelsPerImage) {
-    return generateKnownImageSequence<quasiSpinImagePixelType>(imageCount, pixelsPerImage);
+SpinImage::array<radialIntersectionCountImagePixelType> generateKnownQuasiSpinImageSequence(const int imageCount, const int pixelsPerImage) {
+    return generateKnownImageSequence<radialIntersectionCountImagePixelType>(imageCount, pixelsPerImage);
 }
 
 

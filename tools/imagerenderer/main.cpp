@@ -1,6 +1,6 @@
 #include <spinImage/cpu/types/Mesh.h>
 #include <spinImage/gpu/spinImageGenerator.cuh>
-#include <spinImage/gpu/quasiSpinImageGenerator.cuh>
+#include <spinImage/gpu/radialIntersectionCountImageGenerator.cuh>
 #include <spinImage/utilities/OBJLoader.h>
 #include <spinImage/utilities/copy/hostMeshToDevice.h>
 #include <spinImage/utilities/dumpers/spinImageDumper.h>
@@ -81,12 +81,12 @@ int main(int argc, const char** argv) {
         delete[] hostDescriptors.content;
 
     } else if(generationMode.value() == "quasispinimage") {
-        SpinImage::array<quasiSpinImagePixelType> descriptors = SpinImage::gpu::generateQuasiSpinImages(
+        SpinImage::array<radialIntersectionCountImagePixelType> descriptors = SpinImage::gpu::generateRadialIntersectionCountImages(
                 deviceMesh,
                 spinOrigins,
                 spinImageWidth.value());
         std::cout << "Dumping results.. " << std::endl;
-        SpinImage::array<quasiSpinImagePixelType> hostDescriptors = SpinImage::copy::RICIDescriptorsToHost(descriptors, imageCount);
+        SpinImage::array<radialIntersectionCountImagePixelType> hostDescriptors = SpinImage::copy::RICIDescriptorsToHost(descriptors, imageCount);
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }

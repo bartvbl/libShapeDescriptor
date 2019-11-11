@@ -18,5 +18,5 @@ __host__ void dummy()
 
 {
 	setValue<spinImagePixelType><<<1, 1, 1>>>(nullptr, 1, 3);
-	setValue<quasiSpinImagePixelType><<<1, 1, 1>>>(nullptr, 1, 3);
+    setValue<radialIntersectionCountImagePixelType> << < 1, 1, 1 >> > (nullptr, 1, 3);
 }

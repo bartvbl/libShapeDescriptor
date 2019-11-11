@@ -10,7 +10,7 @@
 #include <chrono>
 #include <typeinfo>
 #include "nvidia/helper_cuda.h"
-#include "quasiSpinImageSearcher.cuh"
+#include "radialIntersectionCountImageSearcher.cuh"
 
 #ifndef warpSize
 #define warpSize 32
@@ -25,7 +25,7 @@ __inline__ __device__ int warpAllReduceSum(int val) {
 const int indexBasedWarpCount = 16;
 
 __device__ int computeImageSquaredSumGPU(
-        const quasiSpinImagePixelType* needleImages,
+        const radialIntersectionCountImagePixelType* needleImages,
         const size_t needleImageIndex) {
 
     const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
@@ -39,8 +39,8 @@ __device__ int computeImageSquaredSumGPU(
     // We differentiate between rows to ensure the final pixel of the previous row does not
     // affect the first pixel of the next one.
     for(int pixel = 0; pixel < spinImageElementCount; pixel++) {
-        quasiSpinImagePixelType previousWarpLastNeedlePixelValue = 0;
-        quasiSpinImagePixelType currentNeedlePixelValue =
+        radialIntersectionCountImagePixelType previousWarpLastNeedlePixelValue = 0;
+        radialIntersectionCountImagePixelType currentNeedlePixelValue =
                 needleImages[needleImageIndex * spinImageElementCount + pixel];
 
         int targetThread;
@@ -52,7 +52,7 @@ __device__ int computeImageSquaredSumGPU(
             targetThread = 0;
         }
 
-        quasiSpinImagePixelType threadNeedleValue = 0;
+        radialIntersectionCountImagePixelType threadNeedleValue = 0;
 
         if (laneIndex == 31) {
             threadNeedleValue = previousWarpLastNeedlePixelValue;
@@ -60,7 +60,7 @@ __device__ int computeImageSquaredSumGPU(
             threadNeedleValue = currentNeedlePixelValue;
         }
 
-        quasiSpinImagePixelType previousNeedlePixelValue = __shfl_sync(0xFFFFFFFF, threadNeedleValue, targetThread);
+        radialIntersectionCountImagePixelType previousNeedlePixelValue = __shfl_sync(0xFFFFFFFF, threadNeedleValue, targetThread);
         int needleDelta = int(currentNeedlePixelValue) - int(previousNeedlePixelValue);
 
         threadSquaredSum += unsigned(needleDelta * needleDelta);
@@ -72,9 +72,9 @@ __device__ int computeImageSquaredSumGPU(
 }
 
 __device__ size_t compareConstantQuasiSpinImagePairGPU(
-        const quasiSpinImagePixelType* needleImages,
+        const radialIntersectionCountImagePixelType* needleImages,
         const size_t needleImageIndex,
-        const quasiSpinImagePixelType* haystackImages,
+        const radialIntersectionCountImagePixelType* haystackImages,
         const size_t haystackImageIndex) {
 
     const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
@@ -92,9 +92,9 @@ __device__ size_t compareConstantQuasiSpinImagePairGPU(
     for(int row = 0; row < spinImageWidthPixels; row++) {
         // Each thread processes one pixel, a warp processes therefore 32 pixels per iteration
         for (int pixel = laneIndex; pixel < spinImageWidthPixels; pixel += warpSize) {
-            quasiSpinImagePixelType currentNeedlePixelValue =
+            radialIntersectionCountImagePixelType currentNeedlePixelValue =
                     needleImages[needleImageIndex * spinImageElementCount + row * spinImageWidthPixels + pixel];
-            quasiSpinImagePixelType currentHaystackPixelValue =
+            radialIntersectionCountImagePixelType currentHaystackPixelValue =
                     haystackImages[haystackImageIndex * spinImageElementCount + row * spinImageWidthPixels + pixel];
 
             // This bit handles the case where an image is completely constant.
@@ -119,9 +119,9 @@ __device__ size_t compareConstantQuasiSpinImagePairGPU(
 
 
 __device__ int compareQuasiSpinImagePairGPU(
-        const quasiSpinImagePixelType* needleImages,
+        const radialIntersectionCountImagePixelType* needleImages,
         const size_t needleImageIndex,
-        const quasiSpinImagePixelType* haystackImages,
+        const radialIntersectionCountImagePixelType* haystackImages,
         const size_t haystackImageIndex,
         const int distanceToBeat = INT_MAX) {
 
@@ -135,13 +135,13 @@ __device__ int compareQuasiSpinImagePairGPU(
     // We differentiate between rows to ensure the final pixel of the previous row does not
     // affect the first pixel of the next one.
     for(int row = 0; row < spinImageWidthPixels; row++) {
-        quasiSpinImagePixelType previousWarpLastNeedlePixelValue = 0;
-        quasiSpinImagePixelType previousWarpLastHaystackPixelValue = 0;
+        radialIntersectionCountImagePixelType previousWarpLastNeedlePixelValue = 0;
+        radialIntersectionCountImagePixelType previousWarpLastHaystackPixelValue = 0;
         // Each thread processes one pixel, a warp processes therefore 32 pixels per iteration
         for (int pixel = laneIndex; pixel < spinImageWidthPixels; pixel += warpSize) {
-            quasiSpinImagePixelType currentNeedlePixelValue =
+            radialIntersectionCountImagePixelType currentNeedlePixelValue =
                     needleImages[needleImageIndex * spinImageElementCount + row * spinImageWidthPixels + pixel];
-            quasiSpinImagePixelType currentHaystackPixelValue =
+            radialIntersectionCountImagePixelType currentHaystackPixelValue =
                     haystackImages[haystackImageIndex * spinImageElementCount + row * spinImageWidthPixels + pixel];
 
             // To save on memory bandwidth, we use shuffle instructions to pass around other values needed by the
@@ -163,8 +163,8 @@ __device__ int compareQuasiSpinImagePairGPU(
                 targetThread = 0;
             }
 
-            quasiSpinImagePixelType threadNeedleValue = 0;
-            quasiSpinImagePixelType threadHaystackValue = 0;
+            radialIntersectionCountImagePixelType threadNeedleValue = 0;
+            radialIntersectionCountImagePixelType threadHaystackValue = 0;
 
             // Here we determine the outgoing value of the shuffle.
             // If we're the last thread in the warp, thread 0 will read from us if we're not processing the first batch
@@ -179,9 +179,9 @@ __device__ int compareQuasiSpinImagePairGPU(
             }
 
             // Exchange "previous pixel" values through shuffle instructions
-            quasiSpinImagePixelType previousNeedlePixelValue = __shfl_sync(0xFFFFFFFF, threadNeedleValue, targetThread);
-            quasiSpinImagePixelType previousHaystackPixelValue = __shfl_sync(0xFFFFFFFF, threadHaystackValue,
-                                                                             targetThread);
+            radialIntersectionCountImagePixelType previousNeedlePixelValue = __shfl_sync(0xFFFFFFFF, threadNeedleValue, targetThread);
+            radialIntersectionCountImagePixelType previousHaystackPixelValue = __shfl_sync(0xFFFFFFFF, threadHaystackValue,
+                                                                                           targetThread);
 
             // The distance measure this function computes is based on deltas between pairs of pixels
             int needleDelta = int(currentNeedlePixelValue) - int(previousNeedlePixelValue);
@@ -215,13 +215,13 @@ __device__ int compareQuasiSpinImagePairGPU(
 }
 
 __global__ void computeQuasiSpinImageSearchResultIndices(
-        const quasiSpinImagePixelType* needleDescriptors,
-        quasiSpinImagePixelType* haystackDescriptors,
+        const radialIntersectionCountImagePixelType* needleDescriptors,
+        radialIntersectionCountImagePixelType* haystackDescriptors,
         size_t haystackImageCount,
         unsigned int* searchResults) {
     size_t needleImageIndex = blockIdx.x;
 
-    __shared__ quasiSpinImagePixelType referenceImage[spinImageWidthPixels * spinImageWidthPixels];
+    __shared__ radialIntersectionCountImagePixelType referenceImage[spinImageWidthPixels * spinImageWidthPixels];
     for(unsigned int index = threadIdx.x; index < spinImageWidthPixels * spinImageWidthPixels; index += blockDim.x) {
         referenceImage[index] = needleDescriptors[spinImageWidthPixels * spinImageWidthPixels * needleImageIndex + index];
     }
@@ -279,10 +279,10 @@ __global__ void computeQuasiSpinImageSearchResultIndices(
 }
 
 
-SpinImage::array<unsigned int> SpinImage::gpu::computeQuasiSpinImageSearchResultRanks(
-        array<quasiSpinImagePixelType> device_needleDescriptors,
+SpinImage::array<unsigned int> SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
+        array<radialIntersectionCountImagePixelType> device_needleDescriptors,
         size_t needleImageCount,
-        array<quasiSpinImagePixelType> device_haystackDescriptors,
+        array<radialIntersectionCountImagePixelType> device_haystackDescriptors,
         size_t haystackImageCount,
         SpinImage::debug::RICISearchRunInfo* runInfo) {
 
@@ -358,11 +358,11 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeQuasiSpinImageSearchResult
 
 const unsigned int warpCount = 16;
 
-__global__ void generateSearchResults(quasiSpinImagePixelType* needleDescriptors,
+__global__ void generateSearchResults(radialIntersectionCountImagePixelType* needleDescriptors,
                                       size_t needleImageCount,
-                                      quasiSpinImagePixelType* haystackDescriptors,
+                                      radialIntersectionCountImagePixelType* haystackDescriptors,
                                       size_t haystackImageCount,
-                                      SpinImage::gpu::QuasiSpinImageSearchResults* searchResults) {
+                                      SpinImage::gpu::RadialIntersectionCountImageSearchResults* searchResults) {
 
     size_t needleImageIndex = warpCount * blockIdx.x + (threadIdx.x / 32);
 
@@ -447,14 +447,14 @@ __global__ void generateSearchResults(quasiSpinImagePixelType* needleDescriptors
 
 }
 
-SpinImage::array<SpinImage::gpu::QuasiSpinImageSearchResults> SpinImage::gpu::findQuasiSpinImagesInHaystack(
-        array<quasiSpinImagePixelType> device_needleDescriptors,
+SpinImage::array<SpinImage::gpu::RadialIntersectionCountImageSearchResults> SpinImage::gpu::findRadialIntersectionCountImagesInHaystack(
+        array<radialIntersectionCountImagePixelType> device_needleDescriptors,
         size_t needleImageCount,
-        array<quasiSpinImagePixelType> device_haystackDescriptors,
+        array<radialIntersectionCountImagePixelType> device_haystackDescriptors,
         size_t haystackImageCount) {
 
-    size_t searchResultBufferSize = needleImageCount * sizeof(QuasiSpinImageSearchResults);
-    QuasiSpinImageSearchResults* device_searchResults;
+    size_t searchResultBufferSize = needleImageCount * sizeof(RadialIntersectionCountImageSearchResults);
+    RadialIntersectionCountImageSearchResults* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
 
     std::cout << "\t\tPerforming search.." << std::endl;
@@ -473,8 +473,8 @@ SpinImage::array<SpinImage::gpu::QuasiSpinImageSearchResults> SpinImage::gpu::fi
 
     // Step 3: Copying results to CPU
 
-    array<QuasiSpinImageSearchResults> searchResults;
-    searchResults.content = new QuasiSpinImageSearchResults[needleImageCount];
+    array<RadialIntersectionCountImageSearchResults> searchResults;
+    searchResults.content = new RadialIntersectionCountImageSearchResults[needleImageCount];
     searchResults.length = needleImageCount;
 
     checkCudaErrors(cudaMemcpy(searchResults.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));

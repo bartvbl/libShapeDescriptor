@@ -21,7 +21,7 @@ void SpinImage::dump::searchResults(array<gpu::SpinImageSearchResults> searchRes
     outputFile.close();
 }
 
-void SpinImage::dump::searchResults(array<gpu::QuasiSpinImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath) {
+void SpinImage::dump::searchResults(array<gpu::RadialIntersectionCountImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath) {
     std::ofstream outputFile;
     outputFile.open(outputFilePath);
 

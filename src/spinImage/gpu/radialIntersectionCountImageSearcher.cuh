@@ -14,16 +14,16 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        array<QuasiSpinImageSearchResults> findQuasiSpinImagesInHaystack(
-                array<quasiSpinImagePixelType> device_needleDescriptors,
+        array<RadialIntersectionCountImageSearchResults> findRadialIntersectionCountImagesInHaystack(
+                array<radialIntersectionCountImagePixelType> device_needleDescriptors,
                 size_t needleImageCount,
-                array<quasiSpinImagePixelType> device_haystackDescriptors,
+                array<radialIntersectionCountImagePixelType> device_haystackDescriptors,
                 size_t haystackImageCount);
 
-        array<unsigned int> computeQuasiSpinImageSearchResultRanks(
-                array<quasiSpinImagePixelType> device_needleDescriptors,
+        array<unsigned int> computeRadialIntersectionCountImageSearchResultRanks(
+                array<radialIntersectionCountImagePixelType> device_needleDescriptors,
                 size_t needleImageCount,
-                array<quasiSpinImagePixelType> device_haystackDescriptors,
+                array<radialIntersectionCountImagePixelType> device_haystackDescriptors,
                 size_t haystackImageCount,
                 SpinImage::debug::RICISearchRunInfo* runInfo = nullptr);
     }

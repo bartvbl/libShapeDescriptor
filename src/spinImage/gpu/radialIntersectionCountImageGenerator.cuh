@@ -16,7 +16,7 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        array<quasiSpinImagePixelType> generateQuasiSpinImages(
+        array<radialIntersectionCountImagePixelType> generateRadialIntersectionCountImages(
                 Mesh device_mesh,
                 array<DeviceOrientedPoint> device_spinImageOrigins,
                 float spinImageWidth,

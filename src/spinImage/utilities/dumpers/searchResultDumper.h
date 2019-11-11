@@ -7,6 +7,6 @@
 namespace SpinImage {
     namespace dump {
         void searchResults(array<gpu::SpinImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath);
-        void searchResults(array<gpu::QuasiSpinImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath);
+        void searchResults(array<gpu::RadialIntersectionCountImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath);
     }
 }

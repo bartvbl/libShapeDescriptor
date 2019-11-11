@@ -5,8 +5,8 @@
 
 namespace SpinImage {
     namespace copy {
-        array<quasiSpinImagePixelType>
-        RICIDescriptorsToHost(array<quasiSpinImagePixelType> device_descriptors, size_t imageCount);
+        array<radialIntersectionCountImagePixelType>
+        RICIDescriptorsToHost(array<radialIntersectionCountImagePixelType> device_descriptors, size_t imageCount);
 
         array<spinImagePixelType>
         spinImageDescriptorsToHost(array<spinImagePixelType> device_descriptors, size_t imageCount);

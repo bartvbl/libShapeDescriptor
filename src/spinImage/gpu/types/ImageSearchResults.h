@@ -10,7 +10,7 @@ namespace SpinImage {
             float resultScores[SEARCH_RESULT_COUNT];
         };
 
-        struct QuasiSpinImageSearchResults {
+        struct RadialIntersectionCountImageSearchResults {
             size_t resultIndices[SEARCH_RESULT_COUNT];
             int resultScores[SEARCH_RESULT_COUNT];
         };

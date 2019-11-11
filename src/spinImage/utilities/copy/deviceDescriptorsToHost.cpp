@@ -2,13 +2,13 @@
 #include <nvidia/helper_cuda.h>
 #include "deviceDescriptorsToHost.h"
 
-SpinImage::array<quasiSpinImagePixelType> SpinImage::copy::RICIDescriptorsToHost(array<quasiSpinImagePixelType> device_descriptors, size_t imageCount) {
+SpinImage::array<radialIntersectionCountImagePixelType> SpinImage::copy::RICIDescriptorsToHost(array<radialIntersectionCountImagePixelType> device_descriptors, size_t imageCount) {
 
     size_t descriptorBufferLength = imageCount * spinImageWidthPixels * spinImageWidthPixels;
-    size_t descriptorBufferSize = sizeof(quasiSpinImagePixelType) * descriptorBufferLength;
+    size_t descriptorBufferSize = sizeof(radialIntersectionCountImagePixelType) * descriptorBufferLength;
 
-    array<quasiSpinImagePixelType> host_descriptors;
-    host_descriptors.content = new quasiSpinImagePixelType[imageCount * spinImageWidthPixels * spinImageWidthPixels];
+    array<radialIntersectionCountImagePixelType> host_descriptors;
+    host_descriptors.content = new radialIntersectionCountImagePixelType[imageCount * spinImageWidthPixels * spinImageWidthPixels];
     host_descriptors.length = imageCount;
 
     checkCudaErrors(cudaMemcpy(host_descriptors.content, device_descriptors.content, descriptorBufferSize, cudaMemcpyDeviceToHost));

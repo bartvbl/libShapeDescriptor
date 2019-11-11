@@ -16,7 +16,7 @@
 // Limitation: can not be more than 255 due to the array of bytes
 #define spinImageWidthPixels 64
 
-// By default, the quasi spin image is generated entirely in main memory. This setting forces it to generate the image
+// By default, the radial intersection count image is generated entirely in main memory. This setting forces it to generate the image
 // in shared memory instead, copying it to main memory on completion instead.
 #define ENABLE_SHARED_MEMORY_IMAGE true
 

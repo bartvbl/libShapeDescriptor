@@ -71,7 +71,7 @@ __device__ int computeImageSquaredSumGPU(
     return squaredSum;
 }
 
-__device__ size_t compareConstantQuasiSpinImagePairGPU(
+__device__ size_t compareConstantRadialIntersectionCountImagePairGPU(
         const radialIntersectionCountImagePixelType* needleImages,
         const size_t needleImageIndex,
         const radialIntersectionCountImagePixelType* haystackImages,
@@ -118,7 +118,7 @@ __device__ size_t compareConstantQuasiSpinImagePairGPU(
 
 
 
-__device__ int compareQuasiSpinImagePairGPU(
+__device__ int compareRadialIntersectionCountImagePairGPU(
         const radialIntersectionCountImagePixelType* needleImages,
         const size_t needleImageIndex,
         const radialIntersectionCountImagePixelType* haystackImages,
@@ -214,7 +214,7 @@ __device__ int compareQuasiSpinImagePairGPU(
     return imageScore;
 }
 
-__global__ void computeQuasiSpinImageSearchResultIndices(
+__global__ void computeRadialIntersectionCountImageSearchResultIndices(
         const radialIntersectionCountImagePixelType* needleDescriptors,
         radialIntersectionCountImagePixelType* haystackDescriptors,
         size_t haystackImageCount,
@@ -235,9 +235,11 @@ __global__ void computeQuasiSpinImageSearchResultIndices(
     bool needleImageIsConstant = needleSquaredSum == 0;
 
     if(!needleImageIsConstant) {
-        referenceScore = compareQuasiSpinImagePairGPU(referenceImage, 0, haystackDescriptors, needleImageIndex);
+        referenceScore = compareRadialIntersectionCountImagePairGPU(referenceImage, 0, haystackDescriptors,
+                                                                    needleImageIndex);
     } else {
-        referenceScore = compareConstantQuasiSpinImagePairGPU(referenceImage, 0, haystackDescriptors, needleImageIndex);
+        referenceScore = compareConstantRadialIntersectionCountImagePairGPU(referenceImage, 0, haystackDescriptors,
+                                                                            needleImageIndex);
     }
 
     // If the reference distance is 0, no image pair can beat the score. As such we can just skip it.
@@ -258,10 +260,12 @@ __global__ void computeQuasiSpinImageSearchResultIndices(
         int pairScore;
         if(!needleImageIsConstant) {
             // If there's variation in the image, we'll use the regular distance function
-            pairScore = compareQuasiSpinImagePairGPU(referenceImage, 0, haystackDescriptors, haystackImageIndex, referenceScore);
+            pairScore = compareRadialIntersectionCountImagePairGPU(referenceImage, 0, haystackDescriptors,
+                                                                   haystackImageIndex, referenceScore);
         } else {
             // If the image is constant, we use sum of squares as a fallback
-            pairScore = compareConstantQuasiSpinImagePairGPU(referenceImage, 0, haystackDescriptors, haystackImageIndex);
+            pairScore = compareConstantRadialIntersectionCountImagePairGPU(referenceImage, 0, haystackDescriptors,
+                                                                           haystackImageIndex);
         }
 
         // We found a better search result that will end up higher in the results list
@@ -295,7 +299,7 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeRadialIntersectionCountIma
 
     auto searchStart = std::chrono::steady_clock::now();
 
-    computeQuasiSpinImageSearchResultIndices<<<needleImageCount, 32 * indexBasedWarpCount>>>(
+    computeRadialIntersectionCountImageSearchResultIndices << < needleImageCount, 32 * indexBasedWarpCount >> > (
             device_needleDescriptors.content,
                     device_haystackDescriptors.content,
                     haystackImageCount,
@@ -377,7 +381,7 @@ __global__ void generateSearchResults(radialIntersectionCountImagePixelType* nee
     const int blockCount = (SEARCH_RESULT_COUNT / 32);
 
     for(size_t haystackImageIndex = 0; haystackImageIndex < haystackImageCount; haystackImageIndex++) {
-        int score = compareQuasiSpinImagePairGPU(
+        int score = compareRadialIntersectionCountImagePairGPU(
                 needleDescriptors,
                 needleImageIndex,
                 haystackDescriptors,

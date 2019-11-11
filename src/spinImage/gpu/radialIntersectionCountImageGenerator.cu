@@ -335,7 +335,7 @@ __device__ __inline__ void rasteriseTriangle(
 	}
 }
 
-__launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinImage(
+__launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateRadialIntersectionCountImage(
         radialIntersectionCountImagePixelType* descriptors,
         RICIMesh mesh)
 {
@@ -555,7 +555,7 @@ SpinImage::array<radialIntersectionCountImagePixelType> SpinImage::gpu::generate
 	auto generationStart = std::chrono::steady_clock::now();
 
 	    // Warning: kernel assumes the grid dimensions are equivalent to imageCount.
-	    generateQuasiSpinImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors.content, riciMesh);
+        generateRadialIntersectionCountImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors.content, riciMesh);
         checkCudaErrors(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
 

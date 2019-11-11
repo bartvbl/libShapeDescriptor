@@ -7,7 +7,7 @@ typedef unsigned short radialIntersectionCountImagePixelType;
 #elif RICI_PIXEL_DATATYPE == DATATYPE_FLOAT32
 typedef float radialIntersectionCountImagePixelType;
 #else
-#error No valid datatype has been specified for the Quasi Spin Image
+#error No valid datatype has been specified for the Radial Intersection Count Image
 #endif
 
 #if SI_PIXEL_DATATYPE == DATATYPE_FLOAT

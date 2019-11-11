@@ -14,11 +14,12 @@
 const float correlationThreshold = 0.00001f;
 
 
-TEST_CASE("Ranking of Quasi Spin Images on the GPU") {
+TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
 
     SpinImage::utilities::createCUDAContext();
 
-    SpinImage::array<radialIntersectionCountImagePixelType> imageSequence = generateKnownQuasiSpinImageSequence(imageCount, pixelsPerImage);
+    SpinImage::array<radialIntersectionCountImagePixelType> imageSequence = generateKnownRadialIntersectionCountImageSequence(
+            imageCount, pixelsPerImage);
 
     SpinImage::array<radialIntersectionCountImagePixelType> device_haystackImages = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
 

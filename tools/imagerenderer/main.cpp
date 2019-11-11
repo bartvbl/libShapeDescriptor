@@ -11,13 +11,13 @@
 #include <arrrgh.hpp>
 
 int main(int argc, const char** argv) {
-    arrrgh::parser parser("imagerenderer", "Generate (quasi) spin images from an input object and dump them into a PNG file");
+    arrrgh::parser parser("imagerenderer", "Generate RICI or spin images from an input object and dump them into a PNG file");
     const auto& inputFile = parser.add<std::string>(
             "input", "The location of the input OBJ model file.", '\0', arrrgh::Required, "");
     const auto& showHelp = parser.add<bool>(
             "help", "Show this help message.", 'h', arrrgh::Optional, false);
     const auto& generationMode = parser.add<std::string>(
-            "image-type", "Which image type to generate. Can either be 'spinimage' or 'quasispinimage'.", '\0', arrrgh::Optional, "quasispinimage");
+            "image-type", "Which image type to generate. Can either be 'spinimage' or 'radialintersectioncountimage'.", '\0', arrrgh::Optional, "radialintersectioncountimage");
     const auto& forceGPU = parser.add<int>(
             "force-gpu", "Force using the GPU with the given ID", 'b', arrrgh::Optional, -1);
     const auto& spinImageWidth = parser.add<float>(
@@ -80,7 +80,7 @@ int main(int argc, const char** argv) {
         cudaFree(descriptors.content);
         delete[] hostDescriptors.content;
 
-    } else if(generationMode.value() == "quasispinimage") {
+    } else if(generationMode.value() == "radialintersectioncountimage") {
         SpinImage::array<radialIntersectionCountImagePixelType> descriptors = SpinImage::gpu::generateRadialIntersectionCountImages(
                 deviceMesh,
                 spinOrigins,
@@ -97,7 +97,7 @@ int main(int argc, const char** argv) {
 
     } else {
         std::cerr << "Unrecognised image type: " << generationMode.value() << std::endl;
-        std::cerr << "Should be either 'spinimage' or 'quasispinimage'." << std::endl;
+        std::cerr << "Should be either 'spinimage' or 'radialintersectioncountimage'." << std::endl;
     }
 
     SpinImage::cpu::freeMesh(mesh);

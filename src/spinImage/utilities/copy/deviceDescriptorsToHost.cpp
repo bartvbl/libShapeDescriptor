@@ -2,7 +2,7 @@
 #include <nvidia/helper_cuda.h>
 #include "deviceDescriptorsToHost.h"
 
-array<quasiSpinImagePixelType> SpinImage::copy::QSIDescriptorsToHost(array<quasiSpinImagePixelType> device_descriptors, size_t imageCount) {
+SpinImage::array<quasiSpinImagePixelType> SpinImage::copy::QSIDescriptorsToHost(array<quasiSpinImagePixelType> device_descriptors, size_t imageCount) {
 
     size_t descriptorBufferLength = imageCount * spinImageWidthPixels * spinImageWidthPixels;
     size_t descriptorBufferSize = sizeof(quasiSpinImagePixelType) * descriptorBufferLength;
@@ -16,7 +16,7 @@ array<quasiSpinImagePixelType> SpinImage::copy::QSIDescriptorsToHost(array<quasi
     return host_descriptors;
 }
 
-array<spinImagePixelType> SpinImage::copy::spinImageDescriptorsToHost(array<spinImagePixelType> device_descriptors, size_t imageCount) {
+SpinImage::array<spinImagePixelType> SpinImage::copy::spinImageDescriptorsToHost(array<spinImagePixelType> device_descriptors, size_t imageCount) {
     size_t descriptorBufferLength = imageCount * spinImageWidthPixels * spinImageWidthPixels;
     size_t descriptorBufferSize = sizeof(float) * descriptorBufferLength;
 

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <spinImage/cpu/types/HostMesh.h>
-#include <spinImage/gpu/types/DeviceMesh.h>
+#include <spinImage/cpu/types/Mesh.h>
+#include <spinImage/gpu/types/Mesh.h>
 
 namespace SpinImage {
     namespace copy{
-        DeviceMesh hostMeshToDevice(HostMesh hostMesh);
+        gpu::Mesh hostMeshToDevice(cpu::Mesh hostMesh);
     }
 }

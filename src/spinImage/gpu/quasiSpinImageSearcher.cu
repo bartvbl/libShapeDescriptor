@@ -1,4 +1,4 @@
-#include <spinImage/gpu/types/DeviceMesh.h>
+#include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/libraryBuildSettings.h>
 #include <cuda_runtime.h>
 #include <curand_mtgp32_kernel.h>
@@ -279,7 +279,7 @@ __global__ void computeQuasiSpinImageSearchResultIndices(
 }
 
 
-array<unsigned int> SpinImage::gpu::computeQuasiSpinImageSearchResultRanks(
+SpinImage::array<unsigned int> SpinImage::gpu::computeQuasiSpinImageSearchResultRanks(
         array<quasiSpinImagePixelType> device_needleDescriptors,
         size_t needleImageCount,
         array<quasiSpinImagePixelType> device_haystackDescriptors,
@@ -362,7 +362,7 @@ __global__ void generateSearchResults(quasiSpinImagePixelType* needleDescriptors
                                       size_t needleImageCount,
                                       quasiSpinImagePixelType* haystackDescriptors,
                                       size_t haystackImageCount,
-                                      QuasiSpinImageSearchResults* searchResults) {
+                                      SpinImage::gpu::QuasiSpinImageSearchResults* searchResults) {
 
     size_t needleImageIndex = warpCount * blockIdx.x + (threadIdx.x / 32);
 
@@ -447,7 +447,7 @@ __global__ void generateSearchResults(quasiSpinImagePixelType* needleDescriptors
 
 }
 
-array<QuasiSpinImageSearchResults> SpinImage::gpu::findQuasiSpinImagesInHaystack(
+SpinImage::array<SpinImage::gpu::QuasiSpinImageSearchResults> SpinImage::gpu::findQuasiSpinImagesInHaystack(
         array<quasiSpinImagePixelType> device_needleDescriptors,
         size_t needleImageCount,
         array<quasiSpinImagePixelType> device_haystackDescriptors,

@@ -1,23 +1,22 @@
 #include "spinImageGenerator.cuh"
 
-#include "nvidia/shfl_scan.cuh"
 #include "nvidia/helper_math.h"
 #include "nvidia/helper_cuda.h"
 
 #include "device_launch_parameters.h"
 #include "cuda_runtime.h"
 
-#include <assert.h>
+#include <cassert>
 #include <iostream>
 #include <chrono>
 #include <map>
 
-#include <spinImage/gpu/types/DeviceMesh.h>
+#include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/gpu/types/CudaLaunchDimensions.h>
 #include <spinImage/utilities/setValue.cuh>
 #include <spinImage/utilities/meshSampler.cuh>
 #include <spinImage/utilities/dumpers/spinImageDumper.h>
-#include <spinImage/gpu/types/GPUPointCloud.h>
+#include <spinImage/gpu/types/PointCloud.h>
 #include <spinImage/gpu/types/DeviceVertexList.cuh>
 #include <spinImage/gpu/types/SampleBounds.h>
 
@@ -41,7 +40,7 @@ __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNo
 	return alphabeta;
 }
 
-__device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const array<float> &areaArray, int triangleIndex, int sampleCount) {
+__device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const SpinImage::array<float> &areaArray, int triangleIndex, int sampleCount) {
     SpinImage::SampleBounds sampleBounds;
 	float maxArea = areaArray.content[areaArray.length - 1];
 	float areaStepSize = maxArea / (float)sampleCount;
@@ -77,18 +76,18 @@ __device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const array<
 
 // Run once for every vertex index
 __global__ void createDescriptors(
-        DeviceMesh mesh,
-        DeviceOrientedPoint* device_spinImageOrigins,
-        SpinImage::GPUPointCloud pointCloud,
-        array<spinImagePixelType> descriptors,
-        array<float> areaArray,
+        SpinImage::gpu::Mesh mesh,
+        SpinImage::gpu::DeviceOrientedPoint* device_spinImageOrigins,
+        SpinImage::gpu::PointCloud pointCloud,
+        SpinImage::array<spinImagePixelType> descriptors,
+        SpinImage::array<float> areaArray,
         size_t sampleCount,
         float oneOverSpinImagePixelWidth,
         float supportAngleCosine)
 {
 #define spinImageIndex blockIdx.x
 
-	const DeviceOrientedPoint spinOrigin = device_spinImageOrigins[spinImageIndex];
+	const SpinImage::gpu::DeviceOrientedPoint spinOrigin = device_spinImageOrigins[spinImageIndex];
 
 	const float3 vertex = spinOrigin.vertex;
 	const float3 normal = spinOrigin.normal;
@@ -193,8 +192,8 @@ __global__ void createDescriptors(
 
 }
 
-array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
-        DeviceMesh device_mesh,
+SpinImage::array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
+        Mesh device_mesh,
         array<DeviceOrientedPoint> device_spinImageOrigins,
         float spinImageWidth,
         size_t sampleCount,
@@ -232,7 +231,7 @@ array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 	auto meshSamplingStart = std::chrono::steady_clock::now();
 
         SpinImage::internal::MeshSamplingBuffers sampleBuffers;
-        SpinImage::GPUPointCloud device_pointCloud = SpinImage::utilities::sampleMesh(device_mesh, sampleCount, randomSamplingSeed, &sampleBuffers);
+        PointCloud device_pointCloud = SpinImage::utilities::sampleMesh(device_mesh, sampleCount, randomSamplingSeed, &sampleBuffers);
         array<float> device_cumulativeAreaArray = sampleBuffers.cumulativeAreaArray;
 
 	std::chrono::milliseconds meshSamplingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - meshSamplingStart);

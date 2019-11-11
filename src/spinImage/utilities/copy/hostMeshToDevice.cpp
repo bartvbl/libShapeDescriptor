@@ -1,11 +1,11 @@
 #include "hostMeshToDevice.h"
 
-#include <spinImage/cpu/types/HostMesh.h>
-#include <spinImage/gpu/types/DeviceMesh.h>
+#include <spinImage/cpu/types/Mesh.h>
+#include <spinImage/gpu/types/Mesh.h>
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
 
-DeviceMesh SpinImage::copy::hostMeshToDevice(HostMesh hostMesh)
+SpinImage::gpu::Mesh SpinImage::copy::hostMeshToDevice(cpu::Mesh hostMesh)
 {
     size_t vertexCount = hostMesh.vertexCount;
     size_t normalCount = hostMesh.vertexCount;
@@ -70,7 +70,7 @@ DeviceMesh SpinImage::copy::hostMeshToDevice(HostMesh hostMesh)
     delete[] normals_z;
 
     // Construct the mesh struct for the GPU side
-    DeviceMesh device_mesh;
+    gpu::Mesh device_mesh;
 
     device_mesh.vertices_x = device_vertices_x;
     device_mesh.vertices_y = device_vertices_y;

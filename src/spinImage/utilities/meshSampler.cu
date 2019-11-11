@@ -13,7 +13,7 @@
 
 #define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
 
-__device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const array<float> &areaArray, int triangleIndex, int sampleCount) {
+__device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const SpinImage::array<float> &areaArray, int triangleIndex, int sampleCount) {
     SpinImage::SampleBounds sampleBounds;
     float maxArea = areaArray.content[areaArray.length - 1];
     float areaStepSize = maxArea / (float)sampleCount;
@@ -38,7 +38,7 @@ __device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const array<
     return sampleBounds;
 }
 
-__device__ __inline__ void lookupTriangleVertices(DeviceMesh mesh, int triangleIndex, float3 (&triangleVertices)[3]) {
+__device__ __inline__ void lookupTriangleVertices(SpinImage::gpu::Mesh mesh, int triangleIndex, float3 (&triangleVertices)[3]) {
     assert(triangleIndex >= 0);
     assert((3 * triangleIndex) + 2 < mesh.vertexCount);
 
@@ -57,7 +57,7 @@ __device__ __inline__ void lookupTriangleVertices(DeviceMesh mesh, int triangleI
     triangleVertices[2].z = mesh.vertices_z[triangleBaseIndex + 2];
 }
 
-__device__ __inline__ void lookupTriangleNormals(DeviceMesh mesh, int triangleIndex, float3 (&triangleNormals)[3]) {
+__device__ __inline__ void lookupTriangleNormals(SpinImage::gpu::Mesh mesh, int triangleIndex, float3 (&triangleNormals)[3]) {
     assert(triangleIndex >= 0);
     assert((3 * triangleIndex) + 2 < mesh.vertexCount);
 
@@ -78,7 +78,7 @@ __device__ __inline__ void lookupTriangleNormals(DeviceMesh mesh, int triangleIn
 
 
 // One thread = One triangle
-__global__ void calculateAreas(array<float> areaArray, DeviceMesh mesh)
+__global__ void calculateAreas(SpinImage::array<float> areaArray, SpinImage::gpu::Mesh mesh)
 {
     int triangleIndex = blockDim.x * blockIdx.x + threadIdx.x;
     if (triangleIndex >= areaArray.length)
@@ -93,7 +93,7 @@ __global__ void calculateAreas(array<float> areaArray, DeviceMesh mesh)
     areaArray.content[triangleIndex] = area;
 }
 
-__global__ void calculateCumulativeAreas(array<float> areaArray, array<float> device_cumulativeAreaArray) {
+__global__ void calculateCumulativeAreas(SpinImage::array<float> areaArray, SpinImage::array<float> device_cumulativeAreaArray) {
     int triangleIndex = blockDim.x * blockIdx.x + threadIdx.x;
     if (triangleIndex >= areaArray.length)
     {
@@ -110,7 +110,7 @@ __global__ void calculateCumulativeAreas(array<float> areaArray, array<float> de
     device_cumulativeAreaArray.content[triangleIndex] = totalArea;
 }
 
-__global__ void generateRandomSampleCoefficients(array<float2> coefficients, curandState *randomState, int sampleCount, size_t randomSeed) {
+__global__ void generateRandomSampleCoefficients(SpinImage::array<float2> coefficients, curandState *randomState, int sampleCount, size_t randomSeed) {
     int rawThreadIndex = threadIdx.x+blockDim.x*blockIdx.x;
 
     assert(rawThreadIndex < SAMPLE_COEFFICIENT_THREAD_COUNT);
@@ -135,10 +135,10 @@ __global__ void generateRandomSampleCoefficients(array<float2> coefficients, cur
 
 // One thread = One triangle
 __global__ void sampleMesh(
-        DeviceMesh mesh,
-        array<float> areaArray,
-        SpinImage::GPUPointCloud pointCloud,
-        array<float2> coefficients,
+        SpinImage::gpu::Mesh mesh,
+        SpinImage::array<float> areaArray,
+        SpinImage::gpu::PointCloud pointCloud,
+        SpinImage::array<float2> coefficients,
         int sampleCount) {
     int triangleIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -182,7 +182,7 @@ __global__ void sampleMesh(
     }
 }
 
-SpinImage::GPUPointCloud SpinImage::utilities::sampleMesh(DeviceMesh device_mesh, size_t sampleCount, size_t randomSamplingSeed, SpinImage::internal::MeshSamplingBuffers* internalSampleBuffers) {
+SpinImage::gpu::PointCloud SpinImage::utilities::sampleMesh(gpu::Mesh device_mesh, size_t sampleCount, size_t randomSamplingSeed, SpinImage::internal::MeshSamplingBuffers* internalSampleBuffers) {
     size_t vertexCount = device_mesh.vertexCount;
     size_t triangleCount = vertexCount / 3;
 
@@ -194,7 +194,7 @@ SpinImage::GPUPointCloud SpinImage::utilities::sampleMesh(DeviceMesh device_mesh
     array<float> device_areaArray;
     array<float> device_cumulativeAreaArray;
 
-    SpinImage::GPUPointCloud device_pointCloud(sampleCount);
+    gpu::PointCloud device_pointCloud(sampleCount);
 
     checkCudaErrors(cudaMalloc(&device_areaArray.content, areaArraySize));
     checkCudaErrors(cudaMalloc(&device_cumulativeAreaArray.content, areaArraySize));
@@ -204,8 +204,8 @@ SpinImage::GPUPointCloud SpinImage::utilities::sampleMesh(DeviceMesh device_mesh
     device_areaArray.length = (size_t) areaArrayLength;
     device_cumulativeAreaArray.length = (size_t) areaArrayLength;
 
-    CudaLaunchDimensions areaSettings = calculateCudaLaunchDimensions(device_areaArray.length);
-    CudaLaunchDimensions cumulativeAreaSettings = calculateCudaLaunchDimensions(device_areaArray.length);
+    gpu::CudaLaunchDimensions areaSettings = calculateCudaLaunchDimensions(device_areaArray.length);
+    gpu::CudaLaunchDimensions cumulativeAreaSettings = calculateCudaLaunchDimensions(device_areaArray.length);
 
     calculateAreas <<<areaSettings.blocksPerGrid, areaSettings.threadsPerBlock >>> (device_areaArray, device_mesh);
     cudaDeviceSynchronize();

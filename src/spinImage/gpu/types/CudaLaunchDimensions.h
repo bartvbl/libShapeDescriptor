@@ -2,9 +2,13 @@
 
 #include <cstddef>
 
-typedef struct CudaLaunchDimensions {
-    size_t threadsPerBlock;
-    size_t blocksPerGrid;
-} CudaLaunchDimensions;
+namespace SpinImage {
+    namespace gpu {
+        struct CudaLaunchDimensions {
+            size_t threadsPerBlock;
+            size_t blocksPerGrid;
+        };
+    }
+}
 
-CudaLaunchDimensions calculateCudaLaunchDimensions(size_t vertexCount);
+SpinImage::gpu::CudaLaunchDimensions calculateCudaLaunchDimensions(size_t vertexCount);

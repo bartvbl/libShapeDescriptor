@@ -3,8 +3,8 @@
 #include "hostDescriptorsToDevice.h"
 
 template<typename pixelType>
-array<pixelType> copyDescriptorsToDevice(const array<pixelType> &hostDescriptors, size_t imageCount) {
-    array<pixelType> deviceDescriptors;
+SpinImage::array<pixelType> copyDescriptorsToDevice(const SpinImage::array<pixelType> &hostDescriptors, size_t imageCount) {
+    SpinImage::array<pixelType> deviceDescriptors;
 
     size_t bufferSize = sizeof(pixelType) * spinImageWidthPixels * spinImageWidthPixels * imageCount;
 
@@ -14,12 +14,12 @@ array<pixelType> copyDescriptorsToDevice(const array<pixelType> &hostDescriptors
     return deviceDescriptors;
 }
 
-array<quasiSpinImagePixelType>
+SpinImage::array<quasiSpinImagePixelType>
 SpinImage::copy::hostDescriptorsToDevice(array<quasiSpinImagePixelType> hostDescriptors, size_t imageCount) {
     return copyDescriptorsToDevice<quasiSpinImagePixelType>(hostDescriptors, imageCount);
 }
 
-array<spinImagePixelType>
+SpinImage::array<spinImagePixelType>
 SpinImage::copy::hostDescriptorsToDevice(array<spinImagePixelType> hostDescriptors, size_t imageCount) {
     return copyDescriptorsToDevice<spinImagePixelType>(hostDescriptors, imageCount);
 }

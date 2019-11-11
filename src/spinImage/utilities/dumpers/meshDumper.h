@@ -1,9 +1,9 @@
 #pragma once
 
-#include <spinImage/cpu/types/HostMesh.h>
+#include <spinImage/cpu/types/Mesh.h>
 
 namespace SpinImage {
     namespace dump {
-        void mesh(HostMesh mesh, std::string outputFile);
+        void mesh(cpu::Mesh mesh, std::string outputFile);
     }
 }

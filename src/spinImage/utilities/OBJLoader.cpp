@@ -7,7 +7,7 @@
 #include <glm/vec3.hpp>
 #include <glm/geometric.hpp>
 
-float3_cpu hostComputeTriangleNormal(std::vector<float3_cpu> &vertices, unsigned int baseIndex);
+SpinImage::cpu::float3 hostComputeTriangleNormal(std::vector<SpinImage::cpu::float3> &vertices, unsigned int baseIndex);
 
 void split(std::vector<std::string>* parts, const std::string &s, char delim) {
 	
@@ -29,41 +29,41 @@ void deleteEmptyStrings(std::vector<std::string> &list) {
 	}
 }
 
-inline float3_cpu elementWiseMin(float3_cpu v1, float3_cpu v2)
+inline SpinImage::cpu::float3 elementWiseMin(SpinImage::cpu::float3 v1, SpinImage::cpu::float3 v2)
 {
-	float3_cpu output;
+	SpinImage::cpu::float3 output;
 	output.x = std::min(v1.x, v2.x);
 	output.y = std::min(v1.y, v2.y);
 	output.z = std::min(v1.z, v2.z);
 	return output;
 }
 
-inline float3_cpu elementWiseMax(float3_cpu v1, float3_cpu v2)
+inline SpinImage::cpu::float3 elementWiseMax(SpinImage::cpu::float3 v1, SpinImage::cpu::float3 v2)
 {
-	float3_cpu output;
+	SpinImage::cpu::float3 output;
 	output.x = std::max(v1.x, v2.x);
 	output.y = std::max(v1.y, v2.y);
 	output.z = std::max(v1.z, v2.z);
 	return output;
 }
 
-HostMesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
+SpinImage::cpu::Mesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
 {
 	std::vector<std::string> lineParts;
 	lineParts.reserve(32);
 	std::vector<std::string> faceParts;
 	faceParts.reserve(32);
 	
-	std::vector<float3_cpu> vertices;
-	std::vector<float3_cpu> normals;
-	std::vector<float2_cpu> textureCoordinates;
+	std::vector<cpu::float3> vertices;
+	std::vector<cpu::float3> normals;
+	std::vector<cpu::float2> textureCoordinates;
 
-	std::vector<float3_cpu> vertexBuffer;
-	std::vector<float2_cpu> textureBuffer;
-	std::vector<float3_cpu> normalBuffer;
+	std::vector<cpu::float3> vertexBuffer;
+	std::vector<cpu::float2> textureBuffer;
+	std::vector<cpu::float3> normalBuffer;
 
-	float3_cpu boundingBoxMin;
-	float3_cpu boundingBoxMax;
+	cpu::float3 boundingBoxMin;
+	cpu::float3 boundingBoxMax;
 
 	std::vector<unsigned int> indices;
 
@@ -83,7 +83,7 @@ HostMesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
 			}
 
 			if (lineParts.at(0) == "v") {
-				float3_cpu vertex;
+				cpu::float3 vertex;
 				vertex.x = std::stof(lineParts.at(1));
 				vertex.y = std::stof(lineParts.at(2));
 				vertex.z = std::stof(lineParts.at(3));
@@ -91,7 +91,7 @@ HostMesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
 			}
 
 			if (lineParts.at(0) == "vn") {
-				float3_cpu normal;
+				cpu::float3 normal;
 				normal.x = std::stof(lineParts.at(1));
 				normal.y = std::stof(lineParts.at(2));
 				normal.z = std::stof(lineParts.at(3));
@@ -99,7 +99,7 @@ HostMesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
 			}
 
 			if (lineParts.at(0) == "vt") {
-				float2_cpu textureCoordinate;
+				cpu::float2 textureCoordinate;
 				textureCoordinate.x = std::stof(lineParts.at(1));
 				textureCoordinate.y = std::stof(lineParts.at(2));
 				textureBuffer.push_back(textureCoordinate);
@@ -113,7 +113,7 @@ HostMesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
 					split(&faceParts, linePart, '/');
 
 					int vertexIndex = std::stoi(faceParts.at(0)) - 1;
-					float3_cpu vertex = vertexBuffer.at(unsigned(vertexIndex));
+					cpu::float3 vertex = vertexBuffer.at(unsigned(vertexIndex));
 					vertices.push_back(vertex);
 
 					if(currentIndex == 0) {
@@ -162,7 +162,7 @@ HostMesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
 				// If the file incorrectly or was missing normals, we compute them here.
 				// Alternatively, we override those present in the file if this was mandated by the use.
 				if(!normalsFound) {
-                    float3_cpu normal = hostComputeTriangleNormal(vertices, vertices.size() - 3);
+                    cpu::float3 normal = hostComputeTriangleNormal(vertices, vertices.size() - 3);
 
                     normals.push_back(normal);
                     normals.push_back(normal);
@@ -173,7 +173,7 @@ HostMesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
 
         if(recomputeNormals) {
             for(int index = 0; index < indices.size(); index+=3) {
-                float3_cpu recomputedNormal = hostComputeTriangleNormal(vertices, index);
+                cpu::float3 recomputedNormal = hostComputeTriangleNormal(vertices, index);
                 normals.at(index + 0) = recomputedNormal;
                 normals.at(index + 1) = recomputedNormal;
                 normals.at(index + 2) = recomputedNormal;
@@ -182,13 +182,13 @@ HostMesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
 
         unsigned int faceCount = unsigned(indices.size()) / 3;
 
-		float3_cpu* meshVertexBuffer = new float3_cpu[vertices.size()];
+		cpu::float3* meshVertexBuffer = new cpu::float3[vertices.size()];
 		std::copy(vertices.begin(), vertices.end(), meshVertexBuffer);
 
-		float3_cpu* meshNormalBuffer = new float3_cpu[normals.size()];
+		cpu::float3* meshNormalBuffer = new cpu::float3[normals.size()];
 		std::copy(normals.begin(), normals.end(), meshNormalBuffer);
 
-		float2_cpu* meshTextureCoordBuffer = new float2_cpu[textureCoordinates.size()];
+		cpu::float2* meshTextureCoordBuffer = new cpu::float2[textureCoordinates.size()];
 		std::copy(textureCoordinates.begin(), textureCoordinates.end(), meshTextureCoordBuffer);
 
 		unsigned int* meshIndexBuffer = new unsigned int[3 * faceCount];
@@ -196,7 +196,7 @@ HostMesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
 
 		objFile.close();
 
-		HostMesh mesh;
+		cpu::Mesh mesh;
 
 		mesh.vertices = meshVertexBuffer;
 		mesh.normals = meshNormalBuffer;
@@ -215,16 +215,16 @@ HostMesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
 		std::cout << "OBJ file at " << src << " failed to load!" << std::endl;
 	}
 
-	return HostMesh();
+	return cpu::Mesh();
 }
 
-float3_cpu hostComputeTriangleNormal(std::vector<float3_cpu> &vertices, unsigned int baseIndex) {
-    float3_cpu triangleVertex0 = vertices.at(baseIndex + 0);
-    float3_cpu triangleVertex1 = vertices.at(baseIndex + 1);
-    float3_cpu triangleVertex2 = vertices.at(baseIndex + 2);
+SpinImage::cpu::float3 hostComputeTriangleNormal(std::vector<SpinImage::cpu::float3> &vertices, unsigned int baseIndex) {
+    SpinImage::cpu::float3 triangleVertex0 = vertices.at(baseIndex + 0);
+    SpinImage::cpu::float3 triangleVertex1 = vertices.at(baseIndex + 1);
+    SpinImage::cpu::float3 triangleVertex2 = vertices.at(baseIndex + 2);
 
-    float3_cpu side0 = triangleVertex1 - triangleVertex0;
-    float3_cpu side1 = triangleVertex2 - triangleVertex0;
+    SpinImage::cpu::float3 side0 = triangleVertex1 - triangleVertex0;
+    SpinImage::cpu::float3 side1 = triangleVertex2 - triangleVertex0;
 
 
     side0 = side0 / length(side0);
@@ -254,7 +254,7 @@ float3_cpu hostComputeTriangleNormal(std::vector<float3_cpu> &vertices, unsigned
     // GIVES INCORRECT RESULTS (0, -0.76, 0) -> (-1, 0, 0) for SOME reason
     //glmNormal = glm::normalize(glmNormal);
 
-    float3_cpu normal = make_float3_cpu(glmNormal.x, glmNormal.y, glmNormal.z);
+    SpinImage::cpu::float3 normal = make_float3_cpu(glmNormal.x, glmNormal.y, glmNormal.z);
 
     return normal;
 }

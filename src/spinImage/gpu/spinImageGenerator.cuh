@@ -1,7 +1,7 @@
 #pragma once
 
 #include <spinImage/libraryBuildSettings.h>
-#include <spinImage/gpu/types/DeviceMesh.h>
+#include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/gpu/types/DeviceOrientedPoint.h>
 
 namespace SpinImage {
@@ -17,7 +17,7 @@ namespace SpinImage {
     namespace gpu {
         // A seed of 0 will cause the implementation to pick one
         array<spinImagePixelType> generateSpinImages(
-                DeviceMesh device_mesh,
+                Mesh device_mesh,
                 array<DeviceOrientedPoint> device_spinImageOrigins,
                 float spinImageWidth,
                 size_t sampleCount,

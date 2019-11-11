@@ -3,17 +3,15 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
-#include <spinImage/gpu/types/DeviceMesh.h>
+#include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/gpu/types/CudaLaunchDimensions.h>
 #include <spinImage/utilities/setValue.cuh>
 #include <spinImage/libraryBuildSettings.h>
-#include <spinImage/common/types/QSIPrecalculatedSettings.h>
 
-#include "nvidia/shfl_scan.cuh"
 #include "nvidia/helper_math.h"
 #include "nvidia/helper_cuda.h"
 
-#include <assert.h>
+#include <cassert>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -426,7 +424,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuasiSpinI
 #endif
 }
 
-__global__ void scaleMesh(DeviceMesh mesh, float scaleFactor) {
+__global__ void scaleMesh(SpinImage::gpu::Mesh mesh, float scaleFactor) {
     size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
 
     if(vertexIndex >= mesh.vertexCount) {
@@ -438,7 +436,7 @@ __global__ void scaleMesh(DeviceMesh mesh, float scaleFactor) {
     mesh.vertices_z[vertexIndex] *= scaleFactor;
 }
 
-__global__ void scaleSpinOrigins(DeviceOrientedPoint* origins, size_t imageCount, float scaleFactor) {
+__global__ void scaleSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* origins, size_t imageCount, float scaleFactor) {
     size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
 
     if(vertexIndex >= imageCount) {
@@ -450,7 +448,7 @@ __global__ void scaleSpinOrigins(DeviceOrientedPoint* origins, size_t imageCount
     origins[vertexIndex].vertex.z *= scaleFactor;
 }
 
-__global__ void redistributeMesh(DeviceMesh mesh, QSIMesh qsiMesh) {
+__global__ void redistributeMesh(SpinImage::gpu::Mesh mesh, QSIMesh qsiMesh) {
     size_t triangleIndex = blockIdx.x;
     size_t triangleBaseIndex = 3 * triangleIndex;
 
@@ -469,13 +467,13 @@ __global__ void redistributeMesh(DeviceMesh mesh, QSIMesh qsiMesh) {
     qsiMesh.geometryBasePointer[8 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
 }
 
-__global__ void redistributeSpinOrigins(DeviceOrientedPoint* spinOrigins, size_t imageCount, QSIMesh qsiMesh) {
+__global__ void redistributeSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* spinOrigins, size_t imageCount, QSIMesh qsiMesh) {
     assert(imageCount == gridDim.x);
     size_t imageIndex = blockIdx.x;
 
     size_t spinOriginsBlockSize = roundSizeToNearestCacheLine(imageCount);
 
-    DeviceOrientedPoint spinOrigin = spinOrigins[imageIndex];
+    SpinImage::gpu::DeviceOrientedPoint spinOrigin = spinOrigins[imageIndex];
 
     qsiMesh.spinOriginsBasePointer[0 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.x;
     qsiMesh.spinOriginsBasePointer[1 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.y;
@@ -486,8 +484,8 @@ __global__ void redistributeSpinOrigins(DeviceOrientedPoint* spinOrigins, size_t
     qsiMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
 
-array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
-        DeviceMesh device_mesh,
+SpinImage::array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
+        Mesh device_mesh,
         array<DeviceOrientedPoint> device_QSIOrigins,
         float spinImageWidth,
         SpinImage::debug::QSIRunInfo* runinfo)
@@ -506,7 +504,7 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
 
 	    float scaleFactor = float(spinImageWidthPixels)/spinImageWidth;
 
-	    DeviceMesh device_editableMeshCopy = duplicateDeviceMesh(device_mesh);
+	    Mesh device_editableMeshCopy = duplicateMesh(device_mesh);
 	    scaleMesh<<<(meshVertexCount / 128) + 1, 128>>>(device_editableMeshCopy, scaleFactor);
         checkCudaErrors(cudaDeviceSynchronize());
 
@@ -565,7 +563,7 @@ array<quasiSpinImagePixelType> SpinImage::gpu::generateQuasiSpinImages(
 
 	// -- Cleanup --
 
-	freeDeviceMesh(device_editableMeshCopy);
+    freeMesh(device_editableMeshCopy);
 	cudaFree(qsiMesh.spinOriginsBasePointer);
 	cudaFree(qsiMesh.geometryBasePointer);
 	cudaFree(device_editableSpinOriginsCopy);

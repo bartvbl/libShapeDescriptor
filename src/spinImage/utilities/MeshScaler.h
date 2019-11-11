@@ -1,9 +1,9 @@
 #pragma once
 
-#include <spinImage/cpu/types/HostMesh.h>
+#include <spinImage/cpu/types/Mesh.h>
 
 namespace SpinImage {
     namespace utilities {
-        HostMesh scaleHostMesh(HostMesh &model, HostMesh &scaledModel, float spinImagePixelSize);
+        cpu::Mesh scaleMesh(cpu::Mesh &model, cpu::Mesh &scaledModel, float spinImagePixelSize);
     }
 }

@@ -1,4 +1,4 @@
-#include <spinImage/gpu/types/DeviceMesh.h>
+#include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/libraryBuildSettings.h>
 #include <cuda_runtime.h>
 #include <curand_mtgp32_kernel.h>
@@ -106,7 +106,7 @@ __global__ void generateSearchResults(spinImagePixelType* needleDescriptors,
 									  size_t needleImageCount,
                                       spinImagePixelType* haystackDescriptors,
 									  size_t haystackImageCount,
-									  SpinImageSearchResults* searchResults,
+									  SpinImage::gpu::SpinImageSearchResults* searchResults,
 									  float* needleImageAverages,
 									  float* haystackImageAverages) {
 
@@ -201,7 +201,7 @@ __global__ void generateSearchResults(spinImagePixelType* needleDescriptors,
 
 }
 
-array<SpinImageSearchResults> SpinImage::gpu::findSpinImagesInHaystack(
+SpinImage::array<SpinImage::gpu::SpinImageSearchResults> SpinImage::gpu::findSpinImagesInHaystack(
         array<spinImagePixelType> device_needleDescriptors,
         size_t needleImageCount,
         array<spinImagePixelType> device_haystackDescriptors,
@@ -343,7 +343,7 @@ __global__ void computeSpinImageSearchResultIndices(
 	}
 }
 
-array<unsigned int> SpinImage::gpu::computeSpinImageSearchResultRanks(
+SpinImage::array<unsigned int> SpinImage::gpu::computeSpinImageSearchResultRanks(
         array<spinImagePixelType> device_needleDescriptors,
         size_t needleImageCount,
         array<spinImagePixelType> device_haystackDescriptors,

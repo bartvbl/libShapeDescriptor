@@ -1,7 +1,7 @@
 #include <assert.h>
 #include "MeshScaler.h"
 
-HostMesh SpinImage::utilities::scaleHostMesh(HostMesh &model, HostMesh &scaledModel, float spinImagePixelSize)
+SpinImage::cpu::Mesh SpinImage::utilities::scaleMesh(cpu::Mesh &model, cpu::Mesh &scaledModel, float spinImagePixelSize)
 {
     assert(model.vertexCount == scaledModel.vertexCount);
 

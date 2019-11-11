@@ -1,8 +1,8 @@
-#include <spinImage/cpu/types/HostMesh.h>
-#include <spinImage/utilities/OBJLoader.h>
-#include <spinImage/utilities/copy/hostMeshToDevice.h>
+#include <spinImage/cpu/types/Mesh.h>
 #include <spinImage/gpu/spinImageGenerator.cuh>
 #include <spinImage/gpu/quasiSpinImageGenerator.cuh>
+#include <spinImage/utilities/OBJLoader.h>
+#include <spinImage/utilities/copy/hostMeshToDevice.h>
 #include <spinImage/utilities/dumpers/spinImageDumper.h>
 #include <spinImage/utilities/copy/deviceDescriptorsToHost.h>
 #include <spinImage/utilities/CUDAContextCreator.h>
@@ -56,22 +56,22 @@ int main(int argc, const char** argv) {
     }
 
     std::cout << "Loading OBJ file.." << std::endl;
-    HostMesh mesh = SpinImage::utilities::loadOBJ(inputFile.value());
-    DeviceMesh deviceMesh = SpinImage::copy::hostMeshToDevice(mesh);
+    SpinImage::cpu::Mesh mesh = SpinImage::utilities::loadOBJ(inputFile.value());
+    SpinImage::gpu::Mesh deviceMesh = SpinImage::copy::hostMeshToDevice(mesh);
 
-    array<DeviceOrientedPoint> spinOrigins = SpinImage::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
+    SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> spinOrigins = SpinImage::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
     size_t imageCount = spinOrigins.length;
 
     std::cout << "Generating images.. (this can take a while)" << std::endl;
     if(generationMode.value() == "spinimage") {
-        array<spinImagePixelType> descriptors = SpinImage::gpu::generateSpinImages(
+        SpinImage::array<spinImagePixelType> descriptors = SpinImage::gpu::generateSpinImages(
                 deviceMesh,
                 spinOrigins,
                 spinImageWidth.value(),
                 spinImageSampleCount.value(),
                 supportAngle.value());
         std::cout << "Dumping results.. " << std::endl;
-        array<spinImagePixelType> hostDescriptors = SpinImage::copy::spinImageDescriptorsToHost(descriptors, imageCount);
+        SpinImage::array<spinImagePixelType> hostDescriptors = SpinImage::copy::spinImageDescriptorsToHost(descriptors, imageCount);
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
@@ -81,12 +81,12 @@ int main(int argc, const char** argv) {
         delete[] hostDescriptors.content;
 
     } else if(generationMode.value() == "quasispinimage") {
-        array<quasiSpinImagePixelType> descriptors = SpinImage::gpu::generateQuasiSpinImages(
+        SpinImage::array<quasiSpinImagePixelType> descriptors = SpinImage::gpu::generateQuasiSpinImages(
                 deviceMesh,
                 spinOrigins,
                 spinImageWidth.value());
         std::cout << "Dumping results.. " << std::endl;
-        array<quasiSpinImagePixelType> hostDescriptors = SpinImage::copy::QSIDescriptorsToHost(descriptors, imageCount);
+        SpinImage::array<quasiSpinImagePixelType> hostDescriptors = SpinImage::copy::QSIDescriptorsToHost(descriptors, imageCount);
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
@@ -100,7 +100,7 @@ int main(int argc, const char** argv) {
         std::cerr << "Should be either 'spinimage' or 'quasispinimage'." << std::endl;
     }
 
-    SpinImage::cpu::freeHostMesh(mesh);
-    SpinImage::gpu::freeDeviceMesh(deviceMesh);
+    SpinImage::cpu::freeMesh(mesh);
+    SpinImage::gpu::freeMesh(deviceMesh);
 
 }

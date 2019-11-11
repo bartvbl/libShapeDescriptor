@@ -2,10 +2,10 @@
 #include <cuda_runtime.h>
 #include "spinOriginBufferGenerator.h"
 #include <nvidia/helper_cuda.h>
-#include <assert.h>
+#include <cassert>
 #include <spinImage/utilities/copy/hostMeshToDevice.h>
 
-__global__ void removeDuplicates(DeviceMesh inputMesh, DeviceOrientedPoint* compactedOrigins, size_t* totalVertexCount) {
+__global__ void removeDuplicates(SpinImage::gpu::Mesh inputMesh, SpinImage::gpu::DeviceOrientedPoint* compactedOrigins, size_t* totalVertexCount) {
     // Only a single warp to avoid complications related to divergence within a block
     // (syncthreads may hang indefinitely if some threads diverged)
     const int threadCount = 32;
@@ -66,7 +66,7 @@ __global__ void removeDuplicates(DeviceMesh inputMesh, DeviceOrientedPoint* comp
         size_t outVertexIndex = arrayPointer + indicesBeforeMe;
 
         if(!shouldBeDiscarded) {
-            DeviceOrientedPoint spinOrigin;
+            SpinImage::gpu::DeviceOrientedPoint spinOrigin;
 
             spinOrigin.vertex = vertex;
             spinOrigin.normal = normal;
@@ -87,12 +87,12 @@ __global__ void removeDuplicates(DeviceMesh inputMesh, DeviceOrientedPoint* comp
     }
 }
 
-array<DeviceOrientedPoint> removeDuplicates(DeviceMesh mesh) {
+SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> removeDuplicates(SpinImage::gpu::Mesh mesh) {
     size_t* device_totalVertexCount;
     checkCudaErrors(cudaMalloc(&device_totalVertexCount, sizeof(size_t)));
 
-    array<DeviceOrientedPoint> device_spinOrigins;
-    checkCudaErrors(cudaMalloc(&device_spinOrigins.content, mesh.vertexCount * sizeof(DeviceOrientedPoint)));
+    SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> device_spinOrigins;
+    checkCudaErrors(cudaMalloc(&device_spinOrigins.content, mesh.vertexCount * sizeof(SpinImage::gpu::DeviceOrientedPoint)));
 
     removeDuplicates<<<1, 32>>>(mesh, device_spinOrigins.content, device_totalVertexCount);
     checkCudaErrors(cudaDeviceSynchronize());
@@ -107,15 +107,15 @@ array<DeviceOrientedPoint> removeDuplicates(DeviceMesh mesh) {
     return device_spinOrigins;
 }
 
-array<DeviceOrientedPoint> SpinImage::utilities::generateUniqueSpinOriginBuffer(DeviceMesh &mesh) {
+SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> SpinImage::utilities::generateUniqueSpinOriginBuffer(gpu::Mesh &mesh) {
     return removeDuplicates(mesh);
 }
 
-array<DeviceOrientedPoint> SpinImage::utilities::generateUniqueSpinOriginBuffer(std::vector<float3_cpu> &vertices, std::vector<float3_cpu> &normals) {
+SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> SpinImage::utilities::generateUniqueSpinOriginBuffer(std::vector<cpu::float3> &vertices, std::vector<cpu::float3> &normals) {
     assert(vertices.size() == normals.size());
 
-    float3_cpu* vertexData = vertices.data();
-    float3_cpu* normalData = normals.data();
+    cpu::float3* vertexData = vertices.data();
+    cpu::float3* normalData = normals.data();
 
     unsigned int* indexBuffer = new unsigned int[vertices.size()];
 
@@ -123,7 +123,7 @@ array<DeviceOrientedPoint> SpinImage::utilities::generateUniqueSpinOriginBuffer(
         indexBuffer[i] = i;
     }
 
-    HostMesh tempHostMesh;
+    cpu::Mesh tempHostMesh;
 
     tempHostMesh.vertices = vertexData;
     tempHostMesh.normals = normalData;
@@ -131,11 +131,11 @@ array<DeviceOrientedPoint> SpinImage::utilities::generateUniqueSpinOriginBuffer(
     tempHostMesh.vertexCount = vertices.size();
     tempHostMesh.indexCount = vertices.size();
 
-    DeviceMesh tempDeviceMesh = SpinImage::copy::hostMeshToDevice(tempHostMesh);
+    gpu::Mesh tempDeviceMesh = SpinImage::copy::hostMeshToDevice(tempHostMesh);
 
-    array<DeviceOrientedPoint> spinOrigins = removeDuplicates(tempDeviceMesh);
+    array<gpu::DeviceOrientedPoint> spinOrigins = removeDuplicates(tempDeviceMesh);
 
-    SpinImage::gpu::freeDeviceMesh(tempDeviceMesh);
+    SpinImage::gpu::freeMesh(tempDeviceMesh);
     delete[] indexBuffer;
 
     return spinOrigins;

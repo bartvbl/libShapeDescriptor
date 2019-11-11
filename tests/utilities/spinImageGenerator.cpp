@@ -4,9 +4,9 @@
 
 
 template<typename pixelType>
-array<pixelType> generateEmptyImages(size_t imageCount) {
+SpinImage::array<pixelType> generateEmptyImages(size_t imageCount) {
     pixelType* image = new pixelType[imageCount * spinImageWidthPixels * spinImageWidthPixels];
-    array<pixelType> images;
+    SpinImage::array<pixelType> images;
     images.content = image;
     images.length = imageCount * spinImageWidthPixels * spinImageWidthPixels;
 
@@ -14,7 +14,7 @@ array<pixelType> generateEmptyImages(size_t imageCount) {
 }
 
 template<typename pixelType>
-array<pixelType> generateRepeatingTemplateImage(
+SpinImage::array<pixelType> generateRepeatingTemplateImage(
         pixelType patternPart0,
         pixelType patternPart1,
         pixelType patternPart2,
@@ -24,7 +24,7 @@ array<pixelType> generateRepeatingTemplateImage(
         pixelType patternPart6,
         pixelType patternPart7) {
 
-    array<pixelType> images = generateEmptyImages<pixelType>(1);
+    SpinImage::array<pixelType> images = generateEmptyImages<pixelType>(1);
 
     for(size_t index = 0; index < spinImageWidthPixels * spinImageWidthPixels; index += 8) {
         images.content[index + 0] = patternPart0;
@@ -41,8 +41,8 @@ array<pixelType> generateRepeatingTemplateImage(
 }
 
 template<typename pixelType>
-array<pixelType> generateKnownImageSequence(const int imageCount, const int pixelsPerImage) {
-    array<pixelType> imageSequence = generateEmptyImages<pixelType>(imageCount);
+SpinImage::array<pixelType> generateKnownImageSequence(const int imageCount, const int pixelsPerImage) {
+    SpinImage::array<pixelType> imageSequence = generateEmptyImages<pixelType>(imageCount);
 
     for(int image = 0; image < imageCount; image++) {
         for(int highIndex = 0; highIndex <= image; highIndex++) {
@@ -57,15 +57,15 @@ array<pixelType> generateKnownImageSequence(const int imageCount, const int pixe
     return imageSequence;
 }
 
-array<spinImagePixelType> generateEmptySpinImages(size_t imageCount) {
+SpinImage::array<spinImagePixelType> generateEmptySpinImages(size_t imageCount) {
     return generateEmptyImages<spinImagePixelType>(imageCount);
 }
 
-array<quasiSpinImagePixelType> generateEmptyQuasiSpinImages(size_t imageCount) {
+SpinImage::array<quasiSpinImagePixelType> generateEmptyQuasiSpinImages(size_t imageCount) {
     return generateEmptyImages<quasiSpinImagePixelType>(imageCount);
 }
 
-array<spinImagePixelType> generateRepeatingTemplateSpinImage(
+SpinImage::array<spinImagePixelType> generateRepeatingTemplateSpinImage(
         spinImagePixelType patternPart0,
         spinImagePixelType patternPart1,
         spinImagePixelType patternPart2,
@@ -85,7 +85,7 @@ array<spinImagePixelType> generateRepeatingTemplateSpinImage(
             patternPart7);
 }
 
-array<quasiSpinImagePixelType> generateRepeatingTemplateQuasiSpinImage(
+SpinImage::array<quasiSpinImagePixelType> generateRepeatingTemplateQuasiSpinImage(
         quasiSpinImagePixelType patternPart0,
         quasiSpinImagePixelType patternPart1,
         quasiSpinImagePixelType patternPart2,
@@ -105,11 +105,11 @@ array<quasiSpinImagePixelType> generateRepeatingTemplateQuasiSpinImage(
             patternPart7);
 }
 
-array<spinImagePixelType> generateKnownSpinImageSequence(const int imageCount, const int pixelsPerImage) {
+SpinImage::array<spinImagePixelType> generateKnownSpinImageSequence(const int imageCount, const int pixelsPerImage) {
     return generateKnownImageSequence<spinImagePixelType>(imageCount, pixelsPerImage);
 }
 
-array<quasiSpinImagePixelType> generateKnownQuasiSpinImageSequence(const int imageCount, const int pixelsPerImage) {
+SpinImage::array<quasiSpinImagePixelType> generateKnownQuasiSpinImageSequence(const int imageCount, const int pixelsPerImage) {
     return generateKnownImageSequence<quasiSpinImagePixelType>(imageCount, pixelsPerImage);
 }
 

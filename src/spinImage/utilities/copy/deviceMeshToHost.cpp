@@ -1,15 +1,15 @@
 #include "deviceMeshToHost.h"
 
-#include <spinImage/cpu/types/HostMesh.h>
-#include <spinImage/gpu/types/DeviceMesh.h>
+#include <spinImage/cpu/types/Mesh.h>
+#include <spinImage/gpu/types/Mesh.h>
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
 
-HostMesh SpinImage::copy::deviceMeshToHost(DeviceMesh deviceMesh)
+SpinImage::cpu::Mesh SpinImage::copy::deviceMeshToHost(gpu::Mesh deviceMesh)
 {
     size_t vertexCount = deviceMesh.vertexCount;
 
-    HostMesh hostMesh(vertexCount, vertexCount);
+    cpu::Mesh hostMesh(vertexCount, vertexCount);
 
     size_t verticesSize = sizeof(float) * vertexCount;
 

@@ -2,7 +2,7 @@
 #include <fstream>
 #include <iostream>
 
-void SpinImage::dump::mesh(HostMesh mesh, std::string outputFilePath) {
+void SpinImage::dump::mesh(cpu::Mesh mesh, std::string outputFilePath) {
     std::ofstream outputFile;
     outputFile.open(outputFilePath);
 

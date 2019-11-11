@@ -1,11 +1,11 @@
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
-#include "DeviceMesh.h"
+#include "Mesh.h"
 
-DeviceMesh SpinImage::gpu::duplicateDeviceMesh(DeviceMesh mesh) {
+SpinImage::gpu::Mesh SpinImage::gpu::duplicateMesh(Mesh mesh) {
     size_t bufferSize = mesh.vertexCount * sizeof(float);
 
-    DeviceMesh outMesh;
+    Mesh outMesh;
 
     outMesh.vertexCount = mesh.vertexCount;
 
@@ -28,7 +28,7 @@ DeviceMesh SpinImage::gpu::duplicateDeviceMesh(DeviceMesh mesh) {
     return outMesh;
 }
 
-void SpinImage::gpu::freeDeviceMesh(DeviceMesh mesh) {
+void SpinImage::gpu::freeMesh(Mesh mesh) {
     cudaFree(mesh.vertices_x);
     cudaFree(mesh.vertices_y);
     cudaFree(mesh.vertices_z);

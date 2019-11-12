@@ -28,6 +28,10 @@
 // Due to the implementation, this value MUST be a multiple of 32.
 #define SEARCH_RESULT_COUNT 128
 
+// In the paper, an early exit clause is used to significantly speed up the comparison rate of images.
+// This feature can be turned on or off using this switch
+#define ENABLE_RICI_COMPARISON_EARLY_EXIT true
+
 
 
 #include <spinImage/common/buildSettings/derivedBuildSettings.h>

@@ -198,7 +198,7 @@ __device__ int compareRadialIntersectionCountImagePairGPU(
             previousWarpLastNeedlePixelValue = currentNeedlePixelValue;
             previousWarpLastHaystackPixelValue = currentHaystackPixelValue;
         }
-
+#if ENABLE_RICI_COMPARISON_EARLY_EXIT
         // At the end of each block of 8 rows, check whether we can do an early exit
         // This also works for the constant image
         if(row != (spinImageWidthPixels - 1)) {
@@ -207,6 +207,7 @@ __device__ int compareRadialIntersectionCountImagePairGPU(
                 return intermediateDistance;
             }
         }
+#endif
     }
 
     int imageScore = warpAllReduceSum(threadScore);

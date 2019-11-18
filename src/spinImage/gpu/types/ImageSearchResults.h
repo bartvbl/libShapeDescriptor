@@ -14,6 +14,11 @@ namespace SpinImage {
             size_t resultIndices[SEARCH_RESULT_COUNT];
             int resultScores[SEARCH_RESULT_COUNT];
         };
+
+        struct QUICCISearchResults {
+            size_t resultIndices[SEARCH_RESULT_COUNT];
+            int resultScores[SEARCH_RESULT_COUNT];
+        };
     }
 }
 

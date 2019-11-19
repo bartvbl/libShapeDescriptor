@@ -1,18 +1,20 @@
 #include "quickIntersectionCountImageGenerator.cuh"
 #include <nvidia/helper_cuda.h>
 #include <cuda_runtime.h>
+#include <iostream>
+#include <bitset>
+
+const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
+const int unsignedIntegersPerImage = spinImageElementCount / 32;
 
 __global__ void generateQUICCImagesGPU(
-    unsigned int* horizontallyDecreasingImages,
-    unsigned int* horizontallyIncreasingImages,
-    size_t imageCount,
-    radialIntersectionCountImagePixelType* RICIDescriptors
-        ) {
-    const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
-    const int unsignedIntegersPerImage = spinImageElementCount / 32;
+        unsigned int* horizontallyIncreasingImages,
+        unsigned int* horizontallyDecreasingImages,
+        size_t imageCount,
+        radialIntersectionCountImagePixelType* RICIDescriptors) {
+
     const int laneIndex = threadIdx.x % 32;
     const unsigned int imageIndex = blockIdx.x;
-
     static_assert(spinImageWidthPixels % 32 == 0);
 
     for(int row = 0; row < spinImageWidthPixels; row++) {
@@ -47,8 +49,8 @@ __global__ void generateQUICCImagesGPU(
             bool isDeltaIncreasing = imageDelta > 0;
             bool isDeltaDecreasing = imageDelta < 0;
 
-            unsigned int increasingCompressed = __ballot_sync(0xFFFFFFFF, isDeltaIncreasing);
-            unsigned int decreasingCompressed = __ballot_sync(0xFFFFFFFF, isDeltaDecreasing);
+            unsigned int increasingCompressed = __brev(__ballot_sync(0xFFFFFFFF, isDeltaIncreasing));
+            unsigned int decreasingCompressed = __brev(__ballot_sync(0xFFFFFFFF, isDeltaDecreasing));
 
             if(laneIndex == 0) {
                 size_t chunkIndex = (imageIndex * unsignedIntegersPerImage) + (row * (spinImageWidthPixels / 32)) + (pixel / 32);
@@ -71,7 +73,7 @@ SpinImage::gpu::QUICCIImages SpinImage::gpu::generateQUICCImages(
     static_assert(sizeof(radialIntersectionCountImagePixelType) == 4);
 
     const unsigned int imageCount = RICIDescriptors.length;
-    size_t imageSequenceSize = imageCount * ((spinImageWidthPixels * spinImageWidthPixels) / 32);
+    size_t imageSequenceSize = imageCount * unsignedIntegersPerImage * sizeof(unsigned int);
 
     unsigned int* device_horizontallyIncreasingImages;
     unsigned int* device_horizontallyDecreasingImages;
@@ -83,11 +85,51 @@ SpinImage::gpu::QUICCIImages SpinImage::gpu::generateQUICCImages(
     dim3 blockDimensions = {32, 1, 1};
 
     generateQUICCImagesGPU<<<gridDimensions, blockDimensions>>>(
-        device_horizontallyDecreasingImages,
         device_horizontallyIncreasingImages,
+        device_horizontallyDecreasingImages,
         imageCount,
         RICIDescriptors.content);
     checkCudaErrors(cudaDeviceSynchronize());
+
+    unsigned int* host_singleIncreasingImage = new unsigned int[unsignedIntegersPerImage];
+    unsigned int* host_singleDecreasingImage = new unsigned int[unsignedIntegersPerImage];
+    unsigned int* host_RICI_descriptor = new unsigned int[spinImageElementCount];
+
+    cudaMemcpy(host_singleIncreasingImage, device_horizontallyIncreasingImages, unsignedIntegersPerImage * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(host_singleDecreasingImage, device_horizontallyDecreasingImages, unsignedIntegersPerImage * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(host_RICI_descriptor, RICIDescriptors.content, spinImageElementCount * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+
+    for(int row = 0; row < spinImageWidthPixels; row++) {
+        for(int col = 0; col < spinImageWidthPixels; col++) {
+            std::cout << host_RICI_descriptor[row * spinImageWidthPixels + col] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    std::cout << std::endl;
+    std::cout << std::endl;
+
+    for(int row = 0; row < spinImageWidthPixels; row++) {
+        for(int col = 0; col < spinImageWidthPixels/32; col++) {
+            unsigned int chunk = host_singleIncreasingImage[row * (spinImageWidthPixels / 32) + col];
+            std::bitset<32> bits(chunk);
+            std::cout << bits << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    std::cout << std::endl;
+    std::cout << std::endl;
+
+    for(int row = 0; row < spinImageWidthPixels; row++) {
+        for(int col = 0; col < spinImageWidthPixels/32; col++) {
+            unsigned int chunk = host_singleDecreasingImage[row * (spinImageWidthPixels / 32) + col];
+            std::bitset<32> bits(chunk);
+            std::cout << bits << " ";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::dec;
 
     SpinImage::gpu::QUICCIImages descriptors;
     descriptors.horizontallyIncreasingImages = device_horizontallyIncreasingImages;

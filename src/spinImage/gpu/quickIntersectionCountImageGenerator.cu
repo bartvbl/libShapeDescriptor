@@ -91,46 +91,6 @@ SpinImage::gpu::QUICCIImages SpinImage::gpu::generateQUICCImages(
         RICIDescriptors.content);
     checkCudaErrors(cudaDeviceSynchronize());
 
-    unsigned int* host_singleIncreasingImage = new unsigned int[unsignedIntegersPerImage];
-    unsigned int* host_singleDecreasingImage = new unsigned int[unsignedIntegersPerImage];
-    unsigned int* host_RICI_descriptor = new unsigned int[spinImageElementCount];
-
-    cudaMemcpy(host_singleIncreasingImage, device_horizontallyIncreasingImages, unsignedIntegersPerImage * sizeof(unsigned int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(host_singleDecreasingImage, device_horizontallyDecreasingImages, unsignedIntegersPerImage * sizeof(unsigned int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(host_RICI_descriptor, RICIDescriptors.content, spinImageElementCount * sizeof(unsigned int), cudaMemcpyDeviceToHost);
-
-    for(int row = 0; row < spinImageWidthPixels; row++) {
-        for(int col = 0; col < spinImageWidthPixels; col++) {
-            std::cout << host_RICI_descriptor[row * spinImageWidthPixels + col] << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    std::cout << std::endl;
-    std::cout << std::endl;
-
-    for(int row = 0; row < spinImageWidthPixels; row++) {
-        for(int col = 0; col < spinImageWidthPixels/32; col++) {
-            unsigned int chunk = host_singleIncreasingImage[row * (spinImageWidthPixels / 32) + col];
-            std::bitset<32> bits(chunk);
-            std::cout << bits << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    std::cout << std::endl;
-    std::cout << std::endl;
-
-    for(int row = 0; row < spinImageWidthPixels; row++) {
-        for(int col = 0; col < spinImageWidthPixels/32; col++) {
-            unsigned int chunk = host_singleDecreasingImage[row * (spinImageWidthPixels / 32) + col];
-            std::bitset<32> bits(chunk);
-            std::cout << bits << " ";
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::dec;
-
     SpinImage::gpu::QUICCIImages descriptors;
     descriptors.horizontallyIncreasingImages = device_horizontallyIncreasingImages;
     descriptors.horizontallyDecreasingImages = device_horizontallyDecreasingImages;

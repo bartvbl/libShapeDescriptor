@@ -3,6 +3,7 @@
 #include <cuda_runtime.h>
 #include <iostream>
 #include <bitset>
+#include <chrono>
 
 const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
 const int unsignedIntegersPerImage = spinImageElementCount / 32;
@@ -69,6 +70,8 @@ SpinImage::gpu::QUICCIImages SpinImage::gpu::generateQUICCImages(
         array<radialIntersectionCountImagePixelType> RICIDescriptors,
         SpinImage::debug::QUICCIRunInfo* runinfo) {
 
+    auto totalExecutionTimeStart = std::chrono::steady_clock::now();
+
     // Code is made for unsigned integers. Shorts would require additional logic.
     static_assert(sizeof(radialIntersectionCountImagePixelType) == 4);
 
@@ -84,6 +87,8 @@ SpinImage::gpu::QUICCIImages SpinImage::gpu::generateQUICCImages(
     dim3 gridDimensions = {imageCount, 1, 1};
     dim3 blockDimensions = {32, 1, 1};
 
+    auto generationStart = std::chrono::steady_clock::now();
+
     generateQUICCImagesGPU<<<gridDimensions, blockDimensions>>>(
         device_horizontallyIncreasingImages,
         device_horizontallyDecreasingImages,
@@ -91,10 +96,19 @@ SpinImage::gpu::QUICCIImages SpinImage::gpu::generateQUICCImages(
         RICIDescriptors.content);
     checkCudaErrors(cudaDeviceSynchronize());
 
+    std::chrono::milliseconds generationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - generationStart);
+
     SpinImage::gpu::QUICCIImages descriptors;
     descriptors.horizontallyIncreasingImages = device_horizontallyIncreasingImages;
     descriptors.horizontallyDecreasingImages = device_horizontallyDecreasingImages;
     descriptors.imageCount = imageCount;
+
+    std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
+
+    if(runinfo != nullptr) {
+        runinfo->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
+        runinfo->generationTimeSeconds = double(generationDuration.count()) / 1000.0;
+    }
 
     return descriptors;
 }

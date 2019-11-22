@@ -17,11 +17,15 @@ __inline__ __device__ int warpAllReduceSum(int val) {
     return val;
 }
 
+__inline__ __device__ unsigned int getChunkAt(const unsigned int* imageArray, const size_t imageIndex, const int chunkIndex) {
+    return imageArray[imageIndex * uintsPerQUICCImage + chunkIndex];
+}
+
 const int indexBasedWarpCount = 16;
 
 __device__ int computeImageSumGPU(
         const unsigned int* needleImages,
-        const size_t needleImageIndex) {
+        const size_t imageIndex) {
 
     const int laneIndex = threadIdx.x % 32;
 
@@ -30,8 +34,7 @@ __device__ int computeImageSumGPU(
     static_assert(spinImageWidthPixels % 32 == 0);
 
     for (int chunk = laneIndex; chunk < uintsPerQUICCImage; chunk += warpSize) {
-        unsigned int needleChunk = needleImages[needleImageIndex * uintsPerQUICCImage + chunk];
-
+        unsigned int needleChunk = getChunkAt(needleImages, imageIndex, chunk);
         threadSquaredSum += __popc(needleChunk);
     }
 
@@ -41,31 +44,33 @@ __device__ int computeImageSumGPU(
 }
 
 // TODO: early exit on this one too?
-__device__ size_t compareConstantQUICCImagePairGPU(
+__device__ unsigned int compareConstantQUICCImagePairGPU(
         const unsigned int* haystackIncreasingImages,
         const unsigned int* haystackDecreasingImages,
         const size_t haystackImageIndex) {
 
     const int laneIndex = threadIdx.x % 32;
 
-    // Assumption: there will never be an intersection count over 65535 (which would cause this to overflow)
-    size_t threadDeltaSquaredSum = 0;
+    unsigned int threadDeltaSquaredSum = 0;
 
     static_assert(spinImageWidthPixels % 32 == 0);
 
     for (int chunk = laneIndex; chunk < uintsPerQUICCImage; chunk += warpSize) {
-        unsigned int haystackChunk =
-                haystackIncreasingImages[haystackImageIndex * uintsPerQUICCImage + chunk] +
-                haystackDecreasingImages[haystackImageIndex * uintsPerQUICCImage + chunk];
+        unsigned int haystackIncreasingChunk =
+                getChunkAt(haystackIncreasingImages, haystackImageIndex, chunk);
+        unsigned int haystackDecreasingChunk =
+                getChunkAt(haystackDecreasingImages, haystackImageIndex, chunk);
 
         // Constant image is empty. Hence we only need to look at the haystack side of things.
-        threadDeltaSquaredSum += __popc(haystackChunk);
+        threadDeltaSquaredSum +=
+                __popc(haystackIncreasingChunk) +
+                __popc(haystackDecreasingChunk);
     }
 
     // image is constant.
     // In those situations, imageScore would always be 0
     // So we use an unfiltered squared sum instead
-    size_t imageScore = warpAllReduceSum(threadDeltaSquaredSum);
+    unsigned int imageScore = warpAllReduceSum(threadDeltaSquaredSum);
 
     return imageScore;
 }
@@ -91,17 +96,15 @@ __device__ int compareQUICCImagePairGPU(
     static_assert(spinImageWidthPixels % 32 == 0);
 
     for (int chunk = laneIndex; chunk < uintsPerQUICCImage; chunk += warpSize) {
-        unsigned int needleIncreasingChunk = needleIncreasingImages[needleImageIndex * uintsPerQUICCImage + chunk];
-        unsigned int needleDecreasingChunk = needleDecreasingImages[needleImageIndex * uintsPerQUICCImage + chunk];
-        unsigned int haystackIncreasingChunk = haystackIncreasingImages[haystackImageIndex * uintsPerQUICCImage + chunk];
-        unsigned int haystackDecreasingChunk = haystackDecreasingImages[haystackImageIndex * uintsPerQUICCImage + chunk];
+        unsigned int needleIncreasingChunk = getChunkAt(needleIncreasingImages, needleImageIndex, chunk);
+        unsigned int needleDecreasingChunk = getChunkAt(needleDecreasingImages, needleImageIndex, chunk);
+        unsigned int haystackIncreasingChunk = getChunkAt(haystackIncreasingImages, haystackImageIndex, chunk);
+        unsigned int haystackDecreasingChunk = getChunkAt(haystackDecreasingImages, haystackImageIndex, chunk);
 
         threadScore += __popc((needleIncreasingChunk ^ haystackIncreasingChunk) & needleIncreasingChunk);
         threadScore += __popc((needleDecreasingChunk ^ haystackDecreasingChunk) & needleDecreasingChunk);
 
 #if ENABLE_RICI_COMPARISON_EARLY_EXIT
-        // At the end of each block of 8 rows, check whether we can do an early exit
-        // This also works for the constant image
         int intermediateDistance = warpAllReduceSum(threadScore);
         if(intermediateDistance >= distanceToBeat) {
             return intermediateDistance;
@@ -126,9 +129,9 @@ __global__ void computeQUICCISearchResultIndices(
     __shared__ unsigned int referenceIncreasingImage[uintsPerQUICCImage];
     __shared__ unsigned int referenceDecreasingImage[uintsPerQUICCImage];
 
-    for(unsigned int index = threadIdx.x; index < uintsPerQUICCImage; index += blockDim.x) {
-        referenceIncreasingImage[index] = needleIncreasingDescriptors[uintsPerQUICCImage * needleImageIndex + index];
-        referenceDecreasingImage[index] = needleDecreasingDescriptors[uintsPerQUICCImage * needleImageIndex + index];
+    for(unsigned int chunk = threadIdx.x; chunk < uintsPerQUICCImage; chunk += blockDim.x) {
+        referenceIncreasingImage[chunk] = getChunkAt(needleIncreasingDescriptors, needleImageIndex, chunk);
+        referenceDecreasingImage[chunk] = getChunkAt(needleDecreasingDescriptors, needleImageIndex, chunk);
     }
 
     __syncthreads();

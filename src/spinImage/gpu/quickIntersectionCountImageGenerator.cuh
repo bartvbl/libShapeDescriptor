@@ -2,6 +2,7 @@
 
 #include <spinImage/common/types/array.h>
 #include <spinImage/libraryBuildSettings.h>
+#include <spinImage/gpu/types/QUICCImages.h>
 
 namespace SpinImage {
     namespace debug {
@@ -12,12 +13,6 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        struct QUICCIImages {
-            unsigned int* horizontallyIncreasingImages;
-            unsigned int* horizontallyDecreasingImages;
-            size_t imageCount;
-        };
-
         QUICCIImages generateQUICCImages(
                 array<radialIntersectionCountImagePixelType> RICIDescriptors,
                 SpinImage::debug::QUICCIRunInfo* runinfo = nullptr);

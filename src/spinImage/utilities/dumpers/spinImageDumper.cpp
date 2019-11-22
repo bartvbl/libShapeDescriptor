@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <lodepng.h>
+#include <spinImage/cpu/types/QUICCIImages.h>
 
 template<typename spinPixelType>
 void performSpinDump(SpinImage::array<spinPixelType> descriptors, const std::string &imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
@@ -31,7 +32,7 @@ void performSpinDump(SpinImage::array<spinPixelType> descriptors, const std::str
 				if(pixel_value != 0) {
 					nonzeroPixelCount++;
 				}
-				if(!std::isnan(pixel_value)) {
+				if(!std::isnan(pixel_value) && pixel_value != UINT32_MAX) {
 					max = std::max(pixel_value, max);
 				}
 			}
@@ -90,36 +91,40 @@ void performSpinDump(SpinImage::array<spinPixelType> descriptors, const std::str
 				break; //stop once we have reached the final spin image
 			}
 
-			for (size_t x = 0; x < spinImageWidthPixels; x++)
-			{
-				for (size_t y = 0; y < spinImageWidthPixels; y++)
-				{
-					size_t pixel_index = size_t(spinImageWidthPixels) * size_t(spinImageWidthPixels) * imageIndex + size_t(spinImageWidthPixels) * y + x;
-					spinPixelType pixelValue = descriptors.content[pixel_index];
-					float normalised;
-					if (logarithmicImage && max != 1.0f) {
-						normalised = (std::log(std::max(0.0f, float(pixelValue))) / std::log(float(max))) * 255.0f;
-					} else
-					{
-						normalised = (std::max(0.0f, float(pixelValue)) / float(max)) * 255.0f;
-					}
-					unsigned char pixelByte = (unsigned char)unsigned(std::min(std::max(normalised, 0.0f), 255.0f));
+			// Hacky way to mark image as empty. Used to display multiple sets of images.
+			unsigned int topLeftPixel = descriptors.content[size_t(spinImageWidthPixels) * size_t(spinImageWidthPixels) * imageIndex];
+			if(topLeftPixel != UINT32_MAX) {
 
-					size_t pixelX = col * (spinImageWidthPixels + 1) + x;
-					size_t pixelY = row * (spinImageWidthPixels + 1) + (spinImageWidthPixels - 1 - y); // Flip image because image coordinates
+				for (size_t x = 0; x < spinImageWidthPixels; x++) {
+					for (size_t y = 0; y < spinImageWidthPixels; y++) {
+						size_t pixel_index = size_t(spinImageWidthPixels) * size_t(spinImageWidthPixels) * imageIndex +
+											 size_t(spinImageWidthPixels) * y + x;
+						spinPixelType pixelValue = descriptors.content[pixel_index];
+						float normalised;
+						if (logarithmicImage && max != 1.0f) {
+							normalised = (std::log(std::max(0.0f, float(pixelValue))) / std::log(float(max))) * 255.0f;
+						} else {
+							normalised = (std::max(0.0f, float(pixelValue)) / float(max)) * 255.0f;
+						}
+						unsigned char pixelByte = (unsigned char) unsigned(std::min(std::max(normalised, 0.0f), 255.0f));
 
-					size_t pixelBaseIndex = 4 * (pixelX + width * pixelY);
+						size_t pixelX = col * (spinImageWidthPixels + 1) + x;
+						size_t pixelY = row * (spinImageWidthPixels + 1) +
+										(spinImageWidthPixels - 1 - y); // Flip image because image coordinates
 
-					if(!std::isnan(pixelValue)) {
-						imageData[pixelBaseIndex + 0] = pixelByte;
-						imageData[pixelBaseIndex + 1] = pixelByte;
-						imageData[pixelBaseIndex + 2] = pixelByte;
-						imageData[pixelBaseIndex + 3] = 255;
-					} else {
-						imageData[pixelBaseIndex + 0] = 255;
-						imageData[pixelBaseIndex + 1] = 0;
-						imageData[pixelBaseIndex + 2] = 0;
-						imageData[pixelBaseIndex + 3] = 255;
+						size_t pixelBaseIndex = 4 * (pixelX + width * pixelY);
+
+						if (!std::isnan(pixelValue)) {
+							imageData[pixelBaseIndex + 0] = pixelByte;
+							imageData[pixelBaseIndex + 1] = pixelByte;
+							imageData[pixelBaseIndex + 2] = pixelByte;
+							imageData[pixelBaseIndex + 3] = 255;
+						} else {
+							imageData[pixelBaseIndex + 0] = 255;
+							imageData[pixelBaseIndex + 1] = 0;
+							imageData[pixelBaseIndex + 2] = 0;
+							imageData[pixelBaseIndex + 3] = 255;
+						}
 					}
 				}
 			}
@@ -148,57 +153,50 @@ void SpinImage::dump::descriptors(array<radialIntersectionCountImagePixelType> h
 	performSpinDump<radialIntersectionCountImagePixelType> (hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void SpinImage::dump::compressedImages(array<unsigned int> compressedDescriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
-	array<unsigned int> decompressedDesciptors;
-	size_t imageTotalPixelCount = compressedDescriptors.length * spinImageWidthPixels * spinImageWidthPixels;
+void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, std::string imageDestinationFile, unsigned int imagesPerRow) {
+	// Compute the number of images that should be inserted to separate the two series
+	// If the number of rows fits the images exactly, an extra one is inserted for better clarity.
+	size_t rowRemainder = hostDescriptors.imageCount % imagesPerRow;
+	size_t fillerImageCount = (rowRemainder == 0) ? imagesPerRow : (imagesPerRow - rowRemainder);
+
+	size_t totalImageCount = (2 * hostDescriptors.imageCount) + fillerImageCount;
+
+	const size_t pixelsPerImage = spinImageWidthPixels * spinImageWidthPixels;
+
+	SpinImage::array<unsigned int> decompressedDesciptors;
+	size_t imageTotalPixelCount = totalImageCount * pixelsPerImage;
 
 	decompressedDesciptors.content = new unsigned int[imageTotalPixelCount];
-	decompressedDesciptors.length = compressedDescriptors.length;
+	decompressedDesciptors.length = totalImageCount;
 
-	for(int compressedEntry = 0; compressedEntry < imageTotalPixelCount / 32; compressedEntry++) {
-		unsigned int entry = compressedDescriptors.content[compressedEntry];
-		std::bitset<32> entryBits(entry);
-		//std::cout << entry << ", ";
-		for(int bitInEntry = 0; bitInEntry < 32; bitInEntry++) {
-			int pixelIndex = 32 * compressedEntry + bitInEntry;
+	const size_t uintsPerImage = pixelsPerImage / 32;
 
-			decompressedDesciptors.content[pixelIndex] = (entryBits[31 - bitInEntry] * 255);
+	size_t pixelIndex = 0;
+
+	for(unsigned int chunkIndex = 0; chunkIndex < hostDescriptors.imageCount * uintsPerImage; chunkIndex++) {
+		unsigned int chunk = hostDescriptors.horizontallyIncreasingImages[chunkIndex];
+		std::bitset<32> entryBits(chunk);
+		for(char bit = 0; bit < 32; bit++) {
+			decompressedDesciptors.content[pixelIndex] = unsigned(int(entryBits[31 - bit]) * 255);
+			pixelIndex++;
 		}
 	}
 
-	performSpinDump<unsigned int>(decompressedDesciptors, imageDestinationFile, logarithmicImage, imagesPerRow);
-}
-
-void SpinImage::dump::rawCompressedImages(array<unsigned int> compressedDescriptors, std::string destination, unsigned int imagesPerRow) {
-	std::cout << "Dumping raw compressed images to: " << destination << std::endl;
-
-	unsigned int itemCount = unsigned(compressedDescriptors.length);
-	//size_t bufferSize = sizeof(unsigned int) * itemCount;
-	size_t integerCount = ((spinImageWidthPixels * spinImageWidthPixels) / (sizeof(unsigned int) * 8)) * itemCount;
-	size_t arrayLength = integerCount * sizeof(unsigned int);
-	
-	unsigned int header = 0x44534352;
-	unsigned int spinImageWidth = spinImageWidthPixels;
-
-	std::ofstream outFile;
-	outFile.open(destination, std::ofstream::out | std::ofstream::binary);
-
-	if(outFile.bad() || !outFile.is_open())
-	{
-		std::cout << "Could not open file! " << std::endl;
+	for(unsigned int emptyPixelIndex = 0; emptyPixelIndex < fillerImageCount * pixelsPerImage; emptyPixelIndex++) {
+		decompressedDesciptors.content[pixelIndex] = UINT32_MAX;
+		pixelIndex++;
 	}
 
-	outFile.write((char*) &header, sizeof(unsigned int));
-	outFile.write((char*) &itemCount, sizeof(unsigned int));
-	outFile.write((char*) &spinImageWidth, sizeof(unsigned int));
-	outFile.write((char*) compressedDescriptors.content, arrayLength);
-	outFile.flush();
-	outFile.close();
-
-	if(outFile.bad())
-	{
-		std::cout << "Could not close file! " << std::endl;
+	for(unsigned int chunkIndex = 0; chunkIndex < hostDescriptors.imageCount * uintsPerImage; chunkIndex++) {
+		unsigned int chunk = hostDescriptors.horizontallyDecreasingImages[chunkIndex];
+		std::bitset<32> entryBits(chunk);
+		for(char bit = 0; bit < 32; bit++) {
+			decompressedDesciptors.content[pixelIndex] = unsigned(int(entryBits[31 - bit]) * 255);
+			pixelIndex++;
+		}
 	}
 
-	std::cout << "Dump complete." << std::endl;
+	performSpinDump<unsigned int>(decompressedDesciptors, imageDestinationFile, false, imagesPerRow);
+
+	delete[] decompressedDesciptors.content;
 }

@@ -2,6 +2,7 @@
 
 #include <spinImage/common/types/array.h>
 #include <spinImage/libraryBuildSettings.h>
+#include <spinImage/cpu/types/QUICCIImages.h>
 
 #include <string>
 
@@ -19,15 +20,9 @@ namespace SpinImage {
                 bool logarithmicImage,
                 unsigned int imagesPerRow);
 
-        void compressedImages(
-                array<unsigned int> compressedDescriptors,
-                std::string imageDestinationFile,
-                bool logarithmicImage,
-                unsigned int imagesPerRow);
-
-        void rawCompressedImages(
-                array<unsigned int> compressedDescriptors,
-                std::string destination,
+        void descriptors(
+                cpu::QUICCIImages hostDescriptors,
+                std::string imageDestimationFile,
                 unsigned int imagesPerRow);
     }
 }

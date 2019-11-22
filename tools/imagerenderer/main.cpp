@@ -1,6 +1,7 @@
 #include <spinImage/cpu/types/Mesh.h>
 #include <spinImage/gpu/spinImageGenerator.cuh>
 #include <spinImage/gpu/radialIntersectionCountImageGenerator.cuh>
+#include <spinImage/gpu/quickIntersectionCountImageGenerator.cuh>
 #include <spinImage/utilities/OBJLoader.h>
 #include <spinImage/utilities/copy/hostMeshToDevice.h>
 #include <spinImage/utilities/dumpers/spinImageDumper.h>
@@ -9,6 +10,7 @@
 #include <spinImage/utilities/spinOriginBufferGenerator.h>
 
 #include <arrrgh.hpp>
+#include <spinImage/cpu/types/QUICCIImages.h>
 
 int main(int argc, const char** argv) {
     arrrgh::parser parser("imagerenderer", "Generate RICI or spin images from an input object and dump them into a PNG file");
@@ -17,7 +19,7 @@ int main(int argc, const char** argv) {
     const auto& showHelp = parser.add<bool>(
             "help", "Show this help message.", 'h', arrrgh::Optional, false);
     const auto& generationMode = parser.add<std::string>(
-            "image-type", "Which image type to generate. Can either be 'spinimage' or 'radialintersectioncountimage'.", '\0', arrrgh::Optional, "radialintersectioncountimage");
+            "image-type", "Which image type to generate. Can either be 'si', 'rici', or 'quicci'.", '\0', arrrgh::Optional, "rici");
     const auto& forceGPU = parser.add<int>(
             "force-gpu", "Force using the GPU with the given ID", 'b', arrrgh::Optional, -1);
     const auto& spinImageWidth = parser.add<float>(
@@ -63,7 +65,7 @@ int main(int argc, const char** argv) {
     size_t imageCount = spinOrigins.length;
 
     std::cout << "Generating images.. (this can take a while)" << std::endl;
-    if(generationMode.value() == "spinimage") {
+    if(generationMode.value() == "si") {
         SpinImage::array<spinImagePixelType> descriptors = SpinImage::gpu::generateSpinImages(
                 deviceMesh,
                 spinOrigins,
@@ -80,24 +82,35 @@ int main(int argc, const char** argv) {
         cudaFree(descriptors.content);
         delete[] hostDescriptors.content;
 
-    } else if(generationMode.value() == "radialintersectioncountimage") {
+    } else if(generationMode.value() == "rici" || generationMode.value() == "quicci")  {
         SpinImage::array<radialIntersectionCountImagePixelType> descriptors = SpinImage::gpu::generateRadialIntersectionCountImages(
                 deviceMesh,
                 spinOrigins,
                 spinImageWidth.value());
-        std::cout << "Dumping results.. " << std::endl;
-        SpinImage::array<radialIntersectionCountImagePixelType> hostDescriptors = SpinImage::copy::RICIDescriptorsToHost(descriptors, imageCount);
-        if(imageLimit.value() != -1) {
-            hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
-        }
-        SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, imagesPerRow.value());
+        if(generationMode.value() == "rici") {
+            std::cout << "Dumping results.. " << std::endl;
+            SpinImage::array<radialIntersectionCountImagePixelType> hostDescriptors = SpinImage::copy::RICIDescriptorsToHost(descriptors, imageCount);
+            if(imageLimit.value() != -1) {
+                hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
+            }
+            SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, imagesPerRow.value());
+            delete[] hostDescriptors.content;
+        } else {
+            SpinImage::gpu::QUICCIImages images = SpinImage::gpu::generateQUICCImages(descriptors);
 
+            SpinImage::cpu::QUICCIImages host_images = SpinImage::copy::QUICCIDescriptorsToHost(images);
+
+            SpinImage::dump::descriptors(host_images, outputFile.value(), imagesPerRow.value());
+
+            cudaFree(images.horizontallyIncreasingImages);
+            cudaFree(images.horizontallyDecreasingImages);
+
+        }
         cudaFree(descriptors.content);
-        delete[] hostDescriptors.content;
 
     } else {
         std::cerr << "Unrecognised image type: " << generationMode.value() << std::endl;
-        std::cerr << "Should be either 'spinimage' or 'radialintersectioncountimage'." << std::endl;
+        std::cerr << "Should be either 'si', 'rici', or 'quicci'." << std::endl;
     }
 
     SpinImage::cpu::freeMesh(mesh);

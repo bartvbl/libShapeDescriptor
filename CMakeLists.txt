@@ -6,7 +6,7 @@ find_package(OpenMP)
 find_package(CUDA REQUIRED)
 
 if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -lpthread -Wall -std=c++17")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -lpthread -lstdc++fs -Wall -std=c++17")
 endif()
 
 if (MSVC)
@@ -49,6 +49,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
         POSITION_INDEPENDENT_CODE ON
         CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+target_link_libraries(${PROJECT_NAME} stdc++fs)
 
 target_include_directories(${PROJECT_NAME} PUBLIC src/)
 

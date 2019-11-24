@@ -6,7 +6,7 @@ find_package(OpenMP)
 find_package(CUDA REQUIRED)
 
 if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -lpthread -Wall -std=c++14")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -lpthread -Wall -std=c++17")
 endif()
 
 if (MSVC)
@@ -29,18 +29,20 @@ include_directories (
         ${CUDA_INCLUDE_DIRS}
 )
 
-file (GLOB_RECURSE LIBRARY_HEADERS        src/*.hpp
-                                          src/*.h
-                                          src/*.cuh)
-file (GLOB_RECURSE LIBRARY_KERNELS        src/*.cu
-                                          lib/nvidia-samples-common/*.cu)
-file (GLOB_RECURSE LIBRARY_SOURCES        src/*.cpp
-                                          src/*.cxx
-                                          src/*.cc
-                                          src/*.c
-                                          lib/lodepng/lodepng.cpp)
-file (GLOB_RECURSE TEST_SOURCES           tests/*.cpp)
-file (GLOB_RECURSE RENDER_TOOL_SOURCES    tools/imagerenderer/*.cpp)
+file (GLOB_RECURSE LIBRARY_HEADERS           src/*.hpp
+                                             src/*.h
+                                             src/*.cuh)
+file (GLOB_RECURSE LIBRARY_KERNELS           src/*.cu
+                                             lib/nvidia-samples-common/*.cu)
+file (GLOB_RECURSE LIBRARY_SOURCES           src/*.cpp
+                                             src/*.cxx
+                                             src/*.cc
+                                             src/*.c
+                                             lib/lodepng/lodepng.cpp)
+file (GLOB_RECURSE TEST_SOURCES              tests/*.cpp)
+file (GLOB_RECURSE RENDER_TOOL_SOURCES       tools/imagerenderer/*.cpp)
+file (GLOB_RECURSE INDEX_BUILD_TOOL_SOURCES  tools/indexbuilder/*.cpp)
+file (GLOB_RECURSE INDEX_QUERY_TOOL_SOURCES  tools/indexqueryer/*.cpp)
 
 cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -56,3 +58,9 @@ target_link_libraries(runTests SpinImage Catch2::Catch2 cudadevrt)
 
 add_executable(imagerenderer ${RENDER_TOOL_SOURCES})
 target_link_libraries(imagerenderer SpinImage cudadevrt)
+
+add_executable(buildindex ${INDEX_BUILD_TOOL_SOURCES})
+target_link_libraries(buildindex SpinImage cudadevrt)
+
+add_executable(queryindex ${INDEX_QUERY_TOOL_SOURCES})
+target_link_libraries(queryindex SpinImage cudadevrt)

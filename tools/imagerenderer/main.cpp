@@ -1,4 +1,5 @@
 #include <spinImage/cpu/types/Mesh.h>
+#include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/gpu/spinImageGenerator.cuh>
 #include <spinImage/gpu/radialIntersectionCountImageGenerator.cuh>
 #include <spinImage/gpu/quickIntersectionCountImageGenerator.cuh>
@@ -10,7 +11,6 @@
 #include <spinImage/utilities/spinOriginBufferGenerator.h>
 
 #include <arrrgh.hpp>
-#include <spinImage/cpu/types/QUICCIImages.h>
 
 int main(int argc, const char** argv) {
     arrrgh::parser parser("imagerenderer", "Generate RICI or spin images from an input object and dump them into a PNG file");

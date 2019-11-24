@@ -9,10 +9,10 @@ struct QuicciMipmapStack {
     //   3       32x32 images   1024          2x2 pixels       0-4           256 bytes, 2 bits/pixel
     //   -- 64x64: source --
 
-    unsigned int[4]  level0;
-    unsigned int[16] level1;
-    unsigned int[32] level2;
-    unsigned int[64] level3;
+    unsigned int level0[4];
+    unsigned int level1[16];
+    unsigned int level2[32];
+    unsigned int level3[64];
 
-    unsigned int[128] quiccImage;
+    unsigned int quiccImage[128];
 };

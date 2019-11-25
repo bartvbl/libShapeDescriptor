@@ -29,20 +29,21 @@ include_directories (
         ${CUDA_INCLUDE_DIRS}
 )
 
-file (GLOB_RECURSE LIBRARY_HEADERS           src/*.hpp
-                                             src/*.h
-                                             src/*.cuh)
-file (GLOB_RECURSE LIBRARY_KERNELS           src/*.cu
-                                             lib/nvidia-samples-common/*.cu)
-file (GLOB_RECURSE LIBRARY_SOURCES           src/*.cpp
-                                             src/*.cxx
-                                             src/*.cc
-                                             src/*.c
-                                             lib/lodepng/lodepng.cpp)
-file (GLOB_RECURSE TEST_SOURCES              tests/*.cpp)
-file (GLOB_RECURSE RENDER_TOOL_SOURCES       tools/imagerenderer/*.cpp)
-file (GLOB_RECURSE INDEX_BUILD_TOOL_SOURCES  tools/indexbuilder/*.cpp)
-file (GLOB_RECURSE INDEX_QUERY_TOOL_SOURCES  tools/indexqueryer/*.cpp)
+file (GLOB_RECURSE LIBRARY_HEADERS             src/*.hpp
+                                               src/*.h
+                                               src/*.cuh)
+file (GLOB_RECURSE LIBRARY_KERNELS             src/*.cu
+                                               lib/nvidia-samples-common/*.cu)
+file (GLOB_RECURSE LIBRARY_SOURCES             src/*.cpp
+                                               src/*.cxx
+                                               src/*.cc
+                                               src/*.c
+                                               lib/lodepng/lodepng.cpp)
+file (GLOB_RECURSE TEST_SOURCES                tests/*.cpp)
+file (GLOB_RECURSE RENDER_TOOL_SOURCES         tools/imagerenderer/*.cpp)
+file (GLOB_RECURSE INDEX_BUILD_TOOL_SOURCES    tools/indexbuilder/*.cpp)
+file (GLOB_RECURSE INDEX_QUERY_TOOL_SOURCES    tools/indexqueryer/*.cpp)
+file (GLOB_RECURSE QUICCI_DUMPER_TOOL_SOURCES  tools/quiccidumper/*.cpp)
 
 cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -65,3 +66,6 @@ target_link_libraries(buildindex SpinImage cudadevrt)
 
 add_executable(queryindex ${INDEX_QUERY_TOOL_SOURCES})
 target_link_libraries(queryindex SpinImage cudadevrt)
+
+add_executable(quiccidumper ${QUICCI_DUMPER_TOOL_SOURCES})
+target_link_libraries(quiccidumper SpinImage cudadevrt)

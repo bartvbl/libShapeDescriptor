@@ -9,6 +9,11 @@
 #include <spinImage/utilities/duplicateRemoval.cuh>
 #include <spinImage/gpu/radialIntersectionCountImageGenerator.cuh>
 #include <spinImage/libraryBuildSettings.h>
+#include <cuda_runtime.h>
+#include <fstream>
+#include <spinImage/cpu/types/QUICCIImages.h>
+#include <spinImage/utilities/copy/deviceDescriptorsToHost.h>
+#include <spinImage/utilities/modelScaler.h>
 
 const float DEFAULT_SPIN_IMAGE_WIDTH = 0.3;
 
@@ -37,10 +42,20 @@ int main(int argc, const char** argv) {
         return 0;
     }
 
+    std::cout << "Loading OBJ file: " << inputOBJFile.value() << std::endl;
     SpinImage::cpu::Mesh hostMesh = SpinImage::utilities::loadOBJ(inputOBJFile.value(), true);
+
+    if(fitInUnitSphere.value()) {
+        std::cout << "Fitting object in unit sphere.." << std::endl;
+        SpinImage::cpu::Mesh scaledMesh = SpinImage::utilities::fitMeshInsideSphereOfRadius(hostMesh, 1);
+        SpinImage::cpu::freeMesh(hostMesh);
+        hostMesh = scaledMesh;
+    }
+
     SpinImage::gpu::Mesh deviceMesh = SpinImage::copy::hostMeshToDevice(hostMesh);
     SpinImage::cpu::freeMesh(hostMesh);
 
+    std::cout << "Computing QUICCI images.." << std::endl;
     SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> uniqueVertices =
             SpinImage::utilities::computeUniqueVertices(deviceMesh);
 
@@ -48,7 +63,22 @@ int main(int argc, const char** argv) {
             SpinImage::gpu::generateRadialIntersectionCountImages(deviceMesh, uniqueVertices, spinImageWidth.value());
 
     SpinImage::gpu::QUICCIImages images = SpinImage::gpu::generateQUICCImages(RICImages);
+    SpinImage::cpu::QUICCIImages hostImages = SpinImage::copy::QUICCIDescriptorsToHost(images);
+
+    const size_t bytesPerQUICCImage = ((spinImageWidthPixels * spinImageWidthPixels) / 32) * sizeof(unsigned int);
+    const unsigned int imageWidthPixels = spinImageWidthPixels;
+
+    std::cout << "Dumping output file.." << std::endl;
+    auto dumpFile = std::fstream(outputDumpFile.value(), std::ios::out | std::ios::binary);
+    dumpFile.write("QUIC", 4);
+    dumpFile.write((char*) &images.imageCount, sizeof(size_t));
+    dumpFile.write((char*) &imageWidthPixels, sizeof(unsigned int));
+    dumpFile.write((char*)hostImages.horizontallyIncreasingImages, images.imageCount * bytesPerQUICCImage);
+    dumpFile.write((char*)hostImages.horizontallyDecreasingImages, images.imageCount * bytesPerQUICCImage);
+    dumpFile.close();
 
     SpinImage::gpu::freeMesh(deviceMesh);
+    cudaFree(uniqueVertices.content);
+    cudaFree(RICImages.content);
 
 }

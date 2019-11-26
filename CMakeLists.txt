@@ -5,6 +5,7 @@ cmake_minimum_required (VERSION 3.0)
 find_package(OpenMP)
 find_package(CUDA REQUIRED)
 
+
 if (CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -lpthread -lstdc++fs -Wall -std=c++17")
 endif()
@@ -18,12 +19,14 @@ set(CUDA_NVCC_FLAGS -arch=sm_61 -gencode arch=compute_61,code=\"sm_61,compute_61
 
 
 
+add_subdirectory(lib/ziplib ${CMAKE_CURRENT_BINARY_DIR}/ziplib)
 
 
 include_directories (
         src/
         lib/glm/
         lib/nvidia-samples-common/
+        lib/ziplib/Source/
         lib/lodepng/
         lib/arrrgh/
         ${CUDA_INCLUDE_DIRS}
@@ -50,7 +53,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
         POSITION_INDEPENDENT_CODE ON
         CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-target_link_libraries(${PROJECT_NAME} stdc++fs)
+target_link_libraries(${PROJECT_NAME} stdc++fs ziplib)
 
 target_include_directories(${PROJECT_NAME} PUBLIC src/)
 

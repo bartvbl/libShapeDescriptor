@@ -71,4 +71,4 @@ add_executable(queryindex ${INDEX_QUERY_TOOL_SOURCES})
 target_link_libraries(queryindex SpinImage cudadevrt)
 
 add_executable(quiccidumper ${QUICCI_DUMPER_TOOL_SOURCES})
-target_link_libraries(quiccidumper SpinImage cudadevrt)
+target_link_libraries(quiccidumper ziplib SpinImage cudadevrt)

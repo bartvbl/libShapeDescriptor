@@ -14,11 +14,13 @@
 #include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/utilities/copy/deviceDescriptorsToHost.h>
 #include <spinImage/utilities/modelScaler.h>
+#include <ZipLib/ZipFile.h>
+#include <ZipLib/streams/memstream.h>
 
 const float DEFAULT_SPIN_IMAGE_WIDTH = 0.3;
 
 int main(int argc, const char** argv) {
-    arrrgh::parser parser("quiccidumper", "Render QUICCI images from an input OBJ file, and dump them to a file in binary form.");
+    arrrgh::parser parser("quiccidumper", "Render QUICCI images from an input OBJ file, and dump them to a compressed (ZIP) file in binary form.");
     const auto& inputOBJFile = parser.add<std::string>("input-obj-file", "Location of the OBJ file from which the images should be rendered.", '\0', arrrgh::Required, "");
     const auto& outputDumpFile = parser.add<std::string>("output-dump-file", "Location where the generated images should be dumped to.", '\0', arrrgh::Required, "");
     const auto& fitInUnitSphere = parser.add<bool>("fit-object-in-unit-sphere", "Scale the object such that it fits in a unit sphere", '\0', arrrgh::Optional, false);
@@ -69,13 +71,21 @@ int main(int argc, const char** argv) {
     const unsigned int imageWidthPixels = spinImageWidthPixels;
 
     std::cout << "Dumping output file.." << std::endl;
-    auto dumpFile = std::fstream(outputDumpFile.value(), std::ios::out | std::ios::binary);
-    dumpFile.write("QUIC", 4);
-    dumpFile.write((char*) &images.imageCount, sizeof(size_t));
-    dumpFile.write((char*) &imageWidthPixels, sizeof(unsigned int));
-    dumpFile.write((char*)hostImages.horizontallyIncreasingImages, images.imageCount * bytesPerQUICCImage);
-    dumpFile.write((char*)hostImages.horizontallyDecreasingImages, images.imageCount * bytesPerQUICCImage);
-    dumpFile.close();
+    std::basic_stringstream<char> outStream;
+
+    outStream << "QUIC";
+    outStream.write((char*) &images.imageCount, sizeof(size_t));
+    outStream.write((char*) &imageWidthPixels, sizeof(unsigned int));
+    outStream.write((char*)hostImages.horizontallyIncreasingImages, images.imageCount * bytesPerQUICCImage);
+    outStream.write((char*)hostImages.horizontallyDecreasingImages, images.imageCount * bytesPerQUICCImage);
+
+    auto archive = ZipFile::Open(outputDumpFile.value());
+    auto entry = archive->CreateEntry("quicci_images.dat");
+    entry->UseDataDescriptor(); // read stream only once
+    entry->SetCompressionStream(outStream);
+    ZipFile::SaveAndClose(archive, outputDumpFile.value());
+
+
 
     SpinImage::gpu::freeMesh(deviceMesh);
     cudaFree(uniqueVertices.content);

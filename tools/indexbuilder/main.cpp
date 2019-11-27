@@ -29,5 +29,6 @@ int main(int argc, const char** argv) {
     }
 
     std::cout << "Building index from files in " << sourceDirectory.value() << "..." << std::endl;
-    SpinImage::index::build(sourceDirectory.value(), indexFile.value());
+    Index index = SpinImage::index::build(sourceDirectory.value(), indexFile.value());
+    std::cout << index.indexedFileList.size() << std::endl;
 }

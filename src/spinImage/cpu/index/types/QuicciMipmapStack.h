@@ -1,5 +1,7 @@
 #pragma once
 
+#include <spinImage/libraryBuildSettings.h>
+
 struct QuicciMipmapStack {
 
     //   level   mipmap size    pixel count   area per pixel   value range   space needed
@@ -14,5 +16,33 @@ struct QuicciMipmapStack {
     unsigned int level2[32];
     unsigned int level3[64];
 
-    unsigned int quiccImage[128];
+    QuicciMipmapStack(unsigned int* quiccImage) {
+        static_assert(spinImageWidthPixels == 64);
+        const int uintsPerRow = spinImageWidthPixels / 2;
+
+        unsigned int imageOffset = 0;
+        for(int row = 0; row < spinImageWidthPixels; row++) {
+            for(int col = 0; col < uintsPerRow; col++) {
+                unsigned int topChunk = quiccImage[row * uintsPerRow + col];
+                unsigned int bottomChunk = quiccImage[(row + 1) * uintsPerRow + col];
+
+                // Level 3
+                unsigned int topChunkHasSingleBit =
+                        (topChunk | (topChunk >> 1)) & 0x55555555;
+                unsigned int bottomChunkHasSingleBit =
+                        (bottomChunk | (bottomChunk >> 1)) & 0x55555555;
+                unsigned int singleBitChunksCombined = topChunkHasSingleBit + bottomChunkHasSingleBit;
+
+                unsigned int topChunkHasDoubleBit =
+                        (topChunk & (topChunk >> 1)) & 0x55555555;
+                unsigned int bottomChunkHasDoubleBit =
+                        (bottomChunk & (bottomChunk >> 1)) & 0x55555555;
+                unsigned int doubleBitChunksCombined = topChunkHasDoubleBit | bottomChunkHasDoubleBit;
+
+                unsigned int compressedChunk = singleBitChunksCombined + doubleBitChunksCombined;
+                level3[imageOffset] = compressedChunk;
+                imageOffset++;
+            }
+        }
+    }
 };

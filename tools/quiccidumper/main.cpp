@@ -16,6 +16,7 @@
 #include <spinImage/utilities/modelScaler.h>
 #include <ZipLib/ZipFile.h>
 #include <ZipLib/streams/memstream.h>
+#include <spinImage/utilities/dumpers/rawDescriptorDumper.h>
 
 const float DEFAULT_SPIN_IMAGE_WIDTH = 0.3;
 
@@ -67,28 +68,12 @@ int main(int argc, const char** argv) {
     SpinImage::gpu::QUICCIImages images = SpinImage::gpu::generateQUICCImages(RICImages);
     SpinImage::cpu::QUICCIImages hostImages = SpinImage::copy::QUICCIDescriptorsToHost(images);
 
-    const size_t bytesPerQUICCImage = ((spinImageWidthPixels * spinImageWidthPixels) / 32) * sizeof(unsigned int);
-    const unsigned int imageWidthPixels = spinImageWidthPixels;
-
-    std::cout << "Dumping output file.." << std::endl;
-    std::basic_stringstream<char> outStream;
-
-    outStream << "QUIC";
-    outStream.write((char*) &images.imageCount, sizeof(size_t));
-    outStream.write((char*) &imageWidthPixels, sizeof(unsigned int));
-    outStream.write((char*)hostImages.horizontallyIncreasingImages, images.imageCount * bytesPerQUICCImage);
-    outStream.write((char*)hostImages.horizontallyDecreasingImages, images.imageCount * bytesPerQUICCImage);
-
-    auto archive = ZipFile::Open(outputDumpFile.value());
-    auto entry = archive->CreateEntry("quicci_images.dat");
-    entry->UseDataDescriptor(); // read stream only once
-    entry->SetCompressionStream(outStream);
-    ZipFile::SaveAndClose(archive, outputDumpFile.value());
-
-
+    std::cout << "Writing output file.." << std::endl,
+    SpinImage::dump::raw::descriptors(outputDumpFile, hostImages);
 
     SpinImage::gpu::freeMesh(deviceMesh);
     cudaFree(uniqueVertices.content);
     cudaFree(RICImages.content);
 
 }
+

@@ -20,13 +20,13 @@ struct QuicciMipmapStack {
         static_assert(spinImageWidthPixels == 64);
         const int uintsPerRow = spinImageWidthPixels / 2;
 
+        // Level 3
         unsigned int imageOffset = 0;
-        for(int row = 0; row < spinImageWidthPixels; row++) {
+        for(int row = 0; row < spinImageWidthPixels; row += 2) {
             for(int col = 0; col < uintsPerRow; col++) {
                 unsigned int topChunk = quiccImage[row * uintsPerRow + col];
                 unsigned int bottomChunk = quiccImage[(row + 1) * uintsPerRow + col];
 
-                // Level 3
                 unsigned int topChunkHasSingleBit =
                         (topChunk | (topChunk >> 1)) & 0x55555555;
                 unsigned int bottomChunkHasSingleBit =
@@ -44,5 +44,7 @@ struct QuicciMipmapStack {
                 imageOffset++;
             }
         }
+
+
     }
 };

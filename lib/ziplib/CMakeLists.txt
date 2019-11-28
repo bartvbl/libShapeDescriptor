@@ -15,7 +15,7 @@ include_directories (
 )
 
 if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -fPIC -lpthread")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -fPIC -lpthread -march=native")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp -fPIC -lpthread")
 endif()
 

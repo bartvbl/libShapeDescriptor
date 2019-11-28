@@ -47,7 +47,11 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
         decompressStream->read((char*) images.horizontallyIncreasingImages, uintsPerQUICCImage * imageCount * sizeof(unsigned int));
         decompressStream->read((char*) images.horizontallyDecreasingImages, uintsPerQUICCImage * imageCount * sizeof(unsigned int));
 
+#pragma omp parallel for
         for(size_t image = 0; image < imageCount; image++) {
+            QuicciMipmapStack mipmapsIncreasing(images.horizontallyIncreasingImages);
+            QuicciMipmapStack mipmapsDecreasing(images.horizontallyDecreasingImages);
+
 
         }
 

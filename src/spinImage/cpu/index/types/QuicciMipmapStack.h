@@ -1,9 +1,12 @@
 #pragma once
 
 #include <spinImage/libraryBuildSettings.h>
+#include <iostream>
+
+constexpr int uintsPerRow = spinImageWidthPixels / 32;
 
 struct QuicciMipmapStack {
-    constexpr int uintsPerRow = spinImageWidthPixels / 2;
+    
 
     //   level   mipmap size    pixel count   area per pixel   value range   space needed
     //   0       4x4 images     16            16x16 pixels     0-256         16 bytes, 8 bits/pixel
@@ -25,7 +28,7 @@ struct QuicciMipmapStack {
                 unsigned int bitSums = 0;
                 unsigned int allSetToOne = bitMask;
                 for(unsigned int row = 0; row < quiccPixelsCovered; row++) {
-                    unsigned int chunk = levelImage[(rowChunk * quiccPixelsCovered + row) * uintsPerRow + col];
+                    unsigned int chunk = quiccImage[(rowChunk * quiccPixelsCovered + row) * uintsPerRow + col];
                     unsigned int partialSum = 0;
                     for(unsigned int bit = 0; bit < quiccPixelsCovered; bit++) {
                         unsigned int filteredBits = (chunk >> bit) & bitMask;
@@ -92,6 +95,44 @@ struct QuicciMipmapStack {
                 level3[imageOffset] = compressedChunk;
                 imageOffset++;
             }
+        }
+    }
+
+    void print() {
+        std::cout << "Level 0" << std::endl;
+        for(int row = 0; row < 4; row++) {
+            std::cout << "\t";
+            for(int col = 0; col < 4; col++) {
+                std::cout << ((level0[row] >> (24 - 8*col)) & 0xFF) << (col < 3 ? ", " : "");
+            }
+            std::cout << std::endl;
+        }
+
+        std::cout << std::endl << "Level 1" << std::endl;
+        for(int row = 0; row < 8; row++) {
+            std::cout << "\t";
+            for(int col = 0; col < 8; col++) {
+                std::cout << ((level1[uintsPerRow * row + col/4] >> (24 - 8*col)) & 0xFF) << (col < 7 ? ", " : "");
+            }
+            std::cout << std::endl;
+        }
+
+        std::cout << std::endl << "Level 2" << std::endl;
+        for(int row = 0; row < 16; row++) {
+            std::cout << "\t";
+            for(int col = 0; col < 16; col++) {
+                std::cout << ((level2[uintsPerRow * row + col/8] >> (28 - 4*col)) & 0xF) << (col < 15 ? ", " : "");
+            }
+            std::cout << std::endl;
+        }
+
+        std::cout << std::endl << "Level 3" << std::endl;
+        for(int row = 0; row < 32; row++) {
+            std::cout << "\t";
+            for(int col = 0; col < 32; col++) {
+                std::cout << ((level3[uintsPerRow * row + col/16] >> (30 - 2*col)) & 0x3) << (col < 31 ? ", " : "");
+            }
+            std::cout << std::endl;
         }
     }
 };

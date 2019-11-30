@@ -5,7 +5,7 @@
 
 constexpr int uintsPerRow = spinImageWidthPixels / 32;
 
-struct QuicciMipmapStack {
+struct MipmapStack {
     
 
     //   level   mipmap size    pixel count   area per pixel   value range   space needed
@@ -65,7 +65,7 @@ struct QuicciMipmapStack {
         }
     }
 
-    QuicciMipmapStack(unsigned int* quiccImage) {
+    MipmapStack(unsigned int* quiccImage) {
         static_assert(spinImageWidthPixels == 64);
 
         computeMipmapLevel(level0, quiccImage, 16, 8, 0x00010001);

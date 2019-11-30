@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include "IndexEntry.h"
-#include "QuicciMipmapStack.h"
+#include "MipmapStack.h"
 
 enum NodeType {
     INTERMEDIATE_NODE,

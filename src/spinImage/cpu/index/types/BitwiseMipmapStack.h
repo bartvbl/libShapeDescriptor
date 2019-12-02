@@ -40,25 +40,59 @@ struct BitwiseMipmapStack {
         return compressedChunk;
     }
 
-    void computeBitwiseMipmap(unsigned int* bitwiseMipmap, unsigned int* mipmap, const unsigned int bitsPerPixel, const unsigned int inputChunkCount, const unsigned int outputChunkCount) {
+    void computeBitwiseMipmap(unsigned int* bitwiseMipmap, const unsigned int* mipmap, const unsigned int bitsPerPixel, const unsigned int outputChunkCount) {
         const unsigned int inputChunksPerOutputChunk = bitsPerPixel;
 
         for(unsigned int outputChunkIndex = 0; outputChunkIndex < outputChunkCount; outputChunkIndex++) {
             unsigned int outputChunk = 0;
             // An output chunk (bitwise mipmap) consists of multiple input (regular mipmap) chunks
             // We account separately for the case where we only have 16 bits in total
-            for(unsigned int inputChunkIndex = 0; inputChunkIndex < std::min(inputChunkCount, inputChunksPerOutputChunk); inputChunkIndex++) {
-                unsigned int inputChunk = mipmap[inputChunkIndex];
+            for(unsigned int inputChunkIndex = 0; inputChunkIndex < inputChunksPerOutputChunk; inputChunkIndex++) {
+                unsigned int inputChunk = mipmap[outputChunkIndex * inputChunksPerOutputChunk + inputChunkIndex];
                 unsigned int compressedChunk = compressChunk(inputChunk, bitsPerPixel);
-                outputChunk = outputChunk | compressedChunk << 32 - (inputChunkIndex * bitsPerPixel);
+                outputChunk = outputChunk | compressedChunk << (32 - ((inputChunkIndex + 1) * (32 / bitsPerPixel)));
             }
             bitwiseMipmap[outputChunkIndex] = outputChunk;
         }
     }
 
     BitwiseMipmapStack(MipmapStack sourceStack) {
-        unsigned int tempLevel0;
-        computeBitwiseMipmap(&tempLevel0, sourceStack.level0, 8, 4, 1);
-        level0 = (unsigned short) tempLevel0;
+        sourceStack.print();
+
+        unsigned short tempLevel0 = 0;
+        tempLevel0 = (unsigned short) (
+                (compressChunk(sourceStack.level0[0], 8) << 12) |
+                (compressChunk(sourceStack.level0[1], 8) << 8) |
+                (compressChunk(sourceStack.level0[2], 8) << 4) |
+                (compressChunk(sourceStack.level0[3], 8))
+        );
+
+        std::cout << std::hex << tempLevel0 << std::endl << std::endl;
+
+        computeBitwiseMipmap(level1, sourceStack.level1, 8, 2);
+        computeBitwiseMipmap(level2, sourceStack.level2, 4, 8);
+        computeBitwiseMipmap(level3, sourceStack.level3, 2, 32);
+
+        for(int col = 0; col < 2; col++) {
+            std::cout << level1[col] << " ";
+        }
+
+        std::cout << std::endl << std::endl;
+
+        for(int col = 0; col < 8; col++) {
+            std::cout << level2[col] << " ";
+            if(col % 2 == 1) {
+                std::cout << std::endl;
+            }
+        }
+
+        std::cout << std::endl << std::endl;
+
+        for(int col = 0; col < 32; col++) {
+            std::cout << level3[col] << " ";
+            if(col % 2 == 1) {
+                std::cout << std::endl;
+            }
+        }
     }
 };

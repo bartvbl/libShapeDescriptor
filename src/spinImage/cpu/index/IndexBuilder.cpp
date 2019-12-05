@@ -23,6 +23,7 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
         SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
 
+        std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 #pragma omp parallel for
         for(size_t image = 0; image < images.imageCount; image++) {
             MipmapStack mipmapsIncreasing(images.horizontallyIncreasingImages + image * uintsPerQUICCImage);
@@ -37,6 +38,10 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
             // If the trail goes cold at an index node, the index node has already been split,
             // and needs its own separate bucket node. Create it, add it to the index, and add the image to it.
         }
+
+        std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        std::cout << "\tTook " << float(duration.count()) / 1000.0f << " seconds." << std::endl;
 
         delete[] images.horizontallyIncreasingImages;
         delete[] images.horizontallyDecreasingImages;

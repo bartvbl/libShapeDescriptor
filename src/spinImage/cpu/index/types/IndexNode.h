@@ -1,34 +1,19 @@
 #pragma once
 
-#include <string>
 #include <vector>
-#include "IndexEntry.h"
-#include "MipmapStack.h"
-
-enum NodeType {
-    INTERMEDIATE_NODE,
-    LEAF_NODE
-};
+#include "Index.h"
 
 struct IndexNode {
-    NodeType nodeType;
-    std::vector<IndexNode> children;
+    const IndexNodeID id;
 
-    IndexNode(NodeType type) : nodeType(type) {}
-};
+    // The number of unsigned integers per image can vary depending on index level
+    // However, this is the only way we can store all image types in a single type
+    // which simplifies the remaining implementation a lot
+    std::vector<unsigned int> images;
 
-struct LeafNode : IndexNode {
-    std::vector<IndexEntry> images;
+    std::vector<IndexNodeID> links;
+    // 1 bit per image/link. 0 = index node, 1 = bucket node
+    std::vector<bool> linkTypes;
 
-    LeafNode() :
-        IndexNode(LEAF_NODE) {}
-};
-
-struct IntermediateNode : IndexNode {
-    unsigned short nodeLevel;
-    unsigned int* mipmapImage;
-
-    IntermediateNode(unsigned short level) :
-        IndexNode(INTERMEDIATE_NODE),
-        nodeLevel(level) {}
+    IndexNode(IndexNodeID id) : id(id) {}
 };

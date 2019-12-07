@@ -6,26 +6,32 @@
 #include <spinImage/utilities/readers/quicciReader.h>
 #include <spinImage/cpu/index/types/MipmapStack.h>
 #include "IndexBuilder.h"
+#include "IndexFileCache.h"
 
 Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string indexDumpDirectory) {
     std::vector<std::experimental::filesystem::path> filesInDirectory = SpinImage::utilities::listDirectory(quicciImageDumpDirectory);
+    std::experimental::filesystem::path indexDirectory(indexDumpDirectory);
 
-    Index index;
+    IndexFileCache cache(indexDirectory, 1000, 1000);
+
+    std::vector<std::experimental::filesystem::path>* indexedFiles = new std::vector<std::experimental::filesystem::path>();
+    indexedFiles->reserve(5000);
 
     const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
-    unsigned int fileIndex = 0;
-    for(auto &path : filesInDirectory) {
+    IndexFileID fileIndex = 0;
+    for(const auto &path : filesInDirectory) {
         fileIndex++;
-        std::string archivePath = path.string();
+        const std::string archivePath = path.string();
         std::cout << "Adding file " << fileIndex << "/" << filesInDirectory.size() << ": " << archivePath << std::endl;
-        index.indexedFileList.emplace_back(archivePath);
-
+        indexedFiles->emplace_back(archivePath);
 
         SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
 
+
+
         std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 #pragma omp parallel for
-        for(size_t image = 0; image < images.imageCount; image++) {
+        for(IndexImageID image = 0; image < images.imageCount; image++) {
             MipmapStack mipmapsIncreasing(images.horizontallyIncreasingImages + image * uintsPerQUICCImage);
             MipmapStack mipmapsDecreasing(images.horizontallyDecreasingImages + image * uintsPerQUICCImage);
 
@@ -47,7 +53,15 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
         delete[] images.horizontallyDecreasingImages;
     }
 
+    // Ensuring all changes are written to disk
+    cache.flush();
 
+    // Copying the data into data structures that persist after the function exits
+    IndexRootNode* duplicatedRootNode = new IndexRootNode();
+    *duplicatedRootNode = cache.rootNode;
+
+    // Final construction of the index
+    Index index(indexDirectory, indexedFiles, duplicatedRootNode);
 
     return index;
 }

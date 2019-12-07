@@ -5,7 +5,7 @@
 #include <exception>
 
 
-SpinImage::cpu::QUICCIImages SpinImage::read::QUICCImagesFromDumpFile(std::string &dumpFileLocation) {
+SpinImage::cpu::QUICCIImages SpinImage::read::QUICCImagesFromDumpFile(const std::string &dumpFileLocation) {
     ZipArchive::Ptr archive = ZipFile::Open(dumpFileLocation);
 
     ZipArchiveEntry::Ptr entry = archive->GetEntry("quicci_images.dat");

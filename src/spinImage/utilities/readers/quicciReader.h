@@ -5,7 +5,7 @@
 
 namespace SpinImage {
     namespace read {
-        SpinImage::cpu::QUICCIImages QUICCImagesFromDumpFile(std::string &dumpFileLocation);
+        SpinImage::cpu::QUICCIImages QUICCImagesFromDumpFile(const std::string &dumpFileLocation);
     }
 }
 

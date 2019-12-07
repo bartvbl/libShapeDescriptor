@@ -3,5 +3,13 @@
 #include <spinImage/cpu/index/types/Index.h>
 #include <string>
 
-Index loadIndex(std::string rootFile);
-void writeIndex(Index index, std::string outDirectory);
+namespace index {
+    namespace io {
+        Index loadIndex(std::experimental::filesystem::path rootFile);
+        void writeIndex(Index index, std::experimental::filesystem::path outDirectory);
+
+        IndexNodeID getIndexNodeCount(std::experimental::filesystem::path indexRootDirectory);
+        IndexNodeID getBucketNodeCount(std::experimental::filesystem::path indexRootDirectory);
+    }
+}
+

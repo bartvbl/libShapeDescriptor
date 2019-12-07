@@ -25,10 +25,12 @@ struct MipMapImage {
 };
 
 struct MipMapLevel3 {
-    unsigned int image[32];
+    const std::array<unsigned int, 32> image;
 
     // 64x64 -> 32x32 image
-    static void computeMipmapLevel3(unsigned int* level3, const unsigned int* quiccImage) {
+    static std::array<unsigned int, 32> computeMipmapLevel3(const unsigned int* quiccImage) {
+        std::array<unsigned int, 32> level3;
+
         for(int row = 0; row < spinImageWidthPixels; row += 2) {
             unsigned int topLeftChunk = quiccImage[row * uintsPerRow + 0];
             unsigned int topRightChunk = quiccImage[row * uintsPerRow + 1];
@@ -45,23 +47,23 @@ struct MipMapLevel3 {
 
             level3[row / 2] = (compressedLeftChunk << 16U) | compressedRightChunk;
         }
+        return level3;
     }
 
-    MipMapLevel3(unsigned int* quicciImage) {
-        computeMipmapLevel3(image, quicciImage);
-    }
+    MipMapLevel3(unsigned int* quicciImage) : image(computeMipmapLevel3(quicciImage)) {}
 };
 
 struct MipMapLevel2 {
-    unsigned int image[8];
+    const std::array<unsigned int, 8> image;
 
     // 32x32 -> 16x16 image
-    static void computeMipmapLevel2(unsigned int* level2, const unsigned int* level3) {
+    static std::array<unsigned int, 8> computeMipmapLevel2(MipMapLevel3 level3) {
         unsigned int combinedCompressedChunk = 0;
+        std::array<unsigned int, 8> level2;
 
         for(unsigned int row = 0; row < 32; row += 2) {
-            unsigned int topChunk = level3[row];
-            unsigned int bottomChunk = level3[row + 1];
+            unsigned int topChunk = level3.image[row];
+            unsigned int bottomChunk = level3.image[row + 1];
 
             unsigned int topCombined = (topChunk | (topChunk >> 1U)) & 0x55555555U;
             unsigned int bottomCombined = (bottomChunk | (bottomChunk >> 1U)) & 0x55555555U;
@@ -76,25 +78,25 @@ struct MipMapLevel2 {
                 level2[row / 4] = combinedCompressedChunk | compressedChunk;
             }
         }
+
+        return level2;
     }
 
-    MipMapLevel2(MipMapLevel3 level3Image) {
-        computeMipmapLevel2(image, level3Image.image);
-    }
+    MipMapLevel2(MipMapLevel3 level3Image) : image(computeMipmapLevel2(level3Image)) {}
 };
 
 struct MipMapLevel1 {
     const std::array<unsigned int, 2> image;
 
     // 16x16 -> 8x8 image
-    static std::array<unsigned int, 2> computeMipmapLevel1(const unsigned int* level2) {
-        unsigned int level1[2];
+    static std::array<unsigned int, 2> computeMipmapLevel1(MipMapLevel2 level2) {
+        std::array<unsigned int, 2> level1;
 
         unsigned int combinedCompressedChunk = 0;
         unsigned char byteIndex = 0;
 
         for(unsigned int chunk = 0; chunk < 8; chunk++) {
-            unsigned int doubleRowChunk = level2[chunk];
+            unsigned int doubleRowChunk = level2.image[chunk];
 
             unsigned int combined = (doubleRowChunk | (doubleRowChunk >> 1U)) & 0x55555555U;
             combined = (combined | (combined >> 16U)) & 0x00005555U;
@@ -115,9 +117,7 @@ struct MipMapLevel1 {
         return level1;
     }
 
-    MipMapLevel1(MipMapLevel2 higherLevelImage) {
-        computeMipmapLevel1(image, higherLevelImage.image);
-    }
+    MipMapLevel1(MipMapLevel2 higherLevelImage) : image(computeMipmapLevel1(higherLevelImage)) {}
 };
 
 struct MipMapLevel0 {
@@ -143,9 +143,7 @@ struct MipMapLevel0 {
         return (unsigned short) ((partialChunks[0] << 8U) | partialChunks[1]);
     }
 
-    MipMapLevel0(MipMapLevel1 level1) : image(computeMipmapLevel0(level1)) {
-
-    }
+    MipMapLevel0(MipMapLevel1 level1) : image(computeMipmapLevel0(level1)) {}
 };
 
 struct MipmapStack {
@@ -170,7 +168,7 @@ struct MipmapStack {
         static_assert(spinImageWidthPixels == 64);
     }
 
-    template<typename printedType> void printBitwiseImage(printedType* image, int size) {
+    template<typename printedType, int intCount> void printBitwiseImage(const std::array<printedType, intCount> &image, int size) {
         unsigned int bitIndex = 0;
         unsigned int byteIndex = 0;
         const unsigned int bitsPerType = sizeof(printedType) * 8;
@@ -190,15 +188,16 @@ struct MipmapStack {
 
     void print() {
         std::cout << "Level 0" << std::endl;
-        printBitwiseImage<unsigned short>(&level0.image, 4);
+        std::array<unsigned short, 1> tempImage = {level0.image};
+        printBitwiseImage<unsigned short, 1>(tempImage, 4);
 
         std::cout << std::endl << "Level 1" << std::endl;
-        printBitwiseImage<unsigned int>(level1.image, 8);
+        printBitwiseImage<unsigned int, 2>(level1.image, 8);
 
         std::cout << std::endl << "Level 2" << std::endl;
-        printBitwiseImage<unsigned int>(level2.image, 16);
+        printBitwiseImage<unsigned int, 8>(level2.image, 16);
 
         std::cout << std::endl << "Level 3" << std::endl;
-        printBitwiseImage<unsigned int>(level3.image, 32);
+        printBitwiseImage<unsigned int, 32>(level3.image, 32);
     }
 };

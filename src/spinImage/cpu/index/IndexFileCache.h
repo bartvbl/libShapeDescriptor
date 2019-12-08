@@ -5,31 +5,19 @@
 #include <spinImage/cpu/index/types/IndexNode.h>
 #include <spinImage/cpu/index/types/BucketNode.h>
 #include <list>
+#include <unordered_map>
 #include "IndexIO.h"
 
 // The cached nodes are stored as pointers to avoid accidental copies being created
 
-
 struct CachedIndexNode {
-    unsigned long lastModificationIndex;
     bool isDirty;
     IndexNode* node;
-
-    bool operator()(const CachedIndexNode& lhs, const CachedIndexNode& rhs) const
-    {
-        return lhs.lastModificationIndex < rhs.lastModificationIndex;
-    }
 };
 
 struct CachedBucketNode {
-    unsigned long lastModificationIndex;
     bool isDirty;
     BucketNode* node;
-
-    bool operator()(const CachedBucketNode& lhs, const CachedBucketNode& rhs) const
-    {
-        return lhs.lastModificationIndex < rhs.lastModificationIndex;
-    }
 };
 
 class IndexFileCache {
@@ -41,17 +29,32 @@ private:
     // we use a 64-bit value instead.
     unsigned long modificationIndex = 0;
 
-    // All loaded node files are stored on a Least Recently Used basis.
-    // The most efficient means to keep track of the order in which nodes were modified
-    // is a heap, which is a priority queue in STL.
-    std::list<CachedIndexNode> indexNodeCache;
-    std::list<CachedBucketNode> bucketNodeCache;
+    // Nodes are evicted on a Least Recently Used basis
+    // This is most efficiently done by using a doubly linked list
+    std::list<CachedIndexNode> lruIndexNodeQueue;
+    std::list<CachedBucketNode> lruBucketNodeQueue;
+
+    // These unordered maps hold on to the nodes themselves
+    std::unordered_map<IndexNodeID, std::list<CachedIndexNode>::iterator> indexNodeMap;
+    std::unordered_map<IndexNodeID, std::list<CachedBucketNode>::iterator> bucketNodeMap;
 
     const unsigned int indexNodeCapacity;
     const unsigned int bucketNodeCapacity;
 
     IndexNodeID nextIndexNodeID;
     IndexNodeID nextBucketNodeID;
+
+    // Insert new index/bucket node
+    void insertIndexNode(IndexNodeID indexNodeID, IndexNode* node);
+    void insertBucketNode(IndexNodeID bucketNodeID, BucketNode* node);
+
+    // Move used node to the front of the queue
+    void touchIndexNode(IndexNodeID indexNodeID);
+    void touchBucketNode(IndexNodeID bucketNodeID);
+
+    // Eject least recently used element
+    void ejectLeastRecentlyUsedIndexNode();
+    void ejectLeastRecentlyUsedBucketNode();
 public:
     explicit IndexFileCache(std::experimental::filesystem::path indexRoot,
             const unsigned int indexNodeCapacity,
@@ -62,6 +65,9 @@ public:
 
         nextIndexNodeID = index::io::getIndexNodeCount(indexRoot) + 1;
         nextBucketNodeID = index::io::getBucketNodeCount(indexRoot) + 1;
+
+        indexNodeMap.reserve(indexNodeCapacity);
+        bucketNodeMap.reserve(bucketNodeCapacity);
     }
 
     // The index is responsible for holding the root node, because adding index/bucket nodes to the index

@@ -2,6 +2,7 @@
 
 #include <spinImage/cpu/index/types/Index.h>
 #include <string>
+#include <spinImage/cpu/index/types/BucketNode.h>
 
 namespace index {
     namespace io {
@@ -10,6 +11,12 @@ namespace index {
 
         IndexNodeID getIndexNodeCount(std::experimental::filesystem::path indexRootDirectory);
         IndexNodeID getBucketNodeCount(std::experimental::filesystem::path indexRootDirectory);
+
+        void writeIndexNode(std::experimental::filesystem::path indexRootDirectory, IndexNode* node);
+        void writeBucketNode(std::experimental::filesystem::path indexRootDirectory, BucketNode* node);
+
+        IndexNode* readIndexNode(std::experimental::filesystem::path indexRootDirectory, IndexNodeID nodeID);
+        BucketNode* readBucketNode(std::experimental::filesystem::path indexRootDirectory, IndexNodeID nodeID);
     }
 }
 

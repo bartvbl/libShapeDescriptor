@@ -3,6 +3,9 @@
 #include <vector>
 #include "Index.h"
 
+const bool INDEX_LINK_INDEX_NODE = false;
+const bool INDEX_LINK_BUCKET_NODE = true;
+
 struct IndexNode {
     const IndexNodeID id;
 

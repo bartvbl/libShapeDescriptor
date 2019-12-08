@@ -24,11 +24,6 @@ class IndexFileCache {
 private:
     const std::experimental::filesystem::path indexRoot;
 
-    // Used to determine which entries were modified last
-    // Since the modification count can potentially exceed the 32-bit limit,
-    // we use a 64-bit value instead.
-    unsigned long modificationIndex = 0;
-
     // Nodes are evicted on a Least Recently Used basis
     // This is most efficiently done by using a doubly linked list
     std::list<CachedIndexNode> lruIndexNodeQueue;
@@ -41,8 +36,11 @@ private:
     const unsigned int indexNodeCapacity;
     const unsigned int bucketNodeCapacity;
 
-    IndexNodeID nextIndexNodeID;
-    IndexNodeID nextBucketNodeID;
+    IndexNodeID nextNodeID;
+
+    // Get hold of an index node. May cause another node to be ejected
+    IndexNode* getIndexNode(IndexNodeID indexNodeID);
+    BucketNode* getBucketNode(IndexNodeID bucketNodeID);
 
     // Insert new index/bucket node
     void insertIndexNode(IndexNodeID indexNodeID, IndexNode* node);
@@ -51,6 +49,10 @@ private:
     // Move used node to the front of the queue
     void touchIndexNode(IndexNodeID indexNodeID);
     void touchBucketNode(IndexNodeID bucketNodeID);
+
+    // Set the dirty flag for nodes that are modified
+    void markIndexNodeDirty(IndexNodeID indexNodeID);
+    void markBucketNodeDirty(IndexNodeID bucketNodeID);
 
     // Eject least recently used element
     void ejectLeastRecentlyUsedIndexNode();
@@ -63,8 +65,7 @@ public:
             indexNodeCapacity(indexNodeCapacity),
             bucketNodeCapacity(bucketNodeCapacity) {
 
-        nextIndexNodeID = index::io::getIndexNodeCount(indexRoot) + 1;
-        nextBucketNodeID = index::io::getBucketNodeCount(indexRoot) + 1;
+        nextNodeID = 1;
 
         indexNodeMap.reserve(indexNodeCapacity);
         bucketNodeMap.reserve(bucketNodeCapacity);
@@ -72,7 +73,7 @@ public:
 
     // The index is responsible for holding the root node, because adding index/bucket nodes to the index
     // also sometimes requires modifying the root node.
-    const IndexRootNode rootNode;
+    IndexRootNode rootNode;
 
     // The lookup functions return const pointers to ensure the only copy of these nodes exists in the cache
     // It also ensures the cache handles any necessary changes, as nodes need to be marked as dirty
@@ -83,10 +84,9 @@ public:
     // These functions, as a side effect, also mark the internal cache representations dirty
     // Dirty nodes are written to disk when ejected from the cache.
     // Otherwise they are simply discarded.
-    IndexNodeID createBucketNode(IndexNodeID parentIndexNodeID, unsigned int level);
-    IndexNodeID createIndexNode(IndexNodeID parentIndexNodeID, unsigned int level);
-    IndexNodeID promoteBucketNodeToIndexNode(IndexNodeID node);
-    void insertImageIntoBucketNode(IndexNodeID bucketNodeID, IndexEntry entry, unsigned int level);
+    IndexNodeID createBucketNode(IndexNodeID parentIndexNodeID, unsigned int* mipmapImage, unsigned int level);
+    IndexNodeID createIndexNode(IndexNodeID parentIndexNodeID, unsigned int* mipmapImage, unsigned int level);
+    void insertImageIntoBucketNode(IndexNodeID bucketNodeID, IndexEntry entry);
 
     // Clear the cache, write all changes to disk
     void flush();

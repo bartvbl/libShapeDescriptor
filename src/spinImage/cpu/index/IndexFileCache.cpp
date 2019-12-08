@@ -1,25 +1,54 @@
+#include <cassert>
 #include "IndexFileCache.h"
 
-IndexNodeID IndexFileCache::createBucketNode(IndexNodeID parent, unsigned int level) {
+IndexNodeID IndexFileCache::createBucketNode(IndexNodeID parent, unsigned int* mipmapImage, unsigned int parentLevel) {
+    IndexNodeID newBucketNodeID = nextNodeID;
+    nextNodeID++;
+
+    if(parentLevel == 0) {
+        unsigned short mipmap = (unsigned short) *mipmapImage;
+        assert(this->rootNode.links[mipmap] == ROOT_NODE_LINK_DISABLED);
+
+        this->rootNode.links[mipmap] = newBucketNodeID;
+        this->rootNode.linkTypes[mipmap] = INDEX_LINK_BUCKET_NODE;
+    } else {
+        IndexNode* parentNode = getIndexNode(parent);
+        const unsigned int arraySizes[4] = {0, 2, 8, 32};
+        unsigned int imageArrayLength = arraySizes[parentLevel];
+
+        parentNode->images.insert(parentNode->images.end(), mipmapImage, mipmapImage + imageArrayLength);
+        parentNode->linkTypes.emplace_back(INDEX_LINK_BUCKET_NODE);
+        parentNode->links.emplace_back(newBucketNodeID);
+    }
+
+    BucketNode* bucketNode = new BucketNode(newBucketNodeID);
+    insertBucketNode(newBucketNodeID, bucketNode);
+    markBucketNodeDirty(newBucketNodeID);
+
+    return newBucketNodeID;
+}
+
+IndexNodeID IndexFileCache::createIndexNode(IndexNodeID parent, unsigned int *mipmapImage, unsigned int parentLevel) {
+    IndexNodeID newIndexNodeID = nextNodeID;
+    nextNodeID++;
+
+    if()
+
     return 0;
 }
 
-IndexNodeID IndexFileCache::createIndexNode(IndexNodeID parent, unsigned int level) {
-    return 0;
-}
 
-IndexNodeID IndexFileCache::promoteBucketNodeToIndexNode(IndexNodeID node) {
-    return 0;
-}
-
-void IndexFileCache::insertImageIntoBucketNode(IndexNodeID bucketNodeID, IndexEntry entry, unsigned int level) {
-
+void IndexFileCache::insertImageIntoBucketNode(IndexNodeID bucketNodeID, IndexEntry entry) {
+    BucketNode* bucketNode = getBucketNode(bucketNodeID);
+    bucketNode->images.emplace_back(entry);
+    markBucketNodeDirty(bucketNodeID);
+    touchBucketNode(bucketNodeID);
 }
 
 void IndexFileCache::flush() {
     // Perhaps not the most efficient, but this method will not be called often anyway,
     // and it's better to keep functionality in one place design wise.
-    
+
     while(!indexNodeMap.empty()) {
         ejectLeastRecentlyUsedIndexNode();
     }
@@ -29,7 +58,7 @@ void IndexFileCache::flush() {
     }
 }
 
-const IndexNode *IndexFileCache::fetchIndexNode(IndexNodeID indexNodeID) {
+IndexNode *IndexFileCache::getIndexNode(IndexNodeID indexNodeID) {
     std::unordered_map<IndexNodeID, std::list<CachedIndexNode>::iterator>::iterator it = indexNodeMap.find(indexNodeID);
     IndexNode* node = nullptr;
 
@@ -47,7 +76,7 @@ const IndexNode *IndexFileCache::fetchIndexNode(IndexNodeID indexNodeID) {
     return node;
 }
 
-const BucketNode *IndexFileCache::fetchBucketNode(IndexNodeID bucketNodeID) {
+BucketNode *IndexFileCache::getBucketNode(IndexNodeID bucketNodeID) {
     std::unordered_map<IndexNodeID, std::list<CachedBucketNode>::iterator>::iterator it = bucketNodeMap.find(bucketNodeID);
     BucketNode* node = nullptr;
 
@@ -63,6 +92,14 @@ const BucketNode *IndexFileCache::fetchBucketNode(IndexNodeID bucketNodeID) {
     }
 
     return node;
+}
+
+const IndexNode *IndexFileCache::fetchIndexNode(IndexNodeID indexNodeID) {
+    return getIndexNode(indexNodeID);
+}
+
+const BucketNode *IndexFileCache::fetchBucketNode(IndexNodeID bucketNodeID) {
+    return getBucketNode(bucketNodeID);
 }
 
 void IndexFileCache::touchIndexNode(IndexNodeID indexNodeID) {
@@ -124,6 +161,17 @@ void IndexFileCache::ejectLeastRecentlyUsedBucketNode() {
 
     delete nodeToBeRemoved.node;
 }
+
+void IndexFileCache::markIndexNodeDirty(IndexNodeID indexNodeID) {
+    std::unordered_map<IndexNodeID, std::list<CachedIndexNode>::iterator>::iterator it = indexNodeMap.find(indexNodeID);
+    it->second->isDirty = true;
+}
+
+void IndexFileCache::markBucketNodeDirty(IndexNodeID bucketNodeID) {
+    std::unordered_map<IndexNodeID, std::list<CachedBucketNode>::iterator>::iterator it = bucketNodeMap.find(bucketNodeID);
+    it->second->isDirty = true;
+}
+
 
 
 

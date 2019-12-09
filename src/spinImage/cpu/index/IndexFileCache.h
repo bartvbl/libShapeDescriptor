@@ -36,6 +36,8 @@ private:
     const unsigned int indexNodeCapacity;
     const unsigned int bucketNodeCapacity;
 
+    // The Index and Bucket node types share the same counter intended for generating UUID's
+    // because it allows a bucket node to be converted into an index node without any ID updates
     IndexNodeID nextNodeID;
 
     // Get hold of an index node. May cause another node to be ejected

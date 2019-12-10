@@ -9,9 +9,6 @@ namespace index {
         Index loadIndex(std::experimental::filesystem::path rootFile);
         void writeIndex(Index index, std::experimental::filesystem::path outDirectory);
 
-        IndexNodeID getIndexNodeCount(std::experimental::filesystem::path indexRootDirectory);
-        IndexNodeID getBucketNodeCount(std::experimental::filesystem::path indexRootDirectory);
-
         void writeIndexNode(std::experimental::filesystem::path indexRootDirectory, IndexNode* node);
         void writeBucketNode(std::experimental::filesystem::path indexRootDirectory, BucketNode* node);
 

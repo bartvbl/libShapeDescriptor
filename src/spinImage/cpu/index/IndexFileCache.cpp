@@ -17,7 +17,7 @@ IndexNodeID IndexFileCache::createLink(IndexNodeID parent, unsigned int* mipmapI
         unsigned int imageArrayLength = arraySizes[parentLevel];
 
         parentNode->images.insert(parentNode->images.end(), mipmapImage, mipmapImage + imageArrayLength);
-        parentNode->linkTypes.emplace_back(LINK_TYPE);
+        parentNode->linkTypes.push_back(LINK_TYPE);
         parentNode->links.emplace_back(createdNodeID);
     }
 

@@ -1,5 +1,7 @@
 #include <ZipLib/ZipFile.h>
 #include <iomanip>
+#include <fstream>
+#include <cassert>
 #include "IndexIO.h"
 
 std::string formatFileIndex(IndexNodeID nodeID) {
@@ -8,19 +10,49 @@ std::string formatFileIndex(IndexNodeID nodeID) {
     return ss.str();
 }
 
-IndexNode *index::io::readIndexNode(std::experimental::filesystem::path indexRootDirectory, IndexNodeID nodeID) {
-    return nullptr;
+IndexNode *index::io::readIndexNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNodeID nodeID) {
+    IndexNode* indexNode = new IndexNode(nodeID);
+
+    std::experimental::filesystem::path indexFilePath = indexRootDirectory / "nodes" / (formatFileIndex(nodeID) + ".idx");
+
+    ZipArchive::Ptr archive = ZipFile::Open(indexFilePath.string());
+
+    ZipArchiveEntry::Ptr entry = archive->GetEntry("index_node.dat");
+    std::istream* decompressStream = entry->GetDecompressionStream();
+
+    std::array<char, 4> headerTitle = {0, 0, 0, 0};
+    IndexNodeID headerNodeID;
+    unsigned long headerLinkArrayLength;
+    unsigned long headerImageArrayLength;
+
+    decompressStream->read(headerTitle.data(), 4);
+    decompressStream->read((char*) &headerNodeID, sizeof(IndexNodeID));
+    decompressStream->read((char*) &headerLinkArrayLength, sizeof(unsigned long));
+    decompressStream->read((char*) &headerImageArrayLength, sizeof(unsigned long));
+
+    assert(std::string(headerTitle.data()) == "INDX");
+
+    indexNode->images.resize(headerImageArrayLength);
+    indexNode->links.resize(headerLinkArrayLength);
+    indexNode->linkTypes.resize(headerLinkArrayLength);
+
+    decompressStream->read((char*) indexNode->links.data(), indexNode->links.size() * sizeof(IndexNodeID));
+    decompressStream->read((char*) indexNode->linkTypes.data(), indexNode->linkTypes.sizeInBytes());
+    decompressStream->read((char*) indexNode->images.data(), indexNode->images.size() * sizeof(unsigned int));
+
+    return indexNode;
 }
 
-void index::io::writeIndexNode(std::experimental::filesystem::path indexRootDirectory, IndexNode *node) {
+void index::io::writeIndexNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNode *node) {
     std::basic_stringstream<char> outStream;
 
     outStream << "INDX";
     outStream.write((char*) node->id, sizeof(IndexNodeID));
+    outStream.write((char*) node->links.size(), sizeof(unsigned long));
     outStream.write((char*) node->images.size(), sizeof(unsigned long));
-    outStream.write((char*) node->links, node->images.size() * sizeof(unsigned int));
+    outStream.write((char*) node->links.data(), node->links.size() * sizeof(IndexNodeID));
+    outStream.write((char*) node->linkTypes.data(), node->linkTypes.sizeInBytes());
     outStream.write((char*) node->images.data(), node->images.size() * sizeof(unsigned int));
-
 
     std::experimental::filesystem::path indexDirectory = indexRootDirectory / "nodes";
     std::experimental::filesystem::create_directories(indexDirectory);
@@ -34,11 +66,34 @@ void index::io::writeIndexNode(std::experimental::filesystem::path indexRootDire
     ZipFile::SaveAndClose(archive, indexFile.string());
 }
 
-BucketNode *index::io::readBucketNode(std::experimental::filesystem::path indexRootDirectory, IndexNodeID nodeID) {
-    return nullptr;
+BucketNode *index::io::readBucketNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNodeID nodeID) {
+    BucketNode* bucketNode = new BucketNode(nodeID);
+
+    std::experimental::filesystem::path indexFilePath = indexRootDirectory / "buckets" / (formatFileIndex(nodeID) + ".bkt");
+
+    ZipArchive::Ptr archive = ZipFile::Open(indexFilePath.string());
+
+    ZipArchiveEntry::Ptr entry = archive->GetEntry("bucket_node.dat");
+    std::istream* decompressStream = entry->GetDecompressionStream();
+
+    std::array<char, 4> headerTitle = {0, 0, 0, 0};
+    IndexNodeID headerNodeID;
+    unsigned long headerIndexEntryCount;
+
+    decompressStream->read(headerTitle.data(), 4);
+    decompressStream->read((char*) &headerNodeID, sizeof(IndexNodeID));
+    decompressStream->read((char*) &headerIndexEntryCount, sizeof(unsigned long));
+
+    assert(std::string(headerTitle.data()) == "BCKT");
+
+    bucketNode->images.resize(headerIndexEntryCount);
+
+    decompressStream->read((char*) bucketNode->images.data(), bucketNode->images.size() * sizeof(IndexEntry));
+
+    return bucketNode;
 }
 
-void index::io::writeBucketNode(std::experimental::filesystem::path indexRootDirectory, BucketNode *node) {
+void index::io::writeBucketNode(const std::experimental::filesystem::path& indexRootDirectory, BucketNode *node) {
     std::basic_stringstream<char> outStream;
 
     outStream << "BCKT";

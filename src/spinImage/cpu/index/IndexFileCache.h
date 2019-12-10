@@ -44,6 +44,9 @@ private:
     IndexNode* getIndexNode(IndexNodeID indexNodeID);
     BucketNode* getBucketNode(IndexNodeID bucketNodeID);
 
+    // Utility function for creating new nodes
+    IndexNodeID createLink(IndexNodeID parent, unsigned int* mipmapImage, unsigned int parentLevel, unsigned int LINK_TYPE);
+
     // Insert new index/bucket node
     void insertIndexNode(IndexNodeID indexNodeID, IndexNode* node);
     void insertBucketNode(IndexNodeID bucketNodeID, BucketNode* node);

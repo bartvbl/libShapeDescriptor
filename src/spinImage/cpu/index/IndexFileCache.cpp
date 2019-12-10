@@ -1,26 +1,31 @@
 #include <cassert>
 #include "IndexFileCache.h"
 
-IndexNodeID IndexFileCache::createBucketNode(IndexNodeID parent, unsigned int* mipmapImage, unsigned int parentLevel) {
-    IndexNodeID newBucketNodeID = nextNodeID;
+IndexNodeID IndexFileCache::createLink(IndexNodeID parent, unsigned int* mipmapImage, unsigned int parentLevel, const unsigned int LINK_TYPE) {
+    IndexNodeID createdNodeID = nextNodeID;
     nextNodeID++;
 
     if(parentLevel == 0) {
         unsigned short mipmap = (unsigned short) *mipmapImage;
         assert(this->rootNode.links[mipmap] == ROOT_NODE_LINK_DISABLED);
 
-        this->rootNode.links[mipmap] = newBucketNodeID;
-        this->rootNode.linkTypes[mipmap] = INDEX_LINK_BUCKET_NODE;
+        this->rootNode.links[mipmap] = createdNodeID;
+        this->rootNode.linkTypes[mipmap] = LINK_TYPE;
     } else {
         IndexNode* parentNode = getIndexNode(parent);
         const unsigned int arraySizes[4] = {0, 2, 8, 32};
         unsigned int imageArrayLength = arraySizes[parentLevel];
 
         parentNode->images.insert(parentNode->images.end(), mipmapImage, mipmapImage + imageArrayLength);
-        parentNode->linkTypes.emplace_back(INDEX_LINK_BUCKET_NODE);
-        parentNode->links.emplace_back(newBucketNodeID);
+        parentNode->linkTypes.emplace_back(LINK_TYPE);
+        parentNode->links.emplace_back(createdNodeID);
     }
 
+    return createdNodeID;
+}
+
+IndexNodeID IndexFileCache::createBucketNode(IndexNodeID parent, unsigned int* mipmapImage, unsigned int parentLevel) {
+    IndexNodeID newBucketNodeID = createLink(parent, mipmapImage, parentLevel, INDEX_LINK_BUCKET_NODE);
     BucketNode* bucketNode = new BucketNode(newBucketNodeID);
     insertBucketNode(newBucketNodeID, bucketNode);
     markBucketNodeDirty(newBucketNodeID);
@@ -29,12 +34,12 @@ IndexNodeID IndexFileCache::createBucketNode(IndexNodeID parent, unsigned int* m
 }
 
 IndexNodeID IndexFileCache::createIndexNode(IndexNodeID parent, unsigned int *mipmapImage, unsigned int parentLevel) {
-    IndexNodeID newIndexNodeID = nextNodeID;
-    nextNodeID++;
+    IndexNodeID newIndexNodeID = createLink(parent, mipmapImage, parentLevel, INDEX_LINK_INDEX_NODE);
+    IndexNode* indexNode = new IndexNode(newIndexNodeID);
+    insertIndexNode(newIndexNodeID, indexNode);
+    markIndexNodeDirty(newIndexNodeID);
 
-    if()
-
-    return 0;
+    return newIndexNodeID;
 }
 
 

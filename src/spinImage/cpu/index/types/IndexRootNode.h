@@ -11,7 +11,7 @@ struct IndexRootNode {
     //std::vector<unsigned short> images;
     std::vector<IndexNodeID> links;
     // 1 bit per image/link. 0 = index node, 1 = bucket node
-    std::vector<bool> linkTypes;
+    BoolVector linkTypes;
 
     IndexRootNode() {
         // Since the root node will most likely be mostly populated,

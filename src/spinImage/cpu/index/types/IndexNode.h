@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <spinImage/cpu/types/BoolVector.h>
 #include "Index.h"
 
 const bool INDEX_LINK_INDEX_NODE = false;
@@ -16,7 +17,7 @@ struct IndexNode {
 
     std::vector<IndexNodeID> links;
     // 1 bit per image/link. 0 = index node, 1 = bucket node
-    std::vector<bool> linkTypes;
+    BoolVector linkTypes;
 
     IndexNode(IndexNodeID id) : id(id) {}
 };

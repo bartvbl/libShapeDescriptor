@@ -63,8 +63,12 @@ void index::io::writeIndexNode(const std::experimental::filesystem::path& indexR
 
     std::experimental::filesystem::path indexFile = indexDirectory / (formatFileIndex(node->id) + ".idx");
 
+    const std::string filename = "index_node.dat";
     auto archive = ZipFile::Open(indexFile.string());
-    auto entry = archive->CreateEntry("index_node.dat");
+    if(archive->GetEntry(filename) != nullptr) {
+        archive->RemoveEntry(filename);
+    }
+    auto entry = archive->CreateEntry(filename);
     entry->UseDataDescriptor(); // read stream only once
     entry->SetCompressionStream(outStream);
     ZipFile::SaveAndClose(archive, indexFile.string());
@@ -112,8 +116,12 @@ void index::io::writeBucketNode(const std::experimental::filesystem::path& index
 
     std::experimental::filesystem::path bucketFile = bucketDirectory / (formatFileIndex(node->id) + ".bkt");
 
+    const std::string filename = "bucket_node.dat";
     auto archive = ZipFile::Open(bucketFile.string());
-    auto entry = archive->CreateEntry("bucket_node.dat");
+    if(archive->GetEntry(filename) != nullptr) {
+        archive->RemoveEntry(filename);
+    }
+    auto entry = archive->CreateEntry(filename);
     entry->UseDataDescriptor(); // read stream only once
     entry->SetCompressionStream(outStream);
     ZipFile::SaveAndClose(archive, bucketFile.string());

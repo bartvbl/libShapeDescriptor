@@ -45,7 +45,7 @@ private:
     BucketNode* getBucketNode(IndexNodeID bucketNodeID);
 
     // Utility function for creating new nodes
-    IndexNodeID createLink(IndexNodeID parent, unsigned int* mipmapImage, unsigned int parentLevel, unsigned int LINK_TYPE);
+    IndexNodeID createLink(IndexNodeID parent, const unsigned int* mipmapImage, unsigned int parentLevel, unsigned int LINK_TYPE);
 
     // Insert new index/bucket node
     void insertIndexNode(IndexNodeID indexNodeID, IndexNode* node);
@@ -89,8 +89,8 @@ public:
     // These functions, as a side effect, also mark the internal cache representations dirty
     // Dirty nodes are written to disk when ejected from the cache.
     // Otherwise they are simply discarded.
-    IndexNodeID createBucketNode(IndexNodeID parentIndexNodeID, unsigned int* mipmapImage, unsigned int level);
-    IndexNodeID createIndexNode(IndexNodeID parentIndexNodeID, unsigned int* mipmapImage, unsigned int level);
+    IndexNodeID createBucketNode(IndexNodeID parentIndexNodeID, const unsigned int* mipmapImage, unsigned int level);
+    IndexNodeID createIndexNode(IndexNodeID parentIndexNodeID, const unsigned int* mipmapImage, unsigned int level);
     void insertImageIntoBucketNode(IndexNodeID bucketNodeID, IndexEntry entry);
 
     // Clear the cache, write all changes to disk

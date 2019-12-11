@@ -1,11 +1,11 @@
 #pragma once
 
+const bool INDEX_LINK_INDEX_NODE = false;
+const bool INDEX_LINK_BUCKET_NODE = true;
+
 #include <vector>
 #include <spinImage/cpu/types/BoolVector.h>
 #include "Index.h"
-
-const bool INDEX_LINK_INDEX_NODE = false;
-const bool INDEX_LINK_BUCKET_NODE = true;
 
 struct IndexNode {
     const IndexNodeID id;

@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <iostream>
+#include "IndexNode.h"
 
 // The type of IndexNodeID is unsigned, so this expression
 // represents the largest value possible, which we reserve for marking a link as disabled
@@ -24,7 +25,7 @@ struct IndexRootNode {
         for(int i = 0; i < 65536; i++) {
             //images.at(i) = i;
             links.at(i) = ROOT_NODE_LINK_DISABLED;
-            linkTypes.at(i) = INDEX_LINK_INDEX_NODE;
+            linkTypes.set(i, INDEX_LINK_INDEX_NODE);
         }
     }
 };

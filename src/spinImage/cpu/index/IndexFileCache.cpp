@@ -1,7 +1,7 @@
 #include <cassert>
 #include "IndexFileCache.h"
 
-IndexNodeID IndexFileCache::createLink(IndexNodeID parent, unsigned int* mipmapImage, unsigned int parentLevel, const unsigned int LINK_TYPE) {
+IndexNodeID IndexFileCache::createLink(const IndexNodeID parent, const unsigned int* mipmapImage, const unsigned int parentLevel, const unsigned int LINK_TYPE) {
     IndexNodeID createdNodeID = nextNodeID;
     nextNodeID++;
 
@@ -10,7 +10,7 @@ IndexNodeID IndexFileCache::createLink(IndexNodeID parent, unsigned int* mipmapI
         assert(this->rootNode.links[mipmap] == ROOT_NODE_LINK_DISABLED);
 
         this->rootNode.links[mipmap] = createdNodeID;
-        this->rootNode.linkTypes[mipmap] = LINK_TYPE;
+        this->rootNode.linkTypes.set(mipmap, LINK_TYPE);
     } else {
         IndexNode* parentNode = getIndexNode(parent);
         const unsigned int arraySizes[4] = {0, 2, 8, 32};
@@ -24,7 +24,7 @@ IndexNodeID IndexFileCache::createLink(IndexNodeID parent, unsigned int* mipmapI
     return createdNodeID;
 }
 
-IndexNodeID IndexFileCache::createBucketNode(IndexNodeID parent, unsigned int* mipmapImage, unsigned int parentLevel) {
+IndexNodeID IndexFileCache::createBucketNode(const IndexNodeID parent, const unsigned int* mipmapImage, const unsigned int parentLevel) {
     IndexNodeID newBucketNodeID = createLink(parent, mipmapImage, parentLevel, INDEX_LINK_BUCKET_NODE);
     BucketNode* bucketNode = new BucketNode(newBucketNodeID);
     insertBucketNode(newBucketNodeID, bucketNode);
@@ -33,7 +33,7 @@ IndexNodeID IndexFileCache::createBucketNode(IndexNodeID parent, unsigned int* m
     return newBucketNodeID;
 }
 
-IndexNodeID IndexFileCache::createIndexNode(IndexNodeID parent, unsigned int *mipmapImage, unsigned int parentLevel) {
+IndexNodeID IndexFileCache::createIndexNode(const IndexNodeID parent, const unsigned int *mipmapImage, const unsigned int parentLevel) {
     IndexNodeID newIndexNodeID = createLink(parent, mipmapImage, parentLevel, INDEX_LINK_INDEX_NODE);
     IndexNode* indexNode = new IndexNode(newIndexNodeID);
     insertIndexNode(newIndexNodeID, indexNode);
@@ -121,6 +121,7 @@ void IndexFileCache::insertIndexNode(IndexNodeID indexNodeID, IndexNode *node) {
     cachedNode.node = node;
 
     // Cache is full. Eject a node before we insert the new one
+    //std::cout << lruIndexNodeQueue.size() << std::endl;
     if(lruIndexNodeQueue.size() == indexNodeCapacity) {
         ejectLeastRecentlyUsedIndexNode();
     }

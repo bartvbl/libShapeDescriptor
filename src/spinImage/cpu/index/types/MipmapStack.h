@@ -200,4 +200,12 @@ struct MipmapStack {
         std::cout << std::endl << "Level 3" << std::endl;
         printBitwiseImage<unsigned int, 32>(level3.image, 32);
     }
+
+    static MipmapStack combine(const unsigned int *image1, const unsigned int *image2) {
+        unsigned int combinedImage[128];
+        for(unsigned int i = 0; i < 128; i++) {
+            combinedImage[i] = image1[i] | image2[i];
+        }
+        return MipmapStack(combinedImage);
+    }
 };

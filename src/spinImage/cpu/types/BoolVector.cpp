@@ -22,6 +22,14 @@ bool BoolVector::at(unsigned long index) {
     return ((container.at(index / 32U) >> (31U - indexInBitVector)) & 0x1U) == 0x1U;
 }
 
+void BoolVector::set(unsigned long index, bool value) {
+    unsigned int bitInUint = index % 32;
+    unsigned long uintIndex = index / 32;
+    unsigned int bitVector = container.at(uintIndex);
+    bitVector |= (value ? 0x1U : 0x0U) << (31U - bitInUint);
+    container.at(uintIndex) = bitVector;
+}
+
 unsigned char *BoolVector::data() {
     return (unsigned char*) container.data();
 }
@@ -38,3 +46,5 @@ void BoolVector::resize(unsigned long size) {
     container.resize((size / 32) + (size % 32 == 0 ? 0 : 1));
     length = size;
 }
+
+

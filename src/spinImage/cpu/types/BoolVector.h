@@ -12,6 +12,7 @@ private:
 public:
     void push_back(bool bit);
     bool at(unsigned long index);
+    void set(unsigned long index, bool value);
     void reserve(unsigned long size);
     void resize(unsigned long size);
     unsigned long size();

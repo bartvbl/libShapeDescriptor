@@ -13,4 +13,7 @@ struct IndexEntry {
     IndexEntry(IndexFileID fileIndex, IndexImageID imageIndex) :
         fileIndex(fileIndex),
         imageIndex(imageIndex) {}
+
+    // Default constructor to allow std::vector resizing
+    IndexEntry() : fileIndex(0), imageIndex(0) {}
 };

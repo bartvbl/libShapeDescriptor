@@ -20,7 +20,8 @@ IndexNode *index::io::readIndexNode(const std::experimental::filesystem::path& i
     ZipArchiveEntry::Ptr entry = archive->GetEntry("index_node.dat");
     std::istream* decompressStream = entry->GetDecompressionStream();
 
-    std::array<char, 4> headerTitle = {0, 0, 0, 0};
+    // One extra 0 because of 0-termination
+    std::array<char, 5> headerTitle = {0, 0, 0, 0, 0};
     IndexNodeID headerNodeID;
     unsigned long headerLinkArrayLength;
     unsigned long headerImageArrayLength;
@@ -46,13 +47,16 @@ IndexNode *index::io::readIndexNode(const std::experimental::filesystem::path& i
 void index::io::writeIndexNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNode *node) {
     std::basic_stringstream<char> outStream;
 
+    unsigned long linkSize = node->links.size();
+    unsigned long imageSize = node->images.size();
+
     outStream << "INDX";
-    outStream.write((char*) node->id, sizeof(IndexNodeID));
-    outStream.write((char*) node->links.size(), sizeof(unsigned long));
-    outStream.write((char*) node->images.size(), sizeof(unsigned long));
-    outStream.write((char*) node->links.data(), node->links.size() * sizeof(IndexNodeID));
+    outStream.write((char*) &node->id, sizeof(IndexNodeID));
+    outStream.write((char*) &linkSize, sizeof(unsigned long));
+    outStream.write((char*) &imageSize, sizeof(unsigned long));
+    outStream.write((char*) node->links.data(), linkSize * sizeof(IndexNodeID));
     outStream.write((char*) node->linkTypes.data(), node->linkTypes.sizeInBytes());
-    outStream.write((char*) node->images.data(), node->images.size() * sizeof(unsigned int));
+    outStream.write((char*) node->images.data(), imageSize * sizeof(unsigned int));
 
     std::experimental::filesystem::path indexDirectory = indexRootDirectory / "nodes";
     std::experimental::filesystem::create_directories(indexDirectory);
@@ -76,7 +80,7 @@ BucketNode *index::io::readBucketNode(const std::experimental::filesystem::path&
     ZipArchiveEntry::Ptr entry = archive->GetEntry("bucket_node.dat");
     std::istream* decompressStream = entry->GetDecompressionStream();
 
-    std::array<char, 4> headerTitle = {0, 0, 0, 0};
+    std::array<char, 5> headerTitle = {0, 0, 0, 0, 0};
     IndexNodeID headerNodeID;
     unsigned long headerIndexEntryCount;
 
@@ -96,10 +100,12 @@ BucketNode *index::io::readBucketNode(const std::experimental::filesystem::path&
 void index::io::writeBucketNode(const std::experimental::filesystem::path& indexRootDirectory, BucketNode *node) {
     std::basic_stringstream<char> outStream;
 
+    unsigned long imageSize = node->images.size();
+
     outStream << "BCKT";
-    outStream.write((char*) node->id, sizeof(IndexNodeID));
-    outStream.write((char*) node->images.size(), sizeof(unsigned long));
-    outStream.write((char*) node->images.data(), node->images.size() * sizeof(IndexEntry));
+    outStream.write((char*) &node->id, sizeof(IndexNodeID));
+    outStream.write((char*) &imageSize, sizeof(unsigned long));
+    outStream.write((char*) node->images.data(), imageSize * sizeof(IndexEntry));
 
     std::experimental::filesystem::path bucketDirectory = indexRootDirectory / "buckets";
     std::experimental::filesystem::create_directories(bucketDirectory);

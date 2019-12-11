@@ -46,7 +46,7 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     std::experimental::filesystem::path indexDirectory(indexDumpDirectory);
 
     // The index node capacity is set quite high to allow most of the index to be in memory during construction
-    IndexFileCache cache(indexDirectory, 1000, 1000);
+    IndexFileCache cache(indexDirectory, 65536 * 96, 65536 * 64);
 
     std::vector<std::experimental::filesystem::path>* indexedFiles = new std::vector<std::experimental::filesystem::path>();
     indexedFiles->reserve(5000);

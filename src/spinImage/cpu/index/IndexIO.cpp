@@ -4,9 +4,19 @@
 #include <cassert>
 #include "IndexIO.h"
 
+const unsigned int nodes_per_file = 2500;
+
 std::string formatFileIndex(IndexNodeID nodeID) {
+    IndexNodeID fileID = (nodeID / nodes_per_file) + 1;
     std::stringstream ss;
-    ss << std::setw(10) << std::setfill('0') << nodeID;
+    ss << std::setw(10) << std::setfill('0') << fileID;
+    return ss.str();
+}
+
+std::string formatEntryIndex(IndexNodeID nodeID) {
+    IndexNodeID fileID = (nodeID % nodes_per_file) + 1;
+    std::stringstream ss;
+    ss << std::setw(10) << std::setfill('0') << fileID;
     return ss.str();
 }
 
@@ -17,7 +27,7 @@ IndexNode *index::io::readIndexNode(const std::experimental::filesystem::path& i
 
     ZipArchive::Ptr archive = ZipFile::Open(indexFilePath.string());
 
-    ZipArchiveEntry::Ptr entry = archive->GetEntry("index_node.dat");
+    ZipArchiveEntry::Ptr entry = archive->GetEntry("index_node_" + formatEntryIndex(nodeID) + ".dat");
     std::istream* decompressStream = entry->GetDecompressionStream();
 
     // One extra 0 because of 0-termination
@@ -63,7 +73,7 @@ void index::io::writeIndexNode(const std::experimental::filesystem::path& indexR
 
     std::experimental::filesystem::path indexFile = indexDirectory / (formatFileIndex(node->id) + ".idx");
 
-    const std::string filename = "index_node.dat";
+    const std::string filename = "index_node_" + formatEntryIndex(node->id) + ".dat";
     auto archive = ZipFile::Open(indexFile.string());
     if(archive->GetEntry(filename) != nullptr) {
         archive->RemoveEntry(filename);
@@ -81,7 +91,7 @@ BucketNode *index::io::readBucketNode(const std::experimental::filesystem::path&
 
     ZipArchive::Ptr archive = ZipFile::Open(indexFilePath.string());
 
-    ZipArchiveEntry::Ptr entry = archive->GetEntry("bucket_node.dat");
+    ZipArchiveEntry::Ptr entry = archive->GetEntry("bucket_node_" + formatEntryIndex(nodeID) + ".dat");
     std::istream* decompressStream = entry->GetDecompressionStream();
 
     std::array<char, 5> headerTitle = {0, 0, 0, 0, 0};
@@ -116,7 +126,7 @@ void index::io::writeBucketNode(const std::experimental::filesystem::path& index
 
     std::experimental::filesystem::path bucketFile = bucketDirectory / (formatFileIndex(node->id) + ".bkt");
 
-    const std::string filename = "bucket_node.dat";
+    const std::string filename = "bucket_node_" + formatEntryIndex(node->id) + ".dat";
     auto archive = ZipFile::Open(bucketFile.string());
     if(archive->GetEntry(filename) != nullptr) {
         archive->RemoveEntry(filename);

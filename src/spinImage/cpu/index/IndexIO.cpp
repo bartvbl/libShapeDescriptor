@@ -4,30 +4,28 @@
 #include <cassert>
 #include "IndexIO.h"
 
-const unsigned int nodes_per_file = 2500;
-
-std::string formatFileIndex(IndexNodeID nodeID) {
+std::string formatFileIndex(IndexNodeID nodeID, const unsigned int nodes_per_file) {
     IndexNodeID fileID = (nodeID / nodes_per_file) + 1;
     std::stringstream ss;
     ss << std::setw(10) << std::setfill('0') << fileID;
     return ss.str();
 }
 
-std::string formatEntryIndex(IndexNodeID nodeID) {
+std::string formatEntryIndex(IndexNodeID nodeID, const unsigned int nodes_per_file) {
     IndexNodeID fileID = (nodeID % nodes_per_file) + 1;
     std::stringstream ss;
     ss << std::setw(10) << std::setfill('0') << fileID;
     return ss.str();
 }
 
-IndexNode *index::io::readIndexNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNodeID nodeID) {
+IndexNode *index::io::readIndexNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNodeID nodeID, const unsigned int fileGroupSize) {
     IndexNode* indexNode = new IndexNode(nodeID);
 
-    std::experimental::filesystem::path indexFilePath = indexRootDirectory / "nodes" / (formatFileIndex(nodeID) + ".idx");
+    std::experimental::filesystem::path indexFilePath = indexRootDirectory / "nodes" / (formatFileIndex(nodeID, fileGroupSize) + ".idx");
 
     ZipArchive::Ptr archive = ZipFile::Open(indexFilePath.string());
 
-    ZipArchiveEntry::Ptr entry = archive->GetEntry("index_node_" + formatEntryIndex(nodeID) + ".dat");
+    ZipArchiveEntry::Ptr entry = archive->GetEntry("index_node_" + formatEntryIndex(nodeID, fileGroupSize) + ".dat");
     std::istream* decompressStream = entry->GetDecompressionStream();
 
     // One extra 0 because of 0-termination
@@ -54,44 +52,55 @@ IndexNode *index::io::readIndexNode(const std::experimental::filesystem::path& i
     return indexNode;
 }
 
-void index::io::writeIndexNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNode *node) {
-    std::basic_stringstream<char> outStream;
-
-    unsigned long linkSize = node->links.size();
-    unsigned long imageSize = node->images.size();
-
-    outStream << "INDX";
-    outStream.write((char*) &node->id, sizeof(IndexNodeID));
-    outStream.write((char*) &linkSize, sizeof(unsigned long));
-    outStream.write((char*) &imageSize, sizeof(unsigned long));
-    outStream.write((char*) node->links.data(), linkSize * sizeof(IndexNodeID));
-    outStream.write((char*) node->linkTypes.data(), node->linkTypes.sizeInBytes());
-    outStream.write((char*) node->images.data(), imageSize * sizeof(unsigned int));
-
+void index::io::writeIndexNodes(const std::experimental::filesystem::path& indexRootDirectory, const std::vector<IndexNode *> &nodes, const unsigned int fileGroupSize) {
     std::experimental::filesystem::path indexDirectory = indexRootDirectory / "nodes";
     std::experimental::filesystem::create_directories(indexDirectory);
 
-    std::experimental::filesystem::path indexFile = indexDirectory / (formatFileIndex(node->id) + ".idx");
+    std::experimental::filesystem::path indexFile = indexDirectory / (formatFileIndex(nodes.at(0)->id, fileGroupSize) + ".idx");
 
-    const std::string filename = "index_node_" + formatEntryIndex(node->id) + ".dat";
     auto archive = ZipFile::Open(indexFile.string());
-    if(archive->GetEntry(filename) != nullptr) {
-        archive->RemoveEntry(filename);
+
+    for(unsigned int entryIndex = 0; entryIndex < nodes.size(); entryIndex++) {
+
+        const std::string filename = "index_node_" + formatEntryIndex(nodes.at(entryIndex)->id, fileGroupSize) + ".dat";
+
+        if (archive->GetEntry(filename) != nullptr) {
+            archive->RemoveEntry(filename);
+        }
+
+        IndexNode* node = nodes.at(entryIndex);
+
+        std::basic_stringstream<char> outStream;
+
+        unsigned long linkSize = node->links.size();
+        unsigned long imageSize = node->images.size();
+
+        outStream << "INDX";
+        outStream.write((char *) &node->id, sizeof(IndexNodeID));
+        outStream.write((char *) &linkSize, sizeof(unsigned long));
+        outStream.write((char *) &imageSize, sizeof(unsigned long));
+        outStream.write((char *) node->links.data(), linkSize * sizeof(IndexNodeID));
+        outStream.write((char *) node->linkTypes.data(), node->linkTypes.sizeInBytes());
+        outStream.write((char *) node->images.data(), imageSize * sizeof(unsigned int));
+
+        auto entry = archive->CreateEntry(filename);
+        entry->UseDataDescriptor(); // read stream only once
+        entry->SetCompressionStream(outStream,
+                                    DeflateMethod::Create(),
+                                    ZipArchiveEntry::CompressionMode::Immediate);
     }
-    auto entry = archive->CreateEntry(filename);
-    entry->UseDataDescriptor(); // read stream only once
-    entry->SetCompressionStream(outStream);
+
     ZipFile::SaveAndClose(archive, indexFile.string());
 }
 
-BucketNode *index::io::readBucketNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNodeID nodeID) {
+BucketNode *index::io::readBucketNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNodeID nodeID, const unsigned int fileGroupSize) {
     BucketNode* bucketNode = new BucketNode(nodeID);
 
-    std::experimental::filesystem::path indexFilePath = indexRootDirectory / "buckets" / (formatFileIndex(nodeID) + ".bkt");
+    std::experimental::filesystem::path indexFilePath = indexRootDirectory / "buckets" / (formatFileIndex(nodeID, fileGroupSize) + ".bkt");
 
     ZipArchive::Ptr archive = ZipFile::Open(indexFilePath.string());
 
-    ZipArchiveEntry::Ptr entry = archive->GetEntry("bucket_node_" + formatEntryIndex(nodeID) + ".dat");
+    ZipArchiveEntry::Ptr entry = archive->GetEntry("bucket_node_" + formatEntryIndex(nodeID, fileGroupSize) + ".dat");
     std::istream* decompressStream = entry->GetDecompressionStream();
 
     std::array<char, 5> headerTitle = {0, 0, 0, 0, 0};
@@ -111,29 +120,42 @@ BucketNode *index::io::readBucketNode(const std::experimental::filesystem::path&
     return bucketNode;
 }
 
-void index::io::writeBucketNode(const std::experimental::filesystem::path& indexRootDirectory, BucketNode *node) {
-    std::basic_stringstream<char> outStream;
-
-    unsigned long imageSize = node->images.size();
-
-    outStream << "BCKT";
-    outStream.write((char*) &node->id, sizeof(IndexNodeID));
-    outStream.write((char*) &imageSize, sizeof(unsigned long));
-    outStream.write((char*) node->images.data(), imageSize * sizeof(IndexEntry));
-
+void index::io::writeBucketNodes(const std::experimental::filesystem::path& indexRootDirectory, const std::vector<BucketNode *> &nodes, const unsigned int fileGroupSize) {
     std::experimental::filesystem::path bucketDirectory = indexRootDirectory / "buckets";
     std::experimental::filesystem::create_directories(bucketDirectory);
 
-    std::experimental::filesystem::path bucketFile = bucketDirectory / (formatFileIndex(node->id) + ".bkt");
+    std::experimental::filesystem::path bucketFile = bucketDirectory / (formatFileIndex(nodes.at(0)->id, fileGroupSize) + ".bkt");
 
-    const std::string filename = "bucket_node_" + formatEntryIndex(node->id) + ".dat";
     auto archive = ZipFile::Open(bucketFile.string());
-    if(archive->GetEntry(filename) != nullptr) {
-        archive->RemoveEntry(filename);
+
+
+    for(unsigned int entryIndex = 0; entryIndex < nodes.size(); entryIndex++) {
+
+        std::basic_stringstream<char> outStream;
+
+        const std::string filename = "bucket_node_" + formatEntryIndex(nodes.at(entryIndex)->id, fileGroupSize) + ".dat";
+
+        if(archive->GetEntry(filename) != nullptr) {
+            archive->RemoveEntry(filename);
+        }
+
+        BucketNode* node = nodes.at(entryIndex);
+
+        unsigned long imageSize = node->images.size();
+
+        outStream << "BCKT";
+        outStream.write((char *) &node->id, sizeof(IndexNodeID));
+        outStream.write((char *) &imageSize, sizeof(unsigned long));
+        outStream.write((char *) node->images.data(), imageSize * sizeof(IndexEntry));
+
+        auto entry = archive->CreateEntry(filename);
+        entry->UseDataDescriptor(); // read stream only once
+        entry->SetCompressionStream(outStream,
+                                    DeflateMethod::Create(),
+                                    ZipArchiveEntry::CompressionMode::Immediate);
     }
-    auto entry = archive->CreateEntry(filename);
-    entry->UseDataDescriptor(); // read stream only once
-    entry->SetCompressionStream(outStream);
+
+
     ZipFile::SaveAndClose(archive, bucketFile.string());
 }
 

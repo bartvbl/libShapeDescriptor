@@ -35,6 +35,7 @@ private:
 
     const unsigned int indexNodeCapacity;
     const unsigned int bucketNodeCapacity;
+    const unsigned int fileGroupSize;
 
     // The Index and Bucket node types share the same counter intended for generating UUID's
     // because it allows a bucket node to be converted into an index node without any ID updates
@@ -65,15 +66,23 @@ private:
 public:
     explicit IndexFileCache(std::experimental::filesystem::path indexRoot,
             const unsigned int indexNodeCapacity,
-            const unsigned int bucketNodeCapacity) :
+            const unsigned int bucketNodeCapacity,
+            const unsigned int fileGroupSize) :
             indexRoot(std::move(indexRoot)),
             indexNodeCapacity(indexNodeCapacity),
-            bucketNodeCapacity(bucketNodeCapacity) {
+            bucketNodeCapacity(bucketNodeCapacity),
+            fileGroupSize(fileGroupSize) {
 
         nextNodeID = 1;
 
         indexNodeMap.reserve(indexNodeCapacity);
         bucketNodeMap.reserve(bucketNodeCapacity);
+
+        // For a better cache coherence and dump file layout, we reserve
+        // the first 65k ID's for top level index nodes
+        for(unsigned int i = 0; i < 65536; i++) {
+            createIndexNode(0, &i, 0);
+        }
     }
 
     // The index is responsible for holding the root node, because adding index/bucket nodes to the index

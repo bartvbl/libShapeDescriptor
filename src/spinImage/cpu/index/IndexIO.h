@@ -9,11 +9,11 @@ namespace index {
         Index loadIndex(std::experimental::filesystem::path rootFile);
         void writeIndex(Index index, std::experimental::filesystem::path outDirectory);
 
-        void writeIndexNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNode* node);
-        void writeBucketNode(const std::experimental::filesystem::path& indexRootDirectory, BucketNode* node);
+        void writeIndexNodes(const std::experimental::filesystem::path& indexRootDirectory, const std::vector<IndexNode *> &nodes, unsigned int fileGroupSize);
+        void writeBucketNodes(const std::experimental::filesystem::path& indexRootDirectory, const std::vector<BucketNode *> &nodes, unsigned int fileGroupSize);
 
-        IndexNode* readIndexNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNodeID nodeID);
-        BucketNode* readBucketNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNodeID nodeID);
+        IndexNode* readIndexNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNodeID nodeID, unsigned int fileGroupSize);
+        BucketNode* readBucketNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNodeID nodeID, unsigned int fileGroupSize);
     }
 }
 

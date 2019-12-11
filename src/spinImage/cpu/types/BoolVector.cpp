@@ -36,4 +36,5 @@ unsigned long BoolVector::size() {
 
 void BoolVector::resize(unsigned long size) {
     container.resize((size / 32) + (size % 32 == 0 ? 0 : 1));
+    length = size;
 }

@@ -12,9 +12,8 @@ std::string formatFileIndex(IndexNodeID nodeID, const unsigned int nodes_per_fil
 }
 
 std::string formatEntryIndex(IndexNodeID nodeID, const unsigned int nodes_per_file) {
-    IndexNodeID fileID = (nodeID % nodes_per_file) + 1;
     std::stringstream ss;
-    ss << std::setw(10) << std::setfill('0') << fileID;
+    ss << std::setw(10) << std::setfill('0') << nodeID;
     return ss.str();
 }
 

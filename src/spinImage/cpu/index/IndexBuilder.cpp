@@ -5,6 +5,7 @@
 #include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/utilities/readers/quicciReader.h>
 #include <spinImage/cpu/index/types/MipmapStack.h>
+#include <bitset>
 #include "IndexBuilder.h"
 #include "IndexFileCache.h"
 
@@ -48,6 +49,15 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     // The index node capacity is set quite high to allow most of the index to be in memory during construction
     IndexFileCache cache(indexDirectory, 65536 * 64, 65536 * 32, 50000);
 
+    std::vector<size_t> indexNodesPerRootNode;
+    std::vector<size_t> bucketNodesPerRootNode;
+    indexNodesPerRootNode.resize(65536);
+    bucketNodesPerRootNode.resize(65536);
+    for(int i = 0; i < 65536; i++) {
+        indexNodesPerRootNode.at(i) = 0;
+        bucketNodesPerRootNode.at(i) = 0;
+    }
+
     std::vector<std::experimental::filesystem::path>* indexedFiles = new std::vector<std::experimental::filesystem::path>();
     indexedFiles->reserve(5000);
 
@@ -87,15 +97,38 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
             IndexNodeID bucketNodeID = processBucketLink(cache, nextLink, combined.level3.image.data(), 3);
             IndexEntry entry = {fileIndex-1, image};
             cache.insertImageIntoBucketNode(bucketNodeID, entry);
+            bucketNodesPerRootNode.at(combined.level0.image)++;
         }
 
         std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         std::cout << "\tTook " << float(duration.count()) / 1000.0f << " seconds." << std::endl;
 
+        std::vector<unsigned int> bitCounts = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<unsigned int> binCounts = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+        for(int i = 0; i < 65536; i++) {
+            bitCounts.at(std::bitset<16>(i).count()) += bucketNodesPerRootNode.at(i);
+            binCounts.at(std::bitset<16>(i).count()) ++;
+            /*std::cout << bucketNodesPerRootNode.at(i) << (i == 65535 ? "" : ", ");
+            if(i % 32 == 31) {
+                std::cout << std::endl;
+            }*/
+        }
+        for(int i = 0; i < 17; i++) {
+            std::cout << bitCounts.at(i) << (i == 16 ? "" : ", ");
+        }
+        std::cout << std::endl;
+        for(int i = 0; i < 17; i++) {
+            std::cout << (float(bitCounts.at(i))/float(binCounts.at(i))) << (i == 16 ? "" : ", ");
+        }
+        std::cout << std::endl;
+
         delete[] images.horizontallyIncreasingImages;
         delete[] images.horizontallyDecreasingImages;
     }
+
+
 
     // Ensuring all changes are written to disk
     cache.flush();

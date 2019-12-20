@@ -1,7 +1,7 @@
 #include <fstream>
-#include <snappy.h>
 #include <cassert>
 #include "fileutils.h"
+#include <zstd.h>
 
 std::vector<std::experimental::filesystem::path> SpinImage::utilities::listDirectory(const std::string& directory) {
     std::vector<std::experimental::filesystem::path> foundFiles;
@@ -31,7 +31,7 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
 
     decompressStream.read(compressedBuffer, compressedBufferSize);
 
-    snappy::RawUncompress(compressedBuffer, compressedBufferSize, decompressedBuffer);
+    //snappy::RawUncompress(compressedBuffer, compressedBufferSize, decompressedBuffer);
 
     delete[] compressedBuffer;
 
@@ -41,9 +41,9 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
 void SpinImage::utilities::writeCompressedFile(const char *buffer, size_t bufferSize, const std::experimental::filesystem::path &archiveFile) {
     std::experimental::filesystem::create_directories(archiveFile.parent_path());
 
-    char* compressedBuffer = new char[snappy::MaxCompressedLength(bufferSize)];
+    //char* compressedBuffer = new char[snappy::MaxCompressedLength(bufferSize)];
     unsigned long compressedBufferSize = 0;
-    snappy::RawCompress(buffer, bufferSize, compressedBuffer, &compressedBufferSize);
+    //snappy::RawCompress(buffer, bufferSize, compressedBuffer, &compressedBufferSize);
 
     const char header[5] = "CDXF";
 
@@ -52,9 +52,9 @@ void SpinImage::utilities::writeCompressedFile(const char *buffer, size_t buffer
     outStream.write(header, 5 * sizeof(char));
     outStream.write((char*) &bufferSize, sizeof(size_t));
     outStream.write((char*) &compressedBufferSize, sizeof(size_t));
-    outStream.write(compressedBuffer, compressedBufferSize);
+    //outStream.write(compressedBuffer, compressedBufferSize);
 
     outStream.close();
 
-    delete[] compressedBuffer;
+    //delete[] compressedBuffer;
 }

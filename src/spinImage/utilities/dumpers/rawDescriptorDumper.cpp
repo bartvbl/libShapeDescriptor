@@ -1,6 +1,5 @@
 #include <spinImage/libraryBuildSettings.h>
 #include <sstream>
-#include <ZipLib/ZipFile.h>
 #include "rawDescriptorDumper.h"
 
 void SpinImage::dump::raw::descriptors(
@@ -17,9 +16,9 @@ void SpinImage::dump::raw::descriptors(
     outStream.write((char*) images.horizontallyIncreasingImages, images.imageCount * bytesPerQUICCImage);
     outStream.write((char*) images.horizontallyDecreasingImages, images.imageCount * bytesPerQUICCImage);
 
-    auto archive = ZipFile::Open(outputDumpFile);
-    auto entry = archive->CreateEntry("quicci_images.dat");
-    entry->UseDataDescriptor(); // read stream only once
-    entry->SetCompressionStream(outStream);
-    ZipFile::SaveAndClose(archive, outputDumpFile);
+    //auto archive = ZipFile::Open(outputDumpFile);
+    //auto entry = archive->CreateEntry("quicci_images.dat");
+    //entry->UseDataDescriptor(); // read stream only once
+    //entry->SetCompressionStream(outStream);
+    //ZipFile::SaveAndClose(archive, outputDumpFile);
 }

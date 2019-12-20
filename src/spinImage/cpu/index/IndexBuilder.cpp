@@ -1,7 +1,5 @@
 #include <spinImage/utilities/fileutils.h>
 #include <iostream>
-#include <ZipLib/ZipArchive.h>
-#include <ZipLib/ZipFile.h>
 #include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/utilities/readers/quicciReader.h>
 #include <spinImage/cpu/index/types/MipmapStack.h>
@@ -170,6 +168,18 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     for(int row = 0; row < 64; row++) {
         for(int col = 0; col < 64; col++) {
             std::cout << decreasingCounts[row * spinImageWidthPixels + col] << (col == 63 ? "" : ", ");
+        }
+        std::cout << std::endl;
+    }
+
+    std::cout << std::endl;
+    std::cout << std::endl;
+    std::cout << std::endl;
+    std::cout << std::endl;
+
+    for(int row = 0; row < 64; row++) {
+        for(int col = 0; col < 64; col++) {
+            std::cout << decreasingCounts[row * spinImageWidthPixels + col] + increasingCounts[row * spinImageWidthPixels + col] << (col == 63 ? "" : ", ");
         }
         std::cout << std::endl;
     }

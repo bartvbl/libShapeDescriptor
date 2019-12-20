@@ -14,8 +14,6 @@
 #include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/utilities/copy/deviceDescriptorsToHost.h>
 #include <spinImage/utilities/modelScaler.h>
-#include <ZipLib/ZipFile.h>
-#include <ZipLib/streams/memstream.h>
 #include <spinImage/utilities/dumpers/rawDescriptorDumper.h>
 
 const float DEFAULT_SPIN_IMAGE_WIDTH = 0.3;

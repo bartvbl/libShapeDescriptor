@@ -5,7 +5,6 @@ cmake_minimum_required (VERSION 3.0)
 find_package(OpenMP)
 find_package(CUDA REQUIRED)
 
-
 if (CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -fopenmp -lpthread -lstdc++fs -Wall -std=c++17")
 endif()
@@ -18,7 +17,6 @@ endif()
 set(CUDA_NVCC_FLAGS -arch=sm_61 -gencode arch=compute_61,code=\"sm_61,compute_61\" -Xptxas -O3,-v -lcurand -lineinfo -lcudart -std=c++14)
 
 
-add_subdirectory(lib/snappy ${CMAKE_CURRENT_BINARY_DIR}/snappy)
 
 
 include_directories (
@@ -28,7 +26,6 @@ include_directories (
         lib/ziplib/Source/
         lib/lodepng/
         lib/arrrgh/
-        lib/snappy/
         ${CUDA_INCLUDE_DIRS}
 )
 
@@ -53,7 +50,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
         POSITION_INDEPENDENT_CODE ON
         CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-target_link_libraries(${PROJECT_NAME} stdc++fs ziplib)
+target_link_libraries(${PROJECT_NAME} stdc++fs)
 
 target_include_directories(${PROJECT_NAME} PUBLIC src/)
 
@@ -71,4 +68,4 @@ add_executable(queryindex ${INDEX_QUERY_TOOL_SOURCES})
 target_link_libraries(queryindex SpinImage cudadevrt)
 
 add_executable(quiccidumper ${QUICCI_DUMPER_TOOL_SOURCES})
-target_link_libraries(quiccidumper ziplib SpinImage cudadevrt)
+target_link_libraries(quiccidumper SpinImage cudadevrt)

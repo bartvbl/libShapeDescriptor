@@ -1,4 +1,4 @@
-#include <ZipLib/ZipFile.h>
+#include <snappy.h>
 #include <iomanip>
 #include <fstream>
 #include <cassert>

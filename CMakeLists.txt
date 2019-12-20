@@ -28,6 +28,7 @@ include_directories (
         lib/ziplib/Source/
         lib/lodepng/
         lib/arrrgh/
+        lib/snappy/
         ${CUDA_INCLUDE_DIRS}
 )
 

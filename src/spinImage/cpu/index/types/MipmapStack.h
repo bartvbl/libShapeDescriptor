@@ -96,13 +96,14 @@ struct MipMapLevel2 {
 };
 
 struct MipMapLevel1 {
-    const unsigned long image;
+    std::array<unsigned int, 2> image;
 
     // 16x16 -> 8x8 image
-    static unsigned long computeMipmapLevel1(MipMapLevel2 level2) {
-        unsigned long level1 = 0;
+    static std::array<unsigned int, 2> computeMipmapLevel1(MipMapLevel2 level2) {
+        std::array<unsigned int, 2> level1 = {0, 0};
 
         unsigned int combinedCompressedChunk = 0;
+        unsigned char byteIndex = 0;
 
         for(unsigned int chunk = 0; chunk < 8; chunk++) {
             unsigned int doubleRowChunk = level2.image[chunk];
@@ -112,10 +113,19 @@ struct MipMapLevel1 {
 
             unsigned int compressedChunk = compressChunk_2bits(combined);
 
-            level1 = level1 | (compressedChunk << (64U - 8U - 8U * chunk));
+            // Every 4 chunks produces one output chunk
+            // (8 bits per processed chunk)
+            combinedCompressedChunk = combinedCompressedChunk | (compressedChunk << (32U - 8U - 8U*byteIndex));
+            if(byteIndex == 3) {
+                level1[chunk / 4] = combinedCompressedChunk;
+                combinedCompressedChunk = 0;
+                byteIndex = 0;
+            } else {
+                byteIndex++;
+            }
         }
 
-        return bitwiseTranspose8x8(level1);
+        return level1;
     }
 
     MipMapLevel1(MipMapLevel2 higherLevelImage) : image(computeMipmapLevel1(higherLevelImage)) {}
@@ -124,17 +134,26 @@ struct MipMapLevel1 {
 struct MipMapLevel0 {
     const unsigned int image;
 
-    unsigned int computeImage(unsigned long image) {
-        const unsigned long transposed = bitwiseTranspose8x8(image);
+    unsigned int computeImage(std::array<unsigned int, 2> level1Image) {
+        unsigned long combined = (((unsigned long) level1Image[0]) << 32U) | ((unsigned long) level1Image[1]);
 
-        const unsigned long step1 = ((transposed >> 1U) | transposed) & 0x5555555555555555ULL;
+        // Combine pairs of pixels horizontally
+        const unsigned long step1 = ((combined >> 1U) | combined) & 0x5555555555555555ULL;
+
+        // Collect all bits together until they're occupying the left hand side of the image
+        // (rightmost 4 columns are 0's)
         const unsigned long step2 = (step1 >> 1U) & 0x3333333333333333ULL;
         const unsigned long step3 = (step2 >> 2U) & 0x0F0F0F0F0F0F0F0FULL;
-        const unsigned long step4 = (step3 >> 4U) & 0x00FF00FF00FF00FFULL;
-        const unsigned long step5 = (step4 >> 8U) & 0x0000FFFF0000FFFFULL;
-        const unsigned long step6 = (step5 >> 16U) & 0x00000000FFFFFFFFULL;
+        const unsigned long step4 = (step3 << 4U) /*& 0xF0F0F0F0F0F0F0F0ULL*/;
 
-        return (unsigned int) step6;
+        // The transpose is made to work on an 8x8 matrix, which this is, except the right side is all 0's
+        // This will now mean the top 4 rows are filled, and the bottom 4 are not.
+        // As the unsigned long has a "row major" format, it means the first 32 bits contain useful information
+        // whereas the final 32 bits are all 0.
+        const unsigned long step5 = bitwiseTranspose8x8(step4);
+
+        // We discard the last 32 bits and are left with a single unsigned int.
+        return (unsigned int) (step5 >> 32U);
     }
 
     MipMapLevel0(MipMapLevel1 higherLevelImage) : image(computeImage(higherLevelImage.image)) {}
@@ -142,9 +161,10 @@ struct MipMapLevel0 {
 
 struct MipmapStack {
     //   level   mipmap size    pixel count   area per pixel   space needed
-    //   1       8x8 images     64            8x8 pixels       2 unsigned ints (transposed)
-    //   2       16x16 images   256           4x4 pixels       8 unsigned ints
-    //   3       32x32 images   1024          2x2 pixels       32 unsigned ints
+    //   0       8x4 pixels     32            8x16 pixels      1 unsigned int (transposed!)
+    //   1       8x8 pixels     64            8x8 pixels       2 unsigned ints
+    //   2       16x16 pixels   256           4x4 pixels       8 unsigned ints
+    //   3       32x32 pixels   1024          2x2 pixels       32 unsigned ints
     //   -- 64x64: source --
 
     // The order in which these are defined matters due to the initialiser list of the constructor

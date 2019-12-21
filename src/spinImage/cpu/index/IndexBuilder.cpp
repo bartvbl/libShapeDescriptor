@@ -106,9 +106,9 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
                     for (int col = 0; col < 64; col++) {
                         unsigned int increasingBits = images.horizontallyIncreasingImages[byteIndex];
                         unsigned int decreasingBits = images.horizontallyDecreasingImages[byteIndex];
-                        increasingCounts[row * spinImageWidthPixels + col] += (
+                        threadIncreasingCounts[row * spinImageWidthPixels + col] += (
                                 (increasingBits >> (bitsPerType - 1U - bitIndex)) & 0x1U);
-                        decreasingCounts[row * spinImageWidthPixels + col] += (
+                        threadDecreasingCounts[row * spinImageWidthPixels + col] += (
                                 (decreasingBits >> (bitsPerType - 1U - bitIndex)) & 0x1U);
                         bitIndex++;
                         if (bitIndex == bitsPerType) {

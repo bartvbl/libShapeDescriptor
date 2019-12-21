@@ -80,49 +80,67 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
 
         std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-#pragma omp parallel for
-        for(IndexImageID image = 0; image < images.imageCount; image++) {
-            //MipmapStack mipmapsIncreasing(images.horizontallyIncreasingImages + image * uintsPerQUICCImage);
-            //MipmapStack mipmapsDecreasing(images.horizontallyDecreasingImages + image * uintsPerQUICCImage);
+#pragma omp parallel
+        {
+            std::array<unsigned long long, spinImageWidthPixels * spinImageWidthPixels> threadIncreasingCounts;
+            std::array<unsigned long long, spinImageWidthPixels * spinImageWidthPixels> threadDecreasingCounts;
 
-            MipmapStack combined = MipmapStack::combine(
-                    images.horizontallyIncreasingImages + image * uintsPerQUICCImage,
-                    images.horizontallyDecreasingImages + image * uintsPerQUICCImage);
+            for (int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
+                threadIncreasingCounts[i] = 0;
+                threadDecreasingCounts[i] = 0;
+            }
 
-            unsigned int bitIndex = 0;
-            unsigned int byteIndex = 0;
-            const unsigned int bitsPerType = sizeof(unsigned int) * 8;
-            for(int row = 0; row < 64; row++) {
-                for(int col = 0; col < 64; col++) {
-                    unsigned int increasingBits = images.horizontallyIncreasingImages[byteIndex];
-                    unsigned int decreasingBits = images.horizontallyDecreasingImages[byteIndex];
-#pragma omp atomic
-                    increasingCounts[row * spinImageWidthPixels + col] += ((increasingBits >> (bitsPerType - 1U - bitIndex)) & 0x1U);
-#pragma omp atomic
-                    decreasingCounts[row * spinImageWidthPixels + col] += ((decreasingBits >> (bitsPerType - 1U - bitIndex)) & 0x1U);
-                    bitIndex++;
-                    if(bitIndex == bitsPerType) {
-                        byteIndex++;
-                        bitIndex = 0;
+#pragma omp for
+            for (IndexImageID image = 0; image < images.imageCount; image++) {
+                //MipmapStack mipmapsIncreasing(images.horizontallyIncreasingImages + image * uintsPerQUICCImage);
+                //MipmapStack mipmapsDecreasing(images.horizontallyDecreasingImages + image * uintsPerQUICCImage);
+
+                MipmapStack combined = MipmapStack::combine(
+                        images.horizontallyIncreasingImages + image * uintsPerQUICCImage,
+                        images.horizontallyDecreasingImages + image * uintsPerQUICCImage);
+
+                unsigned int bitIndex = 0;
+                unsigned int byteIndex = 0;
+                const unsigned int bitsPerType = sizeof(unsigned int) * 8;
+                for (int row = 0; row < 64; row++) {
+                    for (int col = 0; col < 64; col++) {
+                        unsigned int increasingBits = images.horizontallyIncreasingImages[byteIndex];
+                        unsigned int decreasingBits = images.horizontallyDecreasingImages[byteIndex];
+                        increasingCounts[row * spinImageWidthPixels + col] += (
+                                (increasingBits >> (bitsPerType - 1U - bitIndex)) & 0x1U);
+                        decreasingCounts[row * spinImageWidthPixels + col] += (
+                                (decreasingBits >> (bitsPerType - 1U - bitIndex)) & 0x1U);
+                        bitIndex++;
+                        if (bitIndex == bitsPerType) {
+                            byteIndex++;
+                            bitIndex = 0;
+                        }
                     }
                 }
+
+                /*IndexNodeID nextLink = cache.rootNode.links.at(combined.level0.image);
+                if(nextLink == ROOT_NODE_LINK_DISABLED) {
+                    // Temporarily expand the 16-bit root image to avoid pointer cast shenanigans
+                    unsigned int rootMipmapImage = combined.level0.image;
+                    nextLink = cache.createIndexNode(0, &rootMipmapImage, 0);
+                }
+
+                // nextLink points to a valid index node at this point
+
+                nextLink = processLink(cache, nextLink, combined.level1.image.data(), 1);
+                nextLink = processLink(cache, nextLink, combined.level2.image.data(), 2);
+                IndexNodeID bucketNodeID = processBucketLink(cache, nextLink, combined.level3.image.data(), 3);
+                IndexEntry entry = {fileIndex-1, image};
+                cache.insertImageIntoBucketNode(bucketNodeID, entry);
+                bucketNodesPerRootNode.at(combined.level0.image)++;*/
             }
 
-            /*IndexNodeID nextLink = cache.rootNode.links.at(combined.level0.image);
-            if(nextLink == ROOT_NODE_LINK_DISABLED) {
-                // Temporarily expand the 16-bit root image to avoid pointer cast shenanigans
-                unsigned int rootMipmapImage = combined.level0.image;
-                nextLink = cache.createIndexNode(0, &rootMipmapImage, 0);
+            for (int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
+#pragma omp atomic
+                increasingCounts[i] += threadIncreasingCounts[i];
+#pragma omp atomic
+                decreasingCounts[i] += threadDecreasingCounts[i];
             }
-
-            // nextLink points to a valid index node at this point
-
-            nextLink = processLink(cache, nextLink, combined.level1.image.data(), 1);
-            nextLink = processLink(cache, nextLink, combined.level2.image.data(), 2);
-            IndexNodeID bucketNodeID = processBucketLink(cache, nextLink, combined.level3.image.data(), 3);
-            IndexEntry entry = {fileIndex-1, image};
-            cache.insertImageIntoBucketNode(bucketNodeID, entry);
-            bucketNodesPerRootNode.at(combined.level0.image)++;*/
         }
 
         std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();

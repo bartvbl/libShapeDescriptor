@@ -1,11 +1,13 @@
 #include <spinImage/utilities/fileutils.h>
 #include <iostream>
+#include <fstream>
 #include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/utilities/readers/quicciReader.h>
 #include <spinImage/cpu/index/types/MipmapStack.h>
 #include <bitset>
 #include "IndexBuilder.h"
 #include "IndexFileCache.h"
+
 
 const unsigned int uintsPerMipmapImageLevel[4] = {0, 2, 8, 32};
 
@@ -59,13 +61,7 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     std::vector<std::experimental::filesystem::path>* indexedFiles = new std::vector<std::experimental::filesystem::path>();
     indexedFiles->reserve(5000);
 
-    std::array<unsigned long long, spinImageWidthPixels * spinImageWidthPixels> increasingCounts;
-    std::array<unsigned long long, spinImageWidthPixels * spinImageWidthPixels> decreasingCounts;
 
-    for(int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
-        increasingCounts[i] = 0;
-        decreasingCounts[i] = 0;
-    }
 
     const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
     IndexFileID fileIndex = 0;
@@ -78,6 +74,13 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
         SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
 
 
+        std::array<unsigned long long, spinImageWidthPixels * spinImageWidthPixels> increasingCounts;
+        std::array<unsigned long long, spinImageWidthPixels * spinImageWidthPixels> decreasingCounts;
+
+        for(int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
+            increasingCounts[i] = 0;
+            decreasingCounts[i] = 0;
+        }
 
         std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 #pragma omp parallel
@@ -104,8 +107,8 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
                 const unsigned int bitsPerType = sizeof(unsigned int) * 8;
                 for (int row = 0; row < 64; row++) {
                     for (int col = 0; col < 64; col++) {
-                        unsigned int increasingBits = images.horizontallyIncreasingImages[byteIndex];
-                        unsigned int decreasingBits = images.horizontallyDecreasingImages[byteIndex];
+                        unsigned int increasingBits = images.horizontallyIncreasingImages[image * uintsPerQUICCImage + byteIndex];
+                        unsigned int decreasingBits = images.horizontallyDecreasingImages[image * uintsPerQUICCImage + byteIndex];
                         threadIncreasingCounts[row * spinImageWidthPixels + col] += (
                                 (increasingBits >> (bitsPerType - 1U - bitIndex)) & 0x1U);
                         threadDecreasingCounts[row * spinImageWidthPixels + col] += (
@@ -147,6 +150,31 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         std::cout << "\tTook " << float(duration.count()) / 1000.0f << " seconds." << std::endl;
 
+        std::stringstream outFileName;
+        outFileName << "../PIXEL_COUNTS/" << fileIndex << ".txt";
+        std::ofstream outFile(outFileName.str());
+
+        outFile << "{" << std::endl;
+        outFile << "    \"imageCount\": " << images.imageCount << "," << std::endl;
+        outFile << "    \"filename\": " << path.filename() << "," << std::endl;
+
+        outFile << "    \"increasingCounts\": [" << std::endl << "        ";
+        const unsigned int spinPixelCount = spinImageWidthPixels * spinImageWidthPixels;
+        for (int i = 0; i < spinPixelCount; i++) {
+            outFile << increasingCounts[i] << (i == spinPixelCount - 1 ? "" : ", ");
+            outFile << (i % 64 == 63 ? "\n        " : "");
+        }
+        outFile << "    ]," << std::endl << std::endl;
+
+        outFile << "    \"decreasingCounts\": [" << std::endl << "        ";
+        for (int i = 0; i < spinPixelCount; i++) {
+            outFile << decreasingCounts[i] << (i == spinPixelCount - 1 ? "" : ", ");
+            outFile << (i % 64 == 63 ? "\n        " : "");
+        }
+        outFile << std::endl << "    ]" << std::endl << "}";
+
+        outFile.close();
+
         /*std::vector<unsigned int> bitCounts = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         std::vector<unsigned int> binCounts = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
@@ -171,36 +199,7 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
         delete[] images.horizontallyDecreasingImages;
     }
 
-    for(int row = 0; row < 64; row++) {
-        for(int col = 0; col < 64; col++) {
-            std::cout << increasingCounts[row * spinImageWidthPixels + col] << (col == 63 ? "" : ", ");
-        }
-        std::cout << std::endl;
-    }
 
-    std::cout << std::endl;
-    std::cout << std::endl;
-    std::cout << std::endl;
-    std::cout << std::endl;
-
-    for(int row = 0; row < 64; row++) {
-        for(int col = 0; col < 64; col++) {
-            std::cout << decreasingCounts[row * spinImageWidthPixels + col] << (col == 63 ? "" : ", ");
-        }
-        std::cout << std::endl;
-    }
-
-    std::cout << std::endl;
-    std::cout << std::endl;
-    std::cout << std::endl;
-    std::cout << std::endl;
-
-    for(int row = 0; row < 64; row++) {
-        for(int col = 0; col < 64; col++) {
-            std::cout << decreasingCounts[row * spinImageWidthPixels + col] + increasingCounts[row * spinImageWidthPixels + col] << (col == 63 ? "" : ", ");
-        }
-        std::cout << std::endl;
-    }
 
 
     // Ensuring all changes are written to disk

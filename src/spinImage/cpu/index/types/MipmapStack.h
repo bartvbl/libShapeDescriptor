@@ -19,7 +19,7 @@ inline unsigned int compressChunk_2bits(unsigned int chunk) {
 }
 
 inline unsigned long bitwiseTranspose8x8(unsigned long in) {
-    unsigned long mask = 0x8040201008040201LL;
+    unsigned long mask = 0x8040201008040201ULL;
     unsigned long out = in & mask;
     for(unsigned int s = 7; s <= 49; s += 7) {
         mask = mask >> 8U;

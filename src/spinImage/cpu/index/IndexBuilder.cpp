@@ -74,126 +74,36 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
         SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
 
 
-        std::array<unsigned long long, spinImageWidthPixels * spinImageWidthPixels> increasingCounts;
-        std::array<unsigned long long, spinImageWidthPixels * spinImageWidthPixels> decreasingCounts;
-
-        for(int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
-            increasingCounts[i] = 0;
-            decreasingCounts[i] = 0;
-        }
-
         std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-#pragma omp parallel
-        {
-            std::array<unsigned long long, spinImageWidthPixels * spinImageWidthPixels> threadIncreasingCounts;
-            std::array<unsigned long long, spinImageWidthPixels * spinImageWidthPixels> threadDecreasingCounts;
 
-            for (int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
-                threadIncreasingCounts[i] = 0;
-                threadDecreasingCounts[i] = 0;
+        for (IndexImageID image = 0; image < images.imageCount; image++) {
+            MipmapStack combined = MipmapStack::combine(
+                    images.horizontallyIncreasingImages + image * uintsPerQUICCImage,
+                    images.horizontallyDecreasingImages + image * uintsPerQUICCImage);
+
+            std::cout << std::hex << combined.level0.image << std::endl;
+
+            /*IndexNodeID nextLink = cache.rootNode.links.at(combined.level0.image);
+            if(nextLink == ROOT_NODE_LINK_DISABLED) {
+                // Temporarily expand the 16-bit root image to avoid pointer cast shenanigans
+                unsigned int rootMipmapImage = combined.level0.image;
+                nextLink = cache.createIndexNode(0, &rootMipmapImage, 0);
             }
 
-#pragma omp for
-            for (IndexImageID image = 0; image < images.imageCount; image++) {
-                //MipmapStack mipmapsIncreasing(images.horizontallyIncreasingImages + image * uintsPerQUICCImage);
-                //MipmapStack mipmapsDecreasing(images.horizontallyDecreasingImages + image * uintsPerQUICCImage);
+            // nextLink points to a valid index node at this point
 
-                MipmapStack combined = MipmapStack::combine(
-                        images.horizontallyIncreasingImages + image * uintsPerQUICCImage,
-                        images.horizontallyDecreasingImages + image * uintsPerQUICCImage);
+            nextLink = processLink(cache, nextLink, combined.level1.image.data(), 1);
+            nextLink = processLink(cache, nextLink, combined.level2.image.data(), 2);
+            IndexNodeID bucketNodeID = processBucketLink(cache, nextLink, combined.level3.image.data(), 3);
+            IndexEntry entry = {fileIndex-1, image};
+            cache.insertImageIntoBucketNode(bucketNodeID, entry);
+            bucketNodesPerRootNode.at(combined.level0.image)++;*/
 
-                unsigned int bitIndex = 0;
-                unsigned int byteIndex = 0;
-                const unsigned int bitsPerType = sizeof(unsigned int) * 8;
-                for (int row = 0; row < 64; row++) {
-                    for (int col = 0; col < 64; col++) {
-                        unsigned int increasingBits = images.horizontallyIncreasingImages[image * uintsPerQUICCImage + byteIndex];
-                        unsigned int decreasingBits = images.horizontallyDecreasingImages[image * uintsPerQUICCImage + byteIndex];
-                        threadIncreasingCounts[row * spinImageWidthPixels + col] += (
-                                (increasingBits >> (bitsPerType - 1U - bitIndex)) & 0x1U);
-                        threadDecreasingCounts[row * spinImageWidthPixels + col] += (
-                                (decreasingBits >> (bitsPerType - 1U - bitIndex)) & 0x1U);
-                        bitIndex++;
-                        if (bitIndex == bitsPerType) {
-                            byteIndex++;
-                            bitIndex = 0;
-                        }
-                    }
-                }
-
-                /*IndexNodeID nextLink = cache.rootNode.links.at(combined.level0.image);
-                if(nextLink == ROOT_NODE_LINK_DISABLED) {
-                    // Temporarily expand the 16-bit root image to avoid pointer cast shenanigans
-                    unsigned int rootMipmapImage = combined.level0.image;
-                    nextLink = cache.createIndexNode(0, &rootMipmapImage, 0);
-                }
-
-                // nextLink points to a valid index node at this point
-
-                nextLink = processLink(cache, nextLink, combined.level1.image.data(), 1);
-                nextLink = processLink(cache, nextLink, combined.level2.image.data(), 2);
-                IndexNodeID bucketNodeID = processBucketLink(cache, nextLink, combined.level3.image.data(), 3);
-                IndexEntry entry = {fileIndex-1, image};
-                cache.insertImageIntoBucketNode(bucketNodeID, entry);
-                bucketNodesPerRootNode.at(combined.level0.image)++;*/
-            }
-
-            for (int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
-#pragma omp atomic
-                increasingCounts[i] += threadIncreasingCounts[i];
-#pragma omp atomic
-                decreasingCounts[i] += threadDecreasingCounts[i];
-            }
         }
 
         std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         std::cout << "\tTook " << float(duration.count()) / 1000.0f << " seconds." << std::endl;
-
-        std::stringstream outFileName;
-        outFileName << "../PIXEL_COUNTS/" << fileIndex << ".txt";
-        std::ofstream outFile(outFileName.str());
-
-        outFile << "{" << std::endl;
-        outFile << "    \"imageCount\": " << images.imageCount << "," << std::endl;
-        outFile << "    \"filename\": " << path.filename() << "," << std::endl;
-
-        outFile << "    \"increasingCounts\": [" << std::endl << "        ";
-        const unsigned int spinPixelCount = spinImageWidthPixels * spinImageWidthPixels;
-        for (int i = 0; i < spinPixelCount; i++) {
-            outFile << increasingCounts[i] << (i == spinPixelCount - 1 ? "" : ", ");
-            outFile << (i % 64 == 63 ? "\n        " : "");
-        }
-        outFile << "    ]," << std::endl << std::endl;
-
-        outFile << "    \"decreasingCounts\": [" << std::endl << "        ";
-        for (int i = 0; i < spinPixelCount; i++) {
-            outFile << decreasingCounts[i] << (i == spinPixelCount - 1 ? "" : ", ");
-            outFile << (i % 64 == 63 ? "\n        " : "");
-        }
-        outFile << std::endl << "    ]" << std::endl << "}";
-
-        outFile.close();
-
-        /*std::vector<unsigned int> bitCounts = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        std::vector<unsigned int> binCounts = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-        for(int i = 0; i < 65536; i++) {
-            bitCounts.at(std::bitset<16>(i).count()) += bucketNodesPerRootNode.at(i);
-            binCounts.at(std::bitset<16>(i).count()) ++;
-            //std::cout << bucketNodesPerRootNode.at(i) << (i == 65535 ? "" : ", ");
-            //if(i % 32 == 31) {
-            //    std::cout << std::endl;
-            //}
-        }
-        for(int i = 0; i < 17; i++) {
-            std::cout << bitCounts.at(i) << (i == 16 ? "" : ", ");
-        }
-        std::cout << std::endl;
-        for(int i = 0; i < 17; i++) {
-            std::cout << (float(bitCounts.at(i))/float(binCounts.at(i))) << (i == 16 ? "" : ", ");
-        }
-        std::cout << std::endl;*/
 
         delete[] images.horizontallyIncreasingImages;
         delete[] images.horizontallyDecreasingImages;

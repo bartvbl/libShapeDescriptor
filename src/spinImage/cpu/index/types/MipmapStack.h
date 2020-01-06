@@ -138,12 +138,12 @@ struct MipMapLevel0 {
         unsigned long combined = (((unsigned long) level1Image[0]) << 32U) | ((unsigned long) level1Image[1]);
 
         // Combine pairs of pixels horizontally
-        const unsigned long step1 = ((combined >> 1U) | combined) & 0x5555555555555555ULL;
+        const unsigned long step1 = (combined | (combined >> 1U)) & 0x5555555555555555ULL;
 
         // Collect all bits together until they're occupying the left hand side of the image
         // (rightmost 4 columns are 0's)
-        const unsigned long step2 = (step1 >> 1U) & 0x3333333333333333ULL;
-        const unsigned long step3 = (step2 >> 2U) & 0x0F0F0F0F0F0F0F0FULL;
+        const unsigned long step2 = (step1 | (step1 >> 1U)) & 0x3333333333333333ULL;
+        const unsigned long step3 = (step2 | (step2 >> 2U)) & 0x0F0F0F0F0F0F0F0FULL;
         const unsigned long step4 = (step3 << 4U) /*& 0xF0F0F0F0F0F0F0F0ULL*/;
 
         // The transpose is made to work on an 8x8 matrix, which this is, except the right side is all 0's

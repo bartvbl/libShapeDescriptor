@@ -37,5 +37,7 @@ build/*
 cmake-build-debug/*
 cmake-build-release/*
 
+PIXEL_COUNTS/*
+
 # until further notice
 include/*

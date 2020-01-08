@@ -44,10 +44,10 @@ protected:
 
     void ejectLeastRecentlyUsedItem();
 
-    virtual void eject(size_t itemID, CachedItemType* item);
-    virtual void load(size_t itemID);
+    virtual void eject(CachedItemType* item) = 0;
+    virtual void load(size_t itemID) = 0;
 
-    Cache(const size_t capacity) : itemCapacity(capacity) {
+    explicit Cache(const size_t capacity) : itemCapacity(capacity) {
         lruItemQueue.resize(capacity);
         randomAccessMap.reserve(capacity);
     }

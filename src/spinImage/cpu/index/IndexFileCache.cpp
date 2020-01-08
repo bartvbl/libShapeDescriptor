@@ -33,7 +33,7 @@ template<typename CachedItemType> void Cache<CachedItemType>::touchItem(size_t i
 }
 
 template<typename CachedItemType> void Cache<CachedItemType>::insertItem(size_t indexNodeID, CachedItemType* item) {
-    CachedItemType cachedItem = {false, nullptr};
+    CachedItem<CachedItemType> cachedItem = {false, nullptr};
     cachedItem.item = item;
 
     // If cache is full, eject a node before we insert the new one
@@ -45,6 +45,29 @@ template<typename CachedItemType> void Cache<CachedItemType>::insertItem(size_t 
     // We therefore put it in the front of the queue right away
     lruItemQueue.emplace_front(cachedItem);
     randomAccessMap[indexNodeID] = lruItemQueue.begin();
+}
+
+template<typename CachedItemType> void Cache<CachedItemType>::markItemDirty(size_t itemID) {
+    typename std::unordered_map<IndexNodeID, typename std::list<CachedItem<CachedItemType>>::iterator>::iterator it = randomAccessMap.find(itemID);
+    it->second->isDirty = true;
+}
+
+// The cache ends up mostly ejecting nodes. Reuse is not all that common.
+// We therefore select the node that has been the least recently used, eject it,
+// along with all other nodes that will end up in the same dump file.
+// This will cause some often used nodes to be ejected, but should mostly reduce the
+// number of times a single file is rewritten, thereby improving outflow speed of the cache.
+template<typename CachedItemType> void Cache<CachedItemType>::ejectLeastRecentlyUsedItem() {
+    CachedItem<CachedItemType> leastRecentlyUsedItem = lruItemQueue.back();
+
+    if(leastRecentlyUsedItem.isDirty) {
+        lruItemQueue.erase(leastRecentlyUsedItem);
+        randomAccessMap.erase(leastRecentlyUsedItem);
+
+        eject(leastRecentlyUsedItem);
+    }
+
+    delete leastRecentlyUsedItem.item;
 }
 
 
@@ -109,77 +132,3 @@ const IndexNode *IndexFileCache::fetchIndexNode(IndexNodeID indexNodeID) {
 const BucketNode *IndexFileCache::fetchBucketNode(IndexNodeID bucketNodeID) {
     return getBucketNode(bucketNodeID);
 }
-
-
-
-
-// The cache ends up mostly ejecting nodes. Reuse is not all that common.
-// We therefore select the node that has been the least recently used, eject it,
-// along with all other nodes that will end up in the same dump file.
-// This will cause some often used nodes to be ejected, but should mostly reduce the
-// number of times a single file is rewritten, thereby improving outflow speed of the cache.
-void IndexFileCache::ejectLeastRecentlyUsedIndexNode() {
-    CachedIndexNode leastRecentlyUsedNode = lruIndexNodeQueue.back();
-
-    if(leastRecentlyUsedNode.isDirty) {
-        std::vector<IndexNode*> nodesToBeRemoved;
-        nodesToBeRemoved.reserve(128);
-        const IndexNodeID baseIndex = (leastRecentlyUsedNode.node->id / fileGroupSize) * fileGroupSize;
-        for(IndexNodeID i = baseIndex; i < baseIndex + fileGroupSize; i++) {
-            std::unordered_map<IndexNodeID, std::list<CachedIndexNode>::iterator>::iterator it = indexNodeMap.find(i);
-            if(it != indexNodeMap.end() && it->second->isDirty) {
-                nodesToBeRemoved.push_back(it->second->node);
-                lruIndexNodeQueue.erase(it->second);
-                indexNodeMap.erase(it->second->node->id);
-            }
-        }
-
-        index::io::writeIndexNodes(indexRoot, nodesToBeRemoved, fileGroupSize);
-
-        for(IndexNode* ejectedNode : nodesToBeRemoved) {
-            delete ejectedNode;
-        }
-    }
-
-}
-
-void IndexFileCache::ejectLeastRecentlyUsedBucketNode() {
-    CachedBucketNode leastRecentlyUsedNode = lruBucketNodeQueue.back();
-
-    if(leastRecentlyUsedNode.isDirty) {
-        std::vector<BucketNode*> nodesToBeRemoved;
-        nodesToBeRemoved.reserve(128);
-        const IndexNodeID baseIndex = (leastRecentlyUsedNode.node->id / fileGroupSize) * fileGroupSize;
-        for(IndexNodeID i = baseIndex; i < baseIndex + fileGroupSize; i++) {
-            std::unordered_map<IndexNodeID, std::list<CachedBucketNode>::iterator>::iterator it = bucketNodeMap.find(i);
-            if(it != bucketNodeMap.end() && it->second->isDirty) {
-                nodesToBeRemoved.push_back(it->second->node);
-                lruBucketNodeQueue.erase(it->second);
-                bucketNodeMap.erase(it->second->node->id);
-            }
-        }
-
-        index::io::writeBucketNodes(indexRoot, nodesToBeRemoved, fileGroupSize);
-
-        for(BucketNode* ejectedNode : nodesToBeRemoved) {
-            delete ejectedNode;
-        }
-    }
-}
-
-void IndexFileCache::markIndexNodeDirty(IndexNodeID indexNodeID) {
-    std::unordered_map<IndexNodeID, std::list<CachedIndexNode>::iterator>::iterator it = indexNodeMap.find(indexNodeID);
-    it->second->isDirty = true;
-}
-
-void IndexFileCache::markBucketNodeDirty(IndexNodeID bucketNodeID) {
-    std::unordered_map<IndexNodeID, std::list<CachedBucketNode>::iterator>::iterator it = bucketNodeMap.find(bucketNodeID);
-    it->second->isDirty = true;
-}
-
-
-
-
-
-
-

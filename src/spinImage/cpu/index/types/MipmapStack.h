@@ -61,6 +61,9 @@ struct MipMapLevel3 {
     }
 
     MipMapLevel3(unsigned int* quicciImage) : image(computeMipmapLevel3(quicciImage)) {}
+
+    // Constructor intended for array initialisation
+    MipMapLevel3() : image({0}) {}
 };
 
 struct MipMapLevel2 {

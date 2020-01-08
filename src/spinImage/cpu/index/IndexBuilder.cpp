@@ -49,15 +49,6 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     // The index node capacity is set quite high to allow most of the index to be in memory during construction
     IndexFileCache cache(indexDirectory, 65536 * 32, 65536 * 24, 50000);
 
-    std::vector<size_t> indexNodesPerRootNode;
-    std::vector<size_t> bucketNodesPerRootNode;
-    indexNodesPerRootNode.resize(65536);
-    bucketNodesPerRootNode.resize(65536);
-    for(int i = 0; i < 65536; i++) {
-        indexNodesPerRootNode.at(i) = 0;
-        bucketNodesPerRootNode.at(i) = 0;
-    }
-
     std::vector<std::experimental::filesystem::path>* indexedFiles = new std::vector<std::experimental::filesystem::path>();
     indexedFiles->reserve(5000);
 
@@ -80,25 +71,6 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
             MipmapStack combined = MipmapStack::combine(
                     images.horizontallyIncreasingImages + image * uintsPerQUICCImage,
                     images.horizontallyDecreasingImages + image * uintsPerQUICCImage);
-
-            std::cout << std::hex << combined.level0.image << std::endl;
-
-            /*IndexNodeID nextLink = cache.rootNode.links.at(combined.level0.image);
-            if(nextLink == ROOT_NODE_LINK_DISABLED) {
-                // Temporarily expand the 16-bit root image to avoid pointer cast shenanigans
-                unsigned int rootMipmapImage = combined.level0.image;
-                nextLink = cache.createIndexNode(0, &rootMipmapImage, 0);
-            }
-
-            // nextLink points to a valid index node at this point
-
-            nextLink = processLink(cache, nextLink, combined.level1.image.data(), 1);
-            nextLink = processLink(cache, nextLink, combined.level2.image.data(), 2);
-            IndexNodeID bucketNodeID = processBucketLink(cache, nextLink, combined.level3.image.data(), 3);
-            IndexEntry entry = {fileIndex-1, image};
-            cache.insertImageIntoBucketNode(bucketNodeID, entry);
-            bucketNodesPerRootNode.at(combined.level0.image)++;*/
-
         }
 
         std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();

@@ -1,6 +1,58 @@
 #include <cassert>
 #include "IndexFileCache.h"
 
+template<typename CachedItemType> CachedItemType *Cache<CachedItemType>::getItemByID(size_t itemID) {
+    typename std::unordered_map<IndexNodeID, typename std::list<CachedItem<CachedItemType>>::iterator>::iterator
+        it = randomAccessMap.find(itemID);
+    CachedItem<CachedItemType>* cachedItemEntry = nullptr;
+
+    if(it != randomAccessMap.end())
+    {
+        // Cache hit
+        cachedItemEntry = it->second->item;
+        touchItem(itemID);
+    } else {
+        // Cache miss. Load the item into the cache instead
+        cachedItemEntry = load(itemID);
+        insertItem(itemID, cachedItemEntry);
+    }
+
+    return cachedItemEntry->item;
+}
+
+template<typename CachedItemType> void Cache<CachedItemType>::flush() {
+    // Perhaps not the most efficient, but this method will not be called often anyway
+    while(!randomAccessMap.empty()) {
+        ejectLeastRecentlyUsedItem();
+    }
+}
+
+template<typename CachedItemType> void Cache<CachedItemType>::touchItem(size_t itemID) {
+    // Move the desired node to the front of the LRU queue
+    lruItemQueue.splice(lruItemQueue.begin(), lruItemQueue, randomAccessMap[itemID]);
+}
+
+template<typename CachedItemType> void Cache<CachedItemType>::insertItem(size_t indexNodeID, CachedItemType* item) {
+    CachedItemType cachedItem = {false, nullptr};
+    cachedItem.item = item;
+
+    // If cache is full, eject a node before we insert the new one
+    if(lruItemQueue.size() == itemCapacity) {
+        ejectLeastRecentlyUsedItem();
+    }
+
+    // When the node is inserted, it is by definition the most recently used one
+    // We therefore put it in the front of the queue right away
+    lruItemQueue.emplace_front(cachedItem);
+    randomAccessMap[indexNodeID] = lruItemQueue.begin();
+}
+
+
+
+
+
+
+
 IndexNodeID IndexFileCache::createLink(const IndexNodeID parent, const unsigned int* mipmapImage, const unsigned int parentLevel, const unsigned int LINK_TYPE) {
     IndexNodeID createdNodeID = nextNodeID;
     nextNodeID++;
@@ -50,55 +102,6 @@ void IndexFileCache::insertImageIntoBucketNode(IndexNodeID bucketNodeID, IndexEn
     touchBucketNode(bucketNodeID);
 }
 
-void IndexFileCache::flush() {
-    // Perhaps not the most efficient, but this method will not be called often anyway,
-    // and it's better to keep functionality in one place design wise.
-
-    while(!indexNodeMap.empty()) {
-        ejectLeastRecentlyUsedIndexNode();
-    }
-
-    while(!bucketNodeMap.empty()) {
-        ejectLeastRecentlyUsedBucketNode();
-    }
-}
-
-IndexNode *IndexFileCache::getIndexNode(IndexNodeID indexNodeID) {
-    std::unordered_map<IndexNodeID, std::list<CachedIndexNode>::iterator>::iterator it = indexNodeMap.find(indexNodeID);
-    IndexNode* node = nullptr;
-
-    if(it != indexNodeMap.end())
-    {
-        // Cache hit
-        node = it->second->node;
-        touchIndexNode(indexNodeID);
-    } else {
-        // Cache miss. Read from disk instead
-        node = index::io::readIndexNode(indexRoot, indexNodeID, fileGroupSize);
-        insertIndexNode(indexNodeID, node);
-    }
-
-    return node;
-}
-
-BucketNode *IndexFileCache::getBucketNode(IndexNodeID bucketNodeID) {
-    std::unordered_map<IndexNodeID, std::list<CachedBucketNode>::iterator>::iterator it = bucketNodeMap.find(bucketNodeID);
-    BucketNode* node = nullptr;
-
-    if(it != bucketNodeMap.end())
-    {
-        // Cache hit
-        node = it->second->node;
-        touchBucketNode(bucketNodeID);
-    } else {
-        // Cache miss
-        node = index::io::readBucketNode(indexRoot, bucketNodeID, fileGroupSize);
-        insertBucketNode(bucketNodeID, node);
-    }
-
-    return node;
-}
-
 const IndexNode *IndexFileCache::fetchIndexNode(IndexNodeID indexNodeID) {
     return getIndexNode(indexNodeID);
 }
@@ -107,42 +110,8 @@ const BucketNode *IndexFileCache::fetchBucketNode(IndexNodeID bucketNodeID) {
     return getBucketNode(bucketNodeID);
 }
 
-void IndexFileCache::touchIndexNode(IndexNodeID indexNodeID) {
-    // Move the desired node to the front of the LRU queue
-    lruIndexNodeQueue.splice(lruIndexNodeQueue.begin(), lruIndexNodeQueue, indexNodeMap[indexNodeID]);
-}
 
-void IndexFileCache::touchBucketNode(IndexNodeID indexNodeID) {
-    lruBucketNodeQueue.splice(lruBucketNodeQueue.begin(), lruBucketNodeQueue, bucketNodeMap[indexNodeID]);
-}
 
-void IndexFileCache::insertIndexNode(IndexNodeID indexNodeID, IndexNode *node) {
-    CachedIndexNode cachedNode = {false, nullptr};
-    cachedNode.node = node;
-
-    // Cache is full. Eject a node before we insert the new one
-    //std::cout << lruIndexNodeQueue.size() << std::endl;
-    if(lruIndexNodeQueue.size() == indexNodeCapacity) {
-        ejectLeastRecentlyUsedIndexNode();
-    }
-
-    // When the node is inserted, it is by definition the most recently used one
-    // We therefore put it in the front of the queue right away
-    lruIndexNodeQueue.emplace_front(cachedNode);
-    indexNodeMap[indexNodeID] = lruIndexNodeQueue.begin();
-}
-
-void IndexFileCache::insertBucketNode(IndexNodeID bucketNodeID, BucketNode *node) {
-    CachedBucketNode cachedNode = {false, nullptr};
-    cachedNode.node = node;
-
-    if(lruBucketNodeQueue.size() == bucketNodeCapacity) {
-        ejectLeastRecentlyUsedBucketNode();
-    }
-
-    lruBucketNodeQueue.emplace_front(cachedNode);
-    bucketNodeMap[bucketNodeID] = lruBucketNodeQueue.begin();
-}
 
 // The cache ends up mostly ejecting nodes. Reuse is not all that common.
 // We therefore select the node that has been the least recently used, eject it,

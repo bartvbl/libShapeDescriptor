@@ -1,19 +1,19 @@
 #pragma once
 
-const bool INDEX_LINK_INDEX_NODE = false;
-const bool INDEX_LINK_BUCKET_NODE = true;
-
 #include <vector>
-#include <spinImage/cpu/types/BoolVector.h>
+#include <spinImage/cpu/index/types/NodeLinkArray.h>
 #include "Index.h"
+
+// The IndexNode serves as the "intermediate level" node used for culling away other branches of the index
+// It does not contain any images, and its interpretation depends on its location/level in the index overall
+// This massively reduces its memory footprint and complexity of interpretation.
 
 struct IndexNode {
     const IndexNodeID id;
 
     std::array<IndexNodeID, 256> links = { 0xFFFFFFFFFFFFFFFFU };
 
-    // 1 bit per image/link. 0 = index node, 1 = bucket node
-    BoolVector linkTypes;
+    NodeLinkArray<256> linkTypes;
 
     IndexNode(IndexNodeID id) : id(id) {}
 };

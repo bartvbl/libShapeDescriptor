@@ -1,7 +1,13 @@
 #include <fstream>
 #include <cassert>
 #include "fileutils.h"
-#include <zstd.h>
+#include <fast-lzma2.h>
+
+const int LZMA2_COMPRESSION_LEVEL = 9;
+
+static FL2_CCtx* compressionContext = FL2_createCCtxMt(12);
+static FL2_DCtx* decompressionContext = FL2_createDCtxMt(12);
+
 
 std::vector<std::experimental::filesystem::path> SpinImage::utilities::listDirectory(const std::string& directory) {
     std::vector<std::experimental::filesystem::path> foundFiles;
@@ -31,7 +37,10 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
 
     decompressStream.read(compressedBuffer, compressedBufferSize);
 
-    //snappy::RawUncompress(compressedBuffer, compressedBufferSize, decompressedBuffer);
+    FL2_decompressDCtx(
+            decompressionContext,
+            (void*) decompressedBuffer, decompressedBufferSize,
+            (void*) compressedBufferSize, compressedBufferSize);
 
     delete[] compressedBuffer;
 
@@ -41,9 +50,14 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
 void SpinImage::utilities::writeCompressedFile(const char *buffer, size_t bufferSize, const std::experimental::filesystem::path &archiveFile) {
     std::experimental::filesystem::create_directories(archiveFile.parent_path());
 
-    //char* compressedBuffer = new char[snappy::MaxCompressedLength(bufferSize)];
-    unsigned long compressedBufferSize = 0;
-    //snappy::RawCompress(buffer, bufferSize, compressedBuffer, &compressedBufferSize);
+    const size_t maxCompressedBufferSize = FL2_compressBound(bufferSize);
+    char* compressedBuffer = new char[maxCompressedBufferSize];
+    unsigned long compressedBufferSize =
+            FL2_compressCCtx(
+                    compressionContext,
+                    (void*) compressedBuffer, maxCompressedBufferSize,
+                    (void*) buffer, bufferSize,
+                    LZMA2_COMPRESSION_LEVEL);
 
     const char header[5] = "CDXF";
 
@@ -52,9 +66,9 @@ void SpinImage::utilities::writeCompressedFile(const char *buffer, size_t buffer
     outStream.write(header, 5 * sizeof(char));
     outStream.write((char*) &bufferSize, sizeof(size_t));
     outStream.write((char*) &compressedBufferSize, sizeof(size_t));
-    //outStream.write(compressedBuffer, compressedBufferSize);
+    outStream.write(compressedBuffer, compressedBufferSize);
 
     outStream.close();
 
-    //delete[] compressedBuffer;
+    delete[] compressedBuffer;
 }

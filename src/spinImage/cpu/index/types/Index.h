@@ -19,7 +19,6 @@ static_assert(spinImageWidthPixels == 64, "The Index part of the library assumes
 
 
 #include "IndexNode.h"
-#include "IndexRootNode.h"
 
 
 // The Index struct is the struct that is shared around an application that wants to use the 'database'.
@@ -33,20 +32,15 @@ struct Index {
     // Otherwise, the contents of the entire vector would be copied, which can be quite large.
     const std::vector<std::experimental::filesystem::path>* indexedFileList;
 
-    // Also a pointer for avoiding unintended copying of large amounts of data
-    const IndexRootNode* rootNode;
-
     const IndexNodeID indexNodeCount;
     const IndexNodeID bucketNodeCount;
 
     Index(std::experimental::filesystem::path indexedDirectory,
           std::vector<std::experimental::filesystem::path>* indexedFiles,
-          IndexRootNode* rootNode,
           IndexNodeID indexNodeCount,
           IndexNodeID bucketNodeCount) :
             indexDirectory(indexedDirectory),
             indexedFileList(indexedFiles),
-            rootNode(rootNode),
             indexNodeCount(indexNodeCount),
             bucketNodeCount(bucketNodeCount) { }
 };

@@ -44,6 +44,8 @@ protected:
 
     void ejectLeastRecentlyUsedItem();
 
+    // What needs to happen when a cache miss or eviction occurs depends on the specific use case
+    // Since this class is a general implementation, a subclass needs to implement this functionality.
     virtual void eject(CachedItemType* item) = 0;
     virtual CachedItemType* load(size_t itemID) = 0;
 
@@ -63,15 +65,10 @@ public:
 class IndexNodeCache : Cache<IndexNode> {
 private:
     const std::experimental::filesystem::path indexRoot;
-
-    // Utility function for creating new nodes
-    IndexNodeID createLink(IndexNodeID parent, const unsigned int* mipmapImage, unsigned int parentLevel, unsigned int LINK_TYPE);
 public:
     IndexNodeCache(const std::experimental::filesystem::path indexRootPath, const unsigned int cacheCapacity) : {
 
     }
-
-    const IndexNode* fetchIndexNode(IndexNodeID indexNodeID);
     IndexNodeID createIndexNode(IndexNodeID parentIndexNodeID, const unsigned int* mipmapImage, unsigned int level);
     void splitNode(IndexNodeID indexNodeID);
 };

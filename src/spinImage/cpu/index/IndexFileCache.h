@@ -23,10 +23,10 @@ template<typename CachedItemType> class Cache {
 private:
     // Nodes are evicted on a Least Recently Used basis
     // This is most efficiently done by using a doubly linked list
-    std::list<CachedItemType> lruItemQueue;
+    std::list<CachedItem<CachedItemType>> lruItemQueue;
 
     // These hash tables allow efficient fetching of nodes from the cache
-    std::unordered_map<size_t, typename std::list<CachedItemType>::iterator> randomAccessMap;
+    std::unordered_map<size_t, typename std::list<CachedItem<CachedItemType>>::iterator> randomAccessMap;
 
     const size_t itemCapacity;
 protected:
@@ -45,7 +45,7 @@ protected:
     void ejectLeastRecentlyUsedItem();
 
     virtual void eject(CachedItemType* item) = 0;
-    virtual void load(size_t itemID) = 0;
+    virtual CachedItemType* load(size_t itemID) = 0;
 
     explicit Cache(const size_t capacity) : itemCapacity(capacity) {
         lruItemQueue.resize(capacity);
@@ -63,7 +63,6 @@ public:
 class IndexNodeCache : Cache<IndexNode> {
 private:
     const std::experimental::filesystem::path indexRoot;
-    const unsigned int fileGroupSize;
 
     // Utility function for creating new nodes
     IndexNodeID createLink(IndexNodeID parent, const unsigned int* mipmapImage, unsigned int parentLevel, unsigned int LINK_TYPE);
@@ -80,7 +79,6 @@ public:
 class LeafNodeCache : Cache<LeafNode> {
 private:
     const std::experimental::filesystem::path indexRoot;
-    const unsigned int fileGroupSize;
 };
 
 class BucketNodeCache : Cache<BucketNode> {

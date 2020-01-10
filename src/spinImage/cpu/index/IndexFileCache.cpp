@@ -4,7 +4,7 @@
 template<typename CachedItemType> CachedItemType *Cache<CachedItemType>::getItemByID(size_t itemID) {
     typename std::unordered_map<IndexNodeID, typename std::list<CachedItem<CachedItemType>>::iterator>::iterator
         it = randomAccessMap.find(itemID);
-    CachedItem<CachedItemType>* cachedItemEntry = nullptr;
+    CachedItemType* cachedItemEntry = nullptr;
 
     if(it != randomAccessMap.end())
     {
@@ -17,7 +17,7 @@ template<typename CachedItemType> CachedItemType *Cache<CachedItemType>::getItem
         insertItem(itemID, cachedItemEntry);
     }
 
-    return cachedItemEntry->item;
+    return cachedItemEntry;
 }
 
 template<typename CachedItemType> void Cache<CachedItemType>::flush() {
@@ -70,10 +70,10 @@ template<typename CachedItemType> void Cache<CachedItemType>::ejectLeastRecently
     delete leastRecentlyUsedItem.item;
 }
 
-
-
-
-
+template<typename CachedItemType>
+const CachedItemType *Cache<CachedItemType>::fetch(size_t itemID) {
+    return getItemByID(itemID);
+}
 
 
 IndexNodeID IndexFileCache::createLink(const IndexNodeID parent, const unsigned int* mipmapImage, const unsigned int parentLevel, const unsigned int LINK_TYPE) {

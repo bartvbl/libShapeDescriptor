@@ -18,7 +18,7 @@ set(CUDA_NVCC_FLAGS -arch=sm_61 -gencode arch=compute_61,code=\"sm_61,compute_61
 
 add_subdirectory(lib/ziplib ${CMAKE_CURRENT_BINARY_DIR}/ziplib)
 
-add_subdirectory(lib/zstd/build/cmake ${CMAKE_CURRENT_BINARY_DIR}/zstd)
+add_subdirectory(lib/fast-lzma2 ${CMAKE_CURRENT_BINARY_DIR}/fast-lzma2)
 
 include_directories (
         src/
@@ -27,6 +27,7 @@ include_directories (
         lib/ziplib/Source/
         lib/lodepng/
         lib/arrrgh/
+        lib/fast-lzma2/src/
         ${CUDA_INCLUDE_DIRS}
 )
 

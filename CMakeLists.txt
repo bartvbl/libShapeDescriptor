@@ -18,7 +18,7 @@ set(CUDA_NVCC_FLAGS -arch=sm_61 -gencode arch=compute_61,code=\"sm_61,compute_61
 
 add_subdirectory(lib/ziplib ${CMAKE_CURRENT_BINARY_DIR}/ziplib)
 
-
+add_subdirectory(lib/zstd/build/cmake ${CMAKE_CURRENT_BINARY_DIR}/zstd)
 
 include_directories (
         src/

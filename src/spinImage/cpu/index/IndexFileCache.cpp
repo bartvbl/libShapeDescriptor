@@ -61,10 +61,10 @@ template<typename CachedItemType> void Cache<CachedItemType>::ejectLeastRecently
     CachedItem<CachedItemType> leastRecentlyUsedItem = lruItemQueue.back();
 
     if(leastRecentlyUsedItem.isDirty) {
+        eject(leastRecentlyUsedItem.item);
+
         lruItemQueue.erase(leastRecentlyUsedItem);
         randomAccessMap.erase(leastRecentlyUsedItem);
-
-        eject(leastRecentlyUsedItem);
     }
 
     delete leastRecentlyUsedItem.item;
@@ -80,55 +80,40 @@ IndexNodeID IndexFileCache::createLink(const IndexNodeID parent, const unsigned 
     IndexNodeID createdNodeID = nextNodeID;
     nextNodeID++;
 
-    if(parentLevel == 0) {
-        unsigned short mipmap = (unsigned short) *mipmapImage;
-        assert(this->rootNode.links[mipmap] == ROOT_NODE_LINK_DISABLED);
+    IndexNode* parentNode = fetch(parent);
+    const unsigned int arraySizes[4] = {0, 2, 8, 32};
+    unsigned int imageArrayLength = arraySizes[parentLevel];
 
-        this->rootNode.links[mipmap] = createdNodeID;
-        this->rootNode.linkTypes.set(mipmap, LINK_TYPE);
-    } else {
-        IndexNode* parentNode = getIndexNode(parent);
-        const unsigned int arraySizes[4] = {0, 2, 8, 32};
-        unsigned int imageArrayLength = arraySizes[parentLevel];
+    parentNode->images.insert(parentNode->images.end(), mipmapImage, mipmapImage + imageArrayLength);
+    parentNode->linkTypes.push_back(LINK_TYPE);
+    parentNode->links.emplace_back(createdNodeID);
 
-        parentNode->images.insert(parentNode->images.end(), mipmapImage, mipmapImage + imageArrayLength);
-        parentNode->linkTypes.push_back(LINK_TYPE);
-        parentNode->links.emplace_back(createdNodeID);
-    }
 
     return createdNodeID;
 }
 
-IndexNodeID IndexFileCache::createBucketNode(const IndexNodeID parent, const unsigned int* mipmapImage, const unsigned int parentLevel) {
-    IndexNodeID newBucketNodeID = createLink(parent, mipmapImage, parentLevel, INDEX_LINK_BUCKET_NODE);
+IndexNodeID BucketNodeCache::createBucketNode(const IndexNodeID parent, const unsigned int* mipmapImage, const unsigned int parentLevel) {
+    IndexNodeID newBucketNodeID = createLink(parent, mipmapImage, parentLevel, 0xFFFFFFFFU);
     BucketNode* bucketNode = new BucketNode(newBucketNodeID);
-    insertBucketNode(newBucketNodeID, bucketNode);
-    markBucketNodeDirty(newBucketNodeID);
+    insertItem(newBucketNodeID, bucketNode);
+    markItemDirty(newBucketNodeID);
 
     return newBucketNodeID;
 }
 
-IndexNodeID IndexFileCache::createIndexNode(const IndexNodeID parent, const unsigned int *mipmapImage, const unsigned int parentLevel) {
-    IndexNodeID newIndexNodeID = createLink(parent, mipmapImage, parentLevel, INDEX_LINK_INDEX_NODE);
+IndexNodeID IndexNodeCache::createIndexNode(const IndexNodeID parent, const unsigned int *mipmapImage, const unsigned int parentLevel) {
+    IndexNodeID newIndexNodeID = createLink(parent, mipmapImage, parentLevel, 0xFFFFFFFFU);
     IndexNode* indexNode = new IndexNode(newIndexNodeID);
-    insertIndexNode(newIndexNodeID, indexNode);
-    markIndexNodeDirty(newIndexNodeID);
+    insertItem(newIndexNodeID, indexNode);
+    markItemDirty(newIndexNodeID);
 
     return newIndexNodeID;
 }
 
 
-void IndexFileCache::insertImageIntoBucketNode(IndexNodeID bucketNodeID, IndexEntry entry) {
-    BucketNode* bucketNode = getBucketNode(bucketNodeID);
+void BucketNodeCache::insertImageIntoBucketNode(IndexNodeID bucketNodeID, IndexEntry entry) {
+    BucketNode* bucketNode = getItemByID(bucketNodeID);
     bucketNode->images.emplace_back(entry);
-    markBucketNodeDirty(bucketNodeID);
-    touchBucketNode(bucketNodeID);
-}
-
-const IndexNode *IndexFileCache::fetchIndexNode(IndexNodeID indexNodeID) {
-    return getIndexNode(indexNodeID);
-}
-
-const BucketNode *IndexFileCache::fetchBucketNode(IndexNodeID bucketNodeID) {
-    return getBucketNode(bucketNodeID);
+    markItemDirty(bucketNodeID);
+    touchItem(bucketNodeID);
 }

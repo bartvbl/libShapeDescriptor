@@ -75,7 +75,7 @@ const CachedItemType *Cache<CachedItemType>::fetch(size_t itemID) {
     return getItemByID(itemID);
 }
 
-
+/*
 IndexNodeID IndexFileCache::createLink(const IndexNodeID parent, const unsigned int* mipmapImage, const unsigned int parentLevel, const unsigned int LINK_TYPE) {
     IndexNodeID createdNodeID = nextNodeID;
     nextNodeID++;
@@ -117,3 +117,4 @@ void BucketNodeCache::insertImageIntoBucketNode(IndexNodeID bucketNodeID, IndexE
     markItemDirty(bucketNodeID);
     touchItem(bucketNodeID);
 }
+ */

@@ -19,7 +19,7 @@ bool isImagePairEquivalent(const unsigned int* image1, const unsigned int* image
     }
     return true;
 }
-
+/*
 IndexNodeID processLink(IndexFileCache &cache, const unsigned int nextLink, const unsigned int* mipmapImage, const unsigned int level) {
     const IndexNode* indexNode = cache.fetchIndexNode(nextLink);
     for(int image = 0; image < indexNode->links.size(); image++) {
@@ -41,13 +41,13 @@ IndexNodeID processBucketLink(IndexFileCache &cache, const unsigned int nextLink
     }
     return cache.createBucketNode(nextLink, mipmapImage, level);
 }
-
+*/
 Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string indexDumpDirectory) {
     std::vector<std::experimental::filesystem::path> filesInDirectory = SpinImage::utilities::listDirectory(quicciImageDumpDirectory);
     std::experimental::filesystem::path indexDirectory(indexDumpDirectory);
 
     // The index node capacity is set quite high to allow most of the index to be in memory during construction
-    IndexFileCache cache(indexDirectory, 65536 * 32, 65536 * 24, 50000);
+    //IndexFileCache cache(indexDirectory, 65536 * 32, 65536 * 24, 50000);
 
     std::vector<std::experimental::filesystem::path>* indexedFiles = new std::vector<std::experimental::filesystem::path>();
     indexedFiles->reserve(5000);
@@ -85,14 +85,12 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
 
     // Ensuring all changes are written to disk
-    cache.flush();
+    //cache.flush();
 
     // Copying the data into data structures that persist after the function exits
-    IndexRootNode* duplicatedRootNode = new IndexRootNode();
-    *duplicatedRootNode = cache.rootNode;
 
     // Final construction of the index
-    Index index(indexDirectory, indexedFiles, duplicatedRootNode, 0, 0);
+    Index index(indexDirectory, indexedFiles, 0, 0);
 
     return index;
 }

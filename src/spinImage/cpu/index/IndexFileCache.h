@@ -66,7 +66,8 @@ class IndexNodeCache : Cache<IndexNode> {
 private:
     const std::experimental::filesystem::path indexRoot;
 public:
-    IndexNodeCache(const std::experimental::filesystem::path indexRootPath, const unsigned int cacheCapacity) : {
+    IndexNodeCache(size_t capacity, const std::experimental::filesystem::path indexRootPath,
+                   const unsigned int cacheCapacity) : Cache(capacity) {
 
     }
     IndexNodeID createIndexNode(IndexNodeID parentIndexNodeID, const unsigned int* mipmapImage, unsigned int level);

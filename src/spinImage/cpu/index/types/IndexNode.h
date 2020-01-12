@@ -11,9 +11,8 @@
 struct IndexNode {
     const IndexNodeID id;
 
-    std::array<IndexNodeID, 256> links = { 0xFFFFFFFFFFFFFFFFU };
-
-    NodeLinkArray<256> linkTypes;
+    BoolArray<256> nodeExists;
+    BoolArray<256> linkTypes;
 
     IndexNode(IndexNodeID id) : id(id) {}
 };

@@ -12,7 +12,7 @@
 // relative to the amount of data it costs to store them on disk and in memory
 typedef unsigned int IndexFileID;
 typedef size_t IndexNodeID;
-typedef size_t IndexImageID;
+typedef unsigned int IndexImageID;
 
 // Whole index section is built around images of size 64x64!
 static_assert(spinImageWidthPixels == 64, "The Index part of the library assumes images are 64x64. Support for alternate image sizes must be added explicitly!");

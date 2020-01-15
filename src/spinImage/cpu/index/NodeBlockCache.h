@@ -18,11 +18,15 @@ static IndexNodeID nextNodeID = 1;
 class NodeBlockCache : Cache<std::string, NodeBlock> {
 private:
     const std::experimental::filesystem::path indexRoot;
+
+    void eject(NodeBlock* item) override;
+    NodeBlock* load(std::string &itemID) override;
 public:
-    NodeBlockCache(size_t capacity, const std::experimental::filesystem::path indexRootPath,
-                   const unsigned int cacheCapacity) : Cache(capacity) {
+    NodeBlockCache(size_t capacity, const std::experimental::filesystem::path indexRootPath) : Cache(capacity) {
 
     }
     IndexNodeID createIndexNode(IndexNodeID parentIndexNodeID, const unsigned int* mipmapImage, unsigned int level);
     void splitNode(IndexNodeID indexNodeID);
+
+
 };

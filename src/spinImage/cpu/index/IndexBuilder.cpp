@@ -1,12 +1,11 @@
 #include <spinImage/utilities/fileutils.h>
 #include <iostream>
-#include <fstream>
 #include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/utilities/readers/quicciReader.h>
 #include <spinImage/cpu/index/types/MipmapStack.h>
 #include <bitset>
 #include "IndexBuilder.h"
-#include "IndexFileCache.h"
+#include "NodeBlockCache.h"
 
 
 const unsigned int uintsPerMipmapImageLevel[4] = {0, 2, 8, 32};
@@ -49,11 +48,13 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     // The index node capacity is set quite high to allow most of the index to be in memory during construction
     //IndexFileCache cache(indexDirectory, 65536 * 32, 65536 * 24, 50000);
 
-    std::vector<std::experimental::filesystem::path>* indexedFiles = new std::vector<std::experimental::filesystem::path>();
-    indexedFiles->reserve(5000);
+    std::vector<std::experimental::filesystem::path>* indexedFiles =
+            new std::vector<std::experimental::filesystem::path>();
+    indexedFiles->reserve(filesInDirectory.size());
 
     IntermediateNode rootNode;
 
+    NodeBlockCache cache(5000, indexDirectory);
 
 
     const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
@@ -87,9 +88,7 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
 
     // Ensuring all changes are written to disk
-    //cache.flush();
-
-    // Copying the data into data structures that persist after the function exits
+    cache.flush();
 
     // Final construction of the index
     Index index(indexDirectory, indexedFiles, rootNode, 0, 0);

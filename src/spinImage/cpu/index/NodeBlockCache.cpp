@@ -1,5 +1,5 @@
 #include <cassert>
-#include "IndexFileCache.h"
+#include "NodeBlockCache.h"
 
 
 /*
@@ -45,3 +45,10 @@ void BucketNodeCache::insertImageIntoBucketNode(IndexNodeID bucketNodeID, IndexE
     touchItem(bucketNodeID);
 }
  */
+void NodeBlockCache::eject(NodeBlock *item) {
+
+}
+
+NodeBlock *NodeBlockCache::load(std::string &itemID) {
+    return nullptr;
+}

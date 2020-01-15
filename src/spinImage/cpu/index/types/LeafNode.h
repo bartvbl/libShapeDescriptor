@@ -9,8 +9,6 @@
 struct LeafNode {
     const IndexNodeID id;
 
-    unsigned short length = 0;
-
     // Reshuffling/splitting a leaf node requires information present in
     // the mipmaps of an input image. As such we need to keep images around.
     // For space efficiency, we only keep the highest level mipmap.

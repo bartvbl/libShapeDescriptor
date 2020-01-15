@@ -7,7 +7,7 @@ IndexNodeID IndexFileCache::createLink(const IndexNodeID parent, const unsigned 
     IndexNodeID createdNodeID = nextNodeID;
     nextNodeID++;
 
-    IndexNode* parentNode = fetch(parent);
+    IntermediateNode* parentNode = fetch(parent);
     const unsigned int arraySizes[4] = {0, 2, 8, 32};
     unsigned int imageArrayLength = arraySizes[parentLevel];
 
@@ -30,7 +30,7 @@ IndexNodeID BucketNodeCache::createBucketNode(const IndexNodeID parent, const un
 
 IndexNodeID IndexNodeCache::createIndexNode(const IndexNodeID parent, const unsigned int *mipmapImage, const unsigned int parentLevel) {
     IndexNodeID newIndexNodeID = createLink(parent, mipmapImage, parentLevel, 0xFFFFFFFFU);
-    IndexNode* indexNode = new IndexNode(newIndexNodeID);
+    IntermediateNode* indexNode = new IntermediateNode(newIndexNodeID);
     insertItem(newIndexNodeID, indexNode);
     markItemDirty(newIndexNodeID);
 

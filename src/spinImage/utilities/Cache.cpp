@@ -31,7 +31,7 @@ void Cache<IDType, CachedItemType>::flush() {
 template<typename IDType, typename CachedItemType>
 void Cache<IDType, CachedItemType>::touchItem(IDType &itemID) {
     // Move the desired node to the front of the LRU queue
-    lruItemQueue.splice(lruItemQueue.begin(), lruItemQueue, randomAccessMap[IDType]);
+    lruItemQueue.splice(lruItemQueue.begin(), lruItemQueue, randomAccessMap[itemID]);
 }
 
 template<typename IDType, typename CachedItemType>

@@ -5,7 +5,11 @@
 
 template<size_t length> class BoolArray {
 private:
-    unsigned int arrayContents[(length / 32) + (length % 32 > 0 ? 1 : 0)];
+    static constexpr size_t computeArrayLength() {
+        return (length / 32) + (length % 32 > 0 ? 1 : 0);
+    }
+
+    unsigned int arrayContents[computeArrayLength()];
 
 public:
     class BoolReference {
@@ -58,4 +62,12 @@ public:
         return BoolReference(arrayContents + (index / 32), index % 32);
     }
 
+
+    BoolArray(bool initialValue) {
+        for(size_t i = 0; i < computeArrayLength(); i++) {
+            arrayContents[i] = initialValue ? 0xFFFFFFFF : 0x00000000;
+        }
+    }
+
+    BoolArray() {}
 };

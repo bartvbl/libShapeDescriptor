@@ -21,7 +21,7 @@ bool isImagePairEquivalent(const unsigned int* image1, const unsigned int* image
 }
 /*
 IndexNodeID processLink(IndexFileCache &cache, const unsigned int nextLink, const unsigned int* mipmapImage, const unsigned int level) {
-    const IndexNode* indexNode = cache.fetchIndexNode(nextLink);
+    const IntermediateNode* indexNode = cache.fetchIndexNode(nextLink);
     for(int image = 0; image < indexNode->links.size(); image++) {
         const unsigned int* indexNodeImage = indexNode->images.data() + uintsPerMipmapImageLevel[level] * image;
         if(isImagePairEquivalent(indexNodeImage, mipmapImage, level)) {
@@ -32,7 +32,7 @@ IndexNodeID processLink(IndexFileCache &cache, const unsigned int nextLink, cons
 }
 
 IndexNodeID processBucketLink(IndexFileCache &cache, const unsigned int nextLink, const unsigned int* mipmapImage, const unsigned int level) {
-    const IndexNode* indexNode = cache.fetchIndexNode(nextLink);
+    const IntermediateNode* indexNode = cache.fetchIndexNode(nextLink);
     for(int image = 0; image < indexNode->links.size(); image++) {
         const unsigned int* indexNodeImage = indexNode->images.data() + uintsPerMipmapImageLevel[level] * image;
         if(isImagePairEquivalent(indexNodeImage, mipmapImage, level)) {
@@ -51,6 +51,8 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
     std::vector<std::experimental::filesystem::path>* indexedFiles = new std::vector<std::experimental::filesystem::path>();
     indexedFiles->reserve(5000);
+
+    IntermediateNode rootNode;
 
 
 
@@ -90,7 +92,7 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     // Copying the data into data structures that persist after the function exits
 
     // Final construction of the index
-    Index index(indexDirectory, indexedFiles, 0, 0);
+    Index index(indexDirectory, indexedFiles, rootNode, 0, 0);
 
     return index;
 }

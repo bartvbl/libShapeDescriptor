@@ -15,10 +15,10 @@
 static IndexNodeID nextNodeID = 1;
 
 
-class NodeBlockCache : Cache<std::string, NodeBlock> {
+class NodeBlockCache : public Cache<std::string, NodeBlock> {
 private:
     const std::experimental::filesystem::path indexRoot;
-
+protected:
     void eject(NodeBlock* item) override;
     NodeBlock* load(std::string &itemID) override;
 public:

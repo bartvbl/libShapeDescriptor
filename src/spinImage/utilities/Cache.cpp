@@ -1,8 +1,8 @@
 #include "Cache.h"
 
-
-template<typename CachedItemType> CachedItemType *Cache<CachedItemType>::getItemByID(size_t itemID) {
-    typename std::unordered_map<size_t, typename std::list<CachedItem<CachedItemType>>::iterator>::iterator
+template<typename IDType, typename CachedItemType>
+CachedItemType *Cache<IDType, CachedItemType>::getItemByID(IDType &itemID) {
+    typename std::unordered_map<IDType, typename std::list<CachedItem<CachedItemType>>::iterator>::iterator
             it = randomAccessMap.find(itemID);
     CachedItemType* cachedItemEntry = nullptr;
 
@@ -20,19 +20,22 @@ template<typename CachedItemType> CachedItemType *Cache<CachedItemType>::getItem
     return cachedItemEntry;
 }
 
-template<typename CachedItemType> void Cache<CachedItemType>::flush() {
+template<typename IDType, typename CachedItemType>
+void Cache<IDType, CachedItemType>::flush() {
     // Perhaps not the most efficient, but this method will not be called often anyway
     while(!randomAccessMap.empty()) {
         ejectLeastRecentlyUsedItem();
     }
 }
 
-template<typename CachedItemType> void Cache<CachedItemType>::touchItem(size_t itemID) {
+template<typename IDType, typename CachedItemType>
+void Cache<IDType, CachedItemType>::touchItem(IDType &itemID) {
     // Move the desired node to the front of the LRU queue
-    lruItemQueue.splice(lruItemQueue.begin(), lruItemQueue, randomAccessMap[itemID]);
+    lruItemQueue.splice(lruItemQueue.begin(), lruItemQueue, randomAccessMap[IDType]);
 }
 
-template<typename CachedItemType> void Cache<CachedItemType>::insertItem(size_t indexNodeID, CachedItemType* item) {
+template<typename IDType, typename CachedItemType>
+void Cache<IDType, CachedItemType>::insertItem(IDType &itemID, CachedItemType* item) {
     CachedItem<CachedItemType> cachedItem = {false, nullptr};
     cachedItem.item = item;
 
@@ -44,11 +47,12 @@ template<typename CachedItemType> void Cache<CachedItemType>::insertItem(size_t 
     // When the node is inserted, it is by definition the most recently used one
     // We therefore put it in the front of the queue right away
     lruItemQueue.emplace_front(cachedItem);
-    randomAccessMap[indexNodeID] = lruItemQueue.begin();
+    randomAccessMap[itemID] = lruItemQueue.begin();
 }
 
-template<typename CachedItemType> void Cache<CachedItemType>::markItemDirty(size_t itemID) {
-    typename std::unordered_map<size_t, typename std::list<CachedItem<CachedItemType>>::iterator>::iterator it = randomAccessMap.find(itemID);
+template<typename IDType, typename CachedItemType>
+void Cache<IDType, CachedItemType>::markItemDirty(IDType &itemID) {
+    typename std::unordered_map<IDType, typename std::list<CachedItem<CachedItemType>>::iterator>::iterator it = randomAccessMap.find(itemID);
     it->second->isDirty = true;
 }
 
@@ -57,7 +61,8 @@ template<typename CachedItemType> void Cache<CachedItemType>::markItemDirty(size
 // along with all other nodes that will end up in the same dump file.
 // This will cause some often used nodes to be ejected, but should mostly reduce the
 // number of times a single file is rewritten, thereby improving outflow speed of the cache.
-template<typename CachedItemType> void Cache<CachedItemType>::ejectLeastRecentlyUsedItem() {
+template<typename IDType, typename CachedItemType>
+void Cache<IDType, CachedItemType>::ejectLeastRecentlyUsedItem() {
     CachedItem<CachedItemType> leastRecentlyUsedItem = lruItemQueue.back();
 
     if(leastRecentlyUsedItem.isDirty) {
@@ -70,7 +75,7 @@ template<typename CachedItemType> void Cache<CachedItemType>::ejectLeastRecently
     delete leastRecentlyUsedItem.item;
 }
 
-template<typename CachedItemType>
-const CachedItemType *Cache<CachedItemType>::fetch(size_t itemID) {
+template<typename IDType, typename CachedItemType>
+const CachedItemType *Cache<IDType, CachedItemType>::fetch(IDType &itemID) {
     return getItemByID(itemID);
 }

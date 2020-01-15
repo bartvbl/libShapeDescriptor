@@ -63,55 +63,6 @@ void index::io::writeIndexNodes(const std::experimental::filesystem::path& index
     //ZipFile::SaveAndClose(archive, indexFile.string());
 }
 
-BucketNode *index::io::readBucketNode(const std::experimental::filesystem::path& indexRootDirectory, IndexNodeID nodeID, const unsigned int fileGroupSize) {
-    BucketNode* bucketNode = new BucketNode(nodeID);
-
-    std::experimental::filesystem::path indexFilePath = indexRootDirectory / "buckets" / (formatFileIndex(nodeID, fileGroupSize) + ".bkt");
-
-    std::array<char, 5> headerTitle = {0, 0, 0, 0, 0};
-    IndexNodeID headerNodeID;
-    unsigned long headerIndexEntryCount;
-
-    assert(std::string(headerTitle.data()) == "BCKT");
-
-    bucketNode->images.resize(headerIndexEntryCount);
-
-    return bucketNode;
-}
-
-void index::io::writeBucketNodes(const std::experimental::filesystem::path& indexRootDirectory, const std::vector<BucketNode *> &nodes, const unsigned int fileGroupSize) {
-    std::experimental::filesystem::path bucketDirectory = indexRootDirectory / "buckets";
-    std::experimental::filesystem::create_directories(bucketDirectory);
-
-    std::experimental::filesystem::path bucketFile = bucketDirectory / (formatFileIndex(nodes.at(0)->id, fileGroupSize) + ".bkt");
-
-
-    for(unsigned int entryIndex = 0; entryIndex < nodes.size(); entryIndex++) {
-
-        std::basic_stringstream<char> outStream;
-
-        const std::string filename = "bucket_node_" + formatEntryIndex(nodes.at(entryIndex)->id, fileGroupSize) + ".dat";
-
-        BucketNode* node = nodes.at(entryIndex);
-
-        unsigned long imageSize = node->images.size();
-
-        outStream << "BCKT";
-        outStream.write((char *) &node->id, sizeof(IndexNodeID));
-        outStream.write((char *) &imageSize, sizeof(unsigned long));
-        outStream.write((char *) node->images.data(), imageSize * sizeof(IndexEntry));
-
-        //auto entry = archive->CreateEntry(filename);
-        //entry->UseDataDescriptor(); // read stream only once
-        //entry->SetCompressionStream(outStream,
-        //                            DeflateMethod::Create(),
-        //                            ZipArchiveEntry::CompressionMode::Immediate);
-    }
-}
-
-
-
-
 
 Index index::io::loadIndex(std::experimental::filesystem::path rootFile) {
     return Index(std::experimental::filesystem::path(), nullptr, 0, 0);

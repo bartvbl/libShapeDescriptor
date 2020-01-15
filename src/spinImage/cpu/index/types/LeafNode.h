@@ -15,8 +15,8 @@ struct LeafNode {
     // the mipmaps of an input image. As such we need to keep images around.
     // For space efficiency, we only keep the highest level mipmap.
     // The others can be computed based on this one.
-    std::array<MipMapLevel3, 2048> imageArray;
-    std::array<IndexEntry, 2048> entries;
+    std::vector<MipMapLevel3> imageArray;
+    std::vector<IndexEntry> entries;
 
     LeafNode(IndexNodeID id) : id(id) {}
 };

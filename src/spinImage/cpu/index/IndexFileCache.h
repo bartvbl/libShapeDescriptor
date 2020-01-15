@@ -3,7 +3,6 @@
 #include <experimental/filesystem>
 #include <utility>
 #include <spinImage/cpu/index/types/IndexNode.h>
-#include <spinImage/cpu/index/types/BucketNode.h>
 #include <list>
 #include <unordered_map>
 #include <spinImage/cpu/index/types/LeafNode.h>
@@ -30,14 +29,4 @@ public:
 class LeafNodeCache : Cache<LeafNode> {
 private:
     const std::experimental::filesystem::path indexRoot;
-};
-
-class BucketNodeCache : Cache<BucketNode> {
-private:
-    const std::experimental::filesystem::path indexRoot;
-    const unsigned int fileGroupSize;
-public:
-    const BucketNode* fetchBucketNode(IndexNodeID bucketNodeID);
-    IndexNodeID createBucketNode(IndexNodeID parentIndexNodeID, const unsigned int* mipmapImage, unsigned int level);
-    void insertImageIntoBucketNode(IndexNodeID bucketNodeID, IndexEntry entry);
 };

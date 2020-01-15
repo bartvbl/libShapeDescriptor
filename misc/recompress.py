@@ -13,7 +13,7 @@ allfiles = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(dire
 processlist = []
 
 for fileindex, file in enumerate(allfiles):
-	if fileindex < 26000:
+	if fileindex < 5700:
 		continue
 	print("Started", fileindex+1, '/', len(allfiles), ':', file)
 	infile = os.path.join(directory, file)
@@ -28,5 +28,6 @@ for fileindex, file in enumerate(allfiles):
 				processEnded = True
 		if not processEnded:
 			time.sleep(0.1)
-		
-	
+
+for proc in processlist:
+	proc.wait()

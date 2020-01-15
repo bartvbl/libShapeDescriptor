@@ -15,3 +15,12 @@ std::string formatEntryIndex(IndexNodeID nodeID, const unsigned int nodes_per_fi
     ss << std::setw(10) << std::setfill('0') << nodeID;
     return ss.str();
 }
+
+NodeBlock *index::io::loadNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory) {
+    return nullptr;
+}
+
+void index::io::writeNodeBlock(const NodeBlock *block, const std::experimental::filesystem::path &indexRootDirectory) {
+
+}
+

@@ -45,10 +45,10 @@ void BucketNodeCache::insertImageIntoBucketNode(IndexNodeID bucketNodeID, IndexE
     touchItem(bucketNodeID);
 }
  */
-void NodeBlockCache::eject(NodeBlock *item) {
-
+void NodeBlockCache::eject(NodeBlock *block) {
+    index::io::writeNodeBlock(block, indexRoot);
 }
 
 NodeBlock *NodeBlockCache::load(std::string &itemID) {
-    return nullptr;
+    return index::io::loadNodeBlock(itemID, indexRoot);
 }

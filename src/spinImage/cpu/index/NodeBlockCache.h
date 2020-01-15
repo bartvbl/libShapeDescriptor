@@ -22,9 +22,7 @@ protected:
     void eject(NodeBlock* item) override;
     NodeBlock* load(std::string &itemID) override;
 public:
-    NodeBlockCache(size_t capacity, const std::experimental::filesystem::path indexRootPath) : Cache(capacity) {
-
-    }
+    NodeBlockCache(size_t capacity, const std::experimental::filesystem::path &indexRootPath) : Cache(capacity) {}
     IndexNodeID createIndexNode(IndexNodeID parentIndexNodeID, const unsigned int* mipmapImage, unsigned int level);
     void splitNode(IndexNodeID indexNodeID);
 

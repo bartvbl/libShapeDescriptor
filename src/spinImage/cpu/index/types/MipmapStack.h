@@ -134,38 +134,9 @@ struct MipMapLevel1 {
     MipMapLevel1(MipMapLevel2 higherLevelImage) : image(computeMipmapLevel1(higherLevelImage)) {}
 };
 
-struct MipMapLevel0 {
-    const unsigned int image;
-
-    unsigned int computeImage(std::array<unsigned int, 2> level1Image) {
-        unsigned long combined = (((unsigned long) level1Image[0]) << 32U) | ((unsigned long) level1Image[1]);
-
-        // Combine pairs of pixels horizontally
-        const unsigned long step1 = (combined | (combined >> 1U)) & 0x5555555555555555ULL;
-
-        // Collect all bits together until they're occupying the left hand side of the image
-        // (rightmost 4 columns are 0's)
-        const unsigned long step2 = (step1 | (step1 >> 1U)) & 0x3333333333333333ULL;
-        const unsigned long step3 = (step2 | (step2 >> 2U)) & 0x0F0F0F0F0F0F0F0FULL;
-        const unsigned long step4 = (step3 << 4U) /*& 0xF0F0F0F0F0F0F0F0ULL*/;
-
-        // The transpose is made to work on an 8x8 matrix, which this is, except the right side is all 0's
-        // This will now mean the top 4 rows are filled, and the bottom 4 are not.
-        // As the unsigned long has a "row major" format, it means the first 32 bits contain useful information
-        // whereas the final 32 bits are all 0.
-        const unsigned long step5 = bitwiseTranspose8x8(step4);
-
-        // We discard the last 32 bits and are left with a single unsigned int.
-        return (unsigned int) (step5 >> 32U);
-    }
-
-    MipMapLevel0(MipMapLevel1 higherLevelImage) : image(computeImage(higherLevelImage.image)) {}
-};
-
 struct MipmapStack {
     //   level   mipmap size    pixel count   area per pixel   space needed
-    //   0       8x4 pixels     32            8x16 pixels      1 unsigned int (transposed!)
-    //   1       8x8 pixels     64            8x8 pixels       2 unsigned ints
+    //   1       8x8 pixels     64            8x8 pixels       2 unsigned ints (transposed!)
     //   2       16x16 pixels   256           4x4 pixels       8 unsigned ints
     //   3       32x32 pixels   1024          2x2 pixels       32 unsigned ints
     //   -- 64x64: source --
@@ -174,7 +145,6 @@ struct MipmapStack {
     MipMapLevel3 level3;
     MipMapLevel2 level2;
     MipMapLevel1 level1;
-    MipMapLevel0 level0;
 
     MipmapStack(unsigned int* quiccImage) :
             level3(quiccImage),

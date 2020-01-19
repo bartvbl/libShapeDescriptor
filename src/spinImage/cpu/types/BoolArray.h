@@ -30,7 +30,7 @@ public:
         }
 
         // array[i] = x;
-        BoolReference& operator= (bool value)
+        BoolReference& operator= (bool value) const
         {
             if (value) {
                 *referenceToBitVector |= genBitMask(bitOffset);
@@ -41,7 +41,7 @@ public:
         }
 
         // array[i] = array[j];
-        BoolReference& operator= (const BoolReference& j)
+        BoolReference& operator= (const BoolReference& j) const
         {
             if ((*(j.referenceToBitVector) & genBitMask(j.bitOffset))) {
                 *referenceToBitVector |= genBitMask(j.bitOffset);

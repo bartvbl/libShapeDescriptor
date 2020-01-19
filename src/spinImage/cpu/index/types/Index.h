@@ -5,8 +5,8 @@
 #include <vector>
 #include <map>
 #include <spinImage/libraryBuildSettings.h>
-#include <spinImage/cpu/index/types/IntermediateNode.h>
 #include <experimental/filesystem>
+
 
 // Due to parsing order of header files, these must be at the top, before the remaining includes
 // They represent a tradeoff between the number of files/images the database is able to represent,
@@ -18,8 +18,7 @@ typedef unsigned int IndexImageID;
 // Whole index section is built around images of size 64x64!
 static_assert(spinImageWidthPixels == 64, "The Index part of the library assumes images are 64x64. Support for alternate image sizes must be added explicitly!");
 
-
-
+#include "NodeBlock.h"
 
 
 // The Index struct is the struct that is shared around an application that wants to use the 'database'.
@@ -36,11 +35,11 @@ struct Index {
     const IndexNodeID indexNodeCount;
     const IndexNodeID bucketNodeCount;
 
-    const IntermediateNode rootNode;
+    const NodeBlock rootNode;
 
-    Index(std::experimental::filesystem::path indexedDirectory,
+    Index(std::experimental::filesystem::path &indexedDirectory,
           std::vector<std::experimental::filesystem::path>* indexedFiles,
-          IntermediateNode root,
+          NodeBlock &root,
           IndexNodeID indexNodeCount,
           IndexNodeID bucketNodeCount) :
             indexDirectory(indexedDirectory),

@@ -45,24 +45,24 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     std::vector<std::experimental::filesystem::path> filesInDirectory = SpinImage::utilities::listDirectory(quicciImageDumpDirectory);
     std::experimental::filesystem::path indexDirectory(indexDumpDirectory);
 
-    // The index node capacity is set quite high to allow most of the index to be in memory during construction
-    //IndexFileCache cache(indexDirectory, 65536 * 32, 65536 * 24, 50000);
-
     std::vector<std::experimental::filesystem::path>* indexedFiles =
             new std::vector<std::experimental::filesystem::path>();
     indexedFiles->reserve(filesInDirectory.size());
 
-    IntermediateNode rootNode;
+    NodeBlock rootBlock;
 
-    NodeBlockCache cache(5000, indexDirectory);
+    // Size requirements:
+    // - Per node: 64 bytes + (136 x stored image count)
+    // - Per node block: 256 x node size
+    // - Cache total: 65536 x node block = 1GB + total size of stored images
+    NodeBlockCache cache(65536, indexDirectory, &rootBlock);
 
 
     const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
     IndexFileID fileIndex = 0;
     for(const auto &path : filesInDirectory) {
-        fileIndex++;
         const std::string archivePath = path.string();
-        std::cout << "Adding file " << fileIndex << "/" << filesInDirectory.size() << ": " << archivePath << std::endl;
+        std::cout << "Adding file " << (fileIndex + 1) << "/" << filesInDirectory.size() << ": " << archivePath << std::endl;
         indexedFiles->emplace_back(archivePath);
 
         SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
@@ -70,10 +70,12 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
         std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
-        for (IndexImageID image = 0; image < images.imageCount; image++) {
+        for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
             MipmapStack combined = MipmapStack::combine(
-                    images.horizontallyIncreasingImages + image * uintsPerQUICCImage,
-                    images.horizontallyDecreasingImages + image * uintsPerQUICCImage);
+                    images.horizontallyIncreasingImages + imageIndex * uintsPerQUICCImage,
+                    images.horizontallyDecreasingImages + imageIndex * uintsPerQUICCImage);
+            IndexEntry entry = {fileIndex, imageIndex};
+            cache.insertImage(combined, entry);
         }
 
         std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
@@ -82,16 +84,15 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
         delete[] images.horizontallyIncreasingImages;
         delete[] images.horizontallyDecreasingImages;
+
+        fileIndex++;
     }
-
-
-
 
     // Ensuring all changes are written to disk
     cache.flush();
 
     // Final construction of the index
-    Index index(indexDirectory, indexedFiles, rootNode, 0, 0);
+    Index index(indexDirectory, indexedFiles, rootBlock, 0, 0);
 
     return index;
 }

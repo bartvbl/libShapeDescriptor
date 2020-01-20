@@ -39,3 +39,5 @@ cmake-build-release/*
 
 # until further notice
 include/*
+
+PIXEL_COUNTS/*

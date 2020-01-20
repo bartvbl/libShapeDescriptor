@@ -19,7 +19,7 @@ namespace SpinImage {
         array<shapeContextBinType > generate3DSCDescriptors(
                 Mesh device_mesh,
                 array<DeviceOrientedPoint> device_spinImageOrigins,
-                float spinImageWidth,
+                float supportRadius,
                 size_t sampleCount,
                 size_t randomSamplingSeed = 0,
                 SpinImage::debug::SCRunInfo* runInfo = nullptr);

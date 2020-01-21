@@ -6,8 +6,29 @@
 #include <chrono>
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
+#include <nvidia/helper_math.h>
 #include "3dShapeContextGenerator.cuh"
 
+bool operator==(float3 &a, float3 &b) {
+    return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+bool operator==(const float3 &a, const float3 &b) {
+    return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+bool operator==(float2 &a, float2 &b) {
+    return a.x == b.x && a.y == b.y;
+}
+
+bool operator==(const float2 &a, const float2 &b) {
+    return a.x == b.x && a.y == b.y;
+}
+
+const size_t elementsPerShapeContextDescriptor =
+        SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT *
+        SHAPE_CONTEXT_VERTICAL_SLICE_COUNT *
+        SHAPE_CONTEXT_LAYER_COUNT;
 
 __device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const SpinImage::array<float> &areaArray, int triangleIndex, int sampleCount) {
     SpinImage::SampleBounds sampleBounds;
@@ -41,8 +62,10 @@ __global__ void createDescriptors(
         SpinImage::gpu::PointCloud pointCloud,
         SpinImage::array<shapeContextBinType> descriptors,
         SpinImage::array<float> areaArray,
+        SpinImage::array<float> pointDensityArray,
         size_t sampleCount,
-        float oneOverSpinImagePixelWidth)
+        float minSupportRadius,
+        float maxSupportRadius)
 {
 #define descriptorIndex blockIdx.x
 
@@ -51,12 +74,21 @@ __global__ void createDescriptors(
     const float3 vertex = spinOrigin.vertex;
     const float3 normal = spinOrigin.normal;
 
-    __shared__ float localSpinImage[spinImageWidthPixels * spinImageWidthPixels];
-    for(int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += blockDim.x) {
-        localSpinImage[i] = 0;
+    __shared__ float localDescriptor[elementsPerShapeContextDescriptor];
+    for(int i = threadIdx.x; i < elementsPerShapeContextDescriptor; i += blockDim.x) {
+        localDescriptor[i] = 0;
     }
 
     __syncthreads();
+
+    // First, we align the input vertex with the descriptor's coordinate system
+    float3 arbitraryAxis = {0, 0, 1};
+    if(normal == arbitraryAxis) {
+        arbitraryAxis = {1, 0, 0};
+    }
+
+    const float3 referenceXAxis = cross(arbitraryAxis, normal);
+    const float3 referenceYAxis = cross(referenceXAxis, normal);
 
     for (int triangleIndex = threadIdx.x; triangleIndex < mesh.vertexCount / 3; triangleIndex += blockDim.x)
     {
@@ -64,6 +96,7 @@ __global__ void createDescriptors(
 
         for(unsigned int sample = 0; sample < bounds.sampleCount; sample++)
         {
+            // 0. Fetch sample vertex
             size_t sampleIndex = bounds.sampleStartIndex + sample;
 
             if(sampleIndex >= sampleCount) {
@@ -71,20 +104,85 @@ __global__ void createDescriptors(
                 continue;
             }
 
-            float3 samplePoint = pointCloud.vertices.at(sampleIndex);
-            float3 sampleNormal = pointCloud.normals.at(sampleIndex);
+            const float3 samplePoint = pointCloud.vertices.at(sampleIndex);
 
-            // DESCRIPTOR GOES HERE
+            // 1. Compute bin indices
+
+            const float3 translated = samplePoint - vertex;
+
+            // Only include vertices which are within the support radius
+            float distanceToVertex = length(translated);
+            if(distanceToVertex < minSupportRadius || distanceToVertex > maxSupportRadius) {
+                continue;
+            }
+
+            // Transforming descriptor coordinate system to the origin
+            // In the new system, 'z' is 'up'
+            const float3 relativeSamplePoint = {
+                referenceXAxis.x * translated.x + referenceXAxis.y * translated.y + referenceXAxis.z * translated.z,
+                referenceYAxis.x * translated.x + referenceYAxis.y * translated.y + referenceYAxis.z * translated.z,
+                normal.x         * translated.x + normal.y         * translated.y + normal.z         * translated.z,
+            };
+
+            float2 horizontalDirection = {relativeSamplePoint.x, relativeSamplePoint.y};
+            float2 verticalDirection = {length(horizontalDirection), relativeSamplePoint.z};
+
+            if(horizontalDirection == make_float2(0, 0)) {
+                // special case, will result in an angle of 0
+                horizontalDirection = {1, 0};
+            }
+
+            // normalise direction vector
+            horizontalDirection /= length(horizontalDirection);
+            verticalDirection /= length(verticalDirection);
+
+            float horizontalAngle = std::atan2(horizontalDirection.y, horizontalDirection.x) + M_PI;
+            short horizontalIndex =
+                    unsigned((horizontalAngle / (2.0f * M_PI)) *
+                    float(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT))
+                    % SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT;
+
+            float verticalAngle = std::atan2(verticalDirection.y, std::abs(verticalDirection.x)) + (M_PI / 2.0f);
+            short verticalIndex =
+                    unsigned((verticalAngle / M_PI) * float(SHAPE_CONTEXT_VERTICAL_SLICE_COUNT))
+                    % SHAPE_CONTEXT_VERTICAL_SLICE_COUNT;
+
+            float sampleDistance = length(relativeSamplePoint);
+            short layerIndex = 0;
+
+            // Recomputing logarithms is still preferable over doing memory transactions for each of them
+            for(; layerIndex <= SHAPE_CONTEXT_LAYER_COUNT; layerIndex++) {
+                float nextSliceEnd = std::exp(
+                        std::log(minSupportRadius)
+                        + (float(layerIndex) / float(SHAPE_CONTEXT_LAYER_COUNT))
+                        * std::log(float(maxSupportRadius) / float(minSupportRadius)));
+                if(sampleDistance < nextSliceEnd) {
+                    break;
+                }
+            }
+
+            short3 binIndex = {horizontalIndex, verticalIndex, layerIndex};
+
+            // 2. Compute sample weight
+            float binVolume = 1; //TODO
+            float sampleWeight = 1.0f / pointDensityArray.content[sampleIndex] * std::cbrt(binVolume);
+
+            // 3. Increment appropriate bin
+            unsigned int index =
+                    binIndex.x * SHAPE_CONTEXT_LAYER_COUNT * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT +
+                    binIndex.y * SHAPE_CONTEXT_LAYER_COUNT +
+                    binIndex.z;
+            atomicAdd(&localDescriptor[index], sampleWeight);
         }
     }
 
     __syncthreads();
 
-    // Copy final image into memory
+    // Copy final descriptor into memory
 
-    size_t imageBaseIndex = size_t(descriptorIndex) * spinImageWidthPixels * spinImageWidthPixels;
-    for(size_t i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += blockDim.x) {
-        descriptors.content[imageBaseIndex + i] = localSpinImage[i];
+    size_t descriptorBaseIndex = size_t(descriptorIndex) * elementsPerShapeContextDescriptor;
+    for(size_t i = threadIdx.x; i < elementsPerShapeContextDescriptor; i += blockDim.x) {
+        descriptors.content[descriptorBaseIndex + i] = localDescriptor[i];
     }
 
 }
@@ -92,28 +190,29 @@ __global__ void createDescriptors(
 SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
         Mesh device_mesh,
         array<DeviceOrientedPoint> device_spinImageOrigins,
-        float supportRadius,
+        float pointDensityRadius,
+        float minSupportRadius,
+        float maxSupportRadius,
         size_t sampleCount,
         size_t randomSamplingSeed,
         SpinImage::debug::SCRunInfo* runInfo) {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
-    size_t imageCount = device_spinImageOrigins.length;
+    size_t descriptorCount = device_spinImageOrigins.length;
 
-    size_t descriptorBufferLength = imageCount * spinImageWidthPixels * spinImageWidthPixels;
+    size_t descriptorBufferLength = descriptorCount * elementsPerShapeContextDescriptor;
     size_t descriptorBufferSize = sizeof(shapeContextBinType) * descriptorBufferLength;
 
-    array<shapeContextBinType> device_descriptors;
+    array<shapeContextBinType> device_descriptors = {0, nullptr};
 
     // -- Initialisation --
     auto initialisationStart = std::chrono::steady_clock::now();
 
     checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
 
-    device_descriptors.length = imageCount;
+    device_descriptors.length = descriptorCount;
 
     CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength);
-
     setValue <shapeContextBinType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.content, descriptorBufferLength, 0);
     cudaDeviceSynchronize();
     checkCudaErrors(cudaGetLastError());
@@ -132,14 +231,14 @@ SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
     // -- Spin Image Generation --
     auto generationStart = std::chrono::steady_clock::now();
 
-    createDescriptors <<<imageCount, 416>>>(
+    createDescriptors <<<descriptorCount, 416>>>(
             device_mesh,
                     device_spinImageOrigins.content,
                     device_pointCloud,
                     device_descriptors,
                     device_cumulativeAreaArray,
                     sampleCount,
-                    float(spinImageWidthPixels)/supportRadius);
+                    maxSupportRadius);
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 

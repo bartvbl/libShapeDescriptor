@@ -55,8 +55,35 @@ __device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const SpinIm
     return sampleBounds;
 }
 
+__device__ __inline__ float computeLayerDistance(float minSupportRadius, float maxSupportRadius, short layerIndex) {
+    return std::exp(
+            std::log(minSupportRadius)
+            + (float(layerIndex) / float(SHAPE_CONTEXT_LAYER_COUNT))
+            * std::log(float(maxSupportRadius) / float(minSupportRadius))
+        );
+}
+
+__device__ __inline__ float computeWedgeSegmentVolume(short verticalBinIndex, float radius) {
+    const float verticalAngleStep = 1.0f / float(SHAPE_CONTEXT_VERTICAL_SLICE_COUNT);
+    float binStartAngle = float(verticalBinIndex) * verticalAngleStep;
+    float binEndAngle = float(verticalBinIndex + 1) * verticalAngleStep;
+
+    float scaleFraction = (2.0f * float(M_PI) * radius * radius * radius)
+                        / (3.0f * float(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT));
+    return scaleFraction * (std::cos(binStartAngle) - std::cos(binEndAngle));
+}
+
+__device__ __inline__ float computeBinVolume(short verticalBinIndex, float minSupportRadius, float maxSupportRadius) {
+    // The wedge segment computation goes all the way from the center to the edge of the sphere
+    // Since we also have a minimum support radius, we need to cut out the volume of the centre part
+    float largeSupportRadiusVolume = computeWedgeSegmentVolume(verticalBinIndex, maxSupportRadius);
+    float smallSupportRadiusVolume = computeWedgeSegmentVolume(verticalBinIndex, minSupportRadius);
+
+    return largeSupportRadiusVolume - smallSupportRadiusVolume;
+}
+
 // Run once for every vertex index
-__global__ void createDescriptors(
+void createDescriptors(
         SpinImage::gpu::Mesh mesh,
         SpinImage::gpu::DeviceOrientedPoint* device_spinImageOrigins,
         SpinImage::gpu::PointCloud pointCloud,
@@ -152,10 +179,7 @@ __global__ void createDescriptors(
 
             // Recomputing logarithms is still preferable over doing memory transactions for each of them
             for(; layerIndex <= SHAPE_CONTEXT_LAYER_COUNT; layerIndex++) {
-                float nextSliceEnd = std::exp(
-                        std::log(minSupportRadius)
-                        + (float(layerIndex) / float(SHAPE_CONTEXT_LAYER_COUNT))
-                        * std::log(float(maxSupportRadius) / float(minSupportRadius)));
+                float nextSliceEnd = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex);
                 if(sampleDistance < nextSliceEnd) {
                     break;
                 }
@@ -164,7 +188,7 @@ __global__ void createDescriptors(
             short3 binIndex = {horizontalIndex, verticalIndex, layerIndex};
 
             // 2. Compute sample weight
-            float binVolume = 1; //TODO
+            float binVolume = computeBinVolume(binIndex);
             float sampleWeight = 1.0f / pointDensityArray.content[sampleIndex] * std::cbrt(binVolume);
 
             // 3. Increment appropriate bin

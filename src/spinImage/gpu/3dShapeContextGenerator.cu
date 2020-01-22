@@ -9,19 +9,19 @@
 #include <nvidia/helper_math.h>
 #include "3dShapeContextGenerator.cuh"
 
-bool operator==(float3 &a, float3 &b) {
+__device__ bool operator==(float3 &a, float3 &b) {
     return a.x == b.x && a.y == b.y && a.z == b.z;
 }
 
-bool operator==(const float3 &a, const float3 &b) {
+__device__ bool operator==(const float3 &a, const float3 &b) {
     return a.x == b.x && a.y == b.y && a.z == b.z;
 }
 
-bool operator==(float2 &a, float2 &b) {
+__device__ bool operator==(float2 &a, float2 &b) {
     return a.x == b.x && a.y == b.y;
 }
 
-bool operator==(const float2 &a, const float2 &b) {
+__device__ bool operator==(const float2 &a, const float2 &b) {
     return a.x == b.x && a.y == b.y;
 }
 
@@ -291,7 +291,11 @@ SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
 
     // -- Point Count Computation --
     auto pointCountingStart = std::chrono::steady_clock::now();
-    computePointCounts<<<, 32>>>();
+    SpinImage::array<unsigned int> device_pointCountArray = {sampleCount, nullptr};
+    checkCudaErrors(cudaMalloc(&device_pointCountArray.content, sampleCount * sizeof(unsigned int)));
+    computePointCounts<<<sampleCount, 32>>>(device_pointCountArray, device_pointCloud, pointDensityRadius);
+    checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
 
     std::chrono::milliseconds pointCountingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - pointCountingStart);
 
@@ -304,7 +308,9 @@ SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
                     device_pointCloud,
                     device_descriptors,
                     device_cumulativeAreaArray,
+                    device_pointCountArray,
                     sampleCount,
+                    minSupportRadius,
                     maxSupportRadius);
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
@@ -314,6 +320,7 @@ SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
     // -- Cleanup --
 
     checkCudaErrors(cudaFree(device_cumulativeAreaArray.content));
+    checkCudaErrors(cudaFree(device_pointCountArray.content));
     device_pointCloud.vertices.free();
     device_pointCloud.normals.free();
 

@@ -85,14 +85,48 @@ __device__ __inline__ float computeBinVolume(short verticalBinIndex, short layer
     return largeSupportRadiusVolume - smallSupportRadiusVolume;
 }
 
+__inline__ __device__ unsigned int warpAllReduceSum(unsigned int val) {
+    const int warpSize = 32;
+    for (int mask = warpSize/2; mask > 0; mask /= 2)
+        val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
+    return val;
+}
+
+__global__ void computePointCounts(
+        SpinImage::array<unsigned int> pointDensityArray,
+        SpinImage::gpu::PointCloud pointCloud,
+        float countRadius) {
+
+    assert(blockDim.x == 32);
+
+    unsigned int pointIndex = blockIdx.x;
+    unsigned int threadPointCount = 0;
+    float3 referencePoint = pointCloud.vertices.at(pointIndex);
+
+    for (unsigned int samplePointIndex = threadIdx.x; samplePointIndex < pointCloud.vertices.length; samplePointIndex += blockDim.x)
+    {
+        float3 samplePoint = pointCloud.vertices.at(samplePointIndex);
+        float3 delta = samplePoint - referencePoint;
+        float distanceToPoint = length(delta);
+        if(distanceToPoint <= countRadius) {
+            threadPointCount++;
+        }
+    }
+
+    unsigned int totalPointCount = warpAllReduceSum(threadPointCount);
+    if(threadIdx.x == 0) {
+        pointDensityArray.content[pointIndex] = totalPointCount;
+    }
+}
+
 // Run once for every vertex index
-void createDescriptors(
+__global__ void createDescriptors(
         SpinImage::gpu::Mesh mesh,
         SpinImage::gpu::DeviceOrientedPoint* device_spinImageOrigins,
         SpinImage::gpu::PointCloud pointCloud,
         SpinImage::array<shapeContextBinType> descriptors,
         SpinImage::array<float> areaArray,
-        SpinImage::array<float> pointDensityArray,
+        SpinImage::array<unsigned int> pointDensityArray,
         size_t sampleCount,
         float minSupportRadius,
         float maxSupportRadius)
@@ -191,7 +225,7 @@ void createDescriptors(
             short3 binIndex = {horizontalIndex, verticalIndex, layerIndex};
 
             // 2. Compute sample weight
-            float binVolume = computeBinVolume(binIndex);
+            float binVolume = computeBinVolume(binIndex.y, binIndex.z, minSupportRadius, maxSupportRadius);
             float sampleWeight = 1.0f / pointDensityArray.content[sampleIndex] * std::cbrt(binVolume);
 
             // 3. Increment appropriate bin
@@ -255,6 +289,12 @@ SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
 
     std::chrono::milliseconds meshSamplingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - meshSamplingStart);
 
+    // -- Point Count Computation --
+    auto pointCountingStart = std::chrono::steady_clock::now();
+    computePointCounts<<<, 32>>>();
+
+    std::chrono::milliseconds pointCountingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - pointCountingStart);
+
     // -- Spin Image Generation --
     auto generationStart = std::chrono::steady_clock::now();
 
@@ -284,6 +324,7 @@ SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
         runInfo->initialisationTimeSeconds = double(initialisationDuration.count()) / 1000.0;
         runInfo->meshSamplingTimeSeconds = double(meshSamplingDuration.count()) / 1000.0;
         runInfo->generationTimeSeconds = double(generationDuration.count()) / 1000.0;
+        runInfo->pointCountingTimeSeconds = double(pointCountingDuration.count()) / 1000.0;
     }
 
     return device_descriptors;

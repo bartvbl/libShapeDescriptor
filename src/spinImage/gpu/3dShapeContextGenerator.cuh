@@ -11,6 +11,7 @@ namespace SpinImage {
             double initialisationTimeSeconds;
             double meshSamplingTimeSeconds;
             double generationTimeSeconds;
+            double pointCountingTimeSeconds;
         };
     }
 

@@ -73,11 +73,14 @@ __device__ __inline__ float computeWedgeSegmentVolume(short verticalBinIndex, fl
     return scaleFraction * (std::cos(binStartAngle) - std::cos(binEndAngle));
 }
 
-__device__ __inline__ float computeBinVolume(short verticalBinIndex, float minSupportRadius, float maxSupportRadius) {
+__device__ __inline__ float computeBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius) {
     // The wedge segment computation goes all the way from the center to the edge of the sphere
     // Since we also have a minimum support radius, we need to cut out the volume of the centre part
-    float largeSupportRadiusVolume = computeWedgeSegmentVolume(verticalBinIndex, maxSupportRadius);
-    float smallSupportRadiusVolume = computeWedgeSegmentVolume(verticalBinIndex, minSupportRadius);
+    float binEndRadius = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex + 1);
+    float binStartRadius = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex);
+
+    float largeSupportRadiusVolume = computeWedgeSegmentVolume(verticalBinIndex, binEndRadius);
+    float smallSupportRadiusVolume = computeWedgeSegmentVolume(verticalBinIndex, binStartRadius);
 
     return largeSupportRadiusVolume - smallSupportRadiusVolume;
 }

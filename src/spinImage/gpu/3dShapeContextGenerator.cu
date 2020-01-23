@@ -56,10 +56,14 @@ __device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const SpinIm
 }
 
 __device__ __inline__ float computeLayerDistance(float minSupportRadius, float maxSupportRadius, short layerIndex) {
+    // Avoiding zero divisions
+    if(minSupportRadius == 0) {
+        minSupportRadius = 0.000001f;
+    }
     return std::exp(
-            std::log(minSupportRadius)
-            + (float(layerIndex) / float(SHAPE_CONTEXT_LAYER_COUNT))
-            * std::log(float(maxSupportRadius) / float(minSupportRadius))
+            (std::log(minSupportRadius))
+            + ((float(layerIndex) / float(SHAPE_CONTEXT_LAYER_COUNT))
+            * std::log(float(maxSupportRadius) / float(minSupportRadius)))
         );
 }
 
@@ -229,15 +233,32 @@ __global__ void createDescriptors(
             // Recomputing logarithms is still preferable over doing memory transactions for each of them
             for(; layerIndex <= SHAPE_CONTEXT_LAYER_COUNT; layerIndex++) {
                 float nextSliceEnd = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex + 1);
-                if(sampleDistance < nextSliceEnd) {
+                if(sampleDistance <= nextSliceEnd) {
                     break;
                 }
             }
 
+            // Rounding errors can cause it to exceed its allowed bounds in specific cases
+            // I don't check against greater values because for those cases I want the assertions to trip
+            if(layerIndex == SHAPE_CONTEXT_LAYER_COUNT) {
+                layerIndex--;
+            }
+
             short3 binIndex = {horizontalIndex, verticalIndex, layerIndex};
+            assert(binIndex.x >= 0);
+            assert(binIndex.y >= 0);
+            assert(binIndex.z >= 0);
+            assert(binIndex.x < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT);
+            assert(binIndex.y < SHAPE_CONTEXT_VERTICAL_SLICE_COUNT);
+            assert(binIndex.z < SHAPE_CONTEXT_LAYER_COUNT);
 
             // 2. Compute sample weight
             float binVolume = computeBinVolume(binIndex.y, binIndex.z, minSupportRadius, maxSupportRadius);
+
+            // Volume can't be 0, and should be less than the volume of the support volume
+            assert(binVolume > 0);
+            assert(binVolume < (4.0f / 3.0f) * M_PI * maxSupportRadius * maxSupportRadius * maxSupportRadius);
+
             float sampleWeight = 1.0f / pointDensityArray.content[sampleIndex] * std::cbrt(binVolume);
 
             // 3. Increment appropriate bin
@@ -245,6 +266,8 @@ __global__ void createDescriptors(
                     binIndex.x * SHAPE_CONTEXT_LAYER_COUNT * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT +
                     binIndex.y * SHAPE_CONTEXT_LAYER_COUNT +
                     binIndex.z;
+            assert(index < elementsPerShapeContextDescriptor);
+            assert(!std::isnan(sampleWeight));
             atomicAdd(&localDescriptor[index], sampleWeight);
         }
     }
@@ -315,15 +338,15 @@ SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
     auto generationStart = std::chrono::steady_clock::now();
 
     createDescriptors <<<descriptorCount, 416>>>(
-            device_mesh,
-                    device_spinImageOrigins.content,
-                    device_pointCloud,
-                    device_descriptors,
-                    device_cumulativeAreaArray,
-                    device_pointCountArray,
-                    sampleCount,
-                    minSupportRadius,
-                    maxSupportRadius);
+        device_mesh,
+        device_spinImageOrigins.content,
+        device_pointCloud,
+        device_descriptors,
+        device_cumulativeAreaArray,
+        device_pointCountArray,
+        sampleCount,
+        minSupportRadius,
+        maxSupportRadius);
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 

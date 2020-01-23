@@ -85,6 +85,11 @@ __device__ __inline__ float computeBinVolume(short verticalBinIndex, short layer
     return largeSupportRadiusVolume - smallSupportRadiusVolume;
 }
 
+__inline__ __device__ float absoluteAngle(float y, float x) {
+    float absoluteAngle = std::atan2(y, x);
+    return absoluteAngle < 0 ? absoluteAngle + (2.0f * float(M_PI)) : absoluteAngle;
+}
+
 __inline__ __device__ unsigned int warpAllReduceSum(unsigned int val) {
     const int warpSize = 32;
     for (int mask = warpSize/2; mask > 0; mask /= 2)
@@ -200,13 +205,14 @@ __global__ void createDescriptors(
             horizontalDirection /= length(horizontalDirection);
             verticalDirection /= length(verticalDirection);
 
-            float horizontalAngle = std::atan2(horizontalDirection.y, horizontalDirection.x) + M_PI;
+            float horizontalAngle = absoluteAngle(horizontalDirection.y, horizontalDirection.x);
             short horizontalIndex =
-                    unsigned((horizontalAngle / (2.0f * M_PI)) *
+                    unsigned((horizontalAngle / (2.0f * float(M_PI))) *
                     float(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT))
                     % SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT;
 
-            float verticalAngle = std::atan2(verticalDirection.y, std::abs(verticalDirection.x)) + (M_PI / 2.0f);
+            float verticalAngle = std::fmod(absoluteAngle(verticalDirection.y, verticalDirection.x)
+                    + (float(M_PI) / 2.0f), 2.0f * float(M_PI));
             short verticalIndex =
                     unsigned((verticalAngle / M_PI) * float(SHAPE_CONTEXT_VERTICAL_SLICE_COUNT))
                     % SHAPE_CONTEXT_VERTICAL_SLICE_COUNT;
@@ -216,7 +222,7 @@ __global__ void createDescriptors(
 
             // Recomputing logarithms is still preferable over doing memory transactions for each of them
             for(; layerIndex <= SHAPE_CONTEXT_LAYER_COUNT; layerIndex++) {
-                float nextSliceEnd = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex);
+                float nextSliceEnd = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex + 1);
                 if(sampleDistance < nextSliceEnd) {
                     break;
                 }

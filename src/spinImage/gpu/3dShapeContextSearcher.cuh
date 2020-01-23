@@ -8,7 +8,6 @@ namespace SpinImage {
         struct SCSearchRunInfo {
             double totalExecutionTimeSeconds;
             double searchExecutionTimeSeconds;
-            double averagingExecutionTimeSeconds;
         };
     }
 

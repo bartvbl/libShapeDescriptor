@@ -32,13 +32,13 @@ __device__ float compute3DSCPairCorrelationGPU(
 __global__ void computeShapeContextSearchResultIndices(
         shapeContextBinType* needleDescriptors,
         shapeContextBinType* haystackDescriptors,
-        size_t haystackImageCount,
+        size_t haystackDescriptorCount,
         unsigned int* searchResults) {
-    size_t needleImageIndex = blockIdx.x;
+    size_t needleDescriptorIndex = blockIdx.x;
 
     __shared__ shapeContextBinType referenceDescriptor[elementsPerShapeContextDescriptor];
     for(unsigned int index = threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x) {
-        referenceDescriptor[index] = needleDescriptors[elementsPerShapeContextDescriptor * needleImageIndex + index];
+        referenceDescriptor[index] = needleDescriptors[elementsPerShapeContextDescriptor * needleDescriptorIndex + index];
     }
 
     __syncthreads();
@@ -47,7 +47,7 @@ __global__ void computeShapeContextSearchResultIndices(
             referenceDescriptor,
             haystackDescriptors,
             0,
-            needleImageIndex);
+            needleDescriptorIndex);
 
     // No image pair can have a better distance than 0, so we can just stop the search right here
     if(referenceDistance == 0) {
@@ -56,8 +56,8 @@ __global__ void computeShapeContextSearchResultIndices(
 
     unsigned int searchResultRank = 0;
 
-    for(size_t haystackDescriptorIndex = threadIdx.x / 32; haystackDescriptorIndex < haystackImageCount; haystackDescriptorIndex += indexBasedWarpCount) {
-        if(needleImageIndex == haystackDescriptorIndex) {
+    for(size_t haystackDescriptorIndex = threadIdx.x / 32; haystackDescriptorIndex < haystackDescriptorCount; haystackDescriptorIndex += indexBasedWarpCount) {
+        if(needleDescriptorIndex == haystackDescriptorIndex) {
             continue;
         }
 
@@ -76,7 +76,7 @@ __global__ void computeShapeContextSearchResultIndices(
 
     // Since we're running multiple warps, we need to add all indices together to get the correct ranks
     if(threadIdx.x % 32 == 0) {
-        atomicAdd(&searchResults[needleImageIndex], searchResultRank);
+        atomicAdd(&searchResults[needleDescriptorIndex], searchResultRank);
     }
 }
 

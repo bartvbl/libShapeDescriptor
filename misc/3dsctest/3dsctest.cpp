@@ -199,7 +199,15 @@ int main(int argc, char** argv) {
     if (horizontalDirection == float2{0, 0}) {
         // special case, will result in an angle of 0
         horizontalDirection = {1, 0};
+
+        // Vertical direction is only 0 if all components are 0
+        // Should theoretically never occur, but let's handle it just in case
+        if(verticalDirection.y == 0) {
+            verticalDirection = {1, 0};
+        }
     }
+
+
 
     // normalise direction vector
     horizontalDirection /= length(horizontalDirection);

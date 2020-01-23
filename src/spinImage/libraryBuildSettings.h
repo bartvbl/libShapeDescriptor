@@ -36,9 +36,9 @@
 #define ENABLE_RICI_COMPARISON_EARLY_EXIT true
 
 // Descriptor size settings for the 3D shape context method
-#define SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT 11
-#define SHAPE_CONTEXT_VERTICAL_SLICE_COUNT 15
+#define SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT 15
 #define SHAPE_CONTEXT_LAYER_COUNT 12
+#define SHAPE_CONTEXT_VERTICAL_SLICE_COUNT 11
 
 
 #include <spinImage/common/buildSettings/derivedBuildSettings.h>

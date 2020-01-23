@@ -143,7 +143,7 @@ __global__ void createDescriptors(
     const float3 vertex = spinOrigin.vertex;
     const float3 normal = spinOrigin.normal;
 
-    __shared__ float localDescriptor[elementsPerShapeContextDescriptor];
+    __shared__ shapeContextBinType localDescriptor[elementsPerShapeContextDescriptor];
     for(int i = threadIdx.x; i < elementsPerShapeContextDescriptor; i += blockDim.x) {
         localDescriptor[i] = 0;
     }
@@ -199,6 +199,12 @@ __global__ void createDescriptors(
             if(horizontalDirection == make_float2(0, 0)) {
                 // special case, will result in an angle of 0
                 horizontalDirection = {1, 0};
+
+                // Vertical direction is only 0 if all components are 0
+                // Should theoretically never occur, but let's handle it just in case
+                if(verticalDirection.y == 0) {
+                    verticalDirection = {1, 0};
+                }
             }
 
             // normalise direction vector
@@ -223,7 +229,7 @@ __global__ void createDescriptors(
             // Recomputing logarithms is still preferable over doing memory transactions for each of them
             for(; layerIndex <= SHAPE_CONTEXT_LAYER_COUNT; layerIndex++) {
                 float nextSliceEnd = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex + 1);
-                if(sampleDistance < nextSliceEnd) {
+                if(sampleDistance <= nextSliceEnd) {
                     break;
                 }
             }

@@ -85,7 +85,7 @@ __device__ __inline__ float computeBinVolume(short verticalBinIndex, short layer
     return largeSupportRadiusVolume - smallSupportRadiusVolume;
 }
 
-__inline__ __device__ float absoluteAngle(float y, float x) {
+__device__ float absoluteAngle(float y, float x) {
     float absoluteAngle = std::atan2(y, x);
     return absoluteAngle < 0 ? absoluteAngle + (2.0f * float(M_PI)) : absoluteAngle;
 }
@@ -214,13 +214,13 @@ __global__ void createDescriptors(
             float horizontalAngle = absoluteAngle(horizontalDirection.y, horizontalDirection.x);
             short horizontalIndex =
                     unsigned((horizontalAngle / (2.0f * float(M_PI))) *
-                    float(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT))
+                             float(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT))
                     % SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT;
 
-
+            float verticalAngle = std::fmod(absoluteAngle(verticalDirection.y, verticalDirection.x) + (float(M_PI) / 2.0f), 2.0f * float(M_PI));
             short verticalIndex =
                     unsigned((verticalAngle / M_PI) *
-                    float(SHAPE_CONTEXT_VERTICAL_SLICE_COUNT))
+                             float(SHAPE_CONTEXT_VERTICAL_SLICE_COUNT))
                     % SHAPE_CONTEXT_VERTICAL_SLICE_COUNT;
 
             float sampleDistance = length(relativeSamplePoint);
@@ -228,7 +228,8 @@ __global__ void createDescriptors(
 
             // Recomputing logarithms is still preferable over doing memory transactions for each of them
             for(; layerIndex <= SHAPE_CONTEXT_LAYER_COUNT; layerIndex++) {
-
+                float nextSliceEnd = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex + 1);
+                if(sampleDistance < nextSliceEnd) {
                     break;
                 }
             }

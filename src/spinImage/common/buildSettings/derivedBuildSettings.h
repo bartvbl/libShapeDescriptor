@@ -22,6 +22,10 @@ typedef float shapeContextBinType;
 #error Unsupported datatype has been specified for the 3D Shape Context
 #endif
 
+#if SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT > 32
+#error Due to implementation limitations, only 32 horizontal slices are supported
+#endif
+
 #ifdef _WIN32
 #define M_PI 3.1415926353
 #endif

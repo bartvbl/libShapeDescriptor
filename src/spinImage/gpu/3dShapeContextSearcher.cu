@@ -74,7 +74,16 @@ __device__ float compute3DSCPairDistanceGPU(
         //if(threadIdx.x == 0) printf("%f\n", lowestDistance);
     }
 
+    if(threadIdx.x == 0) {
+        sharedSquaredSums[0] = lowestDistance;
+    }
+
     // Some threads will race ahead to the next image pair. Need to avoid that.
+    __syncthreads();
+
+    // Broadcast lowest distance value to all threads
+    lowestDistance = sharedSquaredSums[0];
+
     __syncthreads();
 
     return lowestDistance;
@@ -172,11 +181,11 @@ SpinImage::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
     checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
 
     float haystackScaleFactor = float(double(needleDescriptorSampleCount) / double(haystackDescriptorSampleCount));
-    std::cout << "Haystack scale factor: " << haystackScaleFactor << std::endl;
+    std::cout << "\t\tHaystack scale factor: " << haystackScaleFactor << std::endl;
 
     auto searchStart = std::chrono::steady_clock::now();
 
-    computeShapeContextSearchResultIndices<<<needleDescriptorCount, 32/* * indexBasedWarpCount*/>>>(
+    computeShapeContextSearchResultIndices<<<needleDescriptorCount, 32 * indexBasedWarpCount>>>(
         device_needleDescriptors.content,
         device_haystackDescriptors.content,
         haystackDescriptorCount,

@@ -4,6 +4,7 @@
 #include <nvidia/helper_cuda.h>
 #include <cfloat>
 #include <host_defines.h>
+#include <iostream>
 
 
 const int indexBasedWarpCount = 16;
@@ -110,7 +111,7 @@ __global__ void computeShapeContextSearchResultIndices(
             haystackDescriptor,
             squaredSums);
 
-    //if(threadIdx.x == 0) printf("Refdist: %f\n", referenceDistance);
+    if(threadIdx.x == 0) printf("Refdist: %f\n", referenceDistance);
 
     // No image pair can have a better distance than 0, so we can just stop the search right here
     if(referenceDistance == 0) {
@@ -134,6 +135,8 @@ __global__ void computeShapeContextSearchResultIndices(
                 referenceDescriptor,
                 haystackDescriptor,
                 squaredSums);
+
+        if(threadIdx.x == 0) printf("Sampledist: %f\n", distance);
 
         // We've found a result that's better than the reference one. That means this search result would end up
         // above ours in the search result list. We therefore move our search result down by 1.
@@ -166,10 +169,11 @@ SpinImage::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
     checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
 
     float haystackScaleFactor = float(double(needleDescriptorSampleCount) / double(haystackDescriptorSampleCount));
+    std::cout << "Haystack scale factor: " << haystackScaleFactor << std::endl;
 
     auto searchStart = std::chrono::steady_clock::now();
 
-    computeShapeContextSearchResultIndices<<<needleDescriptorCount, 32 * indexBasedWarpCount>>>(
+    computeShapeContextSearchResultIndices<<<2, 32 * indexBasedWarpCount>>>(
         device_needleDescriptors.content,
         device_haystackDescriptors.content,
         haystackDescriptorCount,

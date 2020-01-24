@@ -98,7 +98,8 @@ __global__ void computeShapeContextSearchResultIndices(
 
     __shared__ shapeContextBinType haystackDescriptor[elementsPerShapeContextDescriptor];
     for(unsigned int index = threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x) {
-        haystackDescriptor[index] = haystackDescriptors[elementsPerShapeContextDescriptor * needleDescriptorIndex + index]
+        haystackDescriptor[index] =
+                haystackDescriptors[elementsPerShapeContextDescriptor * needleDescriptorIndex + index]
                 * haystackScaleFactor;
     }
 
@@ -111,7 +112,7 @@ __global__ void computeShapeContextSearchResultIndices(
             haystackDescriptor,
             squaredSums);
 
-    if(threadIdx.x == 0) printf("Refdist: %f\n", referenceDistance);
+    //if(threadIdx.x == 0) printf("Refdist: %f\n", referenceDistance);
 
     // No image pair can have a better distance than 0, so we can just stop the search right here
     if(referenceDistance == 0) {
@@ -126,7 +127,9 @@ __global__ void computeShapeContextSearchResultIndices(
         }
 
         for(unsigned int index = threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x) {
-            haystackDescriptor[index] = haystackDescriptors[elementsPerShapeContextDescriptor * haystackDescriptorIndex + index];
+            haystackDescriptor[index] =
+                    haystackDescriptors[elementsPerShapeContextDescriptor * haystackDescriptorIndex + index]
+                    * haystackScaleFactor;
         }
 
         __syncthreads();
@@ -136,7 +139,7 @@ __global__ void computeShapeContextSearchResultIndices(
                 haystackDescriptor,
                 squaredSums);
 
-        if(threadIdx.x == 0) printf("Sampledist: %f\n", distance);
+        //if(threadIdx.x == 0) printf("Sampledist: %f vs %f %i\n", distance, referenceDistance, blockIdx.x);
 
         // We've found a result that's better than the reference one. That means this search result would end up
         // above ours in the search result list. We therefore move our search result down by 1.
@@ -173,7 +176,7 @@ SpinImage::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
 
     auto searchStart = std::chrono::steady_clock::now();
 
-    computeShapeContextSearchResultIndices<<<2, 32 * indexBasedWarpCount>>>(
+    computeShapeContextSearchResultIndices<<<needleDescriptorCount, 32/* * indexBasedWarpCount*/>>>(
         device_needleDescriptors.content,
         device_haystackDescriptors.content,
         haystackDescriptorCount,

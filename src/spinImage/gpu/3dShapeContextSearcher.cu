@@ -29,7 +29,7 @@ __inline__ __device__ float warpAllReduceMin(float val) {
 __device__ float compute3DSCPairDistanceGPU(
         shapeContextBinType* needleDescriptor,
         shapeContextBinType* haystackDescriptor,
-        unsigned int* sharedSquaredSums) {
+        float* sharedSquaredSums) {
 
     if(threadIdx.x < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT) {
         sharedSquaredSums[threadIdx.x] = 0;
@@ -47,10 +47,12 @@ __device__ float compute3DSCPairDistanceGPU(
                     % elementsPerShapeContextDescriptor;
             float haystackBinValue = haystackDescriptor[haystackBinIndex];
             float binDelta = needleBinValue - haystackBinValue;
+            //if(threadIdx.x == 0) printf("%f - %f = %f\n", needleBinValue, haystackBinValue, binDelta);
             threadSquaredDistance += binDelta * binDelta;
         }
 
         float combinedSquaredDistance = warpAllReduceSum(threadSquaredDistance);
+
         if(threadIdx.x % 32 == 0) {
             atomicAdd(&sharedSquaredSums[sliceOffset], combinedSquaredDistance);
         }
@@ -64,8 +66,15 @@ __device__ float compute3DSCPairDistanceGPU(
         // the highest possible value so that any other value will be lower
         float threadValue = threadIdx.x < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT ?
                 sharedSquaredSums[threadIdx.x] : FLT_MAX;
+        /*if(threadIdx.x < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT && threadValue != 0) {
+            printf("%i -> %f\n", threadIdx.x, threadValue);
+        }*/
         lowestDistance = std::sqrt(warpAllReduceMin(threadValue));
+        //if(threadIdx.x == 0) printf("%f\n", lowestDistance);
     }
+
+    // Some threads will race ahead to the next image pair. Need to avoid that.
+    __syncthreads();
 
     return lowestDistance;
 }
@@ -74,6 +83,7 @@ __global__ void computeShapeContextSearchResultIndices(
         shapeContextBinType* needleDescriptors,
         shapeContextBinType* haystackDescriptors,
         size_t haystackDescriptorCount,
+        float haystackScaleFactor,
         unsigned int* searchResults) {
     size_t needleDescriptorIndex = blockIdx.x;
 
@@ -87,10 +97,11 @@ __global__ void computeShapeContextSearchResultIndices(
 
     __shared__ shapeContextBinType haystackDescriptor[elementsPerShapeContextDescriptor];
     for(unsigned int index = threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x) {
-        haystackDescriptor[index] = haystackDescriptors[elementsPerShapeContextDescriptor * needleDescriptorIndex + index];
+        haystackDescriptor[index] = haystackDescriptors[elementsPerShapeContextDescriptor * needleDescriptorIndex + index]
+                * haystackScaleFactor;
     }
 
-    __shared__ unsigned int squaredSums[SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT];
+    __shared__ float squaredSums[SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT];
 
     __syncthreads();
 
@@ -99,9 +110,10 @@ __global__ void computeShapeContextSearchResultIndices(
             haystackDescriptor,
             squaredSums);
 
+    //if(threadIdx.x == 0) printf("Refdist: %f\n", referenceDistance);
+
     // No image pair can have a better distance than 0, so we can just stop the search right here
     if(referenceDistance == 0) {
-        printf("%i\n", blockIdx.x);
         return;
     }
 
@@ -140,8 +152,10 @@ __global__ void computeShapeContextSearchResultIndices(
 SpinImage::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
         array<shapeContextBinType> device_needleDescriptors,
         size_t needleDescriptorCount,
+        size_t needleDescriptorSampleCount,
         array<shapeContextBinType> device_haystackDescriptors,
         size_t haystackDescriptorCount,
+        size_t haystackDescriptorSampleCount,
         SpinImage::debug::SCSearchRunInfo* runInfo) {
 
     auto executionStart = std::chrono::steady_clock::now();
@@ -151,12 +165,15 @@ SpinImage::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
     checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
 
+    float haystackScaleFactor = float(double(needleDescriptorSampleCount) / double(haystackDescriptorSampleCount));
+
     auto searchStart = std::chrono::steady_clock::now();
 
     computeShapeContextSearchResultIndices<<<needleDescriptorCount, 32 * indexBasedWarpCount>>>(
         device_needleDescriptors.content,
         device_haystackDescriptors.content,
         haystackDescriptorCount,
+        haystackScaleFactor,
         device_searchResults);
 
     checkCudaErrors(cudaDeviceSynchronize());

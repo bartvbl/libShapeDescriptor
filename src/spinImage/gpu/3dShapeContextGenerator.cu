@@ -232,7 +232,7 @@ __global__ void createDescriptors(
         short layerIndex = 0;
 
         // Recomputing logarithms is still preferable over doing memory transactions for each of them
-        for (; layerIndex <= SHAPE_CONTEXT_LAYER_COUNT; layerIndex++) {
+        for (; layerIndex < SHAPE_CONTEXT_LAYER_COUNT; layerIndex++) {
             float nextSliceEnd = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex + 1);
             if (sampleDistance <= nextSliceEnd) {
                 break;
@@ -240,11 +240,11 @@ __global__ void createDescriptors(
         }
 
         // Rounding errors can cause it to exceed its allowed bounds in specific cases
-        layerIndex = min(SHAPE_CONTEXT_LAYER_COUNT - 1, layerIndex);
-
-
-        if(layerIndex >= SHAPE_CONTEXT_LAYER_COUNT) {
-            printf("Out of range: %i\n", layerIndex);
+        // Of course, on the off chance something is wrong after all,
+        // the assertions further down should trip. So we only handle the single
+        // edge case where layerIndex went one over.
+        if(layerIndex == SHAPE_CONTEXT_LAYER_COUNT) {
+            layerIndex--;
         }
 
         short3 binIndex = {horizontalIndex, verticalIndex, layerIndex};

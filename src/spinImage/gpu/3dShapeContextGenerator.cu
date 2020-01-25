@@ -145,7 +145,11 @@ __global__ void createDescriptors(
     const SpinImage::gpu::DeviceOrientedPoint spinOrigin = device_spinImageOrigins[descriptorIndex];
 
     const float3 vertex = spinOrigin.vertex;
-    const float3 normal = spinOrigin.normal;
+    float3 normal = spinOrigin.normal;
+
+    //assert(length(normal) != 0);
+
+    normal /= length(normal);
 
     __shared__ shapeContextBinType localDescriptor[elementsPerShapeContextDescriptor];
     for(int i = threadIdx.x; i < elementsPerShapeContextDescriptor; i += blockDim.x) {
@@ -156,120 +160,119 @@ __global__ void createDescriptors(
 
     // First, we align the input vertex with the descriptor's coordinate system
     float3 arbitraryAxis = {0, 0, 1};
-    if(normal == arbitraryAxis) {
+    if(normal == arbitraryAxis || -normal == arbitraryAxis) {
         arbitraryAxis = {1, 0, 0};
     }
 
-    const float3 referenceXAxis = cross(arbitraryAxis, normal);
-    const float3 referenceYAxis = cross(referenceXAxis, normal);
+    float3 referenceXAxis = cross(arbitraryAxis, normal);
+    float3 referenceYAxis = cross(referenceXAxis, normal);
 
-    for (int triangleIndex = threadIdx.x; triangleIndex < mesh.vertexCount / 3; triangleIndex += blockDim.x)
-    {
-        SpinImage::SampleBounds bounds = calculateSampleBounds(areaArray, triangleIndex, sampleCount);
 
-        for(unsigned int sample = 0; sample < bounds.sampleCount; sample++)
-        {
-            // 0. Fetch sample vertex
-            size_t sampleIndex = bounds.sampleStartIndex + sample;
+    assert(length(referenceXAxis) != 0);
+    assert(length(referenceYAxis) != 0);
 
-            if(sampleIndex >= sampleCount) {
-                printf("Sample %i/%i/%i was skipped.\n", sampleIndex, bounds.sampleCount, sampleCount);
-                continue;
-            }
+    referenceXAxis /= length(referenceXAxis);
+    referenceYAxis /= length(referenceYAxis);
 
-            const float3 samplePoint = pointCloud.vertices.at(sampleIndex);
+    for (unsigned int sampleIndex = threadIdx.x; sampleIndex < sampleCount; sampleIndex += blockDim.x) {
+        // 0. Fetch sample vertex
 
-            // 1. Compute bin indices
+        const float3 samplePoint = pointCloud.vertices.at(sampleIndex);
 
-            const float3 translated = samplePoint - vertex;
+        // 1. Compute bin indices
 
-            // Only include vertices which are within the support radius
-            float distanceToVertex = length(translated);
-            if(distanceToVertex < minSupportRadius || distanceToVertex > maxSupportRadius) {
-                continue;
-            }
+        const float3 translated = samplePoint - vertex;
 
-            // Transforming descriptor coordinate system to the origin
-            // In the new system, 'z' is 'up'
-            const float3 relativeSamplePoint = {
+        // Only include vertices which are within the support radius
+        float distanceToVertex = length(translated);
+        if (distanceToVertex < minSupportRadius || distanceToVertex > maxSupportRadius) {
+            continue;
+        }
+
+        // Transforming descriptor coordinate system to the origin
+        // In the new system, 'z' is 'up'
+        const float3 relativeSamplePoint = {
                 referenceXAxis.x * translated.x + referenceXAxis.y * translated.y + referenceXAxis.z * translated.z,
                 referenceYAxis.x * translated.x + referenceYAxis.y * translated.y + referenceYAxis.z * translated.z,
-                normal.x         * translated.x + normal.y         * translated.y + normal.z         * translated.z,
-            };
+                normal.x * translated.x + normal.y * translated.y + normal.z * translated.z,
+        };
 
-            float2 horizontalDirection = {relativeSamplePoint.x, relativeSamplePoint.y};
-            float2 verticalDirection = {length(horizontalDirection), relativeSamplePoint.z};
+        float2 horizontalDirection = {relativeSamplePoint.x, relativeSamplePoint.y};
+        float2 verticalDirection = {length(horizontalDirection), relativeSamplePoint.z};
 
-            if(horizontalDirection == make_float2(0, 0)) {
-                // special case, will result in an angle of 0
-                horizontalDirection = {1, 0};
+        if (horizontalDirection == make_float2(0, 0)) {
+            // special case, will result in an angle of 0
+            horizontalDirection = {1, 0};
 
-                // Vertical direction is only 0 if all components are 0
-                // Should theoretically never occur, but let's handle it just in case
-                if(verticalDirection.y == 0) {
-                    verticalDirection = {1, 0};
-                }
+            // Vertical direction is only 0 if all components are 0
+            // Should theoretically never occur, but let's handle it just in case
+            if (verticalDirection.y == 0) {
+                verticalDirection = {1, 0};
             }
-
-            // normalise direction vector
-            horizontalDirection /= length(horizontalDirection);
-            verticalDirection /= length(verticalDirection);
-
-            float horizontalAngle = absoluteAngle(horizontalDirection.y, horizontalDirection.x);
-            short horizontalIndex =
-                    unsigned((horizontalAngle / (2.0f * float(M_PI))) *
-                             float(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT))
-                    % SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT;
-
-            float verticalAngle = std::fmod(absoluteAngle(verticalDirection.y, verticalDirection.x) + (float(M_PI) / 2.0f), 2.0f * float(M_PI));
-            short verticalIndex =
-                    unsigned((verticalAngle / M_PI) *
-                             float(SHAPE_CONTEXT_VERTICAL_SLICE_COUNT))
-                    % SHAPE_CONTEXT_VERTICAL_SLICE_COUNT;
-
-            float sampleDistance = length(relativeSamplePoint);
-            short layerIndex = 0;
-
-            // Recomputing logarithms is still preferable over doing memory transactions for each of them
-            for(; layerIndex <= SHAPE_CONTEXT_LAYER_COUNT; layerIndex++) {
-                float nextSliceEnd = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex + 1);
-                if(sampleDistance <= nextSliceEnd) {
-                    break;
-                }
-            }
-
-            // Rounding errors can cause it to exceed its allowed bounds in specific cases
-            // I don't check against greater values because for those cases I want the assertions to trip
-            if(layerIndex == SHAPE_CONTEXT_LAYER_COUNT) {
-                layerIndex--;
-            }
-
-            short3 binIndex = {horizontalIndex, verticalIndex, layerIndex};
-            assert(binIndex.x >= 0);
-            assert(binIndex.y >= 0);
-            assert(binIndex.z >= 0);
-            assert(binIndex.x < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT);
-            assert(binIndex.y < SHAPE_CONTEXT_VERTICAL_SLICE_COUNT);
-            assert(binIndex.z < SHAPE_CONTEXT_LAYER_COUNT);
-
-            // 2. Compute sample weight
-            float binVolume = computeBinVolume(binIndex.y, binIndex.z, minSupportRadius, maxSupportRadius);
-
-            // Volume can't be 0, and should be less than the volume of the support volume
-            assert(binVolume > 0);
-            assert(binVolume < (4.0f / 3.0f) * M_PI * maxSupportRadius * maxSupportRadius * maxSupportRadius);
-
-            float sampleWeight = 1.0f / pointDensityArray.content[sampleIndex] * std::cbrt(binVolume);
-
-            // 3. Increment appropriate bin
-            unsigned int index =
-                    binIndex.x * SHAPE_CONTEXT_LAYER_COUNT * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT +
-                    binIndex.y * SHAPE_CONTEXT_LAYER_COUNT +
-                    binIndex.z;
-            assert(index < elementsPerShapeContextDescriptor);
-            assert(!std::isnan(sampleWeight));
-            atomicAdd(&localDescriptor[index], sampleWeight);
         }
+
+        // normalise direction vector
+        horizontalDirection /= length(horizontalDirection);
+        verticalDirection /= length(verticalDirection);
+
+        float horizontalAngle = absoluteAngle(horizontalDirection.y, horizontalDirection.x);
+        short horizontalIndex =
+                unsigned((horizontalAngle / (2.0f * float(M_PI))) *
+                         float(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT))
+                % SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT;
+
+        float verticalAngle = std::fmod(absoluteAngle(verticalDirection.y, verticalDirection.x) + (float(M_PI) / 2.0f),
+                                        2.0f * float(M_PI));
+        short verticalIndex =
+                unsigned((verticalAngle / M_PI) *
+                         float(SHAPE_CONTEXT_VERTICAL_SLICE_COUNT))
+                % SHAPE_CONTEXT_VERTICAL_SLICE_COUNT;
+
+        float sampleDistance = length(relativeSamplePoint);
+        short layerIndex = 0;
+
+        // Recomputing logarithms is still preferable over doing memory transactions for each of them
+        for (; layerIndex <= SHAPE_CONTEXT_LAYER_COUNT; layerIndex++) {
+            float nextSliceEnd = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex + 1);
+            if (sampleDistance <= nextSliceEnd) {
+                break;
+            }
+        }
+
+        // Rounding errors can cause it to exceed its allowed bounds in specific cases
+        layerIndex = min(SHAPE_CONTEXT_LAYER_COUNT - 1, layerIndex);
+
+
+        if(layerIndex >= SHAPE_CONTEXT_LAYER_COUNT) {
+            printf("Out of range: %i\n", layerIndex);
+        }
+
+        short3 binIndex = {horizontalIndex, verticalIndex, layerIndex};
+        assert(binIndex.x >= 0);
+        assert(binIndex.y >= 0);
+        assert(binIndex.z >= 0);
+        assert(binIndex.x < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT);
+        assert(binIndex.y < SHAPE_CONTEXT_VERTICAL_SLICE_COUNT);
+        assert(binIndex.z < SHAPE_CONTEXT_LAYER_COUNT);
+
+        // 2. Compute sample weight
+        float binVolume = computeBinVolume(binIndex.y, binIndex.z, minSupportRadius, maxSupportRadius);
+
+        // Volume can't be 0, and should be less than the volume of the support volume
+        assert(binVolume > 0);
+        assert(binVolume < (4.0f / 3.0f) * M_PI * maxSupportRadius * maxSupportRadius * maxSupportRadius);
+
+        float sampleWeight = 1.0f / pointDensityArray.content[sampleIndex] * std::cbrt(binVolume);
+
+        // 3. Increment appropriate bin
+        unsigned int index =
+                binIndex.x * SHAPE_CONTEXT_LAYER_COUNT * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT +
+                binIndex.y * SHAPE_CONTEXT_LAYER_COUNT +
+                binIndex.z;
+        assert(index < elementsPerShapeContextDescriptor);
+        assert(!std::isnan(sampleWeight));
+        atomicAdd(&localDescriptor[index], sampleWeight);
+
     }
 
     __syncthreads();

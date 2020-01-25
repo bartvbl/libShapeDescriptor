@@ -109,7 +109,7 @@ __global__ void computeShapeContextSearchResultIndices(
     for(unsigned int index = threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x) {
         haystackDescriptor[index] =
                 haystackDescriptors[elementsPerShapeContextDescriptor * needleDescriptorIndex + index]
-                * haystackScaleFactor;
+                * (1.0f/haystackScaleFactor);
     }
 
     __shared__ float squaredSums[SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT];
@@ -138,7 +138,7 @@ __global__ void computeShapeContextSearchResultIndices(
         for(unsigned int index = threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x) {
             haystackDescriptor[index] =
                     haystackDescriptors[elementsPerShapeContextDescriptor * haystackDescriptorIndex + index]
-                    * haystackScaleFactor;
+                    * (1.0f/haystackScaleFactor);
         }
 
         __syncthreads();

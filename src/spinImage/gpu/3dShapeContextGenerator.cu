@@ -297,14 +297,51 @@ __global__ void createDescriptors(
 __global__ void countBinContents(
     SpinImage::gpu::PointCloud pointCloud,
     unsigned int* indexTable,
+    SpinImage::gpu::BoundingBox boundingBox,
     int3 binCounts,
     float binSize) {
-    __shared__ unsigned int combinedBinPointCount = 0;
+    __shared__ unsigned int combinedBinPointCount;
+    combinedBinPointCount = 0;
+    unsigned int threadPointCount = 0;
 
     __syncthreads();
+
+    SpinImage::gpu::BoundingBox binBounds = {
+        {{boundingBox.min.x + binSize * blockIdx.x},
+         {boundingBox.min.y + binSize * blockIdx.y},
+         {boundingBox.min.z + binSize * blockIdx.z}},
+        {{boundingBox.min.x + binSize * (blockIdx.x + 1)},
+         {boundingBox.min.y + binSize * (blockIdx.y + 1)},
+         {boundingBox.min.z + binSize * (blockIdx.z + 1)}}
+    };
+
+    for(unsigned int vertexIndex = threadIdx.x; vertexIndex < pointCloud.vertices.length; vertexIndex += blockDim.x) {
+        float3 vertex = pointCloud.vertices.at(vertexIndex);
+
+        if(vertex.x >= binBounds.min.x &&
+           vertex.y >= binBounds.min.y &&
+           vertex.z >= binBounds.min.z &&
+           vertex.x < binBounds.max.x &&
+           vertex.y < binBounds.max.y &&
+           vertex.z < binBounds.max.z) {
+            threadPointCount++;
+        }
+    }
+
+    unsigned int warpCombinedSum = warpAllReduceSum(threadPointCount);
+    if(threadIdx.x % 32 == 0) {
+        atomicAdd(&combinedBinPointCount, warpCombinedSum);
+    }
+
+    __syncthreads();
+
+    // At this point all warps have added their counted points to the conbined count
+    // We can thus write it to memory
+    unsigned int binIndex = blockIdx.z * binCounts.x * binCounts.y + blockIdx.y * binCounts.x + blockIdx.x;
+    indexTable[binIndex] = combinedBinPointCount;
 }
 
-__global__ void countCumulativeBinIndices(unsigned int* indexTable, int3 binCounts) {
+__global__ void countCumulativeBinIndices(unsigned int* indexTable, int3 binCounts, unsigned int pointCloudSize) {
     unsigned int cumulativeIndex = 0;
     for(int z = 0; z < binCounts.z; z++) {
         for(int y = 0; y < binCounts.y; y++) {

@@ -134,10 +134,21 @@ __global__ void computePointCounts(
     };
 
     int3 maxBinIndices = {
-        min(max(int(referencePointBoundsMin.x / binSize) + 1, 0), binCounts.x-1),
-        min(max(int(referencePointBoundsMin.y / binSize) + 1, 0), binCounts.y-1),
-        min(max(int(referencePointBoundsMin.z / binSize) + 1, 0), binCounts.z-1)
+        min(max(int(referencePointBoundsMax.x / binSize) + 2, 0), binCounts.x-1),
+        min(max(int(referencePointBoundsMax.y / binSize) + 2, 0), binCounts.y-1),
+        min(max(int(referencePointBoundsMax.z / binSize) + 2, 0), binCounts.z-1)
     };
+
+    assert(minBinIndices.x < binCounts.x);
+    assert(minBinIndices.y < binCounts.y);
+    assert(minBinIndices.z < binCounts.z);
+    assert(maxBinIndices.x < binCounts.x);
+    assert(maxBinIndices.y < binCounts.y);
+    assert(maxBinIndices.z < binCounts.z);
+
+    /*if(threadIdx.x == 0) {
+        printf("(%i, %i, %i) -> (%i, %i, %i)\n", minBinIndices.x, minBinIndices.y, minBinIndices.z, maxBinIndices.x, maxBinIndices.y, maxBinIndices.z);
+    }*/
 
     for(unsigned int binZ = minBinIndices.z; binZ < maxBinIndices.z; binZ++) {
         for(unsigned int binY = minBinIndices.y; binY < maxBinIndices.y; binY++) {
@@ -157,7 +168,7 @@ __global__ void computePointCounts(
             assert(startVertexIndex < pointCloud.vertices.length);
             assert(endVertexIndex < pointCloud.vertices.length);
 
-            for (unsigned int samplePointIndex = startVertexIndex; samplePointIndex < endVertexIndex; samplePointIndex += blockDim.x)
+            for (unsigned int samplePointIndex = startVertexIndex + threadIdx.x; samplePointIndex < endVertexIndex; samplePointIndex += blockDim.x)
             {
                 float3 samplePoint = pointCloud.vertices.at(samplePointIndex);
                 float3 delta = samplePoint - referencePoint;
@@ -474,6 +485,17 @@ SpinImage::array<unsigned int> computePointDensities(float pointDensityRadius, S
     checkCudaErrors(cudaGetLastError());
 
     cudaFree(device_indexTable);
+
+    /*unsigned int* host_pointCountArray = new unsigned int[sampleCount];
+    cudaMemcpy(host_pointCountArray, device_pointCountArray.content, sampleCount * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+    for(int i = 0; i < sampleCount; i++) {
+        std::cout << host_pointCountArray[i];
+        if(i % 10 == 0) {
+            std::cout << std::endl;
+        } else {
+            std::cout << ", ";
+        }
+    }*/
 
     return device_pointCountArray;
 }

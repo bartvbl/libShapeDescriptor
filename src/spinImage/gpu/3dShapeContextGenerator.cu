@@ -112,6 +112,10 @@ __inline__ __device__ unsigned int warpAllReduceSum(unsigned int val) {
 __global__ void computePointCounts(
         SpinImage::array<unsigned int> pointDensityArray,
         SpinImage::gpu::PointCloud pointCloud,
+        SpinImage::gpu::BoundingBox boundingBox,
+        unsigned int* indexTable,
+        int3 binCounts,
+        float binSize,
         float countRadius) {
 
     assert(blockDim.x == 32);
@@ -120,13 +124,48 @@ __global__ void computePointCounts(
     unsigned int threadPointCount = 0;
     float3 referencePoint = pointCloud.vertices.at(pointIndex);
 
-    for (unsigned int samplePointIndex = threadIdx.x; samplePointIndex < pointCloud.vertices.length; samplePointIndex += blockDim.x)
-    {
-        float3 samplePoint = pointCloud.vertices.at(samplePointIndex);
-        float3 delta = samplePoint - referencePoint;
-        float distanceToPoint = length(delta);
-        if(distanceToPoint <= countRadius) {
-            threadPointCount++;
+    float3 referencePointBoundsMin = referencePoint - float3{countRadius, countRadius, countRadius} - boundingBox.min;
+    float3 referencePointBoundsMax = referencePoint + float3{countRadius, countRadius, countRadius} - boundingBox.min;
+
+    int3 minBinIndices = {
+        min(max(int(referencePointBoundsMin.x / binSize), 0), binCounts.x-1),
+        min(max(int(referencePointBoundsMin.y / binSize), 0), binCounts.y-1),
+        min(max(int(referencePointBoundsMin.z / binSize), 0), binCounts.z-1)
+    };
+
+    int3 maxBinIndices = {
+        min(max(int(referencePointBoundsMin.x / binSize) + 1, 0), binCounts.x-1),
+        min(max(int(referencePointBoundsMin.y / binSize) + 1, 0), binCounts.y-1),
+        min(max(int(referencePointBoundsMin.z / binSize) + 1, 0), binCounts.z-1)
+    };
+
+    for(unsigned int binZ = minBinIndices.z; binZ < maxBinIndices.z; binZ++) {
+        for(unsigned int binY = minBinIndices.y; binY < maxBinIndices.y; binY++) {
+            unsigned int startTableIndex = binZ * binCounts.x * binCounts.y + binY * binCounts.x + minBinIndices.x;
+            unsigned int endTableIndex = binZ * binCounts.x * binCounts.y + binY * binCounts.x + maxBinIndices.x;
+
+            unsigned int startVertexIndex = indexTable[startTableIndex];
+            unsigned int endVertexIndex = 0;
+
+            if(endVertexIndex < binCounts.x * binCounts.y * binCounts.z) {
+                endVertexIndex = indexTable[endTableIndex];
+            } else {
+                endVertexIndex = pointCloud.vertices.length;
+            }
+
+            assert(startVertexIndex <= endVertexIndex);
+            assert(startVertexIndex < pointCloud.vertices.length);
+            assert(endVertexIndex < pointCloud.vertices.length);
+
+            for (unsigned int samplePointIndex = startVertexIndex; samplePointIndex < endVertexIndex; samplePointIndex += blockDim.x)
+            {
+                float3 samplePoint = pointCloud.vertices.at(samplePointIndex);
+                float3 delta = samplePoint - referencePoint;
+                float distanceToPoint = length(delta);
+                if(distanceToPoint <= countRadius) {
+                    threadPointCount++;
+                }
+            }
         }
     }
 
@@ -339,6 +378,38 @@ __global__ void countCumulativeBinIndices(unsigned int* indexTable, int3 binCoun
     assert(cumulativeIndex == pointCloudSize);
 }
 
+__global__ void rearrangePointCloud(
+        SpinImage::gpu::PointCloud sourcePointCloud,
+        SpinImage::gpu::PointCloud destinationPointCloud,
+        SpinImage::gpu::BoundingBox boundingBox,
+        unsigned int* nextIndexEntryTable,
+        int3 binCounts,
+        float binSize) {
+    unsigned int vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if(vertexIndex >= sourcePointCloud.vertices.length) {
+        return;
+    }
+
+    float3 vertex = sourcePointCloud.vertices.at(vertexIndex);
+
+    float3 relativeToBoundingBox = vertex - boundingBox.min;
+
+    int3 binIndex = {
+            min(max(int(relativeToBoundingBox.x / binSize), 0), binCounts.x-1),
+            min(max(int(relativeToBoundingBox.y / binSize), 0), binCounts.y-1),
+            min(max(int(relativeToBoundingBox.z / binSize), 0), binCounts.z-1)
+    };
+
+    unsigned int indexTableIndex = binIndex.z * binCounts.x * binCounts.y + binIndex.y * binCounts.x + binIndex.x;
+
+    assert(indexTableIndex < binCounts.x * binCounts.y * binCounts.z);
+
+    unsigned int targetIndex = atomicAdd(&nextIndexEntryTable[indexTableIndex], 1);
+
+    destinationPointCloud.vertices.set(targetIndex, vertex);
+}
+
 SpinImage::array<unsigned int> computePointDensities(float pointDensityRadius, SpinImage::gpu::PointCloud device_pointCloud, size_t &sampleCount) {
     // 1. Compute bounding box
     SpinImage::gpu::BoundingBox boundingBox = SpinImage::utilities::computeBoundingBox(device_pointCloud);
@@ -371,19 +442,34 @@ SpinImage::array<unsigned int> computePointDensities(float pointDensityRadius, S
     checkCudaErrors(cudaGetLastError());
 
     // 5. Allocate temporary point cloud (vertices only)
+    SpinImage::gpu::PointCloud device_tempPointCloud(device_pointCloud.vertices.length);
 
     // 6. Copy over contents of point cloud
-    //cudaMemcpy(cudaMemcpyDeviceToDevice);
+    checkCudaErrors(cudaMemcpy(device_tempPointCloud.vertices.array, device_pointCloud.vertices.array,
+        device_pointCloud.vertices.length * sizeof(float3), cudaMemcpyDeviceToDevice));
+    checkCudaErrors(cudaMemcpy(device_tempPointCloud.normals.array, device_pointCloud.normals.array,
+        device_pointCloud.normals.length * sizeof(float3), cudaMemcpyDeviceToDevice));
 
     // 7. Move points into respective bins
+    unsigned int* device_nextIndexTableEntries;
+    checkCudaErrors(cudaMalloc(&device_nextIndexTableEntries, totalBinCount * sizeof(unsigned int)));
+    checkCudaErrors(cudaMemcpy(device_nextIndexTableEntries, device_indexTable,
+                               totalBinCount * sizeof(unsigned int), cudaMemcpyDeviceToDevice));
+    rearrangePointCloud<<<(device_pointCloud.vertices.length / 256) + 1, 256>>>(
+            device_tempPointCloud, device_pointCloud,
+            boundingBox,
+            device_nextIndexTableEntries,
+            binCounts, binSize);
+    checkCudaErrors(cudaFree(device_nextIndexTableEntries));
 
     // 8. Delete temporary vertex buffer
-    //cudaFree(device_tempPointCloud);
+    device_tempPointCloud.free();
 
     // 8. Count nearby points using new array and its index structure
     SpinImage::array<unsigned int> device_pointCountArray = {sampleCount, nullptr};
     checkCudaErrors(cudaMalloc(&device_pointCountArray.content, sampleCount * sizeof(unsigned int)));
-    computePointCounts<<<sampleCount, 32>>>(device_pointCountArray, device_pointCloud, pointDensityRadius);
+    computePointCounts<<<sampleCount, 32>>>(
+            device_pointCountArray, device_pointCloud, boundingBox, device_indexTable, binCounts, binSize, pointDensityRadius);
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 

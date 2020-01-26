@@ -294,6 +294,30 @@ __global__ void createDescriptors(
 
 }
 
+__global__ void countBinContents(
+    SpinImage::gpu::PointCloud pointCloud,
+    unsigned int* indexTable,
+    int3 binCounts,
+    float binSize) {
+    __shared__ unsigned int combinedBinPointCount = 0;
+
+    __syncthreads();
+}
+
+__global__ void countCumulativeBinIndices(unsigned int* indexTable, int3 binCounts) {
+    unsigned int cumulativeIndex = 0;
+    for(int z = 0; z < binCounts.z; z++) {
+        for(int y = 0; y < binCounts.y; y++) {
+            for(int x = 0; x < binCounts.x; x++) {
+                unsigned int binIndex = z * binCounts.x * binCounts.y + y * binCounts.x + x;
+                unsigned int binLength = indexTable[binIndex];
+                indexTable[binIndex] = cumulativeIndex;
+                cumulativeIndex += binLength;
+            }
+        }
+    }
+}
+
 SpinImage::array<unsigned int> computePointDensities(float pointDensityRadius, SpinImage::gpu::PointCloud device_pointCloud, size_t &sampleCount) {
     // 1. Compute bounding box
     SpinImage::gpu::BoundingBox boundingBox = SpinImage::utilities::computeBoundingBox(device_pointCloud);
@@ -301,21 +325,46 @@ SpinImage::array<unsigned int> computePointDensities(float pointDensityRadius, S
     std::cout << "Max: " << boundingBox.max << std::endl;
 
     // 2. Allocate index array for boxes of radius x radius x radius
+    float3 boundingBoxSize = boundingBox.max - boundingBox.min;
+    float binSize = std::cbrt(boundingBoxSize.x * boundingBoxSize.y * boundingBoxSize.z) / 50.0f;
+    std::cout << "Box size: " << binSize << std::endl;
+    int3 binCounts = {int(boundingBoxSize.x / binSize) + 1,
+                      int(boundingBoxSize.y / binSize) + 1,
+                      int(boundingBoxSize.z / binSize) + 1};
+    int totalBinCount = binCounts.x * binCounts.y * binCounts.z;
+    std::cout << "Bin counts: " << binCounts.x << ", " << binCounts.y << ", " << binCounts.z << std::endl;
+    unsigned int* device_indexTable;
+    checkCudaErrors(cudaMalloc(&device_indexTable, totalBinCount * sizeof(unsigned int)));
 
     // 3. Counting occurrences for each box
+    countBinContents<<<binCounts, 256>>>(device_pointCloud, device_indexTable, binCounts, binSize);
+    checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
 
-    // 4. Allocate new array
+    // 4. Compute cumulative indices
+    // Single threaded, because there aren't all that many bins, and you don't win much by parallelising it anyway
+    countCumulativeBinIndices<<<1, 1>>>(device_indexTable, binCounts);
+    checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
 
-    // 5. Move over contents of old array
+    // 5. Allocate temporary point cloud (vertices only)
 
-    // 6. Delete old array
+    // 6. Copy over contents of point cloud
+    cudaMemcpy(cudaMemcpyDeviceToDevice);
 
-    // 7. Count nearby points using new array and its index structure
+    // 7. Move points into respective bins
+
+    // 8. Delete temporary vertex buffer
+    cudaFree(device_tempPointCloud);
+
+    // 8. Count nearby points using new array and its index structure
     SpinImage::array<unsigned int> device_pointCountArray = {sampleCount, nullptr};
     checkCudaErrors(cudaMalloc(&device_pointCountArray.content, sampleCount * sizeof(unsigned int)));
     computePointCounts<<<sampleCount, 32>>>(device_pointCountArray, device_pointCloud, pointDensityRadius);
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
+
+    cudaFree(device_indexTable);
 
     return device_pointCountArray;
 }

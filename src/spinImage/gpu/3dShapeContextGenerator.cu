@@ -150,6 +150,9 @@ __global__ void computePointCounts(
         printf("(%i, %i, %i) -> (%i, %i, %i)\n", minBinIndices.x, minBinIndices.y, minBinIndices.z, maxBinIndices.x, maxBinIndices.y, maxBinIndices.z);
     }*/
 
+    // TODO: Ensure vertex does not count itself
+    // TODO: Correctly handle end corner bin such that its contents are included in point count
+
     for(unsigned int binZ = minBinIndices.z; binZ < maxBinIndices.z; binZ++) {
         for(unsigned int binY = minBinIndices.y; binY < maxBinIndices.y; binY++) {
             unsigned int startTableIndex = binZ * binCounts.x * binCounts.y + binY * binCounts.x + minBinIndices.x;

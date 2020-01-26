@@ -7,6 +7,9 @@
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
 #include <nvidia/helper_math.h>
+#include <spinImage/gpu/types/BoundingBox.h>
+#include <spinImage/utilities/pointCloudUtils.h>
+#include <iostream>
 #include "3dShapeContextGenerator.cuh"
 
 __device__ bool operator==(float3 &a, float3 &b) {
@@ -23,6 +26,11 @@ __device__ bool operator==(float2 &a, float2 &b) {
 
 __device__ bool operator==(const float2 &a, const float2 &b) {
     return a.x == b.x && a.y == b.y;
+}
+
+std::ostream& operator << (std::ostream &o, const float3& p)
+{
+    return o << "(" << p.x << ", " << p.y << ", " << p.z << ")";
 }
 
 const size_t elementsPerShapeContextDescriptor =
@@ -286,6 +294,32 @@ __global__ void createDescriptors(
 
 }
 
+SpinImage::array<unsigned int> computePointDensities(float pointDensityRadius, SpinImage::gpu::PointCloud device_pointCloud, size_t &sampleCount) {
+    // 1. Compute bounding box
+    SpinImage::gpu::BoundingBox boundingBox = SpinImage::utilities::computeBoundingBox(device_pointCloud);
+    std::cout << "Min: " << boundingBox.min << std::endl;
+    std::cout << "Max: " << boundingBox.max << std::endl;
+
+    // 2. Allocate index array for boxes of radius x radius x radius
+
+    // 3. Counting occurrences for each box
+
+    // 4. Allocate new array
+
+    // 5. Move over contents of old array
+
+    // 6. Delete old array
+
+    // 7. Count nearby points using new array and its index structure
+    SpinImage::array<unsigned int> device_pointCountArray = {sampleCount, nullptr};
+    checkCudaErrors(cudaMalloc(&device_pointCountArray.content, sampleCount * sizeof(unsigned int)));
+    computePointCounts<<<sampleCount, 32>>>(device_pointCountArray, device_pointCloud, pointDensityRadius);
+    checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+
+    return device_pointCountArray;
+}
+
 SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
         Mesh device_mesh,
         array<DeviceOrientedPoint> device_spinImageOrigins,
@@ -329,11 +363,9 @@ SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
 
     // -- Point Count Computation --
     auto pointCountingStart = std::chrono::steady_clock::now();
-    SpinImage::array<unsigned int> device_pointCountArray = {sampleCount, nullptr};
-    checkCudaErrors(cudaMalloc(&device_pointCountArray.content, sampleCount * sizeof(unsigned int)));
-    computePointCounts<<<sampleCount, 32>>>(device_pointCountArray, device_pointCloud, pointDensityRadius);
-    checkCudaErrors(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
+
+    SpinImage::array<unsigned int> device_pointCountArray =
+            computePointDensities(pointDensityRadius, device_pointCloud, sampleCount);
 
     std::chrono::milliseconds pointCountingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - pointCountingStart);
 
@@ -374,3 +406,5 @@ SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
 
     return device_descriptors;
 }
+
+

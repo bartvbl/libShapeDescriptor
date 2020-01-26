@@ -300,45 +300,28 @@ __global__ void countBinContents(
     SpinImage::gpu::BoundingBox boundingBox,
     int3 binCounts,
     float binSize) {
-    __shared__ unsigned int combinedBinPointCount;
-    combinedBinPointCount = 0;
-    unsigned int threadPointCount = 0;
 
-    __syncthreads();
+    unsigned int vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
 
-    SpinImage::gpu::BoundingBox binBounds = {
-        {{boundingBox.min.x + binSize * blockIdx.x},
-         {boundingBox.min.y + binSize * blockIdx.y},
-         {boundingBox.min.z + binSize * blockIdx.z}},
-        {{boundingBox.min.x + binSize * (blockIdx.x + 1)},
-         {boundingBox.min.y + binSize * (blockIdx.y + 1)},
-         {boundingBox.min.z + binSize * (blockIdx.z + 1)}}
+    if(vertexIndex >= pointCloud.vertices.length) {
+        return;
+    }
+
+    float3 vertex = pointCloud.vertices.at(vertexIndex);
+
+    float3 relativeToBoundingBox = vertex - boundingBox.min;
+
+    int3 binIndex = {
+        min(max(int(relativeToBoundingBox.x / binSize), 0), binCounts.x-1),
+        min(max(int(relativeToBoundingBox.y / binSize), 0), binCounts.y-1),
+        min(max(int(relativeToBoundingBox.z / binSize), 0), binCounts.z-1)
     };
 
-    for(unsigned int vertexIndex = threadIdx.x; vertexIndex < pointCloud.vertices.length; vertexIndex += blockDim.x) {
-        float3 vertex = pointCloud.vertices.at(vertexIndex);
+    unsigned int indexTableIndex = binIndex.z * binCounts.x * binCounts.y + binIndex.y * binCounts.x + binIndex.x;
 
-        if(vertex.x >= binBounds.min.x &&
-           vertex.y >= binBounds.min.y &&
-           vertex.z >= binBounds.min.z &&
-           vertex.x < binBounds.max.x &&
-           vertex.y < binBounds.max.y &&
-           vertex.z < binBounds.max.z) {
-            threadPointCount++;
-        }
-    }
+    assert(indexTableIndex < binCounts.x * binCounts.y * binCounts.z);
 
-    unsigned int warpCombinedSum = warpAllReduceSum(threadPointCount);
-    if(threadIdx.x % 32 == 0) {
-        atomicAdd(&combinedBinPointCount, warpCombinedSum);
-    }
-
-    __syncthreads();
-
-    // At this point all warps have added their counted points to the conbined count
-    // We can thus write it to memory
-    unsigned int binIndex = blockIdx.z * binCounts.x * binCounts.y + blockIdx.y * binCounts.x + blockIdx.x;
-    indexTable[binIndex] = combinedBinPointCount;
+    atomicAdd(&indexTable[indexTableIndex], 1);
 }
 
 __global__ void countCumulativeBinIndices(unsigned int* indexTable, int3 binCounts, unsigned int pointCloudSize) {
@@ -353,6 +336,7 @@ __global__ void countCumulativeBinIndices(unsigned int* indexTable, int3 binCoun
             }
         }
     }
+    assert(cumulativeIndex == pointCloudSize);
 }
 
 SpinImage::array<unsigned int> computePointDensities(float pointDensityRadius, SpinImage::gpu::PointCloud device_pointCloud, size_t &sampleCount) {
@@ -372,27 +356,29 @@ SpinImage::array<unsigned int> computePointDensities(float pointDensityRadius, S
     std::cout << "Bin counts: " << binCounts.x << ", " << binCounts.y << ", " << binCounts.z << std::endl;
     unsigned int* device_indexTable;
     checkCudaErrors(cudaMalloc(&device_indexTable, totalBinCount * sizeof(unsigned int)));
+    checkCudaErrors(cudaMemset(device_indexTable, 0, totalBinCount * sizeof(unsigned int)));
 
     // 3. Counting occurrences for each box
-    countBinContents<<<binCounts, 256>>>(device_pointCloud, device_indexTable, binCounts, binSize);
+    countBinContents<<<(device_pointCloud.vertices.length / 256) + 1, 256>>>(
+            device_pointCloud, device_indexTable, boundingBox, binCounts, binSize);
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 
     // 4. Compute cumulative indices
     // Single threaded, because there aren't all that many bins, and you don't win much by parallelising it anyway
-    countCumulativeBinIndices<<<1, 1>>>(device_indexTable, binCounts);
+    countCumulativeBinIndices<<<1, 1>>>(device_indexTable, binCounts, device_pointCloud.vertices.length);
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 
     // 5. Allocate temporary point cloud (vertices only)
 
     // 6. Copy over contents of point cloud
-    cudaMemcpy(cudaMemcpyDeviceToDevice);
+    //cudaMemcpy(cudaMemcpyDeviceToDevice);
 
     // 7. Move points into respective bins
 
     // 8. Delete temporary vertex buffer
-    cudaFree(device_tempPointCloud);
+    //cudaFree(device_tempPointCloud);
 
     // 8. Count nearby points using new array and its index structure
     SpinImage::array<unsigned int> device_pointCountArray = {sampleCount, nullptr};

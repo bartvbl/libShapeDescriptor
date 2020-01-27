@@ -43,12 +43,12 @@ __device__ float compute3DSCPairDistanceGPU(
         for(short binIndex = threadIdx.x; binIndex < elementsPerShapeContextDescriptor; binIndex += blockDim.x) {
             float needleBinValue = needleDescriptor[binIndex];
             short haystackBinIndex =
-                    (binIndex +
-                    (sliceOffset * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT * SHAPE_CONTEXT_LAYER_COUNT))
-                    % elementsPerShapeContextDescriptor;
+                (binIndex + (sliceOffset * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT * SHAPE_CONTEXT_LAYER_COUNT));
+            if(haystackBinIndex >= elementsPerShapeContextDescriptor) {
+                haystackBinIndex -= elementsPerShapeContextDescriptor;
+            }
             float haystackBinValue = haystackDescriptor[haystackBinIndex];
             float binDelta = needleBinValue - haystackBinValue;
-            //if(threadIdx.x == 0) printf("%f - %f = %f\n", needleBinValue, haystackBinValue, binDelta);
             threadSquaredDistance += binDelta * binDelta;
         }
 
@@ -67,11 +67,7 @@ __device__ float compute3DSCPairDistanceGPU(
         // the highest possible value so that any other value will be lower
         float threadValue = threadIdx.x < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT ?
                 sharedSquaredSums[threadIdx.x] : FLT_MAX;
-        /*if(threadIdx.x < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT && threadValue != 0) {
-            printf("%i -> %f\n", threadIdx.x, threadValue);
-        }*/
         lowestDistance = std::sqrt(warpAllReduceMin(threadValue));
-        //if(threadIdx.x == 0) printf("%f\n", lowestDistance);
     }
 
     if(threadIdx.x == 0) {
@@ -121,8 +117,6 @@ __global__ void computeShapeContextSearchResultIndices(
             haystackDescriptor,
             squaredSums);
 
-    //if(threadIdx.x == 0) printf("Refdist: %f\n", referenceDistance);
-
     // No image pair can have a better distance than 0, so we can just stop the search right here
     if(referenceDistance == 0) {
         return;
@@ -147,8 +141,6 @@ __global__ void computeShapeContextSearchResultIndices(
                 referenceDescriptor,
                 haystackDescriptor,
                 squaredSums);
-
-        //if(threadIdx.x == 0) printf("Sampledist: %f vs %f %i\n", distance, referenceDistance, blockIdx.x);
 
         // We've found a result that's better than the reference one. That means this search result would end up
         // above ours in the search result list. We therefore move our search result down by 1.

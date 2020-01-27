@@ -1,4 +1,3 @@
-#include "spinImageCorrelation.h"
 #include "utilities/spinImageGenerator.h"
 #include <catch2/catch.hpp>
 #include <spinImage/common/buildSettings/derivedBuildSettings.h>

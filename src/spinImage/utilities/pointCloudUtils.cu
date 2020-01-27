@@ -171,8 +171,6 @@ __global__ void countBinContents(
             min(max(int(relativeToBoundingBox.z / binSize), 0), binCounts.z-1)
     };
 
-    //printf("Bin Index: (%i, %i, %i)\n", binIndex.x, binIndex.y, binIndex.z);
-
     unsigned int indexTableIndex = computeJumpTableIndex(binIndex, binCounts);
 
     assert(indexTableIndex < binCounts.x * binCounts.y * binCounts.z);
@@ -189,9 +187,6 @@ __global__ void countCumulativeBinIndices(unsigned int* indexTable, int3 binCoun
                 unsigned int binLength = indexTable[binIndex];
                 indexTable[binIndex] = cumulativeIndex;
                 cumulativeIndex += binLength;
-                /*if(binLength != 0) {
-                    printf("Cumulative index counting: (%i, %i, %i) -> %i\n", x, y, z, cumulativeIndex);
-                }*/
             }
         }
     }
@@ -227,8 +222,6 @@ __global__ void rearrangePointCloud(
 
     unsigned int targetIndex = atomicAdd(&nextIndexEntryTable[indexTableIndex], 1);
 
-    //printf("Moved %i to %i\n", vertexIndex, targetIndex);
-
     destinationPointCloud.vertices.set(targetIndex, vertex);
 }
 
@@ -263,11 +256,6 @@ __global__ void computePointCounts(
             min(max(int(referencePointBoundsMax.z / binSize) + 1, 0), binCounts.z-1)
     };
 
-    /*if(threadIdx.x == 0)
-    printf("(%i, %i, %i) -> (%i, %i, %i)\n",
-            minBinIndices.x, minBinIndices.y, minBinIndices.z,
-           maxBinIndices.x, maxBinIndices.y, maxBinIndices.z);*/
-
     assert(minBinIndices.x < binCounts.x);
     assert(minBinIndices.y < binCounts.y);
     assert(minBinIndices.z < binCounts.z);
@@ -289,8 +277,6 @@ __global__ void computePointCounts(
                 endVertexIndex = pointCloud.vertices.length;
             }
 
-            //if(threadIdx.x == 0) printf("Iteration (%i, %i) in %i: %i to %i, %i to %i\n", binZ, binY, blockIdx.x, startTableIndex, endTableIndex, startVertexIndex, endVertexIndex);
-
             assert(startVertexIndex <= endVertexIndex);
             assert(startVertexIndex <= pointCloud.vertices.length);
             assert(endVertexIndex <= pointCloud.vertices.length);
@@ -304,7 +290,6 @@ __global__ void computePointCounts(
                 float3 samplePoint = pointCloud.vertices.at(samplePointIndex);
                 float3 delta = samplePoint - referencePoint;
                 float distanceToPoint = length(delta);
-                //printf("\n%f vs %f\n", distanceToPoint, countRadius);
                 if(distanceToPoint <= countRadius) {
                     threadPointCount++;
                 }
@@ -324,8 +309,6 @@ SpinImage::array<unsigned int> SpinImage::utilities::computePointDensities(
 
     // 1. Compute bounding box
     SpinImage::gpu::BoundingBox boundingBox = SpinImage::utilities::computeBoundingBox(device_pointCloud);
-    //std::cout << "Min: " << boundingBox.min << std::endl;
-    //std::cout << "Max: " << boundingBox.max << std::endl;
 
     // 2. Allocate index array for boxes of radius x radius x radius
     float3 boundingBoxSize = boundingBox.max - boundingBox.min;
@@ -333,12 +316,11 @@ SpinImage::array<unsigned int> SpinImage::utilities::computePointDensities(
             (boundingBoxSize.x != 0 ? boundingBoxSize.x : 1) *
                (boundingBoxSize.y != 0 ? boundingBoxSize.y : 1) *
                (boundingBoxSize.z != 0 ? boundingBoxSize.z : 1)) / 50.0f;
-    //std::cout << "Box size: " << binSize << std::endl;
+
     int3 binCounts = {int(boundingBoxSize.x / binSize) + 1,
                       int(boundingBoxSize.y / binSize) + 1,
                       int(boundingBoxSize.z / binSize) + 1};
     int totalBinCount = binCounts.x * binCounts.y * binCounts.z;
-    //std::cout << "Bin counts: " << binCounts.x << ", " << binCounts.y << ", " << binCounts.z << std::endl;
     unsigned int* device_indexTable;
     checkCudaErrors(cudaMalloc(&device_indexTable, totalBinCount * sizeof(unsigned int)));
     checkCudaErrors(cudaMemset(device_indexTable, 0, totalBinCount * sizeof(unsigned int)));
@@ -388,17 +370,6 @@ SpinImage::array<unsigned int> SpinImage::utilities::computePointDensities(
     checkCudaErrors(cudaGetLastError());
 
     cudaFree(device_indexTable);
-
-    /*unsigned int* host_pointCountArray = new unsigned int[sampleCount];
-    cudaMemcpy(host_pointCountArray, device_pointCountArray.content, sampleCount * sizeof(unsigned int), cudaMemcpyDeviceToHost);
-    for(int i = 0; i < sampleCount; i++) {
-        std::cout << host_pointCountArray[i];
-        if(i % 10 == 0) {
-            std::cout << std::endl;
-        } else {
-            std::cout << ", ";
-        }
-    }*/
 
     return device_pointCountArray;
 }

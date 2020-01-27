@@ -292,7 +292,7 @@ __global__ void computePointCounts(
             //if(threadIdx.x == 0) printf("Iteration (%i, %i) in %i: %i to %i, %i to %i\n", binZ, binY, blockIdx.x, startTableIndex, endTableIndex, startVertexIndex, endVertexIndex);
 
             assert(startVertexIndex <= endVertexIndex);
-            assert(startVertexIndex < pointCloud.vertices.length);
+            assert(startVertexIndex <= pointCloud.vertices.length);
             assert(endVertexIndex <= pointCloud.vertices.length);
 
             for (unsigned int samplePointIndex = startVertexIndex + threadIdx.x; samplePointIndex < endVertexIndex; samplePointIndex += blockDim.x)

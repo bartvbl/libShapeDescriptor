@@ -7,5 +7,6 @@
 namespace SpinImage {
     namespace utilities {
         SpinImage::gpu::BoundingBox computeBoundingBox(SpinImage::gpu::PointCloud device_pointCloud);
+        SpinImage::array<unsigned int> computePointDensities(float pointDensityRadius, SpinImage::gpu::PointCloud device_pointCloud);
     }
 }

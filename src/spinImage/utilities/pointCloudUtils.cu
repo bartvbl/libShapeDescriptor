@@ -171,7 +171,7 @@ __global__ void countBinContents(
             min(max(int(relativeToBoundingBox.z / binSize), 0), binCounts.z-1)
     };
 
-    printf("Bin Index: (%i, %i, %i)\n", binIndex.x, binIndex.y, binIndex.z);
+    //printf("Bin Index: (%i, %i, %i)\n", binIndex.x, binIndex.y, binIndex.z);
 
     unsigned int indexTableIndex = computeJumpTableIndex(binIndex, binCounts);
 
@@ -189,9 +189,9 @@ __global__ void countCumulativeBinIndices(unsigned int* indexTable, int3 binCoun
                 unsigned int binLength = indexTable[binIndex];
                 indexTable[binIndex] = cumulativeIndex;
                 cumulativeIndex += binLength;
-                if(binLength != 0) {
+                /*if(binLength != 0) {
                     printf("Cumulative index counting: (%i, %i, %i) -> %i\n", x, y, z, cumulativeIndex);
-                }
+                }*/
             }
         }
     }
@@ -227,7 +227,7 @@ __global__ void rearrangePointCloud(
 
     unsigned int targetIndex = atomicAdd(&nextIndexEntryTable[indexTableIndex], 1);
 
-    printf("Moved %i to %i\n", vertexIndex, targetIndex);
+    //printf("Moved %i to %i\n", vertexIndex, targetIndex);
 
     destinationPointCloud.vertices.set(targetIndex, vertex);
 }
@@ -263,10 +263,10 @@ __global__ void computePointCounts(
             min(max(int(referencePointBoundsMax.z / binSize) + 1, 0), binCounts.z-1)
     };
 
-    if(threadIdx.x == 0)
+    /*if(threadIdx.x == 0)
     printf("(%i, %i, %i) -> (%i, %i, %i)\n",
             minBinIndices.x, minBinIndices.y, minBinIndices.z,
-           maxBinIndices.x, maxBinIndices.y, maxBinIndices.z);
+           maxBinIndices.x, maxBinIndices.y, maxBinIndices.z);*/
 
     assert(minBinIndices.x < binCounts.x);
     assert(minBinIndices.y < binCounts.y);
@@ -278,20 +278,22 @@ __global__ void computePointCounts(
     for(int binZ = minBinIndices.z; binZ <= maxBinIndices.z; binZ++) {
         for(int binY = minBinIndices.y; binY <= maxBinIndices.y; binY++) {
             unsigned int startTableIndex = computeJumpTableIndex({minBinIndices.x, binY, binZ}, binCounts);
-            unsigned int endTableIndex = computeJumpTableIndex({maxBinIndices.x, binY, binZ}, binCounts);
+            unsigned int endTableIndex = computeJumpTableIndex({maxBinIndices.x, binY, binZ}, binCounts) + 1;
 
             unsigned int startVertexIndex = indexTable[startTableIndex];
             unsigned int endVertexIndex = 0;
 
-            if(endVertexIndex < binCounts.x * binCounts.y * binCounts.z - 1) {
+            if(endTableIndex < binCounts.x * binCounts.y * binCounts.z - 1) {
                 endVertexIndex = indexTable[endTableIndex];
             } else {
                 endVertexIndex = pointCloud.vertices.length;
             }
 
+            //if(threadIdx.x == 0) printf("Iteration (%i, %i) in %i: %i to %i, %i to %i\n", binZ, binY, blockIdx.x, startTableIndex, endTableIndex, startVertexIndex, endVertexIndex);
+
             assert(startVertexIndex <= endVertexIndex);
             assert(startVertexIndex < pointCloud.vertices.length);
-            assert(endVertexIndex < pointCloud.vertices.length);
+            assert(endVertexIndex <= pointCloud.vertices.length);
 
             for (unsigned int samplePointIndex = startVertexIndex + threadIdx.x; samplePointIndex < endVertexIndex; samplePointIndex += blockDim.x)
             {
@@ -302,7 +304,7 @@ __global__ void computePointCounts(
                 float3 samplePoint = pointCloud.vertices.at(samplePointIndex);
                 float3 delta = samplePoint - referencePoint;
                 float distanceToPoint = length(delta);
-                printf("\n%f vs %f\n", distanceToPoint, countRadius);
+                //printf("\n%f vs %f\n", distanceToPoint, countRadius);
                 if(distanceToPoint <= countRadius) {
                     threadPointCount++;
                 }
@@ -322,8 +324,8 @@ SpinImage::array<unsigned int> SpinImage::utilities::computePointDensities(
 
     // 1. Compute bounding box
     SpinImage::gpu::BoundingBox boundingBox = SpinImage::utilities::computeBoundingBox(device_pointCloud);
-    std::cout << "Min: " << boundingBox.min << std::endl;
-    std::cout << "Max: " << boundingBox.max << std::endl;
+    //std::cout << "Min: " << boundingBox.min << std::endl;
+    //std::cout << "Max: " << boundingBox.max << std::endl;
 
     // 2. Allocate index array for boxes of radius x radius x radius
     float3 boundingBoxSize = boundingBox.max - boundingBox.min;
@@ -331,12 +333,12 @@ SpinImage::array<unsigned int> SpinImage::utilities::computePointDensities(
             (boundingBoxSize.x != 0 ? boundingBoxSize.x : 1) *
                (boundingBoxSize.y != 0 ? boundingBoxSize.y : 1) *
                (boundingBoxSize.z != 0 ? boundingBoxSize.z : 1)) / 50.0f;
-    std::cout << "Box size: " << binSize << std::endl;
+    //std::cout << "Box size: " << binSize << std::endl;
     int3 binCounts = {int(boundingBoxSize.x / binSize) + 1,
                       int(boundingBoxSize.y / binSize) + 1,
                       int(boundingBoxSize.z / binSize) + 1};
     int totalBinCount = binCounts.x * binCounts.y * binCounts.z;
-    std::cout << "Bin counts: " << binCounts.x << ", " << binCounts.y << ", " << binCounts.z << std::endl;
+    //std::cout << "Bin counts: " << binCounts.x << ", " << binCounts.y << ", " << binCounts.z << std::endl;
     unsigned int* device_indexTable;
     checkCudaErrors(cudaMalloc(&device_indexTable, totalBinCount * sizeof(unsigned int)));
     checkCudaErrors(cudaMemset(device_indexTable, 0, totalBinCount * sizeof(unsigned int)));

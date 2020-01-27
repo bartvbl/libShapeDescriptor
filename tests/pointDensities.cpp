@@ -4,6 +4,7 @@
 #include <spinImage/gpu/types/PointCloud.h>
 #include <spinImage/common/types/array.h>
 #include <spinImage/utilities/pointCloudUtils.h>
+#include <iostream>
 
 TEST_CASE("Counting the number of points in the vicinity of others") {
     SECTION("Simple point cloud") {
@@ -22,6 +23,8 @@ TEST_CASE("Counting the number of points in the vicinity of others") {
 
         unsigned int* counts = new unsigned int[4];
         cudaMemcpy(counts, device_pointDensities.content, 4 * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+
+        std::cout << std::endl << "Final counts: " << counts[0] << ", " << counts[1] << ", " << counts[2] << ", " << counts[3] << std::endl << std::endl;
 
         for(int i = 0; i < 4; i++) {
             REQUIRE(counts[i] == 3);

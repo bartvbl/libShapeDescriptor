@@ -33,31 +33,6 @@ const size_t elementsPerShapeContextDescriptor =
         SHAPE_CONTEXT_VERTICAL_SLICE_COUNT *
         SHAPE_CONTEXT_LAYER_COUNT;
 
-__device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const SpinImage::array<float> &areaArray, int triangleIndex, int sampleCount) {
-    SpinImage::SampleBounds sampleBounds;
-    float maxArea = areaArray.content[areaArray.length - 1];
-    float areaStepSize = maxArea / (float)sampleCount;
-
-    if (triangleIndex == 0)
-    {
-        sampleBounds.areaStart = 0;
-        sampleBounds.areaEnd = areaArray.content[0];
-    }
-    else
-    {
-        sampleBounds.areaStart = areaArray.content[triangleIndex - 1];
-        sampleBounds.areaEnd = areaArray.content[triangleIndex];
-    }
-
-    size_t firstIndexInRange = (size_t) (sampleBounds.areaStart / areaStepSize) + 1;
-    size_t lastIndexInRange = (size_t) (sampleBounds.areaEnd / areaStepSize);
-
-    sampleBounds.sampleCount = lastIndexInRange - firstIndexInRange + 1; // Offset is needed to ensure bounds are correct
-    sampleBounds.sampleStartIndex = firstIndexInRange - 1;
-
-    return sampleBounds;
-}
-
 __device__ __inline__ float computeLayerDistance(float minSupportRadius, float maxSupportRadius, short layerIndex) {
     // Avoiding zero divisions
     if(minSupportRadius == 0) {

@@ -33,7 +33,7 @@ const size_t elementsPerShapeContextDescriptor =
         SHAPE_CONTEXT_VERTICAL_SLICE_COUNT *
         SHAPE_CONTEXT_LAYER_COUNT;
 
-__device__ __inline__ float computeLayerDistance(float minSupportRadius, float maxSupportRadius, short layerIndex) {
+__host__ __device__ __inline__ float computeLayerDistance(float minSupportRadius, float maxSupportRadius, short layerIndex) {
     // Avoiding zero divisions
     if(minSupportRadius == 0) {
         minSupportRadius = 0.000001f;
@@ -41,11 +41,10 @@ __device__ __inline__ float computeLayerDistance(float minSupportRadius, float m
     return std::exp(
             (std::log(minSupportRadius))
             + ((float(layerIndex) / float(SHAPE_CONTEXT_LAYER_COUNT))
-            * std::log(float(maxSupportRadius) / float(minSupportRadius)))
-        );
+            * std::log(float(maxSupportRadius) / float(minSupportRadius))));
 }
 
-__device__ __inline__ float computeWedgeSegmentVolume(short verticalBinIndex, float radius) {
+__host__ __device__ __inline__ float computeWedgeSegmentVolume(short verticalBinIndex, float radius) {
     const float verticalAngleStep = 1.0f / float(SHAPE_CONTEXT_VERTICAL_SLICE_COUNT);
     float binStartAngle = float(verticalBinIndex) * verticalAngleStep;
     float binEndAngle = float(verticalBinIndex + 1) * verticalAngleStep;
@@ -55,7 +54,7 @@ __device__ __inline__ float computeWedgeSegmentVolume(short verticalBinIndex, fl
     return scaleFraction * (std::cos(binStartAngle) - std::cos(binEndAngle));
 }
 
-__device__ __inline__ float computeBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius) {
+__host__ __device__ __inline__ float SpinImage::internal::computeBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius) {
     // The wedge segment computation goes all the way from the center to the edge of the sphere
     // Since we also have a minimum support radius, we need to cut out the volume of the centre part
     float binEndRadius = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex + 1);
@@ -70,13 +69,6 @@ __device__ __inline__ float computeBinVolume(short verticalBinIndex, short layer
 __device__ float absoluteAngle(float y, float x) {
     float absoluteAngle = std::atan2(y, x);
     return absoluteAngle < 0 ? absoluteAngle + (2.0f * float(M_PI)) : absoluteAngle;
-}
-
-__inline__ __device__ unsigned int warpAllReduceSum(unsigned int val) {
-    const int warpSize = 32;
-    for (int mask = warpSize/2; mask > 0; mask /= 2)
-        val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
-    return val;
 }
 
 // Run once for every vertex index
@@ -97,9 +89,7 @@ __global__ void createDescriptors(
 
     const float3 vertex = spinOrigin.vertex;
     float3 normal = spinOrigin.normal;
-
-    //assert(length(normal) != 0);
-
+    
     normal /= length(normal);
 
     __shared__ shapeContextBinType localDescriptor[elementsPerShapeContextDescriptor];
@@ -207,7 +197,7 @@ __global__ void createDescriptors(
         assert(binIndex.z < SHAPE_CONTEXT_LAYER_COUNT);
 
         // 2. Compute sample weight
-        float binVolume = computeBinVolume(binIndex.y, binIndex.z, minSupportRadius, maxSupportRadius);
+        float binVolume = SpinImage::internal::computeBinVolume(binIndex.y, binIndex.z, minSupportRadius, maxSupportRadius);
 
         // Volume can't be 0, and should be less than the volume of the support volume
         assert(binVolume > 0);

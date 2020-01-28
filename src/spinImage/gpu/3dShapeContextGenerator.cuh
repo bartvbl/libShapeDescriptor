@@ -15,6 +15,10 @@ namespace SpinImage {
         };
     }
 
+    namespace internal {
+        float computeBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius);
+    }
+
     namespace gpu {
         // A seed of 0 will cause the implementation to pick one
         array<shapeContextBinType > generate3DSCDescriptors(

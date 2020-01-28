@@ -114,7 +114,6 @@ __global__ void createDescriptors(
     float3 referenceXAxis = cross(arbitraryAxis, normal);
     float3 referenceYAxis = cross(referenceXAxis, normal);
 
-
     assert(length(referenceXAxis) != 0);
     assert(length(referenceYAxis) != 0);
 
@@ -158,7 +157,7 @@ __global__ void createDescriptors(
             }
         }
 
-        // normalise direction vector
+        // normalise direction vectors
         horizontalDirection /= length(horizontalDirection);
         verticalDirection /= length(verticalDirection);
 
@@ -209,7 +208,7 @@ __global__ void createDescriptors(
         assert(binVolume > 0);
         assert(binVolume < (4.0f / 3.0f) * M_PI * maxSupportRadius * maxSupportRadius * maxSupportRadius);
 
-        float sampleWeight = 1.0f / pointDensityArray.content[sampleIndex] * std::cbrt(binVolume);
+        float sampleWeight = 1.0f / (pointDensityArray.content[sampleIndex] * std::cbrt(binVolume));
 
         // 3. Increment appropriate bin
         unsigned int index =
@@ -219,7 +218,6 @@ __global__ void createDescriptors(
         assert(index < elementsPerShapeContextDescriptor);
         assert(!std::isnan(sampleWeight));
         atomicAdd(&localDescriptor[index], sampleWeight);
-
     }
 
     __syncthreads();

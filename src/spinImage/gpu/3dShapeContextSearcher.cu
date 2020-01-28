@@ -5,9 +5,7 @@
 #include <cfloat>
 #include <host_defines.h>
 #include <iostream>
-
-
-const int indexBasedWarpCount = 16;
+#include <vector_types.h>
 
 const size_t elementsPerShapeContextDescriptor =
         SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT *
@@ -32,54 +30,36 @@ __device__ float compute3DSCPairDistanceGPU(
         shapeContextBinType* haystackDescriptor,
         float* sharedSquaredSums) {
 
-    if(threadIdx.x < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT) {
-        sharedSquaredSums[threadIdx.x] = 0;
-    }
-
-    __syncthreads();
-
-    for(short sliceOffset = 0; sliceOffset < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT; sliceOffset++) {
-        float threadSquaredDistance = 0;
-        for(short binIndex = threadIdx.x; binIndex < elementsPerShapeContextDescriptor; binIndex += blockDim.x) {
-            float needleBinValue = needleDescriptor[binIndex];
-            short haystackBinIndex =
-                (binIndex + (sliceOffset * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT * SHAPE_CONTEXT_LAYER_COUNT));
-            if(haystackBinIndex >= elementsPerShapeContextDescriptor) {
-                haystackBinIndex -= elementsPerShapeContextDescriptor;
-            }
-            float haystackBinValue = haystackDescriptor[haystackBinIndex];
-            float binDelta = needleBinValue - haystackBinValue;
-            threadSquaredDistance += binDelta * binDelta;
+#define sliceOffset threadIdx.y
+    float threadSquaredDistance = 0;
+    for(short binIndex = threadIdx.x; binIndex < elementsPerShapeContextDescriptor; binIndex += blockDim.x) {
+        float needleBinValue = needleDescriptor[binIndex];
+        short haystackBinIndex =
+            (binIndex + (sliceOffset * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT * SHAPE_CONTEXT_LAYER_COUNT));
+        // Simple modulo that I think is less expensive
+        if(haystackBinIndex >= elementsPerShapeContextDescriptor) {
+            haystackBinIndex -= elementsPerShapeContextDescriptor;
         }
-
-        float combinedSquaredDistance = warpAllReduceSum(threadSquaredDistance);
-
-        if(threadIdx.x % 32 == 0) {
-            atomicAdd(&sharedSquaredSums[sliceOffset], combinedSquaredDistance);
-        }
+        float haystackBinValue = haystackDescriptor[haystackBinIndex];
+        float binDelta = needleBinValue - haystackBinValue;
+        threadSquaredDistance += binDelta * binDelta;
     }
 
-    __syncthreads();
-
-    float lowestDistance = 0;
-    if(threadIdx.x < 32) {
-        // An entire warp must participate in the reduction, so we give the excess threads
-        // the highest possible value so that any other value will be lower
-        float threadValue = threadIdx.x < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT ?
-                sharedSquaredSums[threadIdx.x] : FLT_MAX;
-        lowestDistance = std::sqrt(warpAllReduceMin(threadValue));
-    }
+    float combinedSquaredDistance = warpAllReduceSum(threadSquaredDistance);
 
     if(threadIdx.x == 0) {
-        sharedSquaredSums[0] = lowestDistance;
+        sharedSquaredSums[sliceOffset] = combinedSquaredDistance;
     }
 
-    // Some threads will race ahead to the next image pair. Need to avoid that.
     __syncthreads();
 
-    // Broadcast lowest distance value to all threads
-    lowestDistance = sharedSquaredSums[0];
+    // An entire warp must participate in the reduction, so we give the excess threads
+    // the highest possible value so that any other value will be lower
+    float threadValue = threadIdx.x < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT ?
+            sharedSquaredSums[threadIdx.x] : FLT_MAX;
+    float lowestDistance = std::sqrt(warpAllReduceMin(threadValue));
 
+    // Some threads will race ahead to the next image pair. Need to avoid that.
     __syncthreads();
 
     return lowestDistance;
@@ -91,18 +71,18 @@ __global__ void computeShapeContextSearchResultIndices(
         size_t haystackDescriptorCount,
         float haystackScaleFactor,
         unsigned int* searchResults) {
-    size_t needleDescriptorIndex = blockIdx.x;
+#define needleDescriptorIndex blockIdx.x
 
     // Since memory is reused a lot, we cache both the needle and haystack image in shared memory
     // Combined this is is approximately (at default settings) the size of a spin or RICI image
 
     __shared__ shapeContextBinType referenceDescriptor[elementsPerShapeContextDescriptor];
-    for(unsigned int index = threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x) {
+    for(unsigned int index = blockDim.x * threadIdx.y + threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x * blockDim.y) {
         referenceDescriptor[index] = needleDescriptors[elementsPerShapeContextDescriptor * needleDescriptorIndex + index];
     }
 
     __shared__ shapeContextBinType haystackDescriptor[elementsPerShapeContextDescriptor];
-    for(unsigned int index = threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x) {
+    for(unsigned int index = blockDim.x * threadIdx.y + threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x * blockDim.y) {
         haystackDescriptor[index] =
                 haystackDescriptors[elementsPerShapeContextDescriptor * needleDescriptorIndex + index]
                 * (1.0f/haystackScaleFactor);
@@ -129,7 +109,7 @@ __global__ void computeShapeContextSearchResultIndices(
             continue;
         }
 
-        for(unsigned int index = threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x) {
+        for(unsigned int index = blockDim.x * threadIdx.y + threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x * blockDim.y) {
             haystackDescriptor[index] =
                     haystackDescriptors[elementsPerShapeContextDescriptor * haystackDescriptorIndex + index]
                     * (1.0f/haystackScaleFactor);
@@ -164,6 +144,7 @@ SpinImage::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
         size_t haystackDescriptorCount,
         size_t haystackDescriptorSampleCount,
         SpinImage::debug::SCSearchRunInfo* runInfo) {
+    static_assert(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT <= 32);
 
     auto executionStart = std::chrono::steady_clock::now();
 
@@ -177,7 +158,10 @@ SpinImage::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
 
     auto searchStart = std::chrono::steady_clock::now();
 
-    computeShapeContextSearchResultIndices<<<needleDescriptorCount, 32 * indexBasedWarpCount>>>(
+    dim3 blockDimensions = {
+        32, SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT, 1
+    };
+    computeShapeContextSearchResultIndices<<<needleDescriptorCount, blockDimensions>>>(
         device_needleDescriptors.content,
         device_haystackDescriptors.content,
         haystackDescriptorCount,

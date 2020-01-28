@@ -54,7 +54,7 @@ __host__ __device__ __inline__ float computeWedgeSegmentVolume(short verticalBin
     return scaleFraction * (std::cos(binStartAngle) - std::cos(binEndAngle));
 }
 
-__host__ __device__ __inline__ float SpinImage::internal::computeBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius) {
+__host__ __device__ inline float computeSingleBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius) {
     // The wedge segment computation goes all the way from the center to the edge of the sphere
     // Since we also have a minimum support radius, we need to cut out the volume of the centre part
     float binEndRadius = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex + 1);
@@ -64,6 +64,12 @@ __host__ __device__ __inline__ float SpinImage::internal::computeBinVolume(short
     float smallSupportRadiusVolume = computeWedgeSegmentVolume(verticalBinIndex, binStartRadius);
 
     return largeSupportRadiusVolume - smallSupportRadiusVolume;
+}
+
+// Cuda is being dumb. Need to create separate function to allow the linker to figure out that, yes, this function does
+// indeed exist somewhere.
+float SpinImage::internal::computeBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius) {
+    return computeSingleBinVolume(verticalBinIndex, layerIndex, minSupportRadius, maxSupportRadius);
 }
 
 __device__ float absoluteAngle(float y, float x) {
@@ -89,7 +95,7 @@ __global__ void createDescriptors(
 
     const float3 vertex = spinOrigin.vertex;
     float3 normal = spinOrigin.normal;
-    
+
     normal /= length(normal);
 
     __shared__ shapeContextBinType localDescriptor[elementsPerShapeContextDescriptor];
@@ -197,7 +203,7 @@ __global__ void createDescriptors(
         assert(binIndex.z < SHAPE_CONTEXT_LAYER_COUNT);
 
         // 2. Compute sample weight
-        float binVolume = SpinImage::internal::computeBinVolume(binIndex.y, binIndex.z, minSupportRadius, maxSupportRadius);
+        float binVolume = computeSingleBinVolume(binIndex.y, binIndex.z, minSupportRadius, maxSupportRadius);
 
         // Volume can't be 0, and should be less than the volume of the support volume
         assert(binVolume > 0);

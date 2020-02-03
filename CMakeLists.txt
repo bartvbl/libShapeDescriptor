@@ -47,6 +47,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
         POSITION_INDEPENDENT_CODE ON
         CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+target_link_libraries(${PROJECT_NAME} stdc++fs)
 
 target_include_directories(${PROJECT_NAME} PUBLIC src/)
 

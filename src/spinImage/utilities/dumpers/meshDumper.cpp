@@ -6,8 +6,8 @@
 void dumpMesh(SpinImage::cpu::Mesh mesh, std::experimental::filesystem::path &outputFilePath, size_t highlightStartVertex, size_t highlightEndVertex) {
 
     bool hasHighlightsEnabled =
-            (highlightStartVertex > 0 && highlightStartVertex < mesh.vertexCount) ||
-            (highlightEndVertex > 0 && highlightEndVertex < mesh.vertexCount);
+            (highlightStartVertex > 0 && highlightStartVertex <= mesh.vertexCount) ||
+            (highlightEndVertex > 0 && highlightEndVertex <= mesh.vertexCount);
 
     std::ofstream outputFile;
     outputFile.open(outputFilePath);
@@ -27,8 +27,8 @@ void dumpMesh(SpinImage::cpu::Mesh mesh, std::experimental::filesystem::path &ou
         materialFile << "Tf 1.0000 1.0000 1.0000" << std::endl;
         materialFile << "illum 2" << std::endl;
         materialFile << "Ka 0.0000 0.0000 0.0000" << std::endl;
-        materialFile << "Kd 0.8000 0.8000 0.8000" << std::endl;
-        materialFile << "Ks 0.8000 0.8000 0.8000" << std::endl;
+        materialFile << "Kd 0.6000 0.6000 0.6000" << std::endl;
+        materialFile << "Ks 0.6000 0.6000 0.6000" << std::endl;
         materialFile << "Ke 0.0000 0.0000 0.0000" << std::endl << std::endl;
 
         materialFile << "newmtl highlightMaterial" << std::endl;
@@ -40,7 +40,7 @@ void dumpMesh(SpinImage::cpu::Mesh mesh, std::experimental::filesystem::path &ou
         materialFile << "illum 2" << std::endl;
         materialFile << "Ka 0.0000 0.0000 0.0000" << std::endl;
         materialFile << "Kd 0.6000 0.0000 0.0000" << std::endl;
-        materialFile << "Ks 0.8000 0.8000 0.8000" << std::endl;
+        materialFile << "Ks 0.6000 0.6000 0.6000" << std::endl;
         materialFile << "Ke 0.0000 0.0000 0.0000" << std::endl;
 
         materialFile.close();
@@ -67,7 +67,7 @@ void dumpMesh(SpinImage::cpu::Mesh mesh, std::experimental::filesystem::path &ou
     for(unsigned int i = 0; i < mesh.vertexCount; i += 3) {
         bool currentIterationIsHighlighted = i >= highlightStartVertex && i < highlightEndVertex;
 
-        if(currentIterationIsHighlighted != lastIterationWasHighlighted || i == 0) {
+        if(hasHighlightsEnabled && (currentIterationIsHighlighted != lastIterationWasHighlighted || i == 0)) {
             outputFile << std::endl;
             outputFile << "o object_" << i << std::endl;
             outputFile << "g object_" << i << std::endl;

@@ -13,10 +13,11 @@ void dumpMesh(SpinImage::cpu::Mesh mesh, const std::experimental::filesystem::pa
 
     std::ofstream outputFile;
     outputFile.open(outputFilePath);
+    const std::string materialLibFileName = useCustomTextureMap ? "highlightObject.mtl" : "exportedObject.mtl";
 
     if(hasHighlightsEnabled || useCustomTextureMap) {
         std::experimental::filesystem::path materialLibPath =
-                outputFilePath.parent_path() / "exportedObject.mtl";
+                outputFilePath.parent_path() / materialLibFileName;
 
         std::ofstream materialFile;
         materialFile.open(materialLibPath.string());
@@ -52,7 +53,7 @@ void dumpMesh(SpinImage::cpu::Mesh mesh, const std::experimental::filesystem::pa
 
         materialFile.close();
 
-        outputFile << "mtllib exportedObject.mtl" << std::endl;
+        outputFile << "mtllib " << materialLibFileName << std::endl;
 
         outputFile << std::endl;
     }

@@ -4,7 +4,7 @@
 #include <vector>
 #include <cassert>
 
-void dumpMesh(SpinImage::cpu::Mesh mesh, std::experimental::filesystem::path &outputFilePath, size_t highlightStartVertex, size_t highlightEndVertex,
+void dumpMesh(SpinImage::cpu::Mesh mesh, const std::experimental::filesystem::path &outputFilePath, size_t highlightStartVertex, size_t highlightEndVertex,
         bool useCustomTextureMap, SpinImage::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
 
     bool hasHighlightsEnabled =
@@ -67,7 +67,7 @@ void dumpMesh(SpinImage::cpu::Mesh mesh, std::experimental::filesystem::path &ou
         outputFile << "vn " << mesh.normals[i].x << " " << mesh.normals[i].y << " " <<mesh.normals[i].z << std::endl;
     }
 
-    if(hasHighlightsEnabled) {
+    if(useCustomTextureMap) {
         outputFile << std::endl;
 
         for(unsigned int i = 0; i < mesh.vertexCount; i++) {
@@ -82,7 +82,7 @@ void dumpMesh(SpinImage::cpu::Mesh mesh, std::experimental::filesystem::path &ou
     for(unsigned int i = 0; i < mesh.vertexCount; i += 3) {
         bool currentIterationIsHighlighted = i >= highlightStartVertex && i < highlightEndVertex;
 
-        if(hasHighlightsEnabled && (currentIterationIsHighlighted != lastIterationWasHighlighted || i == 0)) {
+        if((hasHighlightsEnabled || useCustomTextureMap) && (currentIterationIsHighlighted != lastIterationWasHighlighted || i == 0)) {
             outputFile << std::endl;
             outputFile << "o object_" << i << std::endl;
             outputFile << "g object_" << i << std::endl;
@@ -105,19 +105,19 @@ void dumpMesh(SpinImage::cpu::Mesh mesh, std::experimental::filesystem::path &ou
     outputFile.close();
 }
 
-void SpinImage::dump::mesh(cpu::Mesh mesh, std::experimental::filesystem::path outputFilePath) {
+void SpinImage::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::path outputFilePath) {
     // Highlight a range that will never be highlighted
     dumpMesh(mesh, outputFilePath, -1, -1, false, {0, nullptr}, "");
 }
 
-void SpinImage::dump::mesh(cpu::Mesh mesh, std::experimental::filesystem::path outputFilePath,
+void SpinImage::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::path outputFilePath,
         size_t highlightStartVertex, size_t highlightEndVertex) {
 
     dumpMesh(mesh, outputFilePath, highlightStartVertex, highlightEndVertex, false, {0, nullptr}, "");
 }
 
-void SpinImage::dump::mesh(cpu::Mesh mesh, std::experimental::filesystem::path &outputFilePath,
-          SpinImage::array<float2> vertexTextureCoordinates, std::string &textureMapPath) {
+void SpinImage::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::path &outputFilePath,
+          SpinImage::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
     assert(vertexTextureCoordinates.length == mesh.vertexCount);
     dumpMesh(mesh, outputFilePath, -1, -1, true, vertexTextureCoordinates, textureMapPath);
 }

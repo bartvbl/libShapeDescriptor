@@ -6,10 +6,10 @@
 
 namespace SpinImage {
     namespace dump {
-        void mesh(cpu::Mesh mesh, std::experimental::filesystem::path outputFile);
-        void mesh(cpu::Mesh mesh, std::experimental::filesystem::path outputFilePath,
+        void mesh(cpu::Mesh mesh, const std::experimental::filesystem::path outputFile);
+        void mesh(cpu::Mesh mesh, const std::experimental::filesystem::path outputFilePath,
                 size_t highlightStartVertex, size_t highlightEndVertex);
-        void mesh(cpu::Mesh mesh, std::experimental::filesystem::path &outputFilePath,
-                SpinImage::array<float2> vertexTextureCoordinates, std::string &textureMapPath);
+        void mesh(cpu::Mesh mesh, const std::experimental::filesystem::path &outputFilePath,
+                SpinImage::array<float2> vertexTextureCoordinates, std::string textureMapPath);
     }
 }

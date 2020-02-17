@@ -4,12 +4,12 @@
 #include <spinImage/cpu/types/BoolArray.h>
 #include <spinImage/cpu/index/types/IndexEntry.h>
 #include <spinImage/cpu/index/types/MipmapStack.h>
+#include "NodeBlockEntry.h"
 
 struct NodeBlock {
     std::string identifier;
-    BoolArray<256> nodeTypes = {false};
-    std::array<short, 256> contents = {-1};
+    BoolArray<256> childNodeIsLeafNode = {false};
+    std::array<int, 256> entryStartIndices = {0};
 
-    std::vector<IndexEntry> combinedIndexEntries;
-    std::vector<MipMapLevel3> combinedMipmapImages;
+    std::vector<NodeBlockEntry> entries;
 };

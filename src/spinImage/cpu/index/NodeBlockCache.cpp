@@ -48,26 +48,34 @@ void NodeBlockCache::insertImage(const MipmapStack &mipmaps, const IndexEntry re
     pathBuilder.str(std::string());
 
     bool currentNodeIsLeafNode = false;
-    NodeBlock* currentIntermediateNode = rootNode;
+    NodeBlock* currentNodeBlock = rootNode;
     while(!currentNodeIsLeafNode) {
         unsigned char levelByte = computeLevelByte(mipmaps, levelReached);
         pathBuilder << levelByte;
-        /* Wrong
-         * if(currentIntermediateNode->nodeExists[levelByte] == false) {
-            // End of tree has been reached, but leaf node is missing.
-            // Create leaf node, insert image into it
-            currentNodeIsLeafNode = true;
-        } else if(currentIntermediateNode->linkTypes[levelByte]) {
+        if(currentNodeBlock->childNodeIsLeafNode[levelByte] == true) {
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;
-            //insertImageIntoLeafNode();
+
+            // 1. Insert the new entry at the start of the list
+            int currentStartIndex = currentNodeBlock->entryStartIndices.at(levelByte);
+            int entryIndex = currentNodeBlock->entries.size();
+            currentNodeBlock->entries.push_back({reference, mipmaps.level3, currentStartIndex});
+            currentNodeBlock->entryStartIndices.at(levelByte) = entryIndex;
+
+            // 2. Split if threshold has been reached
+            if(currentNodeBlock->entries.size() > 4096) {
+
+            }
+
+            // 3. Mark modified entry as dirty
+            std::string itemID = pathBuilder.str();
+            this->markItemDirty(itemID);
         } else {
-            // Node link must exist, and the next node is again an intermediate node.
-            // Fetch it, then start the process over again.
+            // Fetch child of intermediateNode, then start the process over again.
             levelReached++;
             pathBuilder << "/";
             std::string nextNodeID = pathBuilder.str();
-            currentIntermediateNode = getItemByID(nextNodeID);
-        }*/
+            currentNodeBlock = getItemByID(nextNodeID);
+        }
     }
 }

@@ -24,13 +24,10 @@ public:
         BoolReference();
 
         BoolReference(const unsigned int* reference, const unsigned char offset)
-        {
-            referenceToBitVector = reference;
-            bitOffset = offset;
-        }
+            : referenceToBitVector(reference), bitOffset(offset) {}
 
         // array[i] = x;
-        BoolReference& operator= (bool value) const
+        BoolReference& operator= (bool value)
         {
             if (value) {
                 *referenceToBitVector |= genBitMask(bitOffset);
@@ -41,7 +38,7 @@ public:
         }
 
         // array[i] = array[j];
-        BoolReference& operator= (const BoolReference& j) const
+        BoolReference& operator= (const BoolReference& j)
         {
             if ((*(j.referenceToBitVector) & genBitMask(j.bitOffset))) {
                 *referenceToBitVector |= genBitMask(j.bitOffset);
@@ -52,14 +49,15 @@ public:
         }
 
         // x = array[i];
-        operator bool() const
+        operator bool()
         {
             return (*(referenceToBitVector) & genBitMask(bitOffset)) != 0;
         }
     };
 
     BoolReference &operator[](size_t index) {
-        return BoolReference(arrayContents + (index / 32), index % 32);
+        BoolReference ref = BoolReference(arrayContents + (index / 32), index % 32);
+        return ref;
     }
 
 

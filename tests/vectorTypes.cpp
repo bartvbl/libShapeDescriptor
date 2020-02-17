@@ -1,4 +1,3 @@
-#include "vectorTypes.h"
 #include <catch2/catch.hpp>
 #include <spinImage/cpu/types/float2.h>
 #include <spinImage/cpu/types/float3.h>

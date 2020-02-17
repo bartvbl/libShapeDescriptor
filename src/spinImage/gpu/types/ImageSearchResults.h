@@ -19,6 +19,11 @@ namespace SpinImage {
             size_t resultIndices[SEARCH_RESULT_COUNT];
             int resultScores[SEARCH_RESULT_COUNT];
         };
+
+        struct ShapeContextSearchResults {
+            size_t resultIndices[SEARCH_RESULT_COUNT];
+            float resultScores[SEARCH_RESULT_COUNT];
+        };
     }
 }
 

@@ -1,5 +1,3 @@
-#include "radialIntersectionCountImageCorrelation.h"
-
 #include <catch2/catch.hpp>
 #include <spinImage/libraryBuildSettings.h>
 #include <spinImage/common/types/array.h>

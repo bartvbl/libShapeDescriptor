@@ -89,7 +89,7 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     }
 
     // Ensuring all changes are written to disk
-    cache.flush();
+    //cache.flush();
 
     // Final construction of the index
     Index index(indexDirectory, indexedFiles, rootBlock, 0, 0);

@@ -8,7 +8,7 @@
 struct NodeBlock {
     std::string identifier;
     BoolArray<256> nodeTypes = {false};
-    std::array<unsigned short, 256> contents;
+    std::array<short, 256> contents = {-1};
 
     std::vector<IndexEntry> combinedIndexEntries;
     std::vector<MipMapLevel3> combinedMipmapImages;

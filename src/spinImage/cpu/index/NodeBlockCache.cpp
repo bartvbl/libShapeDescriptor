@@ -52,7 +52,8 @@ void NodeBlockCache::insertImage(const MipmapStack &mipmaps, const IndexEntry re
     while(!currentNodeIsLeafNode) {
         unsigned char levelByte = computeLevelByte(mipmaps, levelReached);
         pathBuilder << levelByte;
-        if(currentIntermediateNode->nodeExists[levelByte] == false) {
+        /* Wrong
+         * if(currentIntermediateNode->nodeExists[levelByte] == false) {
             // End of tree has been reached, but leaf node is missing.
             // Create leaf node, insert image into it
             currentNodeIsLeafNode = true;
@@ -67,6 +68,6 @@ void NodeBlockCache::insertImage(const MipmapStack &mipmaps, const IndexEntry re
             pathBuilder << "/";
             std::string nextNodeID = pathBuilder.str();
             currentIntermediateNode = getItemByID(nextNodeID);
-        }
+        }*/
     }
 }

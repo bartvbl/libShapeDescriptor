@@ -25,6 +25,9 @@ private:
     const std::experimental::filesystem::path indexRoot;
     const std::experimental::filesystem::path indexNodeDirectoryRoot;
     NodeBlock* rootNode;
+
+    void insertImageIntoNode(const MipMapLevel3 &mipmaps, const IndexEntry &entry, NodeBlock *currentNodeBlock,
+                             unsigned char levelByte, std::string &itemID);
 protected:
     void eject(NodeBlock* item) override;
     NodeBlock* load(std::string &itemID) override;
@@ -39,4 +42,6 @@ public:
         rootNode(root)
         {}
     void insertImage(const MipmapStack &mipmaps, const IndexEntry reference);
+
+
 };

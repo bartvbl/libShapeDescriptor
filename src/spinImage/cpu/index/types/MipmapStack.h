@@ -29,7 +29,9 @@ inline unsigned long bitwiseTranspose8x8(unsigned long in) {
 }
 
 struct MipMapLevel3 {
-    const std::array<unsigned int, 32> image;
+    // const left out on purpose because assignments require it to be non-const.
+    // Just C++ things..
+    std::array<unsigned int, 32> image;
 
     // 64x64 -> 32x32 image
     static std::array<unsigned int, 32> computeMipmapLevel3(const unsigned int* quiccImage) {
@@ -138,6 +140,12 @@ struct MipmapStack {
             level1(level2) {
         static_assert(spinImageWidthPixels == 64, "The MipmapStack class assumes the original input image has dimensions 64x64.");
     }
+
+    // Reconstruct the mipmap stack from an existing level 3 mipmap image
+    MipmapStack(MipMapLevel3 &level3Image) :
+            level3(level3Image),
+            level2(level3),
+            level1(level2) {}
 
     template<typename printedType, int intCount> void printBitwiseImage(const std::array<printedType, intCount> &image, int size) {
         unsigned int bitIndex = 0;

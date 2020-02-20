@@ -39,17 +39,63 @@ unsigned char computeLevelByte(const MipmapStack &mipmaps, const unsigned short 
     throw std::runtime_error("Level byte requested from mipmap stack that is out of bounds!");
 }
 
-void NodeBlockCache::insertImageIntoNode(const MipMapLevel3 &mipmaps, const IndexEntry &entry, NodeBlock *currentNodeBlock,
-                          unsigned char levelByte, std::string &itemID) {
-    // 1. Insert the new entry at the start of the list
-    int currentStartIndex = currentNodeBlock->entryStartIndices.at(levelByte);
-    int entryIndex = currentNodeBlock->entries.size();
-    currentNodeBlock->entries.push_back({entry, mipmaps, currentStartIndex});
-    currentNodeBlock->entryStartIndices.at(levelByte) = entryIndex;
 
-    // 2. Mark modified entry as dirty.
-    // Do this first to avoid cases where item is going to ejected from the cache when node is split
-    markItemDirty(itemID);
+
+void NodeBlockCache::insertImageIntoNode(const MipMapLevel3 &mipmaps, const IndexEntry &entry, NodeBlock *currentNodeBlock,
+                          unsigned char outgoingEdgeIndex) {
+    // 1. Insert the new entry at the start of the list
+    int currentStartIndex = currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex);
+    int entryIndex = -1;
+    if(currentNodeBlock->freeListStartIndex != -1) {
+        // We have spare capacity from nodes that were deleted previously
+        entryIndex = currentNodeBlock->freeListStartIndex;
+        int nextFreeListIndex = currentNodeBlock->leafNodeContents.at(entryIndex).nextEntryIndex;
+        currentNodeBlock->leafNodeContents.at(entryIndex) = {entry, mipmaps, currentStartIndex};
+        currentNodeBlock->freeListStartIndex = nextFreeListIndex;
+    } else {
+        // Otherwise, when no spare capacity is available,
+        // we allocate a new node at the end of the list
+        entryIndex = currentNodeBlock->leafNodeContents.size();
+        currentNodeBlock->leafNodeContents.push_back({entry, mipmaps, currentStartIndex});
+    }
+    currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex) = entryIndex;
+    currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex)++;
+}
+
+void NodeBlockCache::splitNode(
+        const MipmapStack &mipmaps,
+        unsigned short levelReached,
+        NodeBlock *currentNodeBlock,
+        unsigned char outgoingEdgeIndex,
+        std::string &childNodeID) {
+    // Create and insert new node into cache
+    NodeBlock* childNodeBlock = new NodeBlock();
+    insertItem(childNodeID, childNodeBlock);
+    markItemDirty(childNodeID);
+
+    // Follow linked list and move all nodes into new child node block
+    int nextLinkedNodeIndex = currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex);
+    while(nextLinkedNodeIndex != -1) {
+        // Copy over node into new child node block
+        NodeBlockEntry* entryToMove = &currentNodeBlock->leafNodeContents.at(nextLinkedNodeIndex);
+        MipmapStack entryMipmaps(entryToMove->mipmapImage);
+        unsigned char childLevelByte = computeLevelByte(entryMipmaps, levelReached + 1);
+        insertImageIntoNode(entryToMove->mipmapImage, entryToMove->indexEntry,
+                            childNodeBlock, childLevelByte);
+
+        // Mark entry in parent node as available by appending it to the free list
+        int nextFreeEntryIndex = currentNodeBlock->freeListStartIndex;
+        entryToMove->nextEntryIndex = nextFreeEntryIndex;
+        currentNodeBlock->freeListStartIndex = nextLinkedNodeIndex;
+
+        // Moving on to next entry in the linked list
+        nextLinkedNodeIndex = entryToMove->nextEntryIndex;
+    }
+
+    // Mark the entry in the node block as an intermediate node
+    currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex) = -1;
+    currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) = 0;
+    currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] = false;
 }
 
 // It's a waste to recreate this one every time, so let's reuse it
@@ -59,68 +105,41 @@ void NodeBlockCache::insertImage(const MipmapStack &mipmaps, const IndexEntry re
     // Follow path until leaf node is reached, or the bottom of the index
     unsigned short levelReached = 0;
     // Clear the path/identifier buffer
-    pathBuilder.str(std::string());
+    pathBuilder.str("/");
+    pathBuilder << std::hex;
 
     bool currentNodeIsLeafNode = false;
     NodeBlock* currentNodeBlock = rootNode;
     while(!currentNodeIsLeafNode) {
-        unsigned char levelByte = computeLevelByte(mipmaps, levelReached);
-        pathBuilder << levelByte;
-        if(currentNodeBlock->childNodeIsLeafNode[levelByte] == true) {
+        unsigned char outgoingEdgeIndex = computeLevelByte(mipmaps, levelReached);
+        pathBuilder << outgoingEdgeIndex << "/";
+        if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;
             std::string itemID = pathBuilder.str();
-            insertImageIntoNode(mipmaps, reference, currentNodeBlock, levelByte, itemID);
+            insertImageIntoNode(mipmaps.level3, reference, currentNodeBlock, outgoingEdgeIndex);
+
+            // 2. Mark modified entry as dirty.
+            // Do this first to avoid cases where item is going to ejected from the cache when node is split
+            // Root node is never ejected, and not technically part of the cache, so we avoid it
+            if(levelReached > 0) {
+                markItemDirty(itemID);
+            }
 
             // 3. Split if threshold has been reached
-            if(currentNodeBlock->entries.size() >= NODE_SPLIT_THRESHOLD) {
-                for(int child = 0; child < NODES_PER_BLOCK; child++) {
-                    // Skip past intermediate nodes
-                    if(currentNodeBlock->childNodeIsLeafNode[child] == false) {
-                        assert(currentNodeBlock->entryStartIndices.at(child) == -1);
-                        continue;
-                    }
-
-                    // If the leaf node has no contents, it does not need to be split
-                    if(currentNodeBlock->entryStartIndices.at(child) == -1) {
-                        continue;
-                    }
-
-                    // The current entry is a leaf node and has contents.
-                    // We therefore create a new node block, and divide its contents over it.
-                    NodeBlock* childNodeBlock = new NodeBlock();
-
-                    unsigned char childLevelByte = computeLevelByte(mipmaps, levelReached + 1);
-                    std::string childItemID = itemID + "/" + std::to_string(childLevelByte);
-                    insertItem(childItemID, childNodeBlock);
-                    markItemDirty(childItemID);
-
-                    // Follow linked list and move all nodes into new child node block
-                    int nextLinkedNodeIndex = currentNodeBlock->entryStartIndices.at(child);
-                    while(nextLinkedNodeIndex != -1) {
-                        NodeBlockEntry entryToMove = currentNodeBlock->entries.at(nextLinkedNodeIndex);
-                        insertImageIntoNode(entryToMove.mipmapImage, entryToMove.indexEntry,
-                                childNodeBlock, childLevelByte, childItemID);
-
-                        nextLinkedNodeIndex = entryToMove.nextEntryIndex;
-                    }
-
-                    // Mark the entry in the node block as an intermediate node
-                    currentNodeBlock->entryStartIndices.at(child) = -1;
-                    currentNodeBlock->childNodeIsLeafNode[child] = false;
-                }
-
-                currentNodeBlock->entries.clear();
+            if(currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) >= NODE_SPLIT_THRESHOLD) {
+                splitNode(mipmaps, levelReached, currentNodeBlock, outgoingEdgeIndex, itemID);
             }
 
         } else {
             // Fetch child of intermediateNode, then start the process over again.
             levelReached++;
-            pathBuilder << "/";
             std::string nextNodeID = pathBuilder.str();
             currentNodeBlock = getItemByID(nextNodeID);
         }
     }
 }
+
+
 
 

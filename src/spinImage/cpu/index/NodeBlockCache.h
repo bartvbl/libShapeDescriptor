@@ -27,7 +27,9 @@ private:
     NodeBlock* rootNode;
 
     void insertImageIntoNode(const MipMapLevel3 &mipmaps, const IndexEntry &entry, NodeBlock *currentNodeBlock,
-                             unsigned char levelByte, std::string &itemID);
+                             unsigned char levelByte);
+    void splitNode(const MipmapStack &mipmaps, unsigned short levelReached, NodeBlock *currentNodeBlock,
+                             unsigned char levelByte, std::string &childNodeID);
 protected:
     void eject(NodeBlock* item) override;
     NodeBlock* load(std::string &itemID) override;
@@ -42,6 +44,4 @@ public:
         rootNode(root)
         {}
     void insertImage(const MipmapStack &mipmaps, const IndexEntry reference);
-
-
 };

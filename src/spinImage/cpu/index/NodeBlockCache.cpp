@@ -105,7 +105,7 @@ void NodeBlockCache::insertImage(const MipmapStack &mipmaps, const IndexEntry re
     // Follow path until leaf node is reached, or the bottom of the index
     unsigned short levelReached = 0;
     // Clear the path/identifier buffer
-    pathBuilder.str("/");
+    pathBuilder.str("");
     pathBuilder << std::hex;
 
     bool currentNodeIsLeafNode = false;

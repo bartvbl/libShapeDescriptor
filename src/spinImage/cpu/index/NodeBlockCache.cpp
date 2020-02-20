@@ -2,11 +2,11 @@
 #include "NodeBlockCache.h"
 
 void NodeBlockCache::eject(NodeBlock *block) {
-    index::io::writeNodeBlock(block, indexRoot);
+    SpinImage::index::io::writeNodeBlock(block, indexRoot);
 }
 
 NodeBlock *NodeBlockCache::load(std::string &itemID) {
-    return index::io::loadNodeBlock(itemID, indexRoot);
+    return SpinImage::index::io::loadNodeBlock(itemID, indexRoot);
 }
 
 unsigned char computeLevelByte(const MipmapStack &mipmaps, const unsigned short level) {

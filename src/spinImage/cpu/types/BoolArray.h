@@ -4,18 +4,20 @@
 #include <bitset>
 
 template<size_t length> class BoolArray {
-private:
+
+public:
     static constexpr size_t computeArrayLength() {
         return (length / 32) + (length % 32 > 0 ? 1 : 0);
     }
 
+private:
     unsigned int arrayContents[computeArrayLength()];
 
 public:
     class BoolReference {
     private:
-        const unsigned int* referenceToBitVector;
-        const unsigned char bitOffset;
+        unsigned int* referenceToBitVector;
+        unsigned char bitOffset;
 
         unsigned int genBitMask(unsigned char offset) {
             return (0x1U << (31U - offset));
@@ -23,7 +25,7 @@ public:
     public:
         BoolReference();
 
-        BoolReference(const unsigned int* reference, const unsigned char offset)
+        BoolReference(unsigned int* reference, unsigned char offset)
             : referenceToBitVector(reference), bitOffset(offset) {}
 
         // array[i] = x;
@@ -65,6 +67,10 @@ public:
         for(size_t i = 0; i < computeArrayLength(); i++) {
             arrayContents[i] = initialValue ? 0xFFFFFFFF : 0x00000000;
         }
+    }
+
+    const unsigned int* data() const {
+        return arrayContents;
     }
 
     BoolArray() {}

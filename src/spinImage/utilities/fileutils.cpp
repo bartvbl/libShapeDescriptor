@@ -19,7 +19,7 @@ std::vector<std::experimental::filesystem::path> SpinImage::utilities::listDirec
     return foundFiles;
 }
 
-const char *SpinImage::utilities::readCompressedFile(const std::experimental::filesystem::path &archiveFile) {
+const char *SpinImage::utilities::readCompressedFile(const std::experimental::filesystem::path &archiveFile, size_t* fileSizeBytes) {
     std::array<char, 5> headerTitle = {0, 0, 0, 0, 0};
     size_t compressedBufferSize;
     size_t decompressedBufferSize;
@@ -29,6 +29,8 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
     decompressStream.read(headerTitle.data(), 4);
     decompressStream.read((char*) &decompressedBufferSize, sizeof(unsigned long));
     decompressStream.read((char*) &compressedBufferSize, sizeof(unsigned long));
+
+    *fileSizeBytes = decompressedBufferSize;
 
     char* compressedBuffer = new char[compressedBufferSize];
     char* decompressedBuffer = new char[decompressedBufferSize];

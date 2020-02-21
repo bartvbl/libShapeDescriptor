@@ -21,7 +21,7 @@ private:
     // These hash tables allow efficient fetching of nodes from the cache
     std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator> randomAccessMap;
 
-    const size_t itemCapacity;
+
 protected:
 
     // Get hold of an item. May cause another item to be ejected
@@ -95,7 +95,8 @@ protected:
     virtual CachedItemType* load(IDType &itemID) = 0;
 
     explicit Cache(const size_t capacity) : itemCapacity(capacity) {
-        lruItemQueue.resize(capacity);
+        // std::list does not have a reserve()
+        //lruItemQueue.reserve(capacity);
         randomAccessMap.reserve(capacity);
     }
 public:
@@ -111,4 +112,10 @@ public:
             ejectLeastRecentlyUsedItem();
         }
     }
+
+    size_t getCurrentItemCount() {
+        return lruItemQueue.size();
+    }
+
+    const size_t itemCapacity;
 };

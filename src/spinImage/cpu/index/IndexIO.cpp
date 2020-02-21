@@ -59,6 +59,7 @@ NodeBlock* SpinImage::index::io::loadNodeBlock(const std::string &blockID, const
 }
 
 void SpinImage::index::io::writeNodeBlock(const NodeBlock *block, const std::experimental::filesystem::path &indexRootDirectory) {
+    std::cout << "Writing block " << block->identifier << ".." << std::endl;
     int totalIndexEntryCount = 0;
     for(int i = 0; i < NODES_PER_BLOCK; i++) {
         totalIndexEntryCount += block->leafNodeContentsLength.at(i);

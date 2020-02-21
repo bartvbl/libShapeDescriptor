@@ -73,6 +73,8 @@ void NodeBlockCache::splitNode(
     insertItem(childNodeID, childNodeBlock);
     markItemDirty(childNodeID);
 
+    std::cout << "Splitting into new node " << childNodeID << ".." << std::endl;
+
     // Follow linked list and move all nodes into new child node block
     int nextLinkedNodeIndex = currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex);
     while(nextLinkedNodeIndex != -1) {
@@ -112,7 +114,6 @@ void NodeBlockCache::insertImage(const MipmapStack &mipmaps, const IndexEntry re
     NodeBlock* currentNodeBlock = rootNode;
     while(!currentNodeIsLeafNode) {
         unsigned char outgoingEdgeIndex = computeLevelByte(mipmaps, levelReached);
-        pathBuilder << outgoingEdgeIndex << "/";
         if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;
@@ -128,12 +129,15 @@ void NodeBlockCache::insertImage(const MipmapStack &mipmaps, const IndexEntry re
 
             // 3. Split if threshold has been reached
             if(currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) >= NODE_SPLIT_THRESHOLD) {
-                splitNode(mipmaps, levelReached, currentNodeBlock, outgoingEdgeIndex, itemID);
+                pathBuilder << int(outgoingEdgeIndex) << "/";
+                std::string childNodeID = pathBuilder.str();
+                splitNode(mipmaps, levelReached, currentNodeBlock, outgoingEdgeIndex, childNodeID);
             }
 
         } else {
             // Fetch child of intermediateNode, then start the process over again.
             levelReached++;
+            pathBuilder << int(outgoingEdgeIndex) << "/";
             std::string nextNodeID = pathBuilder.str();
             currentNodeBlock = getItemByID(nextNodeID);
         }

@@ -53,12 +53,12 @@ public:
         // x = array[i];
         operator bool()
         {
-            return (*(referenceToBitVector) & genBitMask(bitOffset)) != 0;
+            return ((*(referenceToBitVector)) & genBitMask(bitOffset)) != 0;
         }
     };
 
-    BoolReference &operator[](size_t index) {
-        BoolReference ref = BoolReference(arrayContents + (index / 32), index % 32);
+    BoolReference operator[](size_t index) {
+        BoolReference ref(arrayContents + (index / 32), index % 32);
         return ref;
     }
 

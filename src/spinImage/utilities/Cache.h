@@ -3,6 +3,7 @@
 
 #include <list>
 #include <unordered_map>
+#include <cassert>
 
 // The cached nodes are stored as pointers to avoid accidental copies being created
 template<typename IDType, typename CachedItemType> struct CachedItem {
@@ -45,7 +46,7 @@ protected:
 
     // Insert an item into the cache. May cause another item to be ejected
     void insertItem(IDType &itemID, CachedItemType* item) {
-        CachedItem<IDType, CachedItemType> cachedItem = {false, nullptr};
+        CachedItem<IDType, CachedItemType> cachedItem = {false, "", nullptr};
         cachedItem.ID = itemID;
         cachedItem.item = item;
 
@@ -69,6 +70,7 @@ protected:
     // Set the dirty flag of a given item
     void markItemDirty(IDType &itemID) {
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator it = randomAccessMap.find(itemID);
+        assert(it != randomAccessMap.end());
         it->second->isDirty = true;
     }
 

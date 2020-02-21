@@ -29,12 +29,7 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
     NodeBlock rootBlock;
 
-    // Size requirements:
-    // - Per node: 64 bytes + (136 x stored image count)
-    // - Per node block: 256 x node size
-    // - Cache total: 65536 x node block = 1GB + total size of stored images
-    NodeBlockCache cache(65536, indexDirectory, &rootBlock);
-
+    NodeBlockCache cache(25000, indexDirectory, &rootBlock);
 
     const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
     IndexFileID fileIndex = 0;

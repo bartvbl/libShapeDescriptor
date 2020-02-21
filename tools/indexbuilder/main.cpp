@@ -29,6 +29,14 @@ int main(int argc, const char** argv) {
     }
 
     std::cout << "Building index from files in " << sourceDirectory.value() << "..." << std::endl;
+    std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+
     Index index = SpinImage::index::build(sourceDirectory.value(), indexFile.value());
+
+    std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    std::cout << "\tTook " << float(duration.count()) / 1000.0f << " seconds." << std::endl;
+
     std::cout << index.indexedFileList->size() << std::endl;
+    std::cout << std::endl << "Done." << std::endl;
 }

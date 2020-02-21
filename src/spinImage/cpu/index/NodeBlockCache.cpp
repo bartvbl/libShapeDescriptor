@@ -70,6 +70,7 @@ void NodeBlockCache::splitNode(
         std::string &childNodeID) {
     // Create and insert new node into cache
     NodeBlock* childNodeBlock = new NodeBlock();
+    childNodeBlock->identifier = childNodeID;
     insertItem(childNodeID, childNodeBlock);
     markItemDirty(childNodeID);
 

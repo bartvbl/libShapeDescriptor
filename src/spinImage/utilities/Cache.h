@@ -79,12 +79,12 @@ protected:
 
         if(leastRecentlyUsedItem.isDirty) {
             eject(leastRecentlyUsedItem.item);
-
-            typename std::list<CachedItem<IDType, CachedItemType>>::iterator it_start =
-                    randomAccessMap.find(leastRecentlyUsedItem.ID)->second;
-            this->lruItemQueue.erase(it_start);
-            this->randomAccessMap.erase(leastRecentlyUsedItem.ID);
         }
+
+        typename std::list<CachedItem<IDType, CachedItemType>>::iterator it_start =
+                randomAccessMap.find(leastRecentlyUsedItem.ID)->second;
+        this->lruItemQueue.erase(it_start);
+        this->randomAccessMap.erase(leastRecentlyUsedItem.ID);
 
         delete leastRecentlyUsedItem.item;
     }

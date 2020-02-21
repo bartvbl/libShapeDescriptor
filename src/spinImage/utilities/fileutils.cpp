@@ -20,15 +20,16 @@ std::vector<std::experimental::filesystem::path> SpinImage::utilities::listDirec
 }
 
 const char *SpinImage::utilities::readCompressedFile(const std::experimental::filesystem::path &archiveFile, size_t* fileSizeBytes) {
+
     std::array<char, 5> headerTitle = {0, 0, 0, 0, 0};
     size_t compressedBufferSize;
     size_t decompressedBufferSize;
 
     std::ifstream decompressStream(archiveFile.string(), std::ios::out | std::ios::binary);
 
-    decompressStream.read(headerTitle.data(), 4);
-    decompressStream.read((char*) &decompressedBufferSize, sizeof(unsigned long));
-    decompressStream.read((char*) &compressedBufferSize, sizeof(unsigned long));
+    decompressStream.read(headerTitle.data(), 5);
+    decompressStream.read((char*) &decompressedBufferSize, sizeof(size_t));
+    decompressStream.read((char*) &compressedBufferSize, sizeof(size_t));
 
     *fileSizeBytes = decompressedBufferSize;
 
@@ -42,7 +43,7 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
     FL2_decompressDCtx(
             decompressionContext,
             (void*) decompressedBuffer, decompressedBufferSize,
-            (void*) compressedBufferSize, compressedBufferSize);
+            (void*) compressedBuffer, compressedBufferSize);
 
     delete[] compressedBuffer;
 

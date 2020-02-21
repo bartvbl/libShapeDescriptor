@@ -21,7 +21,10 @@ const size_t blockStructSize = leafNodeBoolArraySize + entryCountArraySize;
 const size_t entrySize = (sizeof(IndexEntry) + sizeof(MipMapLevel3));
 
 NodeBlock* SpinImage::index::io::loadNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory) {
+    std::cout << "Reading block " << blockID << std::endl;
     std::experimental::filesystem::path nodeBlockFilePath = indexRootDirectory / blockID / "block.dat";
+
+    assert(std::experimental::filesystem::exists(nodeBlockFilePath));
 
     size_t fileSize;
     const char* inputBuffer = SpinImage::utilities::readCompressedFile(nodeBlockFilePath, &fileSize);
@@ -59,7 +62,7 @@ NodeBlock* SpinImage::index::io::loadNodeBlock(const std::string &blockID, const
 }
 
 void SpinImage::index::io::writeNodeBlock(const NodeBlock *block, const std::experimental::filesystem::path &indexRootDirectory) {
-    std::cout << "Writing block " << block->identifier << ".." << std::endl;
+    std::cout << "Writing block " << block->identifier << std::endl;
     int totalIndexEntryCount = 0;
     for(int i = 0; i < NODES_PER_BLOCK; i++) {
         totalIndexEntryCount += block->leafNodeContentsLength.at(i);
@@ -70,7 +73,7 @@ void SpinImage::index::io::writeNodeBlock(const NodeBlock *block, const std::exp
 
     char* outputBuffer = new char[outputBufferSize];
 
-    *reinterpret_cast<unsigned int*>(outputBuffer[0]) = totalIndexEntryCount;
+    *reinterpret_cast<unsigned int*>(&outputBuffer[0]) = totalIndexEntryCount;
     memcpy(&outputBuffer[headerSize], block->childNodeIsLeafNode.data(), leafNodeBoolArraySize);
     memcpy(&outputBuffer[headerSize + leafNodeBoolArraySize], block->leafNodeContentsLength.data(), entryCountArraySize);
     char* entryListBasePointer = outputBuffer + headerSize + blockStructSize;
@@ -90,6 +93,7 @@ void SpinImage::index::io::writeNodeBlock(const NodeBlock *block, const std::exp
 
     std::experimental::filesystem::path nodeBlockFilePath = indexRootDirectory / block->identifier / "block.dat";
     std::experimental::filesystem::create_directories(nodeBlockFilePath.parent_path());
+    assert(std::experimental::filesystem::exists(nodeBlockFilePath.parent_path()));
 
     SpinImage::utilities::writeCompressedFile(outputBuffer, outputBufferSize, nodeBlockFilePath);
 

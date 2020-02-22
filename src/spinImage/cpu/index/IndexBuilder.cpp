@@ -65,8 +65,11 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     std::cout << "Flushing cache.." << std::endl;
     cache.flush();
 
+    // Write the root node to disk
+    SpinImage::index::io::writeNodeBlock(&rootBlock, indexDirectory);
+
     // Final construction of the index
-    Index index(indexDirectory, indexedFiles, rootBlock, 0, 0);
+    Index index(indexDirectory, indexedFiles, rootBlock, 0);
 
     return index;
 }

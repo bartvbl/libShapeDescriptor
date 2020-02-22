@@ -22,19 +22,16 @@ struct Index {
     // Otherwise, the contents of the entire vector would be copied, which can be quite large.
     const std::vector<std::experimental::filesystem::path>* indexedFileList;
 
-    const IndexNodeID indexNodeCount;
-    const IndexNodeID bucketNodeCount;
+    const IndexNodeID nodeBlockCount;
 
     const NodeBlock rootNode;
 
     Index(std::experimental::filesystem::path &indexedDirectory,
           std::vector<std::experimental::filesystem::path>* indexedFiles,
           NodeBlock &root,
-          IndexNodeID indexNodeCount,
-          IndexNodeID bucketNodeCount) :
+          IndexNodeID nodeBlockCount) :
             indexDirectory(indexedDirectory),
             indexedFileList(indexedFiles),
-            rootNode(root),
-            indexNodeCount(indexNodeCount),
-            bucketNodeCount(bucketNodeCount) { }
+            nodeBlockCount(nodeBlockCount),
+            rootNode(root) { }
 };

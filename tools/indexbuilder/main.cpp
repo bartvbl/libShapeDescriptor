@@ -35,8 +35,9 @@ int main(int argc, const char** argv) {
 
     std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-    std::cout << "\tTook " << float(duration.count()) / 1000.0f << " seconds." << std::endl;
+    std::cout << std::endl << "Index construction complete. " << std::endl;
+    std::cout << "Indexed " << index.indexedFileList->size() << " files" << std::endl;
+    std::cout << "Total execution time: " << float(duration.count()) / 1000.0f << " seconds" << std::endl;
 
-    std::cout << index.indexedFileList->size() << std::endl;
     std::cout << std::endl << "Done." << std::endl;
 }

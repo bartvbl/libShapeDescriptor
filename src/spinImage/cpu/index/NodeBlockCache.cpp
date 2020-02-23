@@ -130,7 +130,7 @@ void NodeBlockCache::insertImage(const MipmapStack &mipmaps, const IndexEntry re
 
             // 3. Split if threshold has been reached
             if(currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) >= NODE_SPLIT_THRESHOLD) {
-                pathBuilder << int(outgoingEdgeIndex) << "/";
+                pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
                 std::string childNodeID = pathBuilder.str();
                 splitNode(mipmaps, levelReached, currentNodeBlock, outgoingEdgeIndex, childNodeID);
             }
@@ -138,7 +138,7 @@ void NodeBlockCache::insertImage(const MipmapStack &mipmaps, const IndexEntry re
         } else {
             // Fetch child of intermediateNode, then start the process over again.
             levelReached++;
-            pathBuilder << int(outgoingEdgeIndex) << "/";
+            pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
             std::string nextNodeID = pathBuilder.str();
             currentNodeBlock = getItemByID(nextNodeID);
         }

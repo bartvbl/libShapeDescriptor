@@ -69,7 +69,7 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     SpinImage::index::io::writeNodeBlock(&rootBlock, indexDirectory);
 
     // Final construction of the index
-    Index index(indexDirectory, indexedFiles, rootBlock, 0);
+    Index index(indexDirectory, indexedFiles, rootBlock);
 
     return index;
 }

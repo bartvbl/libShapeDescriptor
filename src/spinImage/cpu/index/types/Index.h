@@ -11,6 +11,8 @@
 // Whole index section is built around images of size 64x64!
 static_assert(spinImageWidthPixels == 64, "The Index part of the library assumes images are 64x64. Support for alternate image sizes must be added explicitly!");
 
+#define INDEX_VERSION 1
+
 // The Index struct is the struct that is shared around an application that wants to use the 'database'.
 // As such it should not really contain any "temporary data" fields that are used during its construction.
 struct Index {

@@ -4,6 +4,48 @@
 #include <spinImage/utilities/fileutils.h>
 #include <cstring>
 
+Index SpinImage::index::io::loadIndex(std::experimental::filesystem::path indexDirectory) {
+
+}
+
+void SpinImage::index::io::writeIndex(const Index& index, std::experimental::filesystem::path indexDirectory) {
+    std::experimental::filesystem::path indexFilePath = indexDirectory / "index.dat";
+
+    size_t stringArraySize = 0;
+    for(const std::experimental::filesystem::path& filename : *index.indexedFileList) {
+        stringArraySize += sizeof(int);
+        stringArraySize += std::experimental::filesystem::absolute(filename).string().size() * sizeof(std::string::value_type);
+    }
+
+    size_t fileHeaderSize = sizeof(int) + sizeof(int) + sizeof(size_t);
+    size_t indexFileSize = fileHeaderSize + stringArraySize;
+
+    char* outputFileBuffer = new char[indexFileSize];
+
+    *reinterpret_cast<int*>(outputFileBuffer) = int(INDEX_VERSION);
+    *reinterpret_cast<int*>(outputFileBuffer + sizeof(int)) = int((*index.indexedFileList).size());
+    *reinterpret_cast<size_t*>(outputFileBuffer + 2 * sizeof(int)) = stringArraySize;
+
+    char* nextStringEntryPointer = outputFileBuffer + fileHeaderSize;
+
+    for(const std::experimental::filesystem::path& filename : *index.indexedFileList) {
+        std::string pathString = std::experimental::filesystem::absolute(filename).string();
+        size_t pathSizeInBytes = pathString.size() * sizeof(std::string::value_type);
+        *reinterpret_cast<int*>(nextStringEntryPointer) = int(pathSizeInBytes);
+        nextStringEntryPointer += sizeof(int);
+        std::copy(pathString.begin(), pathString.end(), nextStringEntryPointer);
+        nextStringEntryPointer += pathSizeInBytes;
+    }
+
+    assert((nextStringEntryPointer - outputFileBuffer - fileHeaderSize) == stringArraySize);
+
+    SpinImage::utilities::writeCompressedFile(outputFileBuffer, indexFileSize, indexFilePath);
+
+    delete[] outputFileBuffer;
+}
+
+
+
 // File format:
 //
 // 4 bytes: Number of index entries contained in all nodes combined

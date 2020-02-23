@@ -1,4 +1,6 @@
 #include <arrrgh.hpp>
+#include <spinImage/cpu/index/types/Index.h>
+#include <spinImage/cpu/index/IndexIO.h>
 
 int main(int argc, const char** argv) {
     arrrgh::parser parser("queryindex", "Query an existing index of QUICCI images.");
@@ -25,6 +27,11 @@ int main(int argc, const char** argv) {
     {
         return 0;
     }
+
+    std::cout << "Reading index metadata.." << std::endl;
+    Index index = SpinImage::index::io::readIndex(indexDirectory.value());
+
+
 
 
 }

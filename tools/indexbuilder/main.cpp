@@ -4,7 +4,7 @@
 
 int main(int argc, const char** argv) {
     arrrgh::parser parser("indexbuilder", "Create indexes for QUICCI images.");
-    const auto& indexFile = parser.add<std::string>(
+    const auto& indexDirectory = parser.add<std::string>(
             "index-directory", "The directory where the index should be stored.", '\0', arrrgh::Required, "");
     const auto& sourceDirectory = parser.add<std::string>(
             "quicci-dump-directory", "The directory where binary dump files of QUICCI images are stored that should be indexed.", '\0', arrrgh::Required, "");
@@ -31,7 +31,7 @@ int main(int argc, const char** argv) {
     std::cout << "Building index from files in " << sourceDirectory.value() << "..." << std::endl;
     std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
-    Index index = SpinImage::index::build(sourceDirectory.value(), indexFile.value());
+    Index index = SpinImage::index::build(sourceDirectory.value(), indexDirectory.value());
 
     std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);

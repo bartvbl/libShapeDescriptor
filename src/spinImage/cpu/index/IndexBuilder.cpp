@@ -7,18 +7,6 @@
 #include "IndexBuilder.h"
 #include "NodeBlockCache.h"
 
-
-const unsigned int uintsPerMipmapImageLevel[4] = {0, 2, 8, 32};
-
-bool isImagePairEquivalent(const unsigned int* image1, const unsigned int* image2, const unsigned int level) {
-    for(unsigned int i = 0; i < uintsPerMipmapImageLevel[level]; i++) {
-        if(image1[i] != image2[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
 Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string indexDumpDirectory) {
     std::vector<std::experimental::filesystem::path> filesInDirectory = SpinImage::utilities::listDirectory(quicciImageDumpDirectory);
     std::experimental::filesystem::path indexDirectory(indexDumpDirectory);

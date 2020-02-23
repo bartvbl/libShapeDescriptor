@@ -5,7 +5,44 @@
 #include <cstring>
 
 Index SpinImage::index::io::loadIndex(std::experimental::filesystem::path indexDirectory) {
+    std::experimental::filesystem::path indexFilePath = indexDirectory / "index.dat";
 
+    NodeBlock* rootNode = SpinImage::index::io::loadNodeBlock("", indexDirectory);
+
+    size_t inputBufferSize = 0;
+    const char* inputBuffer = SpinImage::utilities::readCompressedFile(indexFilePath, &inputBufferSize);
+
+    std::vector<std::experimental::filesystem::path>* fileNames = new std::vector<std::experimental::filesystem::path>();
+
+    int indexFileVersion = *reinterpret_cast<const int*>(inputBuffer);
+    assert(indexFileVersion == INDEX_VERSION);
+
+    int indexedFileCount = *reinterpret_cast<const int*>(inputBuffer + sizeof(int));
+    fileNames->reserve(indexedFileCount);
+
+    size_t stringBufferSize = *reinterpret_cast<const size_t*>(inputBuffer + 2 * sizeof(int));
+
+    const char* nextStringBufferEntry = inputBuffer + 2 * sizeof(int) + sizeof(size_t);
+
+    std::string tempPathString;
+    // Reserve 1MB
+    tempPathString.reserve(1024*1024);
+    for(unsigned int entry = 0; entry < indexedFileCount; entry++) {
+        int pathNameSize = *reinterpret_cast<const int*>(nextStringBufferEntry);
+        nextStringBufferEntry += sizeof(int);
+        tempPathString.assign(nextStringBufferEntry, pathNameSize);
+        // Add null terminator
+        fileNames->push_back(tempPathString);
+        nextStringBufferEntry += pathNameSize;
+    }
+
+    delete[] inputBuffer;
+
+    for(const auto& path : *fileNames) {
+        std::cout << "Path: " << path << std::endl;
+    }
+
+    return Index(indexDirectory, fileNames, *rootNode);
 }
 
 void SpinImage::index::io::writeIndex(const Index& index, std::experimental::filesystem::path indexDirectory) {

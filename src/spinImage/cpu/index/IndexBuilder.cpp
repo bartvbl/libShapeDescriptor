@@ -40,7 +40,6 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
         SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
 
-
         std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
         for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
@@ -65,7 +64,6 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     std::cout << "Flushing cache.." << std::endl;
     cache.flush();
 
-
     // Final construction of the index
     Index index(indexDirectory, indexedFiles, rootBlock);
 
@@ -73,5 +71,6 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     std::cout << "Writing core index files.." << std::endl;
     SpinImage::index::io::writeNodeBlock(&rootBlock, indexDirectory);
     SpinImage::index::io::writeIndex(index, indexDirectory);
+
     return index;
 }

@@ -6,7 +6,7 @@ void NodeBlockCache::eject(NodeBlock *block) {
 }
 
 NodeBlock *NodeBlockCache::load(std::string &itemID) {
-    return SpinImage::index::io::loadNodeBlock(itemID, indexRoot);
+    return SpinImage::index::io::readNodeBlock(itemID, indexRoot);
 }
 
 unsigned char computeLevelByte(const MipmapStack &mipmaps, const unsigned short level) {

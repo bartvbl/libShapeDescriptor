@@ -4,10 +4,10 @@
 #include <spinImage/utilities/fileutils.h>
 #include <cstring>
 
-Index SpinImage::index::io::loadIndex(std::experimental::filesystem::path indexDirectory) {
+Index SpinImage::index::io::readIndex(std::experimental::filesystem::path indexDirectory) {
     std::experimental::filesystem::path indexFilePath = indexDirectory / "index.dat";
 
-    NodeBlock* rootNode = SpinImage::index::io::loadNodeBlock("", indexDirectory);
+    NodeBlock* rootNode = SpinImage::index::io::readNodeBlock("", indexDirectory);
 
     size_t inputBufferSize = 0;
     const char* inputBuffer = SpinImage::utilities::readCompressedFile(indexFilePath, &inputBufferSize);
@@ -99,7 +99,7 @@ const size_t entryCountArraySize = NODES_PER_BLOCK * sizeof(unsigned short);
 const size_t blockStructSize = leafNodeBoolArraySize + entryCountArraySize;
 const size_t entrySize = (sizeof(IndexEntry) + sizeof(MipMapLevel3));
 
-NodeBlock* SpinImage::index::io::loadNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory) {
+NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory) {
     std::cout << "Reading block " << blockID << std::endl;
     std::experimental::filesystem::path nodeBlockFilePath = indexRootDirectory / blockID / "block.dat";
 

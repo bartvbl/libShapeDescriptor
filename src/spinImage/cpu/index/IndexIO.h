@@ -7,11 +7,11 @@
 namespace SpinImage {
     namespace index {
         namespace io {
-            Index loadIndex(std::experimental::filesystem::path indexDirectory);
+            Index readIndex(std::experimental::filesystem::path indexDirectory);
 
             void writeIndex(const Index& index, std::experimental::filesystem::path indexDirectory);
 
-            NodeBlock* loadNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory);
+            NodeBlock* readNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory);
 
             void writeNodeBlock(const NodeBlock *block, const std::experimental::filesystem::path &indexRootDirectory);
         }

@@ -1,9 +1,10 @@
 #include <spinImage/libraryBuildSettings.h>
 #include <sstream>
 #include "rawDescriptorDumper.h"
+#include <spinImage/utilities/fileutils.h>
 
 void SpinImage::dump::raw::descriptors(
-        const std::string &outputDumpFile,
+        const std::experimental::filesystem::path &outputDumpFile,
         const SpinImage::cpu::QUICCIImages &images) {
     const size_t bytesPerQUICCImage = ((spinImageWidthPixels * spinImageWidthPixels) / 32) * sizeof(unsigned int);
     const unsigned int imageWidthPixels = spinImageWidthPixels;

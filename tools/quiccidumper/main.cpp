@@ -67,7 +67,7 @@ int main(int argc, const char** argv) {
     SpinImage::cpu::QUICCIImages hostImages = SpinImage::copy::QUICCIDescriptorsToHost(images);
 
     std::cout << "Writing output file.." << std::endl,
-    SpinImage::dump::raw::descriptors(outputDumpFile, hostImages);
+    SpinImage::dump::raw::descriptors(outputDumpFile.value(), hostImages);
 
     SpinImage::gpu::freeMesh(deviceMesh);
     cudaFree(uniqueVertices.content);

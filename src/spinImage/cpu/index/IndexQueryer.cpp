@@ -20,12 +20,12 @@ std::vector<IndexEntry> queryIndex(Index index, unsigned int* queryImage, unsign
         }
     }
 
-    while(!scoreExceedsLimit()) {
+    /*while(!scoreExceedsLimit()) {
         expandNextItem(queryQueue);
         updateScores(queryQueue);
         sortEntries(queryQueue);
         pruneQueue(queryQueue);
-    }
+    }*/
 
     std::vector<IndexEntry> queryResults;
     queryResults.resize(resultCount);

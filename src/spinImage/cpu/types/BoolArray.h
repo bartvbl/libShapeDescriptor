@@ -57,7 +57,7 @@ public:
         }
     };
 
-    BoolReference operator[](size_t index) {
+    BoolReference operator[](size_t index) const {
         BoolReference ref(arrayContents + (index / 32), index % 32);
         return ref;
     }

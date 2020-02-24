@@ -19,13 +19,26 @@ struct SearchResultEntry {
 
 std::stringstream IDBuilder;
 
+std::string childIndexToHexString(int childIndex) {
+    return (childIndex < 16 ? "0" : "") +
+}
+
 void visitNode(
         const NodeBlock* block,
         const unsigned int level,
         std::priority_queue<UnvisitedNode> &closedNodeQueue,
         std::vector<SearchResultEntry> &currentSearchResults,
         BitCountMipmapStack &queryImageMipmapStack) {
-    expandNextItem(queryQueue);
+    // Step 1: Divide child nodes over both queues
+    // Simultaneously, compute distance scores
+    for(int child = 0; child < NODES_PER_BLOCK; child++) {
+        if(block->childNodeIsLeafNode[child] == true) {
+
+        } else {
+
+        }
+    }
+
     updateScores(queryQueue);
     sortEntries(queryQueue);
     pruneQueue(queryQueue);

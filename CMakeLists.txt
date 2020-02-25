@@ -46,6 +46,7 @@ file (GLOB_RECURSE RENDER_TOOL_SOURCES         tools/imagerenderer/*.cpp)
 file (GLOB_RECURSE INDEX_BUILD_TOOL_SOURCES    tools/indexbuilder/*.cpp)
 file (GLOB_RECURSE INDEX_QUERY_TOOL_SOURCES    tools/indexqueryer/*.cpp)
 file (GLOB_RECURSE QUICCI_DUMPER_TOOL_SOURCES  tools/quiccidumper/*.cpp)
+file (GLOB_RECURSE COMPRESSOR_TOOL_SOURCES  tools/compressor/*.cpp)
 
 cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -71,3 +72,7 @@ target_link_libraries(queryindex SpinImage cudadevrt)
 
 add_executable(quiccidumper ${QUICCI_DUMPER_TOOL_SOURCES})
 target_link_libraries(quiccidumper SpinImage cudadevrt)
+
+add_executable(compressor ${COMPRESSOR_TOOL_SOURCES})
+target_link_libraries(compressor SpinImage cudadevrt)
+

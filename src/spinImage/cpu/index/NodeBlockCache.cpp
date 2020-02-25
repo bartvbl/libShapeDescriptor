@@ -98,7 +98,7 @@ void NodeBlockCache::splitNode(
     // Mark the entry in the node block as an intermediate node
     currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex) = -1;
     currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) = 0;
-    currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] = false;
+    currentNodeBlock->childNodeIsLeafNode.set(outgoingEdgeIndex, false);
 }
 
 // It's a waste to recreate this one every time, so let's reuse it

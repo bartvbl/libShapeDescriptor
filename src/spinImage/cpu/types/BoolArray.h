@@ -11,55 +11,31 @@ public:
     }
 
 private:
+
+    const unsigned int genBitMask(unsigned char offset) const {
+        return (0x1U << (31U - offset));
+    }
     unsigned int arrayContents[computeArrayLength()];
 
 public:
-    class BoolReference {
-    private:
-        unsigned int* referenceToBitVector;
-        unsigned char bitOffset;
 
-        unsigned int genBitMask(unsigned char offset) {
-            return (0x1U << (31U - offset));
+    void set(unsigned int index, bool value)
+    {
+        unsigned int bitOffset = index % 32;
+        unsigned int chunkIndex = index / 32;
+        if (value) {
+            arrayContents[chunkIndex] |= genBitMask(bitOffset);
+        } else {
+            arrayContents[chunkIndex] &= ~genBitMask(bitOffset);
         }
-    public:
-        BoolReference();
+    }
 
-        BoolReference(unsigned int* reference, unsigned char offset)
-            : referenceToBitVector(reference), bitOffset(offset) {}
-
-        // array[i] = x;
-        BoolReference& operator= (bool value)
-        {
-            if (value) {
-                *referenceToBitVector |= genBitMask(bitOffset);
-            } else {
-                *referenceToBitVector &= ~genBitMask(bitOffset);
-            }
-            return *this;
-        }
-
-        // array[i] = array[j];
-        BoolReference& operator= (const BoolReference& j)
-        {
-            if ((*(j.referenceToBitVector) & genBitMask(j.bitOffset))) {
-                *referenceToBitVector |= genBitMask(j.bitOffset);
-            } else {
-                *referenceToBitVector &= ~genBitMask(bitOffset);
-            }
-            return *this;
-        }
-
-        // x = array[i];
-        operator bool()
-        {
-            return ((*(referenceToBitVector)) & genBitMask(bitOffset)) != 0;
-        }
-    };
-
-    BoolReference operator[](size_t index) const {
-        BoolReference ref(arrayContents + (index / 32), index % 32);
-        return ref;
+    // x = array[i];
+    const bool operator[](unsigned int index) const
+    {
+        unsigned int bitOffset = index % 32;
+        unsigned int chunkIndex = index / 32;
+        return (arrayContents[chunkIndex] & genBitMask(bitOffset)) != 0;
     }
 
 

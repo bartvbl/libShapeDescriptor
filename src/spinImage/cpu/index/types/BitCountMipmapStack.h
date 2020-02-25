@@ -3,7 +3,7 @@
 #include <spinImage/libraryBuildSettings.h>
 #include <iostream>
 
-constexpr int uintsPerRow = spinImageWidthPixels / 32;
+//constexpr int uintsPerRow = spinImageWidthPixels / 32;
 
 struct BitCountMipmapStack {
 

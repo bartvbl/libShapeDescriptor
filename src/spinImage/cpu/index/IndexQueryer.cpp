@@ -1,7 +1,6 @@
 #include <queue>
 #include "IndexQueryer.h"
 #include "NodeBlockCache.h"
-#include <spinImage/cpu/index/types/IndexQueryItem.h>
 #include <spinImage/cpu/index/types/BitCountMipmapStack.h>
 
 struct UnvisitedNode {
@@ -19,9 +18,9 @@ struct SearchResultEntry {
 
 std::stringstream IDBuilder;
 
-std::string childIndexToHexString(int childIndex) {
-    return (childIndex < 16 ? "0" : "") +
-}
+/*std::string childIndexToHexString(int childIndex) {
+    return (childIndex < 16 ? "0" : "") + "";
+}*/
 
 void visitNode(
         const NodeBlock* block,
@@ -39,9 +38,9 @@ void visitNode(
         }
     }
 
-    updateScores(queryQueue);
-    sortEntries(queryQueue);
-    pruneQueue(queryQueue);
+    //updateScores(queryQueue);
+    //sortEntries(queryQueue);
+    //pruneQueue(queryQueue);
 }
 
 std::vector<IndexEntry> queryIndex(Index index, unsigned int* queryImage, unsigned int resultCount) {
@@ -57,12 +56,12 @@ std::vector<IndexEntry> queryIndex(Index index, unsigned int* queryImage, unsign
     visitNode(&index.rootNode, 0, closedNodeQueue, currentSearchResults, queryImageMipmapStack);
 
     // Iteratively add additional nodes until there's no chance any additional node can improve the best distance score
-    while(currentSearchResults.at(currentSearchResults.size() - 1).minDistanceScore > closedNodeQueue.top().minDistanceScore) {
+    /*while(currentSearchResults.at(currentSearchResults.size() - 1).minDistanceScore > closedNodeQueue.top().minDistanceScore) {
         UnvisitedNode nextBestUnvisitedNode = closedNodeQueue.top();
         closedNodeQueue.pop();
         const NodeBlock* block = cache.fetch(nextBestUnvisitedNode.indexNodeID);
         visitNode(block, nextBestUnvisitedNode.level, closedNodeQueue, currentSearchResults, queryImageMipmapStack);
-    }
+    }*/
 
     std::vector<IndexEntry> queryResults;
     queryResults.reserve(resultCount);

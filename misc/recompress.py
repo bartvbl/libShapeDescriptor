@@ -5,20 +5,22 @@ import lzma
 import subprocess
 import time
 
-directory = '/home/bart/Datasets/SHREC2017_QUICCI_images/'
-outdir = '/home/bart/Datasets/SHREC_TEMP/'
+inDir = '/home/bart/Datasets/SHREC2017_QUICCI_IMAGES/'
+outdir = '/media/bart/BOOT/SHREC'
+compressor = '/mnt/a666854b-88ec-4fb7-9cc5-c167acbd5e9c/home/bart/git/QuasiSpinImageVerification/cmake-build-debug/libSpinImage/compressor'
 
-allfiles = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f)) and f.endswith('.zip')]
+allfiles = [f for f in os.listdir(inDir) if os.path.isfile(os.path.join(inDir, f)) and f.endswith('.lz')]
 
 processlist = []
 
 for fileindex, file in enumerate(allfiles):
-	if fileindex < 5700:
+	if fileindex < 0:
 		continue
 	print("Started", fileindex+1, '/', len(allfiles), ':', file)
-	infile = os.path.join(directory, file)
-	outfile = os.path.join(outdir, file.replace('.zip', '.lz'))
-	process = subprocess.Popen(['unzip -p "' + infile + '" | p7zip > "' + outfile + '"'], shell=True)
+	infile = os.path.join(inDir, file)
+	tempfile = os.path.join(inDir, '..', file.replace('.lz', ''))
+	outfile = os.path.join(outdir, file)
+	process = subprocess.Popen(['cat ' + infile + ' | p7zip -d > ' + tempfile + ' && ' + compressor + ' --input="' + tempfile + '" --output="' + outfile + '" --compress && rm ' + tempfile], shell=True)
 	processlist.append(process)
 	while len(processlist) == 10:
 		processEnded = False

@@ -112,37 +112,50 @@ void NodeBlockCache::insertImage(const MipmapStack &mipmaps, const IndexEntry re
     pathBuilder << std::hex;
 
     bool currentNodeIsLeafNode = false;
+    unsigned char outgoingEdgeIndex;
     NodeBlock* currentNodeBlock = rootNode;
+    std::string previousNodeID;
     while(!currentNodeIsLeafNode) {
-        unsigned char outgoingEdgeIndex = computeLevelByte(mipmaps, levelReached);
-        if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
-            // Leaf node reached. Insert image into it
-            currentNodeIsLeafNode = true;
-            std::string itemID = pathBuilder.str();
-            insertImageIntoNode(mipmaps.level3, reference, currentNodeBlock, outgoingEdgeIndex);
+        outgoingEdgeIndex = computeLevelByte(mipmaps, levelReached);
+        // Fetch child of intermediateNode, then start the process over again.
+        levelReached++;
+        pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
+        std::string nextNodeID = pathBuilder.str();
 
-            // 2. Mark modified entry as dirty.
-            // Do this first to avoid cases where item is going to ejected from the cache when node is split
-            // Root node is never ejected, and not technically part of the cache, so we avoid it
-            if(levelReached > 0) {
-                markItemDirty(itemID);
+        std::experimental::filesystem::path nodeBlockFilePath = indexRoot / nextNodeID / "block.dat";
+        // Iterate until we find the leaf node in the index.
+        // That's the one whose child does not exist. This method is faster than loading each
+        // block and figuring out any jumps from there.
+        if(!contains(nextNodeID) && !std::experimental::filesystem::exists(nodeBlockFilePath)) {
+            if(previousNodeID != "") {
+                currentNodeBlock = getItemByID(previousNodeID);
             }
-
-            // 3. Split if threshold has been reached
-            if(currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) >= NODE_SPLIT_THRESHOLD) {
-                pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
-                std::string childNodeID = pathBuilder.str();
-                splitNode(mipmaps, levelReached, currentNodeBlock, outgoingEdgeIndex, childNodeID);
-            }
-
-        } else {
-            // Fetch child of intermediateNode, then start the process over again.
-            levelReached++;
-            pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
-            std::string nextNodeID = pathBuilder.str();
-            currentNodeBlock = getItemByID(nextNodeID);
+            levelReached--;
+            break;
         }
+
+        previousNodeID = nextNodeID;
     }
+
+    assert(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true);
+    // Leaf node reached. Insert image into it
+    insertImageIntoNode(mipmaps.level3, reference, currentNodeBlock, outgoingEdgeIndex);
+
+    // 2. Mark modified entry as dirty.
+    // Do this first to avoid cases where item is going to ejected from the cache when node is split
+    // Root node is never ejected, and not technically part of the cache, so we avoid it
+    if(levelReached > 0) {
+        markItemDirty(previousNodeID);
+    }
+
+    // 3. Split if threshold has been reached
+    if(currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) >= NODE_SPLIT_THRESHOLD) {
+        pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
+        std::string childNodeID = pathBuilder.str();
+        splitNode(mipmaps, levelReached, currentNodeBlock, outgoingEdgeIndex, childNodeID);
+    }
+
+
 }
 
 

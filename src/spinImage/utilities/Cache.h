@@ -24,6 +24,13 @@ private:
 
 protected:
 
+    bool contains(IDType &itemID) {
+        typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
+                it = randomAccessMap.find(itemID);
+
+        return it != randomAccessMap.end();
+    }
+
     // Get hold of an item. May cause another item to be ejected
     CachedItemType* getItemByID(IDType &itemID) {
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator

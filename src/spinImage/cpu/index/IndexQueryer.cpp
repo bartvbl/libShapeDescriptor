@@ -38,7 +38,7 @@ void visitNode(
             int nextNodeID = block->leafNodeContentsStartIndices[child];
             while(nextNodeID != -1) {
                 NodeBlockEntry entry = block->leafNodeContents.at(nextNodeID);
-                unsigned int distanceScore = computeMinimumDistance(entry.mipmapImage, queryImageMipmapStack, childLevel);
+                unsigned int distanceScore = 0;//computeMinimumDistance(entry.mipmapImage, queryImageMipmapStack, childLevel);
 
                 if(distanceScore <= searchResultScoreThreshold) {
                     currentSearchResults.emplace_back(entry.indexEntry, distanceScore);
@@ -68,12 +68,12 @@ std::vector<IndexEntry> queryIndex(Index index, unsigned int* queryImage, unsign
     visitNode(&index.rootNode, 0, closedNodeQueue, currentSearchResults, queryImageMipmapStack);
 
     // Iteratively add additional nodes until there's no chance any additional node can improve the best distance score
-    while(currentSearchResults.at(currentSearchResults.size() - 1).distanceScore > closedNodeQueue.top().minDistanceScore) {
+    /*while(currentSearchResults.at(currentSearchResults.size() - 1).distanceScore > closedNodeQueue.top().minDistanceScore) {
         UnvisitedNode nextBestUnvisitedNode = closedNodeQueue.top();
         closedNodeQueue.pop();
         const NodeBlock* block = cache.fetch(nextBestUnvisitedNode.indexNodeID);
         visitNode(block, nextBestUnvisitedNode.level, closedNodeQueue, currentSearchResults, queryImageMipmapStack);
-    }
+    }*/
 
     std::vector<IndexEntry> queryResults;
     queryResults.reserve(resultCount);

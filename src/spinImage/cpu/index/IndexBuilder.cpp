@@ -17,7 +17,7 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
     NodeBlock rootBlock;
 
-    NodeBlockCache cache(25000, indexDirectory, &rootBlock);
+    NodeBlockCache cache(20000, indexDirectory, &rootBlock);
 
     const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
     IndexFileID fileIndex = 0;

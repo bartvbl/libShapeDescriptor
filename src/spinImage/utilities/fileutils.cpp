@@ -5,10 +5,6 @@
 
 const int LZMA2_COMPRESSION_LEVEL = 9;
 
-static FL2_CCtx* compressionContext = FL2_createCCtxMt(12);
-static FL2_DCtx* decompressionContext = FL2_createDCtxMt(12);
-
-
 std::vector<std::experimental::filesystem::path> SpinImage::utilities::listDirectory(const std::string& directory) {
     std::vector<std::experimental::filesystem::path> foundFiles;
 
@@ -20,7 +16,6 @@ std::vector<std::experimental::filesystem::path> SpinImage::utilities::listDirec
 }
 
 const char *SpinImage::utilities::readCompressedFile(const std::experimental::filesystem::path &archiveFile, size_t* fileSizeBytes) {
-
     std::array<char, 5> headerTitle = {0, 0, 0, 0, 0};
     size_t compressedBufferSize;
     size_t decompressedBufferSize;
@@ -40,8 +35,7 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
 
     decompressStream.read(compressedBuffer, compressedBufferSize);
 
-    FL2_decompressDCtx(
-            decompressionContext,
+    FL2_decompress(
             (void*) decompressedBuffer, decompressedBufferSize,
             (void*) compressedBuffer, compressedBufferSize);
 
@@ -51,13 +45,13 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
 }
 
 void SpinImage::utilities::writeCompressedFile(const char *buffer, size_t bufferSize, const std::experimental::filesystem::path &archiveFile) {
+
     std::experimental::filesystem::create_directories(archiveFile.parent_path());
 
     const size_t maxCompressedBufferSize = FL2_compressBound(bufferSize);
     char* compressedBuffer = new char[maxCompressedBufferSize];
     unsigned long compressedBufferSize =
-            FL2_compressCCtx(
-                    compressionContext,
+            FL2_compress(
                     (void*) compressedBuffer, maxCompressedBufferSize,
                     (void*) buffer, bufferSize,
                     LZMA2_COMPRESSION_LEVEL);

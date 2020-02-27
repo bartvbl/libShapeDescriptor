@@ -17,7 +17,7 @@ SpinImage::cpu::QUICCIImages readImageLZFile(const std::experimental::filesystem
     size_t imageCount = *reinterpret_cast<const size_t*>(inputBuffer + 4);
     unsigned int descriptorWidthPixels = *reinterpret_cast<const unsigned int*>(inputBuffer + 4 + sizeof(size_t));
 
-    std::cout << "\tFile has " << imageCount << " images" << std::endl;
+    //std::cout << "\tFile has " << imageCount << " images" << std::endl;
     if(descriptorWidthPixels != spinImageWidthPixels) {
         std::cout << "The libSpinImage library was compiled with a different image size compared to those stored in this file." << std::endl;
         std::cout << "This means any processing this program does on them will not work correctly." << std::endl;

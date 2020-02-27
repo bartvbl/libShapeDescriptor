@@ -2,6 +2,8 @@
 
 #include <spinImage/libraryBuildSettings.h>
 #include <iostream>
+#include <cassert>
+#include <bitset>
 
 constexpr int uintsPerRow = spinImageWidthPixels / 32;
 
@@ -26,6 +28,18 @@ inline unsigned long bitwiseTranspose8x8(unsigned long in) {
         out = out | ((in & mask) << s) | ((in >> s) & mask);
     }
     return out;
+}
+
+inline void bitwiseTranspose32x32(std::array<unsigned int, 32> &in) {
+    unsigned int mask = 0x0000FFFF;
+    unsigned int temp = 0;
+    for(unsigned int j = 16; j != 0; j = j >> 1U, mask = mask ^ (mask << j)) {
+        for(unsigned int k = 0; k < 32; k = (k + j + 1) & ~j) {
+            temp = (in[k] ^ (in[k + j] >> j)) & mask;
+            in[k] = in[k] ^ temp;
+            in[k + j] = in[k + j] ^ (temp << j);
+        }
+    }
 }
 
 struct MipMapLevel3 {
@@ -53,6 +67,23 @@ struct MipMapLevel3 {
 
             level3[row / 2] = (compressedLeftChunk << 16U) | compressedRightChunk;
         }
+
+        // Compute matrix transpose
+        bitwiseTranspose32x32(level3);
+
+        // Rearranging bits for more balanced tree referencing
+        for(int columnIndex = 0; columnIndex < 32; columnIndex++) {
+            unsigned int column = level3[columnIndex];
+            level3[columnIndex] =
+                ((column << 12U) & 0xFF000000U) |
+                ((column       ) & 0x00F00000U) |
+                ((column << 8U ) & 0x000F0000U) |
+                ((column >> 12U) & 0x0000F000U) |
+                ((column << 8U ) & 0x00000F00U) |
+                ((column >> 24U) & 0x000000F0U) |
+                ((column       ) & 0x0000000FU);
+        }
+
         return level3;
     }
 
@@ -116,7 +147,7 @@ struct MipMapLevel1 {
             level1 |= compressedChunk << (64U - 8U * (chunk + 1U));
         }
 
-        return bitwiseTranspose8x8(level1);
+        return level1;
     }
 
     MipMapLevel1(MipMapLevel2 higherLevelImage) : image(computeMipmapLevel1(higherLevelImage)) {}

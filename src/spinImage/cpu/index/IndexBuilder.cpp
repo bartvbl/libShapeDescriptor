@@ -20,10 +20,13 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
     NodeBlockCache cache(20000, indexDirectory, &rootBlock);
 
     const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
-    IndexFileID fileIndex = 0;
-    for(const auto &path : filesInDirectory) {
+#pragma omp parallel for
+    for(unsigned int fileIndex = 0; fileIndex < filesInDirectory.size(); fileIndex++) {
+        std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
         const std::string archivePath = path.string();
+#pragma omp critical
         std::cout << "Adding file " << (fileIndex + 1) << "/" << filesInDirectory.size() << ": " << archivePath << std::endl;
+#pragma omp critical
         indexedFiles->emplace_back(archivePath);
 
         SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
@@ -35,6 +38,7 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
                     images.horizontallyIncreasingImages + imageIndex * uintsPerQUICCImage,
                     images.horizontallyDecreasingImages + imageIndex * uintsPerQUICCImage);
             IndexEntry entry = {fileIndex, imageIndex};
+#pragma omp critical
             cache.insertImage(combined, entry);
         }
 
@@ -44,8 +48,6 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
         delete[] images.horizontallyIncreasingImages;
         delete[] images.horizontallyDecreasingImages;
-
-        fileIndex++;
     }
 
     // Ensuring all changes are written to disk

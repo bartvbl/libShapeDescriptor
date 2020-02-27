@@ -100,7 +100,7 @@ const size_t blockStructSize = leafNodeBoolArraySize + entryCountArraySize;
 const size_t entrySize = (sizeof(IndexEntry) + sizeof(MipMapLevel3));
 
 NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory) {
-    std::cout << "Reading block " << blockID << std::endl;
+    std::cout << "r" << std::flush;
     std::experimental::filesystem::path nodeBlockFilePath = indexRootDirectory / blockID / "block.dat";
 
     assert(std::experimental::filesystem::exists(nodeBlockFilePath));
@@ -141,7 +141,7 @@ NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const
 }
 
 void SpinImage::index::io::writeNodeBlock(const NodeBlock *block, const std::experimental::filesystem::path &indexRootDirectory) {
-    std::cout << "Writing block " << block->identifier << std::endl;
+    std::cout << "w" << std::flush;
     int totalIndexEntryCount = 0;
     for(int i = 0; i < NODES_PER_BLOCK; i++) {
         totalIndexEntryCount += block->leafNodeContentsLength.at(i);

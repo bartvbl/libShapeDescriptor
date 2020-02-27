@@ -10,6 +10,7 @@
 Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string indexDumpDirectory) {
     std::vector<std::experimental::filesystem::path> filesInDirectory = SpinImage::utilities::listDirectory(quicciImageDumpDirectory);
     std::experimental::filesystem::path indexDirectory(indexDumpDirectory);
+    omp_set_nested(1);
 
     std::vector<std::experimental::filesystem::path>* indexedFiles =
             new std::vector<std::experimental::filesystem::path>();
@@ -25,18 +26,13 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
         const std::string archivePath = path.string();
 
-        SpinImage::cpu::QUICCIImages images;
+        SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
+
 #pragma omp critical
         {
-            std::cout << "Adding file " << (fileIndex + 1) << "/" << filesInDirectory.size() << ": " << archivePath << std::endl;
-            images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
             indexedFiles->emplace_back(archivePath);
-        };
-
-        std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-
-#pragma omp critical
-        {
+            std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+            std::cout << "Adding file " << (fileIndex + 1) << "/" << filesInDirectory.size() << ": " << archivePath << std::endl;
             for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
                 MipmapStack combined = MipmapStack::combine(
                         images.horizontallyIncreasingImages + imageIndex * uintsPerQUICCImage,
@@ -45,11 +41,18 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
                 cache.insertImage(combined, entry);
             }
-        };
 
-        std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-        std::cout << "\tTook " << float(duration.count()) / 1000.0f << " seconds." << std::endl;
+            std::cout << std::endl;
+            std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+            //std::cout << "\tTook " << float(duration.count()) / 1000.0f << " seconds." << std::endl;
+
+            // Write entire cache to disk. More efficient than reading/writing files one at a time
+            // because a flush is done in parallel.
+            if(cache.isFull()) {
+                cache.flush();
+            }
+        };
 
         delete[] images.horizontallyIncreasingImages;
         delete[] images.horizontallyDecreasingImages;

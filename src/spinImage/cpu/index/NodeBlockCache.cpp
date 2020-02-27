@@ -74,7 +74,8 @@ void NodeBlockCache::splitNode(
     insertItem(childNodeID, childNodeBlock);
     markItemDirty(childNodeID);
 
-    std::cout << "Splitting into new node " << childNodeID << ".. (" << getCurrentItemCount() << "/" << itemCapacity << ")" << std::endl;
+    std::cout << "s" << std::flush;
+    //std::cout << "Splitting into new node " << childNodeID << " (" << getCurrentItemCount() << "/" << itemCapacity << ")" << std::endl;
 
     // Follow linked list and move all nodes into new child node block
     int nextLinkedNodeIndex = currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex);

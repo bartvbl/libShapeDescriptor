@@ -4,6 +4,7 @@
 #include <list>
 #include <unordered_map>
 #include <cassert>
+#include <omp.h>
 
 // The cached nodes are stored as pointers to avoid accidental copies being created
 template<typename IDType, typename CachedItemType> struct CachedItem {
@@ -115,9 +116,31 @@ public:
 
     // Eject all items from the cache, leave it empty
     void flush() {
-        while(!lruItemQueue.empty()) {
-            ejectLeastRecentlyUsedItem();
-        }
+#pragma omp parallel num_threads(12)
+        {
+            size_t index = 0;
+            for(auto item = lruItemQueue.begin(); item != lruItemQueue.end(); item++) {
+                if(index % omp_get_num_threads() != omp_get_thread_num()) {
+                    continue;
+                }
+
+                if((*item).isDirty) {
+                    eject((*item).item);
+                }
+
+                delete (*item).item;
+
+                index++;
+            }
+        };
+
+        // Empty all cached items
+        lruItemQueue.clear();
+        randomAccessMap.clear();
+    }
+
+    bool isFull() {
+        return lruItemQueue.size() == itemCapacity;
     }
 
     size_t getCurrentItemCount() {

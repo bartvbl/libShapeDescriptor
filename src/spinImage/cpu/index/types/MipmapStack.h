@@ -167,7 +167,8 @@ struct MipmapStack {
 
     void print() {
         std::cout << std::endl << "Level 1" << std::endl;
-        //printBitwiseImage<unsigned long, 1>(level1.image, 8);
+        std::array<unsigned int, 2> temp = {(unsigned int) (level1.image >> 32), (unsigned int) level1.image};
+        printBitwiseImage<unsigned int, 2>(temp, 8);
 
         std::cout << std::endl << "Level 2" << std::endl;
         printBitwiseImage<unsigned int, 8>(level2.image, 16);

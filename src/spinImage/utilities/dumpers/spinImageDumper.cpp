@@ -173,13 +173,15 @@ void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, 
 
 	size_t pixelIndex = 0;
 
-	for(unsigned int chunkIndex = 0; chunkIndex < hostDescriptors.imageCount * uintsPerImage; chunkIndex++) {
-		unsigned int chunk = hostDescriptors.horizontallyIncreasingImages[chunkIndex];
-		std::bitset<32> entryBits(chunk);
-		for(char bit = 0; bit < 32; bit++) {
-			decompressedDesciptors.content[pixelIndex] = unsigned(int(entryBits[31 - bit]) * 255);
-			pixelIndex++;
-		}
+	for(unsigned int imageIndex = 0; imageIndex < hostDescriptors.imageCount; imageIndex++) {
+	    for(unsigned int chunkIndex = 0; chunkIndex < UINTS_PER_QUICCI; chunkIndex++) {
+            unsigned int chunk = hostDescriptors.horizontallyIncreasingImages[imageIndex][chunkIndex];
+            std::bitset<32> entryBits(chunk);
+            for(char bit = 0; bit < 32; bit++) {
+                decompressedDesciptors.content[pixelIndex] = unsigned(int(entryBits[31 - bit]) * 255);
+                pixelIndex++;
+            }
+        }
 	}
 
 	for(unsigned int emptyPixelIndex = 0; emptyPixelIndex < fillerImageCount * pixelsPerImage; emptyPixelIndex++) {
@@ -187,14 +189,16 @@ void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, 
 		pixelIndex++;
 	}
 
-	for(unsigned int chunkIndex = 0; chunkIndex < hostDescriptors.imageCount * uintsPerImage; chunkIndex++) {
-		unsigned int chunk = hostDescriptors.horizontallyDecreasingImages[chunkIndex];
-		std::bitset<32> entryBits(chunk);
-		for(char bit = 0; bit < 32; bit++) {
-			decompressedDesciptors.content[pixelIndex] = unsigned(int(entryBits[31 - bit]) * 255);
-			pixelIndex++;
-		}
-	}
+    for(unsigned int imageIndex = 0; imageIndex < hostDescriptors.imageCount; imageIndex++) {
+        for (unsigned int chunkIndex = 0; chunkIndex < hostDescriptors.imageCount * uintsPerImage; chunkIndex++) {
+            unsigned int chunk = hostDescriptors.horizontallyDecreasingImages[imageIndex][chunkIndex];
+            std::bitset<32> entryBits(chunk);
+            for (char bit = 0; bit < 32; bit++) {
+                decompressedDesciptors.content[pixelIndex] = unsigned(int(entryBits[31 - bit]) * 255);
+                pixelIndex++;
+            }
+        }
+    }
 
 	performSpinDump<unsigned int>(decompressedDesciptors, imageDestinationFile, false, imagesPerRow);
 

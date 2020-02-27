@@ -3,6 +3,7 @@
 #include <cassert>
 #include <spinImage/utilities/fileutils.h>
 #include <cstring>
+#include <spinImage/cpu/types/QuiccImage.h>
 
 Index SpinImage::index::io::readIndex(std::experimental::filesystem::path indexDirectory) {
     std::experimental::filesystem::path indexFilePath = indexDirectory / "index.dat";
@@ -88,7 +89,7 @@ void SpinImage::index::io::writeIndex(const Index& index, std::experimental::fil
 // 4 bytes: Number of index entries contained in all nodes combined
 // 256 / 8 bytes: bit vector representing which node is a leaf node (true) or an intermediate one (false)
 // 256 unsigned shorts: number of index entries associated with each node
-// [number of entries] x (IndexEntry + MipmapLevel3): array containing all the entries for each node,
+// [number of entries] x (IndexEntry + QuiccImage): array containing all the entries for each node,
 //                                                    sorted by which node they belong to
 //
 // The above is compressed and stored in a separate compressed file format
@@ -97,7 +98,7 @@ const size_t headerSize = sizeof(unsigned int);
 const size_t leafNodeBoolArraySize = BoolArray<NODES_PER_BLOCK>::computeArrayLength() * sizeof(unsigned int);
 const size_t entryCountArraySize = NODES_PER_BLOCK * sizeof(unsigned short);
 const size_t blockStructSize = leafNodeBoolArraySize + entryCountArraySize;
-const size_t entrySize = (sizeof(IndexEntry) + sizeof(MipMapLevel3));
+const size_t entrySize = (sizeof(IndexEntry) + sizeof(QuiccImage));
 
 NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory) {
     std::cout << "r" << std::flush;
@@ -126,8 +127,8 @@ NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const
             for(int entry = 0; entry < nodeBlock->leafNodeContentsLength.at(node); entry++) {
                 nodeBlock->leafNodeContents.at(nextEntryIndex).indexEntry =
                         *reinterpret_cast<const IndexEntry*>(entryListBasePointer + entryPointerOffset);
-                nodeBlock->leafNodeContents.at(nextEntryIndex).mipmapImage =
-                        *reinterpret_cast<const MipMapLevel3*>(entryListBasePointer + entryPointerOffset + sizeof(IndexEntry));
+                nodeBlock->leafNodeContents.at(nextEntryIndex).image =
+                        *reinterpret_cast<const QuiccImage*>(entryListBasePointer + entryPointerOffset + sizeof(IndexEntry));
                 nodeBlock->leafNodeContents.at(nextEntryIndex).nextEntryIndex =
                         (entry + 1 == nodeBlock->leafNodeContentsLength.at(node) ? -1 : nextEntryIndex + 1);
                 entryPointerOffset += entrySize;
@@ -162,8 +163,8 @@ void SpinImage::index::io::writeNodeBlock(const NodeBlock *block, const std::exp
         for(int entry = 0; entry < block->leafNodeContentsLength.at(node); entry++) {
             *reinterpret_cast<IndexEntry*>(entryListBasePointer + entryPointerOffset) =
                     block->leafNodeContents.at(nextListEntryIndex).indexEntry;
-            *reinterpret_cast<MipMapLevel3*>(entryListBasePointer + entryPointerOffset + sizeof(IndexEntry)) =
-                    block->leafNodeContents.at(nextListEntryIndex).mipmapImage;
+            *reinterpret_cast<QuiccImage*>(entryListBasePointer + entryPointerOffset + sizeof(IndexEntry)) =
+                    block->leafNodeContents.at(nextListEntryIndex).image;
             entryPointerOffset += entrySize;
             nextListEntryIndex = block->leafNodeContents.at(nextListEntryIndex).nextEntryIndex;
         }

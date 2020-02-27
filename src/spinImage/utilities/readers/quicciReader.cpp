@@ -25,23 +25,20 @@ SpinImage::cpu::QUICCIImages readImageLZFile(const std::experimental::filesystem
         throw std::runtime_error("Invalid input file detected!");
     }
 
-    const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
     SpinImage::cpu::QUICCIImages images;
     images.imageCount = imageCount;
-    const size_t imageBufferLength = uintsPerQUICCImage * imageCount;
-    images.horizontallyIncreasingImages = new unsigned int[imageBufferLength];
-    images.horizontallyDecreasingImages = new unsigned int[imageBufferLength];
+    images.horizontallyIncreasingImages = new QuiccImage[imageCount];
+    images.horizontallyDecreasingImages = new QuiccImage[imageCount];
 
-    const unsigned int* horizontallyIncreasingBasePointer
-        = reinterpret_cast<const unsigned int*>(inputBuffer + 4 + sizeof(size_t) + sizeof(unsigned int));
-    const unsigned int* horizontallyDecreasingBasePointer
-            = reinterpret_cast<const unsigned int*>(inputBuffer + 4 + sizeof(size_t) + sizeof(unsigned int)
-                    + imageBufferLength * sizeof(unsigned int));
+    const QuiccImage* horizontallyIncreasingBasePointer
+        = reinterpret_cast<const QuiccImage*>(inputBuffer + 4 + sizeof(size_t) + sizeof(unsigned int));
+    const QuiccImage* horizontallyDecreasingBasePointer
+        = reinterpret_cast<const QuiccImage*>(inputBuffer + 4 + sizeof(size_t) + sizeof(unsigned int) + imageCount * sizeof(QuiccImage));
 
-    std::copy(horizontallyIncreasingBasePointer, horizontallyIncreasingBasePointer + imageBufferLength,
+    std::copy(horizontallyIncreasingBasePointer, horizontallyIncreasingBasePointer + imageCount,
             images.horizontallyIncreasingImages);
-    std::copy(horizontallyDecreasingBasePointer, horizontallyDecreasingBasePointer + imageBufferLength,
-              images.horizontallyDecreasingImages);
+    std::copy(horizontallyDecreasingBasePointer, horizontallyDecreasingBasePointer + imageCount,
+            images.horizontallyDecreasingImages);
 
     delete[] inputBuffer;
     return images;

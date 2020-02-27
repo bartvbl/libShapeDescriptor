@@ -29,3 +29,5 @@ typedef float shapeContextBinType;
 #ifdef _WIN32
 #define M_PI 3.1415926353
 #endif
+
+#define UINTS_PER_QUICCI ((spinImageWidthPixels * spinImageWidthPixels) / 32)

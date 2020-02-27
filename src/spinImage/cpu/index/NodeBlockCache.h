@@ -4,6 +4,7 @@
 #include <utility>
 #include <list>
 #include <unordered_map>
+#include <spinImage/cpu/types/QuiccImage.h>
 #include <spinImage/utilities/Cache.h>
 #include "IndexIO.h"
 
@@ -25,10 +26,16 @@ private:
     const std::experimental::filesystem::path indexRoot;
     NodeBlock* rootNode;
 
-    void insertImageIntoNode(const MipMapLevel3 &mipmaps, const IndexEntry &entry, NodeBlock *currentNodeBlock,
-                             unsigned char levelByte);
-    void splitNode(const MipmapStack &mipmaps, unsigned short levelReached, NodeBlock *currentNodeBlock,
-                             unsigned char levelByte, std::string &childNodeID);
+    void insertImageIntoNode(
+            const QuiccImage &image,
+            const IndexEntry &entry,
+            NodeBlock *currentNodeBlock,
+            unsigned char levelByte);
+    void splitNode(
+            unsigned short levelReached,
+            NodeBlock *currentNodeBlock,
+            unsigned char levelByte,
+            std::string &childNodeID);
 protected:
     void eject(NodeBlock* item) override;
     NodeBlock* load(std::string &itemID) override;
@@ -41,5 +48,5 @@ public:
         indexRoot(indexRootPath),
         rootNode(root)
         {}
-    void insertImage(const MipmapStack &mipmaps, const IndexEntry reference);
+    void insertImage(const QuiccImage &image, const IndexEntry reference);
 };

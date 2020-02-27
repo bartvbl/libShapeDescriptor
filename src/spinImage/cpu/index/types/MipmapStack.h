@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cassert>
 #include <bitset>
+#include <spinImage/cpu/types/QuiccImage.h>
 
 constexpr int uintsPerRow = spinImageWidthPixels / 32;
 
@@ -48,7 +49,7 @@ struct MipMapLevel3 {
     std::array<unsigned int, 32> image;
 
     // 64x64 -> 32x32 image
-    static std::array<unsigned int, 32> computeMipmapLevel3(const unsigned int* quiccImage) {
+    static std::array<unsigned int, 32> computeMipmapLevel3(const QuiccImage &quiccImage) {
         std::array<unsigned int, 32> level3;
 
         for(int row = 0; row < spinImageWidthPixels; row += 2) {
@@ -87,7 +88,7 @@ struct MipMapLevel3 {
         return level3;
     }
 
-    MipMapLevel3(unsigned int* quicciImage) : image(computeMipmapLevel3(quicciImage)) {}
+    MipMapLevel3(const QuiccImage &quicciImage) : image(computeMipmapLevel3(quicciImage)) {}
 
     // Constructor intended for array initialisation
     MipMapLevel3() : image({0}) {}
@@ -165,7 +166,7 @@ struct MipmapStack {
     MipMapLevel2 level2;
     MipMapLevel1 level1;
 
-    MipmapStack(unsigned int* quiccImage) :
+    MipmapStack(const QuiccImage &quiccImage) :
             level3(quiccImage),
             level2(level3),
             level1(level2) {
@@ -208,11 +209,13 @@ struct MipmapStack {
         printBitwiseImage<unsigned int, 32>(level3.image, 32);
     }
 
-    static MipmapStack combine(const unsigned int *image1, const unsigned int *image2) {
-        unsigned int combinedImage[128];
+    static QuiccImage combine(
+            const QuiccImage &image1,
+            const QuiccImage &image2) {
+        QuiccImage combinedImage;
         for(unsigned int i = 0; i < 128; i++) {
             combinedImage[i] = image1[i] | image2[i];
         }
-        return MipmapStack(combinedImage);
+        return combinedImage;
     }
 };

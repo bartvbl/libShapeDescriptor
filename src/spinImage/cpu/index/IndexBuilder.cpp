@@ -4,6 +4,7 @@
 #include <spinImage/utilities/readers/quicciReader.h>
 #include <spinImage/cpu/index/types/MipmapStack.h>
 #include <bitset>
+#include <spinImage/cpu/types/QuiccImage.h>
 #include "IndexBuilder.h"
 #include "NodeBlockCache.h"
 
@@ -34,9 +35,9 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
             std::cout << "Adding file " << (fileIndex + 1) << "/" << filesInDirectory.size() << ": " << archivePath << std::endl;
             for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
-                MipmapStack combined = MipmapStack::combine(
-                        images.horizontallyIncreasingImages + imageIndex * uintsPerQUICCImage,
-                        images.horizontallyDecreasingImages + imageIndex * uintsPerQUICCImage);
+                QuiccImage combined = MipmapStack::combine(
+                        images.horizontallyIncreasingImages[imageIndex],
+                        images.horizontallyDecreasingImages[imageIndex]);
                 IndexEntry entry = {fileIndex, imageIndex};
 
                 cache.insertImage(combined, entry);

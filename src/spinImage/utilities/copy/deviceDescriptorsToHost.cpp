@@ -31,13 +31,12 @@ SpinImage::array<spinImagePixelType> SpinImage::copy::spinImageDescriptorsToHost
 }
 
 SpinImage::cpu::QUICCIImages SpinImage::copy::QUICCIDescriptorsToHost(SpinImage::gpu::QUICCIImages device_descriptors) {
-    const unsigned int uintsPerImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
-    size_t descriptorBufferLength = device_descriptors.imageCount * uintsPerImage;
-    size_t descriptorBufferSize = descriptorBufferLength * sizeof(unsigned int);
+    size_t descriptorBufferLength = device_descriptors.imageCount;
+    size_t descriptorBufferSize = descriptorBufferLength * sizeof(QuiccImage);
 
     SpinImage::cpu::QUICCIImages host_descriptors;
-    host_descriptors.horizontallyIncreasingImages = new unsigned int[descriptorBufferLength];
-    host_descriptors.horizontallyDecreasingImages = new unsigned int[descriptorBufferLength];
+    host_descriptors.horizontallyIncreasingImages = new QuiccImage[descriptorBufferLength];
+    host_descriptors.horizontallyDecreasingImages = new QuiccImage[descriptorBufferLength];
     host_descriptors.imageCount = device_descriptors.imageCount;
 
     checkCudaErrors(cudaMemcpy(

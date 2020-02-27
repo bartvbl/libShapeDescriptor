@@ -41,7 +41,7 @@ unsigned char computeLevelByte(const MipmapStack &mipmaps, const unsigned short 
 
 
 
-void NodeBlockCache::insertImageIntoNode(const MipMapLevel3 &mipmaps, const IndexEntry &entry, NodeBlock *currentNodeBlock,
+void NodeBlockCache::insertImageIntoNode(const QuiccImage &image, const IndexEntry &entry, NodeBlock *currentNodeBlock,
                           unsigned char outgoingEdgeIndex) {
     // 1. Insert the new entry at the start of the list
     int currentStartIndex = currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex);
@@ -50,20 +50,19 @@ void NodeBlockCache::insertImageIntoNode(const MipMapLevel3 &mipmaps, const Inde
         // We have spare capacity from nodes that were deleted previously
         entryIndex = currentNodeBlock->freeListStartIndex;
         int nextFreeListIndex = currentNodeBlock->leafNodeContents.at(entryIndex).nextEntryIndex;
-        currentNodeBlock->leafNodeContents.at(entryIndex) = {entry, mipmaps, currentStartIndex};
+        currentNodeBlock->leafNodeContents.at(entryIndex) = {entry, image, currentStartIndex};
         currentNodeBlock->freeListStartIndex = nextFreeListIndex;
     } else {
         // Otherwise, when no spare capacity is available,
         // we allocate a new node at the end of the list
         entryIndex = currentNodeBlock->leafNodeContents.size();
-        currentNodeBlock->leafNodeContents.push_back({entry, mipmaps, currentStartIndex});
+        currentNodeBlock->leafNodeContents.push_back({entry, image, currentStartIndex});
     }
     currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex) = entryIndex;
     currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex)++;
 }
 
 void NodeBlockCache::splitNode(
-        const MipmapStack &mipmaps,
         unsigned short levelReached,
         NodeBlock *currentNodeBlock,
         unsigned char outgoingEdgeIndex,
@@ -82,9 +81,9 @@ void NodeBlockCache::splitNode(
     while(nextLinkedNodeIndex != -1) {
         // Copy over node into new child node block
         NodeBlockEntry* entryToMove = &currentNodeBlock->leafNodeContents.at(nextLinkedNodeIndex);
-        MipmapStack entryMipmaps(entryToMove->mipmapImage);
+        MipmapStack entryMipmaps(entryToMove->image);
         unsigned char childLevelByte = computeLevelByte(entryMipmaps, levelReached + 1);
-        insertImageIntoNode(entryToMove->mipmapImage, entryToMove->indexEntry,
+        insertImageIntoNode(entryToMove->image, entryToMove->indexEntry,
                             childNodeBlock, childLevelByte);
 
         // Mark entry in parent node as available by appending it to the free list
@@ -105,7 +104,7 @@ void NodeBlockCache::splitNode(
 // It's a waste to recreate this one every time, so let's reuse it
 std::stringstream pathBuilder;
 
-void NodeBlockCache::insertImage(const MipmapStack &mipmaps, const IndexEntry reference) {
+void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry reference) {
     // Follow path until leaf node is reached, or the bottom of the index
     unsigned short levelReached = 0;
     // Clear the path/identifier buffer
@@ -114,13 +113,14 @@ void NodeBlockCache::insertImage(const MipmapStack &mipmaps, const IndexEntry re
 
     bool currentNodeIsLeafNode = false;
     NodeBlock* currentNodeBlock = rootNode;
+    MipmapStack mipmaps(image);
     while(!currentNodeIsLeafNode) {
         unsigned char outgoingEdgeIndex = computeLevelByte(mipmaps, levelReached);
         if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;
             std::string itemID = pathBuilder.str();
-            insertImageIntoNode(mipmaps.level3, reference, currentNodeBlock, outgoingEdgeIndex);
+            insertImageIntoNode(image, reference, currentNodeBlock, outgoingEdgeIndex);
 
             // 2. Mark modified entry as dirty.
             // Do this first to avoid cases where item is going to ejected from the cache when node is split
@@ -133,7 +133,7 @@ void NodeBlockCache::insertImage(const MipmapStack &mipmaps, const IndexEntry re
             if(currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) >= NODE_SPLIT_THRESHOLD) {
                 pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
                 std::string childNodeID = pathBuilder.str();
-                splitNode(mipmaps, levelReached, currentNodeBlock, outgoingEdgeIndex, childNodeID);
+                splitNode(levelReached, currentNodeBlock, outgoingEdgeIndex, childNodeID);
             }
 
         } else {

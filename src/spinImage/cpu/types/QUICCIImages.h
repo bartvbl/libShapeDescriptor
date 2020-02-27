@@ -1,12 +1,15 @@
 #pragma once
 
 #include <cstddef>
+#include <array>
+#include <spinImage/libraryBuildSettings.h>
+#include "QuiccImage.h"
 
 namespace SpinImage {
     namespace cpu {
         struct QUICCIImages {
-            unsigned int* horizontallyIncreasingImages;
-            unsigned int* horizontallyDecreasingImages;
+            QuiccImage* horizontallyIncreasingImages;
+            QuiccImage* horizontallyDecreasingImages;
             size_t imageCount;
         };
     }

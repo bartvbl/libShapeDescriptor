@@ -1,9 +1,10 @@
 #pragma once
 
 #include "IndexEntry.h"
+#include <spinImage/cpu/types/QuiccImage.h>
 
 struct NodeBlockEntry {
     IndexEntry indexEntry;
-    MipMapLevel3 mipmapImage;
+    QuiccImage image;
     int nextEntryIndex;
 };

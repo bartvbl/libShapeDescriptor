@@ -14,20 +14,20 @@ struct BitCountMipmapStack {
     //   3       32x32 images   1024          2x2 pixels       0-4           256 bytes, 2 bits/pixel
     //   -- 64x64: source --
 
-    const std::array<unsigned char, 8*8> level1;
-    const std::array<unsigned short, 16*16> level2;
-    const std::array<unsigned short, 32*32> level3;
+    //const std::array<unsigned char, 8*8> level1;
+    //const std::array<unsigned short, 16*16> level2;
+    //const std::array<unsigned short, 32*32> level3;
 
     BitCountMipmapStack(QuiccImage &quiccImage) {
         static_assert(spinImageWidthPixels == 64);
 
-        computeMipmapLevel(level1, quiccImage, 8,  8, 0x01010101);
-        computeMipmapLevel(level2, quiccImage, 4,  4, 0x11111111);
+        //computeMipmapLevel(level1, quiccImage, 8,  8, 0x01010101);
+        //computeMipmapLevel(level2, quiccImage, 4,  4, 0x11111111);
 
 
     }
 
-    void print() {
+    /*void print() {
         std::cout << "Level 0" << std::endl;
         for(int row = 0; row < 4; row++) {
             std::cout << "\t";
@@ -63,5 +63,5 @@ struct BitCountMipmapStack {
             }
             std::cout << std::endl;
         }
-    }
+    }*/
 };

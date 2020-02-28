@@ -56,7 +56,7 @@ void visitNode(
 }
 
 std::vector<IndexEntry> queryIndex(Index index, unsigned int* queryImage, unsigned int resultCount) {
-    BitCountMipmapStack queryImageMipmapStack(queryImage);
+    //BitCountMipmapStack queryImageMipmapStack(queryImage);
 
     NodeBlockCache cache(25000, index.indexDirectory, &index.rootNode);
 
@@ -65,7 +65,7 @@ std::vector<IndexEntry> queryIndex(Index index, unsigned int* queryImage, unsign
 
     currentSearchResults.reserve(30000 + resultCount + NODES_PER_BLOCK * NODE_SPLIT_THRESHOLD);
 
-    visitNode(&index.rootNode, 0, closedNodeQueue, currentSearchResults, queryImageMipmapStack);
+    //visitNode(&index.rootNode, 0, closedNodeQueue, currentSearchResults, queryImageMipmapStack);
 
     // Iteratively add additional nodes until there's no chance any additional node can improve the best distance score
     /*while(currentSearchResults.at(currentSearchResults.size() - 1).distanceScore > closedNodeQueue.top().minDistanceScore) {

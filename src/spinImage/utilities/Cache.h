@@ -116,11 +116,12 @@ public:
 
     // Eject all items from the cache, leave it empty
     void flush() {
-#pragma omp parallel num_threads(12)
+#pragma omp parallel
         {
             size_t index = 0;
             for(auto item = lruItemQueue.begin(); item != lruItemQueue.end(); item++) {
                 if(index % omp_get_num_threads() != omp_get_thread_num()) {
+                    index++;
                     continue;
                 }
 

@@ -19,7 +19,7 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
     NodeBlock rootBlock;
 
-    NodeBlockCache cache(20000, indexDirectory, &rootBlock);
+    NodeBlockCache cache(6000, indexDirectory, &rootBlock);
 
     const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
 #pragma omp parallel for schedule(dynamic)
@@ -33,7 +33,7 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
         {
             indexedFiles->emplace_back(archivePath);
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-            std::cout << "Adding file " << (fileIndex + 1) << "/" << filesInDirectory.size() << ": " << archivePath << std::endl;
+            std::cout << "Adding file " << (fileIndex + 1) << "/" << filesInDirectory.size() << ": " << archivePath << ", Cache: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity << std::endl;
             for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
                 QuiccImage combined = MipmapStack::combine(
                         images.horizontallyIncreasingImages[imageIndex],

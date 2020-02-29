@@ -2,6 +2,9 @@
 
 #include <spinImage/libraryBuildSettings.h>
 #include <iostream>
+#include <array>
+#include <bitset>
+#include <spinImage/cpu/types/QuiccImage.h>
 
 //constexpr int uintsPerRow = spinImageWidthPixels / 32;
 
@@ -14,54 +17,96 @@ struct BitCountMipmapStack {
     //   3       32x32 images   1024          2x2 pixels       0-4           256 bytes, 2 bits/pixel
     //   -- 64x64: source --
 
-    //const std::array<unsigned char, 8*8> level1;
-    //const std::array<unsigned short, 16*16> level2;
-    //const std::array<unsigned short, 32*32> level3;
+    const std::array<unsigned char, 32*32> level3;
+    const std::array<unsigned short, 16*16> level2;
+    const std::array<unsigned short, 8*8> level1;
 
-    BitCountMipmapStack(QuiccImage &quiccImage) {
-        static_assert(spinImageWidthPixels == 64);
+    std::array<unsigned char, 32*32> computeLevel3(const QuiccImage &quiccImage) {
+        std::array<unsigned char, 32*32> image;
 
-        //computeMipmapLevel(level1, quiccImage, 8,  8, 0x01010101);
-        //computeMipmapLevel(level2, quiccImage, 4,  4, 0x11111111);
-
-
-    }
-
-    /*void print() {
-        std::cout << "Level 0" << std::endl;
-        for(int row = 0; row < 4; row++) {
-            std::cout << "\t";
-            for(int col = 0; col < 4; col++) {
-                std::cout << ((level0[row] >> (24 - 8*col)) & 0xFF) << (col < 3 ? ", " : "");
+        for(int mipmapRow = 0; mipmapRow < 32; mipmapRow++) {
+            for(int mipmapCol = 0; mipmapCol < 32; mipmapCol++) {
+                unsigned int top = quiccImage[2 * 2 * mipmapRow + (mipmapCol / 16)];
+                unsigned int bottom = quiccImage[2 * 2 * mipmapRow + (mipmapCol / 16) + 2];
+                std::bitset<32> topBits(top);
+                std::bitset<32> bottomBits(bottom);
+                unsigned char relativeCol = (2 * mipmapCol) % 32;
+                image[mipmapRow * 32 + mipmapCol] =
+                    int(topBits[31 - relativeCol]) +
+                    int(topBits[31 - (relativeCol + 1)]) +
+                    int(bottomBits[31 - relativeCol]) +
+                    int(bottomBits[31 - (relativeCol + 1)]);
             }
-            std::cout << std::endl;
         }
 
+        return image;
+    }
+
+    std::array<unsigned short, 16*16> computeLevel2() {
+        std::array<unsigned short, 16*16> image;
+
+        for(int mipmapRow = 0; mipmapRow < 16; mipmapRow++) {
+            for(int mipmapCol = 0; mipmapCol < 16; mipmapCol++) {
+                image[mipmapRow * 16 + mipmapCol] =
+                    level3[(32 * (2 * mipmapRow) + (2 * mipmapCol))] +
+                    level3[(32 * (2 * mipmapRow) + (2 * mipmapCol) + 1)] +
+                    level3[(32 * (2 * mipmapRow + 1)) + (2 * mipmapCol)] +
+                    level3[(32 * (2 * mipmapRow + 1)) + (2 * mipmapCol) + 1];
+            }
+        }
+
+        return image;
+    }
+
+    std::array<unsigned short, 8*8> computeLevel1() {
+        std::array<unsigned short, 8*8> image;
+
+        for(int mipmapRow = 0; mipmapRow < 8; mipmapRow++) {
+            for(int mipmapCol = 0; mipmapCol < 8; mipmapCol++) {
+                image[mipmapRow * 8 + mipmapCol] =
+                    level2[(16 * 2 * mipmapRow) + (2 * mipmapCol)] +
+                    level2[(16 * 2 * mipmapRow) + (2 * mipmapCol) + 1] +
+                    level2[(16 * (2 * mipmapRow + 1)) + (2 * mipmapCol)] +
+                    level2[(16 * (2 * mipmapRow + 1)) + (2 * mipmapCol) + 1];
+            }
+        }
+
+        return image;
+    }
+
+    explicit BitCountMipmapStack(const QuiccImage &quiccImage)
+        : level3(computeLevel3(quiccImage)),
+          level2(computeLevel2()),
+          level1(computeLevel1()) {
+        static_assert(spinImageWidthPixels == 64, "The index implementation of the library has been constructed for images of size 64x64");
+    }
+
+    void print() {
         std::cout << std::endl << "Level 1" << std::endl;
-        for(int row = 0; row < 8; row++) {
+        for(unsigned int row = 0; row < 8; row++) {
             std::cout << "\t";
-            for(int col = 0; col < 8; col++) {
-                std::cout << ((level1[uintsPerRow * row + col/4] >> (24 - 8*col)) & 0xFF) << (col < 7 ? ", " : "");
+            for(unsigned int col = 0; col < 8; col++) {
+                std::cout << (level1[row * 8 + col]) << (col < 7 ? ", " : "");
             }
             std::cout << std::endl;
         }
 
         std::cout << std::endl << "Level 2" << std::endl;
-        for(int row = 0; row < 16; row++) {
+        for(unsigned int row = 0; row < 16; row++) {
             std::cout << "\t";
-            for(int col = 0; col < 16; col++) {
-                std::cout << ((level2[uintsPerRow * row + col/8] >> (28 - 4*col)) & 0xF) << (col < 15 ? ", " : "");
+            for(unsigned int col = 0; col < 16; col++) {
+                std::cout << (level2[row * 16 + col]) << (col < 15 ? ", " : "");
             }
             std::cout << std::endl;
         }
 
         std::cout << std::endl << "Level 3" << std::endl;
-        for(int row = 0; row < 32; row++) {
+        for(unsigned int row = 0; row < 32; row++) {
             std::cout << "\t";
-            for(int col = 0; col < 32; col++) {
-                std::cout << ((level3[uintsPerRow * row + col/16] >> (30 - 2*col)) & 0x3) << (col < 31 ? ", " : "");
+            for(unsigned int col = 0; col < 32; col++) {
+                std::cout << int(level3[row * 32 + col]);
             }
             std::cout << std::endl;
         }
-    }*/
+    }
 };

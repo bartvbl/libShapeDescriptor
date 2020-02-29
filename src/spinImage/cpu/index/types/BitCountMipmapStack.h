@@ -31,7 +31,21 @@ struct BitCountMipmapStack {
                 std::bitset<32> topBits(top);
                 std::bitset<32> bottomBits(bottom);
                 unsigned char relativeCol = (2 * mipmapCol) % 32;
-                image[mipmapRow * 32 + mipmapCol] =
+
+                const char bitShuffleIndices[32] =
+                    {24, 25, 26, 27,
+                     16, 17, 18, 19,
+                     8,  9,  10, 11,
+                     0,  1,  2,  3,
+                     4,  5,  6,  7,
+                     12, 13, 14, 15,
+                     20, 21, 22, 23,
+                     28, 29, 30, 31};
+
+                int transposedMipmapRow = mipmapCol;
+                int transposedMipmapCol = bitShuffleIndices[mipmapRow];
+
+                image[transposedMipmapRow * 32 + transposedMipmapCol] =
                     int(topBits[31 - relativeCol]) +
                     int(topBits[31 - (relativeCol + 1)]) +
                     int(bottomBits[31 - relativeCol]) +

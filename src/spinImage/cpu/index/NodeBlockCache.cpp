@@ -50,7 +50,7 @@ void NodeBlockCache::splitNode(
         // Copy over node into new child node block
         NodeBlockEntry* entryToMove = &currentNodeBlock->leafNodeContents.at(nextLinkedNodeIndex);
         MipmapStack entryMipmaps(entryToMove->image);
-        unsigned char childLevelByte = computeLevelByte(entryMipmaps, levelReached + 1);
+        unsigned char childLevelByte = entryMipmaps.computeLevelByte(levelReached + 1);
         insertImageIntoNode(entryToMove->image, entryToMove->indexEntry,
                             childNodeBlock, childLevelByte);
 

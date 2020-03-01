@@ -8,6 +8,8 @@ int main(int argc, const char** argv) {
             "index-directory", "The directory where the index should be stored.", '\0', arrrgh::Required, "");
     const auto& sourceDirectory = parser.add<std::string>(
             "quicci-dump-directory", "The directory where binary dump files of QUICCI images are stored that should be indexed.", '\0', arrrgh::Required, "");
+    const auto& jsonDumpFile = parser.add<std::string>(
+            "runtime-json-file", "Dump time measurement and statistics into the specified JSON file.", '\0', arrrgh::Optional, "NONE_SPECIFIED");
     const auto& showHelp = parser.add<bool>(
             "help", "Show this help message.", 'h', arrrgh::Optional, false);
 

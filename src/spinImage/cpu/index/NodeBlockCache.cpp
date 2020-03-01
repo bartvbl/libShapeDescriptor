@@ -9,38 +9,6 @@ NodeBlock *NodeBlockCache::load(std::string &itemID) {
     return SpinImage::index::io::readNodeBlock(itemID, indexRoot);
 }
 
-unsigned char computeLevelByte(const MipmapStack &mipmaps, const unsigned short level) {
-    // Level 1 contains 8 1-byte chunks
-    if(level < 8) {
-        return mipmaps.level1.image >> (64U - 8U * (level + 1)) & 0xFFU;
-    }
-
-    // Level 2 starts after level 1, and contains 16 columns of 2 chunks each
-    const unsigned short level2StartChunk = 8 + (16 * 2);
-    if(level < level2StartChunk) {
-        // TODO: Transpose 16x16 image, change bit order within column to be more balanced
-        const unsigned short chunkInlevel2 = level - 8;
-        const unsigned short level2UintIndex = chunkInlevel2 / 4;
-        const unsigned short level2ByteIndex = chunkInlevel2 % 4;
-        const unsigned int level2Uint = mipmaps.level2.image[level2UintIndex];
-        return level2Uint >> (32U - 8U * (level2ByteIndex + 1)) & 0xFFU;
-    }
-
-    // Level 3 starts after level 2, and contains 32 columns of 4 chunks each
-    if(level < level2StartChunk + (32 * 4)) {
-        const unsigned short chunkInlevel3 = level - 8;
-        const unsigned short level3UintIndex = chunkInlevel3 / 4;
-        const unsigned short level3ByteIndex = chunkInlevel3 % 4;
-        const unsigned int level3Uint = mipmaps.level3.image[level3UintIndex];
-        return level3Uint >> (32U - 8U * (level3ByteIndex + 1)) & 0xFFU;
-    }
-
-    // Index has run out of intermediate levels, and this function should never be called in that case.
-    throw std::runtime_error("Level byte requested from mipmap stack that is out of bounds!");
-}
-
-
-
 void NodeBlockCache::insertImageIntoNode(const QuiccImage &image, const IndexEntry &entry, NodeBlock *currentNodeBlock,
                           unsigned char outgoingEdgeIndex) {
     // 1. Insert the new entry at the start of the list
@@ -115,7 +83,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
     NodeBlock* currentNodeBlock = rootNode;
     MipmapStack mipmaps(image);
     while(!currentNodeIsLeafNode) {
-        unsigned char outgoingEdgeIndex = computeLevelByte(mipmaps, levelReached);
+        unsigned char outgoingEdgeIndex = mipmaps.computeLevelByte(levelReached);
         if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;

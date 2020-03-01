@@ -48,6 +48,14 @@ struct MipMapLevel3 {
     // Just C++ things..
     std::array<unsigned int, 32> image;
 
+    unsigned int computeLevelByte(unsigned int level) const {
+        const unsigned short levelByteIndexWithinLevel3 = level - 8 - (16 * 2);
+        const unsigned short level3UintIndex = levelByteIndexWithinLevel3 / 4;
+        const unsigned short level3ByteIndex = levelByteIndexWithinLevel3 % 4;
+        const unsigned int level3Uint = image[level3UintIndex];
+        return (level3Uint >> (32U - 8U * (level3ByteIndex + 1))) & 0xFFU;
+    }
+
     // 64x64 -> 32x32 image
     static std::array<unsigned int, 32> computeMipmapLevel3(const QuiccImage &quiccImage) {
         std::array<unsigned int, 32> level3;
@@ -97,6 +105,16 @@ struct MipMapLevel3 {
 struct MipMapLevel2 {
     const std::array<unsigned int, 8> image;
 
+    unsigned int computeLevelByte(unsigned int level) const {
+        assert(level >= 8);
+        assert(level < 8 + (16 * 2));
+        const unsigned short levelByteIndexWithinLevel2 = level - 8;
+        const unsigned short level2UintIndex = levelByteIndexWithinLevel2 / 4;
+        const unsigned short level2ByteIndex = levelByteIndexWithinLevel2 % 4;
+        const unsigned int level2Uint = image[level2UintIndex];
+        return (level2Uint >> (32U - 8U * (level2ByteIndex + 1))) & 0xFFU;
+    }
+
     // 32x32 -> 16x16 image
     static std::array<unsigned int, 8> computeMipmapLevel2(MipMapLevel3 level3) {
         unsigned int combinedCompressedChunk = 0;
@@ -128,6 +146,11 @@ struct MipMapLevel2 {
 
 struct MipMapLevel1 {
     const unsigned long image;
+
+    unsigned char computeLevelByte(const unsigned char level) const {
+        assert(level < 8);
+        return (64U - 8U * (level + 1)) & 0xFFU;
+    }
 
     // 16x16 -> 8x8 image
     static unsigned long computeMipmapLevel1(MipMapLevel2 level2) {
@@ -178,6 +201,27 @@ struct MipmapStack {
             level3(level3Image),
             level2(level3),
             level1(level2) {}
+
+    unsigned char computeLevelByte(const unsigned short level) const {
+        // Level 1 contains 8 1-byte chunks
+        if(level < 8) {
+            return level1.computeLevelByte(level);
+        }
+
+        // Level 2 starts after level 1, and contains 16 columns of 2 chunks each
+        const unsigned short level3StartChunk = 8 + (16 * 2);
+        if(level < level3StartChunk) {
+            return level2.computeLevelByte(level);
+        }
+
+        // Level 3 starts after level 2, and contains 32 columns of 4 chunks each
+        if(level < level3StartChunk + (32 * 4)) {
+            return level3.computeLevelByte(level);
+        }
+
+        // Index has run out of intermediate levels, and this function should never be called in that case.
+        throw std::runtime_error("Level byte requested from mipmap stack that is out of bounds!");
+    }
 
     template<typename printedType, int intCount> void printBitwiseImage(const std::array<printedType, intCount> &image, int size) {
         unsigned int bitIndex = 0;

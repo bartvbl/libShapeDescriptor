@@ -19,9 +19,8 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
     NodeBlock rootBlock;
 
-    NodeBlockCache cache(6000, indexDirectory, &rootBlock);
+    NodeBlockCache cache(1500, indexDirectory, &rootBlock);
 
-    const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
 #pragma omp parallel for schedule(dynamic)
     for(unsigned int fileIndex = 0; fileIndex < filesInDirectory.size(); fileIndex++) {
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
@@ -47,12 +46,6 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
             std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
             //std::cout << "\tTook " << float(duration.count()) / 1000.0f << " seconds." << std::endl;
-
-            // Write entire cache to disk. More efficient than reading/writing files one at a time
-            // because a flush is done in parallel.
-            if(cache.isFull()) {
-                cache.flush();
-            }
         };
 
         delete[] images.horizontallyIncreasingImages;

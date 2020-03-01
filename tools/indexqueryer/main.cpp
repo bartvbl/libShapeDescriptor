@@ -45,7 +45,7 @@ int main(int argc, const char** argv) {
 
     assert(width == spinImageWidthPixels && height == spinImageWidthPixels);
 
-    unsigned int* queryQUIICIMage = new unsigned int[(spinImageWidthPixels * spinImageWidthPixels) / 32];
+    QuiccImage queryQUIICIMage;
 
     for(int row = 0; row < spinImageWidthPixels; row++) {
         std::bitset<32> bitQueue(0);
@@ -62,8 +62,5 @@ int main(int argc, const char** argv) {
     Index index = SpinImage::index::io::readIndex(indexDirectory.value());
 
     std::vector<IndexEntry> searchResults = queryIndex(index, queryQUIICIMage, 100);
-
-
-    delete[] queryQUIICIMage;
 
 }

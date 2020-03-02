@@ -149,7 +149,7 @@ struct MipMapLevel1 {
 
     unsigned char computeLevelByte(const unsigned char level) const {
         assert(level < 8);
-        return (64U - 8U * (level + 1)) & 0xFFU;
+        return (image >> (64U - 8U * (level + 1))) & 0xFFU;
     }
 
     // 16x16 -> 8x8 image
@@ -195,12 +195,6 @@ struct MipmapStack {
             level1(level2) {
         static_assert(spinImageWidthPixels == 64, "The MipmapStack class assumes the original input image has dimensions 64x64.");
     }
-
-    // Reconstruct the mipmap stack from an existing level 3 mipmap image
-    MipmapStack(MipMapLevel3 &level3Image) :
-            level3(level3Image),
-            level2(level3),
-            level1(level2) {}
 
     unsigned char computeLevelByte(const unsigned short level) const {
         // Level 1 contains 8 1-byte chunks

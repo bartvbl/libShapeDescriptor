@@ -48,7 +48,7 @@ typedef size_t IndexNodeID;
 typedef unsigned int IndexImageID;
 
 const unsigned int NODES_PER_BLOCK = 256;
-const unsigned int NODE_SPLIT_THRESHOLD = 4096;
+const unsigned int NODE_SPLIT_THRESHOLD = 256;
 
 
 

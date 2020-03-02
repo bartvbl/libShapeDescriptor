@@ -39,9 +39,7 @@ Index SpinImage::index::io::readIndex(std::experimental::filesystem::path indexD
 
     delete[] inputBuffer;
 
-    for(const auto& path : *fileNames) {
-        std::cout << "Path: " << path << std::endl;
-    }
+    std::cout << "Index has " << fileNames->size() << " files." << std::endl;
 
     return Index(indexDirectory, fileNames, *rootNode);
 }

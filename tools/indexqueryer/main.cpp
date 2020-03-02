@@ -61,6 +61,7 @@ int main(int argc, const char** argv) {
     std::cout << "Reading index metadata.." << std::endl;
     Index index = SpinImage::index::io::readIndex(indexDirectory.value());
 
+    std::cout << "Querying index.." << std::endl;
     std::vector<IndexEntry> searchResults = queryIndex(index, queryQUIICIMage, 100);
 
 }

@@ -19,10 +19,10 @@ Index SpinImage::index::build(std::string quicciImageDumpDirectory, std::string 
 
     NodeBlock rootBlock;
 
-    NodeBlockCache cache(1500, indexDirectory, &rootBlock);
+    NodeBlockCache cache(60000, indexDirectory, &rootBlock);
 
 #pragma omp parallel for schedule(dynamic)
-    for(unsigned int fileIndex = 0; fileIndex < filesInDirectory.size(); fileIndex++) {
+    for(unsigned int fileIndex = 0; fileIndex < 2500 /*filesInDirectory.size()*/; fileIndex++) {
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
         const std::string archivePath = path.string();
 

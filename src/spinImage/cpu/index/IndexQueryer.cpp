@@ -159,6 +159,7 @@ void visitNode(
     const unsigned int searchResultScoreThreshold =
             computeMinDistanceThreshold(currentSearchResults);
 
+    std::cout << "Visiting node " << nodeID << " - " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes" << std::endl;
     for(int child = 0; child < NODES_PER_BLOCK; child++) {
         if(block->childNodeIsLeafNode[child]) {
             // If child is a leaf node, insert its images into the search result list
@@ -220,6 +221,8 @@ std::vector<IndexEntry> queryIndex(Index index, const QuiccImage &queryImage, un
             currentSearchResults.erase(currentSearchResults.begin() + resultCount, currentSearchResults.end());
         }
     }
+
+    std::cout << "Query finished, " << computeMinDistanceThreshold(currentSearchResults) << " vs " << closedNodeQueue.top().minDistanceScore << std::endl;
 
     std::vector<IndexEntry> queryResults;
     queryResults.reserve(resultCount);

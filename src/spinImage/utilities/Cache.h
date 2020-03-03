@@ -13,6 +13,22 @@ template<typename IDType, typename CachedItemType> struct CachedItem {
     CachedItemType* item;
 };
 
+struct CacheStatistics {
+    size_t misses = 0;
+    size_t hits = 0;
+    size_t evictions = 0;
+    size_t ejections = 0;
+    size_t insertions = 0;
+
+    void reset() {
+        misses = 0;
+        hits = 0;
+        evictions = 0;
+        ejections = 0;
+        insertions = 0;
+    }
+};
+
 template<typename IDType, typename CachedItemType> class Cache {
 private:
     // Nodes are evicted on a Least Recently Used basis
@@ -41,10 +57,12 @@ protected:
         if(it != randomAccessMap.end())
         {
             // Cache hit
+            statistics.hits++;
             cachedItemEntry = it->second->item;
             touchItem(itemID);
         } else {
             // Cache miss. Load the item into the cache instead
+            statistics.misses++;
             cachedItemEntry = load(itemID);
             insertItem(itemID, cachedItemEntry);
         }
@@ -54,6 +72,7 @@ protected:
 
     // Insert an item into the cache. May cause another item to be ejected
     void insertItem(IDType &itemID, CachedItemType* item) {
+        statistics.insertions++;
         CachedItem<IDType, CachedItemType> cachedItem = {false, "", nullptr};
         cachedItem.ID = itemID;
         cachedItem.item = item;
@@ -83,9 +102,11 @@ protected:
     }
 
     void ejectLeastRecentlyUsedItem() {
+        statistics.evictions++;
         CachedItem<IDType, CachedItemType> leastRecentlyUsedItem = lruItemQueue.back();
 
         if(leastRecentlyUsedItem.isDirty) {
+            statistics.ejections++;
             eject(leastRecentlyUsedItem.item);
         }
 
@@ -108,6 +129,8 @@ protected:
         randomAccessMap.reserve(capacity);
     }
 public:
+    CacheStatistics statistics;
+
     // The lookup functions returns const pointers to ensure the only copy of these item exist in the cache
     // It also ensures the cache handles any necessary changes, as nodes need to be marked as dirty
     const CachedItemType* fetch(IDType &itemID) {

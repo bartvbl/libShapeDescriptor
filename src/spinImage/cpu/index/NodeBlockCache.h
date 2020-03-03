@@ -21,6 +21,20 @@
  * - 
  */
 
+struct NodeBlockCacheStatistics {
+    size_t imageInsertionCount = 0;
+    size_t nodeSplitCount = 0;
+    double totalReadTimeMilliseconds = 0;
+    double totalWriteTimeMilliseconds = 0;
+
+    void reset() {
+        imageInsertionCount = 0;
+        nodeSplitCount = 0;
+        totalReadTimeMilliseconds = 0;
+        totalWriteTimeMilliseconds = 0;
+    }
+};
+
 class NodeBlockCache : public Cache<std::string, NodeBlock> {
 private:
     const std::experimental::filesystem::path indexRoot;
@@ -40,6 +54,8 @@ protected:
     void eject(NodeBlock* item) override;
     NodeBlock* load(std::string &itemID) override;
 public:
+    NodeBlockCacheStatistics nodeBlockStatistics;
+
     NodeBlockCache(
             size_t capacity,
             const std::experimental::filesystem::path &indexRootPath,

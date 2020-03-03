@@ -2,15 +2,31 @@
 #include "NodeBlockCache.h"
 
 void NodeBlockCache::eject(NodeBlock *block) {
+    auto writeStart = std::chrono::high_resolution_clock::now();
+
     SpinImage::index::io::writeNodeBlock(block, indexRoot);
+
+    auto writeEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> writeDuration = writeEnd - writeStart;
+    nodeBlockStatistics.totalWriteTimeMilliseconds += writeDuration.count();
 }
 
 NodeBlock *NodeBlockCache::load(std::string &itemID) {
-    return SpinImage::index::io::readNodeBlock(itemID, indexRoot);
+    auto readStart = std::chrono::high_resolution_clock::now();
+
+    NodeBlock* readBlock = SpinImage::index::io::readNodeBlock(itemID, indexRoot);
+
+    auto readEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> readDuration = readEnd - readStart;
+    nodeBlockStatistics.totalReadTimeMilliseconds += readDuration.count();
+
+    return readBlock;
 }
 
 void NodeBlockCache::insertImageIntoNode(const QuiccImage &image, const IndexEntry &entry, NodeBlock *currentNodeBlock,
                           unsigned char outgoingEdgeIndex) {
+    nodeBlockStatistics.imageInsertionCount++;
+
     // 1. Insert the new entry at the start of the list
     int currentStartIndex = currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex);
     int entryIndex = -1;
@@ -35,6 +51,8 @@ void NodeBlockCache::splitNode(
         NodeBlock *currentNodeBlock,
         unsigned char outgoingEdgeIndex,
         std::string &childNodeID) {
+    nodeBlockStatistics.nodeSplitCount++;
+
     // Create and insert new node into cache
     NodeBlock* childNodeBlock = new NodeBlock();
     childNodeBlock->identifier = childNodeID;

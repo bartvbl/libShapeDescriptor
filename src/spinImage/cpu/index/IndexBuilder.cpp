@@ -6,6 +6,7 @@
 #include <bitset>
 #include <spinImage/cpu/types/QuiccImage.h>
 #include <json.hpp>
+#include <fstream>
 #include "IndexBuilder.h"
 #include "NodeBlockCache.h"
 #include "tsl/ordered_map.h"
@@ -23,6 +24,7 @@ struct IndexedFileStatistics {
     // General
     std::string filePath;
     size_t imageCount;
+    size_t fileIndex;
     size_t cachedItemCount;
     double totalExecutionTimeMilliseconds;
 
@@ -51,11 +53,13 @@ struct IndexConstructionSettings {
 
 IndexedFileStatistics gatherFileStatistics(
         const NodeBlockCache *cache,
+        size_t fileIndex,
         double totalExecutionTimeMilliseconds,
         size_t imageCount,
         const std::string &filePath) {
     IndexedFileStatistics stats;
     stats.filePath = filePath;
+    stats.fileIndex = fileIndex;
     stats.imageCount = imageCount;
     stats.cachedItemCount = cache->getCurrentItemCount();
     stats.totalExecutionTimeMilliseconds = totalExecutionTimeMilliseconds;
@@ -78,10 +82,45 @@ IndexedFileStatistics gatherFileStatistics(
 }
 
 void dumpStatisticsFile(
-        const std::vector<IndexedFileStatistics> &vector,
+        const std::vector<IndexedFileStatistics> &fileStatistics,
         const IndexConstructionSettings &constructionSettings,
         const std::experimental::filesystem::path &path) {
+    json outJson;
 
+    outJson["version"] = "v1";
+    outJson["nodesPerBlock"] = NODES_PER_BLOCK;
+    outJson["nodeSplitThreshold"] = NODE_SPLIT_THRESHOLD;
+    outJson["cacheCapacity"] = constructionSettings.cacheCapacity;
+    outJson["outputIndexDirectory"] = constructionSettings.indexDumpDirectory;
+    outJson["inputImageDirectory"] = constructionSettings.quicciImageDumpDirectory;
+
+    outJson["fileStats"] = {};
+    for(const IndexedFileStatistics &fileStats : fileStatistics) {
+        outJson["fileStats"][fileStats.filePath] = {};
+
+        outJson["fileStats"][fileStats.filePath]["fileIndex"] = fileStats.fileIndex;
+        outJson["fileStats"][fileStats.filePath]["imageCount"] = fileStats.imageCount;
+        outJson["fileStats"][fileStats.filePath]["cachedItemCount"] = fileStats.cachedItemCount;
+        outJson["fileStats"][fileStats.filePath]["totalExecutionTimeMilliseconds"] = fileStats.totalExecutionTimeMilliseconds;
+
+        outJson["fileStats"][fileStats.filePath]["cacheMisses"] = fileStats.cacheMisses;
+        outJson["fileStats"][fileStats.filePath]["cacheHits"] = fileStats.cacheHits;
+        outJson["fileStats"][fileStats.filePath]["cacheEvictions"] = fileStats.cacheEvictions;
+        outJson["fileStats"][fileStats.filePath]["cacheDirtyEvictions"] = fileStats.cacheDirtyEvictions;
+        outJson["fileStats"][fileStats.filePath]["cacheInsertions"] = fileStats.cacheInsertions;
+
+        outJson["fileStats"][fileStats.filePath]["imageInsertionCount"] = fileStats.imageInsertionCount;
+        outJson["fileStats"][fileStats.filePath]["nodeBlockSplitCount"] = fileStats.nodeBlockSplitCount;
+        outJson["fileStats"][fileStats.filePath]["nodeBlockReadCount"] = fileStats.nodeBlockReadCount;
+        outJson["fileStats"][fileStats.filePath]["nodeBlockWriteCount"] = fileStats.nodeBlockWriteCount;
+        outJson["fileStats"][fileStats.filePath]["totalReadTimeMilliseconds"] = fileStats.totalReadTimeMilliseconds;
+        outJson["fileStats"][fileStats.filePath]["totalWriteTimeMilliseconds"] = fileStats.totalWriteTimeMilliseconds;
+        outJson["fileStats"][fileStats.filePath]["totalSplitTimeMilliseconds"] = fileStats.totalSplitTimeMilliseconds;
+    }
+
+    std::ofstream outFile(path);
+    outFile << outJson.dump(4);
+    outFile.close();
 }
 
 Index SpinImage::index::build(
@@ -145,7 +184,7 @@ Index SpinImage::index::build(
 #pragma omp critical
             {
                 fileStatistics.push_back(
-                        gatherFileStatistics(&cache, duration.count(), images.imageCount, archivePath));
+                        gatherFileStatistics(&cache, fileIndex, duration.count(), images.imageCount, archivePath));
                 cache.statistics.reset();
                 cache.nodeBlockStatistics.reset();
                 dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);

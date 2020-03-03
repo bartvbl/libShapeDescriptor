@@ -2,6 +2,7 @@
 #include "NodeBlockCache.h"
 
 void NodeBlockCache::eject(NodeBlock *block) {
+    nodeBlockStatistics.totalWriteCount++;
     auto writeStart = std::chrono::high_resolution_clock::now();
 
     SpinImage::index::io::writeNodeBlock(block, indexRoot);
@@ -12,6 +13,7 @@ void NodeBlockCache::eject(NodeBlock *block) {
 }
 
 NodeBlock *NodeBlockCache::load(std::string &itemID) {
+    nodeBlockStatistics.totalReadCount++;
     auto readStart = std::chrono::high_resolution_clock::now();
 
     NodeBlock* readBlock = SpinImage::index::io::readNodeBlock(itemID, indexRoot);
@@ -23,10 +25,7 @@ NodeBlock *NodeBlockCache::load(std::string &itemID) {
     return readBlock;
 }
 
-void NodeBlockCache::insertImageIntoNode(const QuiccImage &image, const IndexEntry &entry, NodeBlock *currentNodeBlock,
-                          unsigned char outgoingEdgeIndex) {
-    nodeBlockStatistics.imageInsertionCount++;
-
+void NodeBlockCache::insertImageIntoNode(const QuiccImage &image, const IndexEntry &entry, NodeBlock *currentNodeBlock, unsigned char outgoingEdgeIndex) {
     // 1. Insert the new entry at the start of the list
     int currentStartIndex = currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex);
     int entryIndex = -1;
@@ -60,7 +59,6 @@ void NodeBlockCache::splitNode(
     markItemDirty(childNodeID);
 
     std::cout << "s" << std::flush;
-    //std::cout << "Splitting into new node " << childNodeID << " (" << getCurrentItemCount() << "/" << itemCapacity << ")" << std::endl;
 
     // Follow linked list and move all nodes into new child node block
     int nextLinkedNodeIndex = currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex);
@@ -91,6 +89,8 @@ void NodeBlockCache::splitNode(
 std::stringstream pathBuilder;
 
 void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry reference) {
+    nodeBlockStatistics.imageInsertionCount++;
+
     // Follow path until leaf node is reached, or the bottom of the index
     unsigned short levelReached = 0;
     // Clear the path/identifier buffer
@@ -120,7 +120,14 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
                     (levelReached < 8 + (2 * 16) + (4 * 32) - 1)) {
                 pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
                 std::string childNodeID = pathBuilder.str();
+
+                auto splitStart = std::chrono::high_resolution_clock::now();
+
                 splitNode(levelReached, currentNodeBlock, outgoingEdgeIndex, childNodeID);
+
+                auto splitEnd = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<double, std::milli> splitDuration = splitEnd - splitStart;
+                nodeBlockStatistics.totalSplitTimeMilliseconds += splitDuration.count();
             }
 
         } else {

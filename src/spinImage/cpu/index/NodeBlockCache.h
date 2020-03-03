@@ -24,14 +24,20 @@
 struct NodeBlockCacheStatistics {
     size_t imageInsertionCount = 0;
     size_t nodeSplitCount = 0;
+    size_t totalReadCount = 0;
+    size_t totalWriteCount = 0;
     double totalReadTimeMilliseconds = 0;
     double totalWriteTimeMilliseconds = 0;
+    double totalSplitTimeMilliseconds = 0;
 
     void reset() {
         imageInsertionCount = 0;
         nodeSplitCount = 0;
+        totalReadCount = 0;
+        totalWriteCount = 0;
         totalReadTimeMilliseconds = 0;
         totalWriteTimeMilliseconds = 0;
+        totalSplitTimeMilliseconds = 0;
     }
 };
 

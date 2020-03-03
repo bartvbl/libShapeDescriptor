@@ -17,14 +17,14 @@ struct CacheStatistics {
     size_t misses = 0;
     size_t hits = 0;
     size_t evictions = 0;
-    size_t ejections = 0;
+    size_t dirtyEvictions = 0;
     size_t insertions = 0;
 
     void reset() {
         misses = 0;
         hits = 0;
         evictions = 0;
-        ejections = 0;
+        dirtyEvictions = 0;
         insertions = 0;
     }
 };
@@ -106,7 +106,7 @@ protected:
         CachedItem<IDType, CachedItemType> leastRecentlyUsedItem = lruItemQueue.back();
 
         if(leastRecentlyUsedItem.isDirty) {
-            statistics.ejections++;
+            statistics.dirtyEvictions++;
             eject(leastRecentlyUsedItem.item);
         }
 
@@ -167,7 +167,7 @@ public:
         return lruItemQueue.size() == itemCapacity;
     }
 
-    size_t getCurrentItemCount() {
+    size_t getCurrentItemCount() const {
         return lruItemQueue.size();
     }
 

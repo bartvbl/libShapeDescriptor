@@ -27,6 +27,7 @@ include_directories (
         lib/ziplib/Source/
         lib/lodepng/
         lib/arrrgh/
+        lib/json/
         lib/fast-lzma2/src/
         ${CUDA_INCLUDE_DIRS}
 )

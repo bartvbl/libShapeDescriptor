@@ -133,7 +133,7 @@ Index SpinImage::index::build(
 
     std::vector<std::experimental::filesystem::path>* indexedFiles =
             new std::vector<std::experimental::filesystem::path>();
-    bool enableStatisticsDump = statisticsFileDumpLocation == std::experimental::filesystem::path("/none/selected");
+    bool enableStatisticsDump = statisticsFileDumpLocation != std::experimental::filesystem::path("/none/selected");
     indexedFiles->reserve(filesInDirectory.size());
     std::vector<IndexedFileStatistics> fileStatistics;
 
@@ -152,8 +152,6 @@ Index SpinImage::index::build(
 
         SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
 
-        std::chrono::duration<double, std::milli> duration;
-
 #pragma omp critical
         {
             indexedFiles->emplace_back(archivePath);
@@ -168,7 +166,15 @@ Index SpinImage::index::build(
             }
 
             std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
-            duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+            std::chrono::duration<double, std::milli> duration =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+
+            if(enableStatisticsDump) {
+                fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, duration.count(), images.imageCount, archivePath));
+                cache.statistics.reset();
+                cache.nodeBlockStatistics.reset();
+                dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
+            }
 
             std::cout << std::endl
                       << "Added file " << (fileIndex + 1) << "/" << filesInDirectory.size()
@@ -179,17 +185,6 @@ Index SpinImage::index::build(
 
         delete[] images.horizontallyIncreasingImages;
         delete[] images.horizontallyDecreasingImages;
-
-        if(enableStatisticsDump) {
-#pragma omp critical
-            {
-                fileStatistics.push_back(
-                        gatherFileStatistics(&cache, fileIndex, duration.count(), images.imageCount, archivePath));
-                cache.statistics.reset();
-                cache.nodeBlockStatistics.reset();
-                dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
-            };
-        }
     }
 
     // Ensuring all changes are written to disk

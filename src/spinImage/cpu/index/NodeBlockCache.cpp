@@ -117,7 +117,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
 
             // 3. Split if threshold has been reached, but not if we're at the deepest possible level
             if(currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) >= NODE_SPLIT_THRESHOLD &&
-                levelReached < 8 + (2 * 16) + (4 * 32)) {
+                    (levelReached < 8 + (2 * 16) + (4 * 32) - 1)) {
                 pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
                 std::string childNodeID = pathBuilder.str();
                 splitNode(levelReached, currentNodeBlock, outgoingEdgeIndex, childNodeID);

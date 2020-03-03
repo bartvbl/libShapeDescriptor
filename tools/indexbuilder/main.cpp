@@ -9,7 +9,7 @@ int main(int argc, const char** argv) {
     const auto& sourceDirectory = parser.add<std::string>(
             "quicci-dump-directory", "The directory where binary dump files of QUICCI images are stored that should be indexed.", '\0', arrrgh::Required, "");
     const auto& jsonDumpFile = parser.add<std::string>(
-            "runtime-json-file", "Dump time measurement and statistics into the specified JSON file.", '\0', arrrgh::Optional, "NONE_SPECIFIED");
+            "runtime-json-file", "Dump time measurement and statistics into the specified JSON file.", '\0', arrrgh::Optional, "/none/selected");
     const auto& showHelp = parser.add<bool>(
             "help", "Show this help message.", 'h', arrrgh::Optional, false);
 
@@ -30,10 +30,12 @@ int main(int argc, const char** argv) {
         return 0;
     }
 
+    std::experimental::filesystem::path outJsonPath = jsonDumpFile.value();
+
     std::cout << "Building index from files in " << sourceDirectory.value() << "..." << std::endl;
     std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
-    Index index = SpinImage::index::build(sourceDirectory.value(), indexDirectory.value());
+    Index index = SpinImage::index::build(sourceDirectory.value(), indexDirectory.value(), outJsonPath);
 
     std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);

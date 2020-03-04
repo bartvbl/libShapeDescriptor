@@ -11,7 +11,7 @@ Index SpinImage::index::io::readIndex(std::experimental::filesystem::path indexD
     NodeBlock* rootNode = SpinImage::index::io::readNodeBlock("", indexDirectory);
 
     size_t inputBufferSize = 0;
-    const char* inputBuffer = SpinImage::utilities::readCompressedFile(indexFilePath, &inputBufferSize);
+    const char* inputBuffer = SpinImage::utilities::readCompressedFile(indexFilePath, &inputBufferSize, true);
 
     std::vector<std::experimental::filesystem::path>* fileNames = new std::vector<std::experimental::filesystem::path>();
 
@@ -103,8 +103,9 @@ NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const
 
     assert(std::experimental::filesystem::exists(nodeBlockFilePath));
 
+    // Multithreading is disabled because the used multithreading context is not thread safe
     size_t fileSize;
-    const char* inputBuffer = SpinImage::utilities::readCompressedFile(nodeBlockFilePath, &fileSize);
+    const char* inputBuffer = SpinImage::utilities::readCompressedFile(nodeBlockFilePath, &fileSize, false);
 
     int totalEntryCount = *(reinterpret_cast<const int*>(inputBuffer));
 

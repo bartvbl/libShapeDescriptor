@@ -70,7 +70,6 @@ public:
         {
             std::string rootNodeID("");
             insertItem(rootNodeID, root, true);
-            returnItemByID(rootNodeID);
         }
     void insertImage(const QuiccImage &image, const IndexEntry reference);
 };

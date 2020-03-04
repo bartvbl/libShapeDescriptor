@@ -51,7 +51,7 @@ int main(int argc, const char** argv) {
         SpinImage::utilities::writeCompressedFile(inputFileContents, inputFileSize, outputPath);
     } else if(decompress.value()) {
         size_t inputBufferSize = 0;
-        const char* inputFileContents = SpinImage::utilities::readCompressedFile(inputPath, &inputBufferSize);
+        const char* inputFileContents = SpinImage::utilities::readCompressedFile(inputPath, &inputBufferSize, true);
         std::fstream outStream = std::fstream(outputFile, std::ios::out | std::ios::binary);
         outStream.write(inputFileContents, inputBufferSize);
         outStream.close();

@@ -139,13 +139,13 @@ Index SpinImage::index::build(
 
     NodeBlock* rootBlock = new NodeBlock();
 
-    const size_t cacheCapacity = 50000;
+    const size_t cacheCapacity = 15000;
     NodeBlockCache cache(cacheCapacity, indexDirectory, rootBlock);
 
     IndexConstructionSettings constructionSettings =
             {quicciImageDumpDirectory, indexDumpDirectory, cacheCapacity};
 
-    for(unsigned int fileIndex = 0; fileIndex < 2500 /*filesInDirectory.size()*/; fileIndex++) {
+    for(unsigned int fileIndex = 0; fileIndex < filesInDirectory.size(); fileIndex++) {
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
         const std::string archivePath = path.string();
 
@@ -166,7 +166,7 @@ Index SpinImage::index::build(
         double durationMilliseconds =
                 std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
 
-        if(enableStatisticsDump) {
+        if(enableStatisticsDump && fileIndex % 100 == 99) {
             fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, durationMilliseconds, images.imageCount, archivePath));
             cache.statistics.reset();
             cache.nodeBlockStatistics.reset();

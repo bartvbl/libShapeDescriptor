@@ -5,6 +5,8 @@
 
 const int LZMA2_COMPRESSION_LEVEL = 9;
 
+static FL2_DCtx* decompressionContext = FL2_createDCtxMt(6);
+
 std::vector<std::experimental::filesystem::path> SpinImage::utilities::listDirectory(const std::string& directory) {
     std::vector<std::experimental::filesystem::path> foundFiles;
 
@@ -15,7 +17,7 @@ std::vector<std::experimental::filesystem::path> SpinImage::utilities::listDirec
     return foundFiles;
 }
 
-const char *SpinImage::utilities::readCompressedFile(const std::experimental::filesystem::path &archiveFile, size_t* fileSizeBytes) {
+const char *SpinImage::utilities::readCompressedFile(const std::experimental::filesystem::path &archiveFile, size_t* fileSizeBytes, bool enableMultithreading) {
     std::array<char, 5> headerTitle = {0, 0, 0, 0, 0};
     size_t compressedBufferSize;
     size_t decompressedBufferSize;
@@ -35,9 +37,16 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
 
     decompressStream.read(compressedBuffer, compressedBufferSize);
 
-    FL2_decompress(
-            (void*) decompressedBuffer, decompressedBufferSize,
-            (void*) compressedBuffer, compressedBufferSize);
+    if(enableMultithreading) {
+        FL2_decompressDCtx(
+                decompressionContext,
+                (void*) decompressedBuffer, decompressedBufferSize,
+                (void*) compressedBuffer, compressedBufferSize);
+    } else {
+        FL2_decompress(
+                (void*) decompressedBuffer, decompressedBufferSize,
+                (void*) compressedBuffer, compressedBufferSize);
+    }
 
     delete[] compressedBuffer;
 

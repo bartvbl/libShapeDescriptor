@@ -7,6 +7,7 @@
 #include <omp.h>
 #include <iostream>
 #include <condition_variable>
+#include <thread>
 
 // The cached nodes are stored as pointers to avoid accidental copies being created
 template<typename IDType, typename CachedItemType> struct CachedItem {
@@ -47,12 +48,10 @@ private:
     std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator> randomAccessMap;
 
     // Lock used for modification of the cache data structures.
-    // Reentrant property is necessary for
     std::mutex cacheLock;
 
-    // Condition variable for sleeping threads until
-    std::mutex waitMutex;
-    std::condition_variable waitCV;
+    // List which keeps track of which entries are in the process of being loaded/unloaded
+    std::vector<IDType> beingLoadedList;
 
     // Mark an item present in the cache as most recently used
     void touchItem(IDType &itemID) {
@@ -63,6 +62,15 @@ private:
         assert(doesContain);
         auto itemReference = randomAccessMap[itemID];
         lruItemQueue.splice(lruItemQueue.begin(), lruItemQueue, itemReference);
+    }
+
+    unsigned int indexOfItemBeingLoaded(IDType &id) {
+        for(unsigned int i = 0; i < beingLoadedList.size(); i++) {
+            if(beingLoadedList[i] == id) {
+                return i;
+            }
+        }
+        return beingLoadedList.size();
     }
 
     void evictLeastRecentlyUsedItem() {
@@ -116,10 +124,20 @@ private:
             }
         } else {
             // Cache miss. Load the item into the cache instead
+            bool isBeingLoaded = indexOfItemBeingLoaded(itemID) != beingLoadedList.size();
+            if(isBeingLoaded) {
+                // The entry is already in the process of being loaded into memory by another thread
+                // We therefore abort this lookup and come back later
+                cacheLock.unlock();
+                return {false, nullptr};
+            }
             statistics.misses++;
-            // TODO: this should be done in parallel, but requires some way of marking that the item is already being loaded
+            beingLoadedList.push_back(itemID);
+            cacheLock.unlock();
             cachedItemEntry = load(itemID);
             insertItem(itemID, cachedItemEntry);
+            cacheLock.lock();
+            beingLoadedList.erase(beingLoadedList.begin() + indexOfItemBeingLoaded(itemID));
         }
         cacheLock.unlock();
         return {true, cachedItemEntry};
@@ -133,10 +151,7 @@ protected:
             lookupResult = attemptItemLookup(itemID);
             if(!lookupResult.lookupSuccessful) {
                 //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has determined item " + itemID + " is currently in use and is waiting\n" << std::flush;
-                {
-                    std::unique_lock<std::mutex> lock(waitMutex);
-                    waitCV.wait(lock);
-                }
+                std::this_thread::sleep_for (std::chrono::milliseconds(10));
             }
         }
         //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is now borrowing item " + itemID + "\n" << std::flush;
@@ -147,27 +162,24 @@ protected:
         cacheLock.lock();
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
                 it = randomAccessMap.find(itemID);
+        CachedItem<IDType, CachedItemType>* item = &(*(it->second));
         assert(it != randomAccessMap.end());
-        assert(it->second->isInUse);
+        assert(item->isInUse);
         it->second->isInUse = false;
-        {
-            std::unique_lock<std::mutex> lock(waitMutex);
-            waitCV.notify_all();
-        }
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has now returned item " + itemID + "\n" << std::flush;
         cacheLock.unlock();
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has now returned item " + itemID + "\n" << std::flush;
     }
 
     // Insert an item into the cache. May cause another item to be ejected. Marks item as in use.
     void insertItem(IDType &itemID, CachedItemType* item, bool dirty = false) {
-        cacheLock.lock();
         //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting a new item with ID " + itemID + "\n" << std::flush;
 
-        statistics.insertions++;
         CachedItem<IDType, CachedItemType> cachedItem = {false, false, "", nullptr};
         cachedItem.ID = itemID;
         cachedItem.item = item;
         cachedItem.isDirty = dirty;
+
+        cacheLock.lock();
 
         // If cache is full (or due to a race condition over capacity),
         // make space before we insert the new one
@@ -179,6 +191,8 @@ protected:
         // We therefore put it in the front of the queue right away
         lruItemQueue.emplace_front(cachedItem);
         randomAccessMap[itemID] = lruItemQueue.begin();
+
+        statistics.insertions++;
 
         cacheLock.unlock();
     }

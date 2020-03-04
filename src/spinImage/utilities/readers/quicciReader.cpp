@@ -7,7 +7,7 @@
 
 SpinImage::cpu::QUICCIImages readImageLZFile(const std::experimental::filesystem::path &path) {
     size_t bufferSize;
-    const char* inputBuffer = SpinImage::utilities::readCompressedFile(path, &bufferSize);
+    const char* inputBuffer = SpinImage::utilities::readCompressedFile(path, &bufferSize, true);
 
     char header[5] = {inputBuffer[0], inputBuffer[1], inputBuffer[2], inputBuffer[3], '\0'};
     if(std::string(header) != "QUIC") {

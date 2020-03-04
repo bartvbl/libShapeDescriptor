@@ -137,50 +137,47 @@ Index SpinImage::index::build(
     indexedFiles->reserve(filesInDirectory.size());
     std::vector<IndexedFileStatistics> fileStatistics;
 
-    NodeBlock rootBlock;
+    NodeBlock* rootBlock = new NodeBlock();
 
     const size_t cacheCapacity = 50000;
-    NodeBlockCache cache(cacheCapacity, indexDirectory, &rootBlock);
+    NodeBlockCache cache(cacheCapacity, indexDirectory, rootBlock);
 
     IndexConstructionSettings constructionSettings =
             {quicciImageDumpDirectory, indexDumpDirectory, cacheCapacity};
 
-#pragma omp parallel for schedule(dynamic)
     for(unsigned int fileIndex = 0; fileIndex < 2500 /*filesInDirectory.size()*/; fileIndex++) {
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
         const std::string archivePath = path.string();
 
         SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
+        indexedFiles->emplace_back(archivePath);
+        std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+#pragma omp parallel for schedule(dynamic)
+        for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
+            QuiccImage combined = MipmapStack::combine(
+                    images.horizontallyIncreasingImages[imageIndex],
+                    images.horizontallyDecreasingImages[imageIndex]);
+            IndexEntry entry = {fileIndex, imageIndex};
 
-#pragma omp critical
-        {
-            indexedFiles->emplace_back(archivePath);
-            std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-            for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
-                QuiccImage combined = MipmapStack::combine(
-                        images.horizontallyIncreasingImages[imageIndex],
-                        images.horizontallyDecreasingImages[imageIndex]);
-                IndexEntry entry = {fileIndex, imageIndex};
+            cache.insertImage(combined, entry);
+        }
 
-                cache.insertImage(combined, entry);
-            }
+        std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
+        double durationMilliseconds =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
 
-            std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
-            double durationMilliseconds =
-                    std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
+        if(enableStatisticsDump) {
+            fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, durationMilliseconds, images.imageCount, archivePath));
+            cache.statistics.reset();
+            cache.nodeBlockStatistics.reset();
+            dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
+        }
 
-            if(enableStatisticsDump) {
-                fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, durationMilliseconds, images.imageCount, archivePath));
-                cache.statistics.reset();
-                cache.nodeBlockStatistics.reset();
-                dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
-            }
+        std::cout << "Added file " << (fileIndex + 1) << "/" << filesInDirectory.size()
+                  << ": " << archivePath
+                  << ", Cache: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity
+                  << ", Duration: " << (durationMilliseconds / 1000.0) << "s" << std::endl;
 
-            std::cout << "Added file " << (fileIndex + 1) << "/" << filesInDirectory.size()
-                      << ": " << archivePath
-                      << ", Cache: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity
-                      << ", Duration: " << (durationMilliseconds / 1000.0) << "s" << std::endl;
-        };
 
         delete[] images.horizontallyIncreasingImages;
         delete[] images.horizontallyDecreasingImages;
@@ -197,7 +194,7 @@ Index SpinImage::index::build(
 
     // Write the root node to disk
     std::cout << "Writing core index files.." << std::endl;
-    SpinImage::index::io::writeNodeBlock(&rootBlock, indexDirectory);
+    SpinImage::index::io::writeNodeBlock(rootBlock, indexDirectory);
     SpinImage::index::io::writeIndex(index, indexDirectory);
 
     return index;

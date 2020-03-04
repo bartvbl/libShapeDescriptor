@@ -41,7 +41,7 @@ Index SpinImage::index::io::readIndex(std::experimental::filesystem::path indexD
 
     std::cout << "Index has " << fileNames->size() << " files." << std::endl;
 
-    return Index(indexDirectory, fileNames, *rootNode);
+    return Index(indexDirectory, fileNames, rootNode);
 }
 
 void SpinImage::index::io::writeIndex(const Index& index, std::experimental::filesystem::path indexDirectory) {

@@ -83,16 +83,13 @@ void NodeBlockCache::splitNode(
     currentNodeBlock->childNodeIsLeafNode.set(outgoingEdgeIndex, false);
 }
 
-// It's a waste to recreate this one every time, so let's reuse it
-std::stringstream pathBuilder;
-
 void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry reference) {
     nodeBlockStatistics.imageInsertionCount++;
 
     // Follow path until leaf node is reached, or the bottom of the index
     unsigned short levelReached = 0;
     // Clear the path/identifier buffer
-    pathBuilder.str("");
+    std::stringstream pathBuilder;
     pathBuilder << std::hex;
 
     bool currentNodeIsLeafNode = false;

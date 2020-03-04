@@ -148,38 +148,42 @@ Index SpinImage::index::build(
     IndexConstructionSettings constructionSettings =
             {quicciImageDumpDirectory, indexDumpDirectory, cacheCapacity};
 
+#pragma omp parallel for schedule(dynamic)
     for(unsigned int fileIndex = 0; fileIndex < filesInDirectory.size(); fileIndex++) {
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
         const std::string archivePath = path.string();
 
         SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
         indexedFiles->emplace_back(archivePath);
-        std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+#pragma omp critical
+        {
+            std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 #pragma omp parallel for schedule(dynamic)
-        for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
-            QuiccImage combined = MipmapStack::combine(
-                    images.horizontallyIncreasingImages[imageIndex],
-                    images.horizontallyDecreasingImages[imageIndex]);
-            IndexEntry entry = {fileIndex, imageIndex};
-            //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " inserting image " + std::to_string(imageIndex)  + "\n";
-            cache.insertImage(combined, entry);
-        }
+            for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
+                QuiccImage combined = MipmapStack::combine(
+                        images.horizontallyIncreasingImages[imageIndex],
+                        images.horizontallyDecreasingImages[imageIndex]);
+                IndexEntry entry = {fileIndex, imageIndex};
+                //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " inserting image " + std::to_string(imageIndex)  + "\n";
+                cache.insertImage(combined, entry);
+            }
 
-        std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
-        double durationMilliseconds =
-                std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
+            std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
+            double durationMilliseconds =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
 
-        if(enableStatisticsDump && fileIndex % 100 == 99) {
-            fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, durationMilliseconds, images.imageCount, archivePath));
-            cache.statistics.reset();
-            cache.nodeBlockStatistics.reset();
-            dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
-        }
+            if(enableStatisticsDump && fileIndex % 100 == 99) {
+                fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, durationMilliseconds, images.imageCount, archivePath));
+                cache.statistics.reset();
+                cache.nodeBlockStatistics.reset();
+                dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
+            }
 
-        std::cout << "Added file " << (fileIndex + 1) << "/" << filesInDirectory.size()
-                  << ": " << archivePath
-                  << ", Cache: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity
-                  << ", Duration: " << (durationMilliseconds / 1000.0) << "s" << std::endl;
+            std::cout << "Added file " << (fileIndex + 1) << "/" << filesInDirectory.size()
+                      << ": " << archivePath
+                      << ", Cache: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity
+                      << ", Duration: " << (durationMilliseconds / 1000.0) << "s" << std::endl;
+        };
 
 
         delete[] images.horizontallyIncreasingImages;

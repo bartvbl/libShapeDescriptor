@@ -35,9 +35,9 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
 
     decompressStream.read(compressedBuffer, compressedBufferSize);
 
-    FL2_decompressMt(
+    FL2_decompress(
             (void*) decompressedBuffer, decompressedBufferSize,
-            (void*) compressedBuffer, compressedBufferSize, 6);
+            (void*) compressedBuffer, compressedBufferSize);
 
     delete[] compressedBuffer;
 
@@ -51,10 +51,10 @@ void SpinImage::utilities::writeCompressedFile(const char *buffer, size_t buffer
     const size_t maxCompressedBufferSize = FL2_compressBound(bufferSize);
     char* compressedBuffer = new char[maxCompressedBufferSize];
     unsigned long compressedBufferSize =
-            FL2_compressMt(
+            FL2_compress(
                     (void*) compressedBuffer, maxCompressedBufferSize,
                     (void*) buffer, bufferSize,
-                    LZMA2_COMPRESSION_LEVEL, 6);
+                    LZMA2_COMPRESSION_LEVEL);
 
     const char header[5] = "CDXF";
 

@@ -1,7 +1,11 @@
 #include <cassert>
 #include "NodeBlockCache.h"
 
+std::mutex rootNodeLock;
+
+// May be called by multiple threads simultaneously
 void NodeBlockCache::eject(NodeBlock *block) {
+#pragma omp atomic
     nodeBlockStatistics.totalWriteCount++;
     auto writeStart = std::chrono::high_resolution_clock::now();
 
@@ -9,10 +13,13 @@ void NodeBlockCache::eject(NodeBlock *block) {
 
     auto writeEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::nano> writeDuration = writeEnd - writeStart;
+#pragma omp atomic
     nodeBlockStatistics.totalWriteTimeNanoseconds += writeDuration.count();
 }
 
+// May be called by multiple threads simultaneously
 NodeBlock *NodeBlockCache::load(std::string &itemID) {
+#pragma omp atomic
     nodeBlockStatistics.totalReadCount++;
     auto readStart = std::chrono::high_resolution_clock::now();
 
@@ -20,6 +27,7 @@ NodeBlock *NodeBlockCache::load(std::string &itemID) {
 
     auto readEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::nano> readDuration = readEnd - readStart;
+#pragma omp atomic
     nodeBlockStatistics.totalReadTimeNanoseconds += readDuration.count();
 
     return readBlock;
@@ -50,6 +58,7 @@ void NodeBlockCache::splitNode(
         NodeBlock *currentNodeBlock,
         unsigned char outgoingEdgeIndex,
         std::string &childNodeID) {
+#pragma omp atomic
     nodeBlockStatistics.nodeSplitCount++;
 
     // Create and insert new node into cache
@@ -81,9 +90,13 @@ void NodeBlockCache::splitNode(
     currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex) = -1;
     currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) = 0;
     currentNodeBlock->childNodeIsLeafNode.set(outgoingEdgeIndex, false);
+
+    // Make item available in the cache
+    returnItemByID(childNodeID);
 }
 
 void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry reference) {
+    #pragma omp atomic
     nodeBlockStatistics.imageInsertionCount++;
 
     // Follow path until leaf node is reached, or the bottom of the index
@@ -94,7 +107,9 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
 
     bool currentNodeIsLeafNode = false;
     NodeBlock* currentNodeBlock = rootNode;
+    std::string currentNodeID = "";
     MipmapStack mipmaps(image);
+    rootNodeLock.lock();
     while(!currentNodeIsLeafNode) {
         unsigned char outgoingEdgeIndex = mipmaps.computeLevelByte(levelReached);
         if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
@@ -122,15 +137,27 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
 
                 auto splitEnd = std::chrono::high_resolution_clock::now();
                 std::chrono::duration<double, std::nano> splitDuration = splitEnd - splitStart;
+                #pragma omp atomic
                 nodeBlockStatistics.totalSplitTimeNanoseconds += splitDuration.count();
             }
 
+            if(levelReached > 0) {
+                returnItemByID(currentNodeID);
+            }
+            if(levelReached == 0) {
+                rootNodeLock.unlock();
+            }
+
         } else {
+            if(levelReached == 0) rootNodeLock.unlock();
+            if(levelReached >= 1) {
+                returnItemByID(currentNodeID);
+            }
             // Fetch child of intermediateNode, then start the process over again.
             levelReached++;
             pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
-            std::string nextNodeID = pathBuilder.str();
-            currentNodeBlock = getItemByID(nextNodeID);
+            currentNodeID = pathBuilder.str();
+            currentNodeBlock = borrowItemByID(currentNodeID);
         }
     }
 }

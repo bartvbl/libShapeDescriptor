@@ -210,7 +210,7 @@ std::vector<IndexEntry> queryIndex(Index index, const QuiccImage &queryImage, un
             computeMinDistanceThreshold(currentSearchResults) > closedNodeQueue.top().minDistanceScore) {
         UnvisitedNode nextBestUnvisitedNode = closedNodeQueue.top();
         closedNodeQueue.pop();
-        const NodeBlock* block = cache.fetch(nextBestUnvisitedNode.nodeID);
+        const NodeBlock* block = nullptr;//cache.fetch(nextBestUnvisitedNode.nodeID);
         visitNode(block, nextBestUnvisitedNode.path, nextBestUnvisitedNode.nodeID, nextBestUnvisitedNode.level, closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
 
         // Re-sort search results

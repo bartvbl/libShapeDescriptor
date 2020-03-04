@@ -1,15 +1,22 @@
 #pragma once
 
-
+#include <mutex>
 #include <list>
 #include <unordered_map>
 #include <cassert>
 #include <omp.h>
+#include <condition_variable>
 
 // The cached nodes are stored as pointers to avoid accidental copies being created
 template<typename IDType, typename CachedItemType> struct CachedItem {
     bool isDirty;
+    bool isInUse;
     IDType ID;
+    CachedItemType* item;
+};
+
+template<typename CachedItemType> struct CacheLookupResult {
+    bool lookupSuccessful;
     CachedItemType* item;
 };
 
@@ -38,18 +45,63 @@ private:
     // These hash tables allow efficient fetching of nodes from the cache
     std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator> randomAccessMap;
 
+    // Lock used for modification of the cache data structures.
+    // Reentrant property is necessary for
+    std::recursive_mutex cacheLock;
 
-protected:
+    // Condition variable for sleeping threads until
+    std::mutex waitMutex;
+    std::condition_variable waitCV;
 
     bool contains(IDType &itemID) {
+        cacheLock.lock();
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
                 it = randomAccessMap.find(itemID);
-
-        return it != randomAccessMap.end();
+        bool doesContain = it != randomAccessMap.end();
+        cacheLock.unlock();
+        return doesContain;
     }
 
-    // Get hold of an item. May cause another item to be ejected
-    CachedItemType* getItemByID(IDType &itemID) {
+    // Mark an item present in the cache as most recently used
+    void touchItem(IDType &itemID) {
+        // Move the desired node to the front of the LRU queue
+        cacheLock.lock();
+        assert(contains(itemID));
+        auto itemReference = randomAccessMap[itemID];
+        lruItemQueue.splice(lruItemQueue.begin(), lruItemQueue, itemReference);
+        cacheLock.lock();
+    }
+
+    void evictLeastRecentlyUsedItem() {
+        statistics.evictions++;
+        CachedItem<IDType, CachedItemType>* leastRecentlyUsedItem = nullptr;
+
+        for(auto entry = lruItemQueue.rbegin(); entry != lruItemQueue.rend(); ++entry) {
+            if(!(*entry).isInUse) {
+                leastRecentlyUsedItem = &(*entry);
+                break;
+            }
+        }
+
+        if(leastRecentlyUsedItem->isDirty) {
+            statistics.dirtyEvictions++;
+            leastRecentlyUsedItem->isInUse = true;
+
+            cacheLock.unlock();
+            eject(leastRecentlyUsedItem->item);
+            cacheLock.lock();
+        }
+
+        typename std::list<CachedItem<IDType, CachedItemType>>::iterator it_start =
+                randomAccessMap.find(leastRecentlyUsedItem->ID)->second;
+        this->lruItemQueue.erase(it_start);
+        this->randomAccessMap.erase(leastRecentlyUsedItem->ID);
+
+        delete leastRecentlyUsedItem->item;
+    }
+
+    CacheLookupResult<CachedItemType> attemptItemLookup(IDType &itemID) {
+        cacheLock.lock();
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
                 it = randomAccessMap.find(itemID);
         CachedItemType* cachedItemEntry = nullptr;
@@ -57,70 +109,98 @@ protected:
         if(it != randomAccessMap.end())
         {
             // Cache hit
-            statistics.hits++;
-            cachedItemEntry = it->second->item;
-            touchItem(itemID);
+            if(it->second->isInUse) {
+                // Collission!
+                // The thread which is trying to read this value will have to come back later
+                return {false, nullptr};
+            } else {
+                statistics.hits++;
+                cachedItemEntry = it->second->item;
+                it->second->isInUse = true;
+                touchItem(itemID);
+            }
         } else {
             // Cache miss. Load the item into the cache instead
             statistics.misses++;
             cachedItemEntry = load(itemID);
             insertItem(itemID, cachedItemEntry);
         }
-
-        return cachedItemEntry;
+        cacheLock.unlock();
+        return {true, cachedItemEntry};
     }
 
-    // Insert an item into the cache. May cause another item to be ejected
+protected:
+    // Get hold of an item. May cause another item to be ejected. Marks item as in use.
+    CachedItemType* borrowItemByID(IDType &itemID) {
+        CacheLookupResult<CachedItemType> lookupResult = {false, nullptr};
+        while(!lookupResult.lookupSuccessful) {
+            lookupResult = attemptItemLookup(itemID);
+            if(!lookupResult.lookupSuccessful) {
+                std::unique_lock<std::mutex> lock(waitMutex);
+                waitCV.wait(lock);
+            }
+        }
+        return lookupResult.item;
+    }
+
+    void returnItemByID(IDType &itemID) {
+        cacheLock.lock();
+        typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
+                it = randomAccessMap.find(itemID);
+        assert(it != randomAccessMap.end());
+        assert(it->second->isInUse);
+        it->second->isInUse = false;
+        {
+            std::unique_lock<std::mutex> lock(waitMutex);
+            waitCV.notify_all();
+        }
+        cacheLock.unlock();
+    }
+
+    // Insert an item into the cache. May cause another item to be ejected. Marks item as in use.
     void insertItem(IDType &itemID, CachedItemType* item) {
+        cacheLock.lock();
+
         statistics.insertions++;
-        CachedItem<IDType, CachedItemType> cachedItem = {false, "", nullptr};
+        CachedItem<IDType, CachedItemType> cachedItem = {false, false, "", nullptr};
         cachedItem.ID = itemID;
         cachedItem.item = item;
+        cachedItem.isInUse = true;
 
-        // If cache is full, eject a node before we insert the new one
-        if (lruItemQueue.size() == itemCapacity) {
-            ejectLeastRecentlyUsedItem();
+        // If cache is full (or due to a race condition over capacity),
+        // make space before we insert the new one
+        while(lruItemQueue.size() >= itemCapacity) {
+            evictLeastRecentlyUsedItem();
         }
 
         // When the node is inserted, it is by definition the most recently used one
         // We therefore put it in the front of the queue right away
         lruItemQueue.emplace_front(cachedItem);
         randomAccessMap[itemID] = lruItemQueue.begin();
+
+        cacheLock.unlock();
     }
 
-    // Mark an item present in the cache as most recently used
-    void touchItem(IDType &itemID) {
-        // Move the desired node to the front of the LRU queue
-        lruItemQueue.splice(lruItemQueue.begin(), lruItemQueue, randomAccessMap[itemID]);
-    }
-
-    // Set the dirty flag of a given item
+    // Set the dirty flag of a given item.
     void markItemDirty(IDType &itemID) {
+        cacheLock.lock();
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator it = randomAccessMap.find(itemID);
         assert(it != randomAccessMap.end());
+        // Not a thorough check that everything is as it should be,
+        // but the item should at the very least be loaned out.
+        // Ideally we'd also check for whether the owner of the item is the thread calling this function
+        // but this is a decent sanity check.
+        assert(it->second->isInUse);
         it->second->isDirty = true;
-    }
-
-    void ejectLeastRecentlyUsedItem() {
-        statistics.evictions++;
-        CachedItem<IDType, CachedItemType> leastRecentlyUsedItem = lruItemQueue.back();
-
-        if(leastRecentlyUsedItem.isDirty) {
-            statistics.dirtyEvictions++;
-            eject(leastRecentlyUsedItem.item);
-        }
-
-        typename std::list<CachedItem<IDType, CachedItemType>>::iterator it_start =
-                randomAccessMap.find(leastRecentlyUsedItem.ID)->second;
-        this->lruItemQueue.erase(it_start);
-        this->randomAccessMap.erase(leastRecentlyUsedItem.ID);
-
-        delete leastRecentlyUsedItem.item;
+        cacheLock.unlock();
     }
 
     // What needs to happen when a cache miss or eviction occurs depends on the specific use case
     // Since this class is a general implementation, a subclass needs to implement this functionality.
+
+    // May be called by multiple threads simultaneously
     virtual void eject(CachedItemType* item) = 0;
+    // May be called by multiple threads simultaneously
     virtual CachedItemType* load(IDType &itemID) = 0;
 
     explicit Cache(const size_t capacity) : itemCapacity(capacity) {
@@ -133,8 +213,10 @@ public:
 
     // The lookup functions returns const pointers to ensure the only copy of these item exist in the cache
     // It also ensures the cache handles any necessary changes, as nodes need to be marked as dirty
-    const CachedItemType* fetch(IDType &itemID) {
-        return getItemByID(itemID);
+    const CachedItemType* fetchCopy(IDType &itemID) {
+        CachedItemType* obj = borrowItemByID(itemID);
+        returnItemByID(itemID);
+        return obj;
     }
 
     // Eject all items from the cache, leave it empty
@@ -161,10 +243,6 @@ public:
         // Empty all cached items
         lruItemQueue.clear();
         randomAccessMap.clear();
-    }
-
-    bool isFull() {
-        return lruItemQueue.size() == itemCapacity;
     }
 
     size_t getCurrentItemCount() const {

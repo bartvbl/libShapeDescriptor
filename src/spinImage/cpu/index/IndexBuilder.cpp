@@ -74,9 +74,9 @@ IndexedFileStatistics gatherFileStatistics(
     stats.nodeBlockSplitCount = cache->nodeBlockStatistics.nodeSplitCount;
     stats.nodeBlockReadCount = cache->nodeBlockStatistics.totalReadCount;
     stats.nodeBlockWriteCount = cache->nodeBlockStatistics.totalWriteCount;
-    stats.totalReadTimeMilliseconds = cache->nodeBlockStatistics.totalReadTimeMilliseconds;
-    stats.totalWriteTimeMilliseconds = cache->nodeBlockStatistics.totalWriteTimeMilliseconds;
-    stats.totalSplitTimeMilliseconds = cache->nodeBlockStatistics.totalSplitTimeMilliseconds;
+    stats.totalReadTimeMilliseconds = cache->nodeBlockStatistics.totalReadTimeNanoseconds / 1000000.0;
+    stats.totalWriteTimeMilliseconds = cache->nodeBlockStatistics.totalWriteTimeNanoseconds / 1000000.0;
+    stats.totalSplitTimeMilliseconds = cache->nodeBlockStatistics.totalSplitTimeNanoseconds / 1000000.0;
 
     return stats;
 }
@@ -166,21 +166,20 @@ Index SpinImage::index::build(
             }
 
             std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
-            std::chrono::duration<double, std::milli> duration =
-                    std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+            double durationMilliseconds =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
 
             if(enableStatisticsDump) {
-                fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, duration.count(), images.imageCount, archivePath));
+                fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, durationMilliseconds, images.imageCount, archivePath));
                 cache.statistics.reset();
                 cache.nodeBlockStatistics.reset();
                 dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
             }
 
-            std::cout << std::endl
-                      << "Added file " << (fileIndex + 1) << "/" << filesInDirectory.size()
+            std::cout << "Added file " << (fileIndex + 1) << "/" << filesInDirectory.size()
                       << ": " << archivePath
                       << ", Cache: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity
-                      << ", Duration: " << (duration.count() / 1000.0) << "s" << std::endl;
+                      << ", Duration: " << (durationMilliseconds / 1000.0) << "s" << std::endl;
         };
 
         delete[] images.horizontallyIncreasingImages;

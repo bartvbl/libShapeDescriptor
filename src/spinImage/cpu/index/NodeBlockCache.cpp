@@ -8,8 +8,8 @@ void NodeBlockCache::eject(NodeBlock *block) {
     SpinImage::index::io::writeNodeBlock(block, indexRoot);
 
     auto writeEnd = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> writeDuration = writeEnd - writeStart;
-    nodeBlockStatistics.totalWriteTimeMilliseconds += writeDuration.count();
+    std::chrono::duration<double, std::nano> writeDuration = writeEnd - writeStart;
+    nodeBlockStatistics.totalWriteTimeNanoseconds += writeDuration.count();
 }
 
 NodeBlock *NodeBlockCache::load(std::string &itemID) {
@@ -19,8 +19,8 @@ NodeBlock *NodeBlockCache::load(std::string &itemID) {
     NodeBlock* readBlock = SpinImage::index::io::readNodeBlock(itemID, indexRoot);
 
     auto readEnd = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> readDuration = readEnd - readStart;
-    nodeBlockStatistics.totalReadTimeMilliseconds += readDuration.count();
+    std::chrono::duration<double, std::nano> readDuration = readEnd - readStart;
+    nodeBlockStatistics.totalReadTimeNanoseconds += readDuration.count();
 
     return readBlock;
 }
@@ -57,8 +57,6 @@ void NodeBlockCache::splitNode(
     childNodeBlock->identifier = childNodeID;
     insertItem(childNodeID, childNodeBlock);
     markItemDirty(childNodeID);
-
-    std::cout << "s" << std::flush;
 
     // Follow linked list and move all nodes into new child node block
     int nextLinkedNodeIndex = currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex);
@@ -126,8 +124,8 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
                 splitNode(levelReached, currentNodeBlock, outgoingEdgeIndex, childNodeID);
 
                 auto splitEnd = std::chrono::high_resolution_clock::now();
-                std::chrono::duration<double, std::milli> splitDuration = splitEnd - splitStart;
-                nodeBlockStatistics.totalSplitTimeMilliseconds += splitDuration.count();
+                std::chrono::duration<double, std::nano> splitDuration = splitEnd - splitStart;
+                nodeBlockStatistics.totalSplitTimeNanoseconds += splitDuration.count();
             }
 
         } else {

@@ -1,8 +1,6 @@
 #include <cassert>
 #include "NodeBlockCache.h"
 
-std::mutex rootNodeLock;
-
 // May be called by multiple threads simultaneously
 void NodeBlockCache::eject(NodeBlock *block) {
 #pragma omp atomic
@@ -64,8 +62,7 @@ void NodeBlockCache::splitNode(
     // Create and insert new node into cache
     NodeBlock* childNodeBlock = new NodeBlock();
     childNodeBlock->identifier = childNodeID;
-    insertItem(childNodeID, childNodeBlock);
-    markItemDirty(childNodeID);
+
 
     // Follow linked list and move all nodes into new child node block
     int nextLinkedNodeIndex = currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex);
@@ -91,8 +88,8 @@ void NodeBlockCache::splitNode(
     currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) = 0;
     currentNodeBlock->childNodeIsLeafNode.set(outgoingEdgeIndex, false);
 
-    // Make item available in the cache
-    returnItemByID(childNodeID);
+    // Add item to the cache
+    insertItem(childNodeID, childNodeBlock, true);
 }
 
 void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry reference) {
@@ -106,10 +103,10 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
     pathBuilder << std::hex;
 
     bool currentNodeIsLeafNode = false;
-    NodeBlock* currentNodeBlock = rootNode;
-    std::string currentNodeID = "";
+    std::string currentNodeID;
+    // currentNodeID initialises to "", which causes this to fetch the root node
+    NodeBlock* currentNodeBlock = borrowItemByID(currentNodeID);
     MipmapStack mipmaps(image);
-    rootNodeLock.lock();
     while(!currentNodeIsLeafNode) {
         unsigned char outgoingEdgeIndex = mipmaps.computeLevelByte(levelReached);
         if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
@@ -140,19 +137,9 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
                 #pragma omp atomic
                 nodeBlockStatistics.totalSplitTimeNanoseconds += splitDuration.count();
             }
-
-            if(levelReached > 0) {
-                returnItemByID(currentNodeID);
-            }
-            if(levelReached == 0) {
-                rootNodeLock.unlock();
-            }
-
+            returnItemByID(currentNodeID);
         } else {
-            if(levelReached == 0) rootNodeLock.unlock();
-            if(levelReached >= 1) {
-                returnItemByID(currentNodeID);
-            }
+            returnItemByID(currentNodeID);
             // Fetch child of intermediateNode, then start the process over again.
             levelReached++;
             pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";

@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <cassert>
 #include <omp.h>
+#include <iostream>
 #include <condition_variable>
 
 // The cached nodes are stored as pointers to avoid accidental copies being created
@@ -47,29 +48,21 @@ private:
 
     // Lock used for modification of the cache data structures.
     // Reentrant property is necessary for
-    std::recursive_mutex cacheLock;
+    std::mutex cacheLock;
 
     // Condition variable for sleeping threads until
     std::mutex waitMutex;
     std::condition_variable waitCV;
 
-    bool contains(IDType &itemID) {
-        cacheLock.lock();
-        typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
-                it = randomAccessMap.find(itemID);
-        bool doesContain = it != randomAccessMap.end();
-        cacheLock.unlock();
-        return doesContain;
-    }
-
     // Mark an item present in the cache as most recently used
     void touchItem(IDType &itemID) {
         // Move the desired node to the front of the LRU queue
-        cacheLock.lock();
-        assert(contains(itemID));
+        typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
+                it = randomAccessMap.find(itemID);
+        bool doesContain = it != randomAccessMap.end();
+        assert(doesContain);
         auto itemReference = randomAccessMap[itemID];
         lruItemQueue.splice(lruItemQueue.begin(), lruItemQueue, itemReference);
-        cacheLock.lock();
     }
 
     void evictLeastRecentlyUsedItem() {
@@ -110,8 +103,10 @@ private:
         {
             // Cache hit
             if(it->second->isInUse) {
-                // Collission!
+                // Collision!
                 // The thread which is trying to read this value will have to come back later
+                //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has experienced a collision!\n" << std::flush;
+                cacheLock.unlock();
                 return {false, nullptr};
             } else {
                 statistics.hits++;
@@ -122,6 +117,7 @@ private:
         } else {
             // Cache miss. Load the item into the cache instead
             statistics.misses++;
+            // TODO: this should be done in parallel, but requires some way of marking that the item is already being loaded
             cachedItemEntry = load(itemID);
             insertItem(itemID, cachedItemEntry);
         }
@@ -136,10 +132,14 @@ protected:
         while(!lookupResult.lookupSuccessful) {
             lookupResult = attemptItemLookup(itemID);
             if(!lookupResult.lookupSuccessful) {
-                std::unique_lock<std::mutex> lock(waitMutex);
-                waitCV.wait(lock);
+                //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has determined item " + itemID + " is currently in use and is waiting\n" << std::flush;
+                {
+                    std::unique_lock<std::mutex> lock(waitMutex);
+                    waitCV.wait(lock);
+                }
             }
         }
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is now borrowing item " + itemID + "\n" << std::flush;
         return lookupResult.item;
     }
 
@@ -154,18 +154,20 @@ protected:
             std::unique_lock<std::mutex> lock(waitMutex);
             waitCV.notify_all();
         }
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has now returned item " + itemID + "\n" << std::flush;
         cacheLock.unlock();
     }
 
     // Insert an item into the cache. May cause another item to be ejected. Marks item as in use.
-    void insertItem(IDType &itemID, CachedItemType* item) {
+    void insertItem(IDType &itemID, CachedItemType* item, bool dirty = false) {
         cacheLock.lock();
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting a new item with ID " + itemID + "\n" << std::flush;
 
         statistics.insertions++;
         CachedItem<IDType, CachedItemType> cachedItem = {false, false, "", nullptr};
         cachedItem.ID = itemID;
         cachedItem.item = item;
-        cachedItem.isInUse = true;
+        cachedItem.isDirty = dirty;
 
         // If cache is full (or due to a race condition over capacity),
         // make space before we insert the new one
@@ -184,6 +186,7 @@ protected:
     // Set the dirty flag of a given item.
     void markItemDirty(IDType &itemID) {
         cacheLock.lock();
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is marking item " + itemID + " as dirty\n" << std::flush;
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator it = randomAccessMap.find(itemID);
         assert(it != randomAccessMap.end());
         // Not a thorough check that everything is as it should be,
@@ -209,15 +212,8 @@ protected:
         randomAccessMap.reserve(capacity);
     }
 public:
+    const size_t itemCapacity;
     CacheStatistics statistics;
-
-    // The lookup functions returns const pointers to ensure the only copy of these item exist in the cache
-    // It also ensures the cache handles any necessary changes, as nodes need to be marked as dirty
-    const CachedItemType* fetchCopy(IDType &itemID) {
-        CachedItemType* obj = borrowItemByID(itemID);
-        returnItemByID(itemID);
-        return obj;
-    }
 
     // Eject all items from the cache, leave it empty
     void flush() {
@@ -249,5 +245,5 @@ public:
         return lruItemQueue.size();
     }
 
-    const size_t itemCapacity;
+
 };

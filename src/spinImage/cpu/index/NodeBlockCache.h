@@ -44,7 +44,6 @@ struct NodeBlockCacheStatistics {
 class NodeBlockCache : public Cache<std::string, NodeBlock> {
 private:
     const std::experimental::filesystem::path indexRoot;
-    NodeBlock* rootNode;
 
     void insertImageIntoNode(
             const QuiccImage &image,
@@ -67,8 +66,11 @@ public:
             const std::experimental::filesystem::path &indexRootPath,
             NodeBlock* root)
     :   Cache(capacity),
-        indexRoot(indexRootPath),
-        rootNode(root)
-        {}
+        indexRoot(indexRootPath)
+        {
+            std::string rootNodeID("");
+            insertItem(rootNodeID, root, true);
+            returnItemByID(rootNodeID);
+        }
     void insertImage(const QuiccImage &image, const IndexEntry reference);
 };

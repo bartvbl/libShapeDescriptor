@@ -158,7 +158,7 @@ Index SpinImage::index::build(
                     images.horizontallyIncreasingImages[imageIndex],
                     images.horizontallyDecreasingImages[imageIndex]);
             IndexEntry entry = {fileIndex, imageIndex};
-
+            //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " inserting image " + std::to_string(imageIndex)  + "\n";
             cache.insertImage(combined, entry);
         }
 
@@ -194,7 +194,6 @@ Index SpinImage::index::build(
 
     // Write the root node to disk
     std::cout << "Writing core index files.." << std::endl;
-    SpinImage::index::io::writeNodeBlock(rootBlock, indexDirectory);
     SpinImage::index::io::writeIndex(index, indexDirectory);
 
     return index;

@@ -134,6 +134,9 @@ Index SpinImage::index::build(
     std::vector<std::experimental::filesystem::path>* indexedFiles =
             new std::vector<std::experimental::filesystem::path>();
     bool enableStatisticsDump = statisticsFileDumpLocation != std::experimental::filesystem::path("/none/selected");
+    if(enableStatisticsDump) {
+        std::cout << "Statistics will be dumped to " << statisticsFileDumpLocation << std::endl;
+    }
     indexedFiles->reserve(filesInDirectory.size());
     std::vector<IndexedFileStatistics> fileStatistics;
 

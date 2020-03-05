@@ -27,6 +27,7 @@ struct IndexedFileStatistics {
     size_t fileIndex;
     size_t cachedItemCount;
     double totalExecutionTimeMilliseconds;
+    double totalLinearInsertionTimeMilliseconds;
 
     // Cache
     size_t cacheMisses;
@@ -54,6 +55,7 @@ struct IndexConstructionSettings {
 IndexedFileStatistics gatherFileStatistics(
         const NodeBlockCache *cache,
         size_t fileIndex,
+        double totalImageDurationMilliseconds,
         double totalExecutionTimeMilliseconds,
         size_t imageCount,
         const std::string &filePath) {
@@ -63,6 +65,7 @@ IndexedFileStatistics gatherFileStatistics(
     stats.imageCount = imageCount;
     stats.cachedItemCount = cache->getCurrentItemCount();
     stats.totalExecutionTimeMilliseconds = totalExecutionTimeMilliseconds;
+    stats.totalLinearInsertionTimeMilliseconds = totalImageDurationMilliseconds;
 
     stats.cacheMisses = cache->statistics.misses;
     stats.cacheHits = cache->statistics.hits;
@@ -102,6 +105,7 @@ void dumpStatisticsFile(
         outJson["fileStats"][fileStats.filePath]["imageCount"] = fileStats.imageCount;
         outJson["fileStats"][fileStats.filePath]["cachedItemCount"] = fileStats.cachedItemCount;
         outJson["fileStats"][fileStats.filePath]["totalExecutionTimeMilliseconds"] = fileStats.totalExecutionTimeMilliseconds;
+        outJson["fileStats"][fileStats.filePath]["totalLinearInsertionTimeMilliseconds"] = fileStats.totalLinearInsertionTimeMilliseconds;
 
         outJson["fileStats"][fileStats.filePath]["cacheMisses"] = fileStats.cacheMisses;
         outJson["fileStats"][fileStats.filePath]["cacheHits"] = fileStats.cacheHits;
@@ -155,17 +159,22 @@ Index SpinImage::index::build(
 
         SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
         indexedFiles->emplace_back(archivePath);
+        double totalImageDurationMilliseconds = 0;
 #pragma omp critical
         {
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 #pragma omp parallel for schedule(dynamic)
             for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
+                std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
                 QuiccImage combined = MipmapStack::combine(
                         images.horizontallyIncreasingImages[imageIndex],
                         images.horizontallyDecreasingImages[imageIndex]);
                 IndexEntry entry = {fileIndex, imageIndex};
-                //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " inserting image " + std::to_string(imageIndex)  + "\n";
+                std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting image " + std::to_string(imageIndex)  + "\n";
                 cache.insertImage(combined, entry);
+                std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
+#pragma omp atomic
+                totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(imageEndTime - imageStartTime).count() / 1000000.0;
             }
 
             std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
@@ -173,7 +182,7 @@ Index SpinImage::index::build(
                     std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
 
             if(enableStatisticsDump && fileIndex % 100 == 99) {
-                fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, durationMilliseconds, images.imageCount, archivePath));
+                fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, totalImageDurationMilliseconds, durationMilliseconds, images.imageCount, archivePath));
                 cache.statistics.reset();
                 cache.nodeBlockStatistics.reset();
                 dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);

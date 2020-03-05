@@ -23,7 +23,7 @@ int main(int argc, const char** argv) {
     const auto& forceGPU = parser.add<int>(
             "force-gpu", "Force using the GPU with the given ID", 'b', arrrgh::Optional, -1);
     const auto& spinImageWidth = parser.add<float>(
-            "spin-image-width", "The size of the spin image plane in 3D object space", '\0', arrrgh::Optional, 1.0f);
+            "support-radius", "The size of the spin image plane in 3D object space", '\0', arrrgh::Optional, 1.0f);
     const auto& imageLimit = parser.add<int>(
             "image-limit", "The maximum number of images to generate (in order to limit image size)", '\0', arrrgh::Optional, -1);
     const auto& supportAngle = parser.add<float>(
@@ -33,7 +33,7 @@ int main(int argc, const char** argv) {
     const auto& imagesPerRow = parser.add<int>(
             "images-per-row", "The number of images the output image should contain per row", '\0', arrrgh::Optional, 50);
     const auto& outputFile = parser.add<std::string>(
-            "output", "The maximum number of images to generate (in order to limit image size)", '\0', arrrgh::Optional, "out.png");
+            "output", "The location of the PNG file to write to", '\0', arrrgh::Optional, "out.png");
 
     try
     {
@@ -82,32 +82,36 @@ int main(int argc, const char** argv) {
         cudaFree(descriptors.content);
         delete[] hostDescriptors.content;
 
-    } else if(generationMode.value() == "rici" || generationMode.value() == "quicci")  {
-        SpinImage::array<radialIntersectionCountImagePixelType> descriptors = SpinImage::gpu::generateRadialIntersectionCountImages(
+    } else if(generationMode.value() == "rici") {
+        SpinImage::array<radialIntersectionCountImagePixelType> descriptors =
+            SpinImage::gpu::generateRadialIntersectionCountImages(
                 deviceMesh,
                 spinOrigins,
                 spinImageWidth.value());
-        if(generationMode.value() == "rici") {
-            std::cout << "Dumping results.. " << std::endl;
-            SpinImage::array<radialIntersectionCountImagePixelType> hostDescriptors = SpinImage::copy::RICIDescriptorsToHost(descriptors, imageCount);
-            if(imageLimit.value() != -1) {
-                hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
-            }
-            SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, imagesPerRow.value());
-            delete[] hostDescriptors.content;
-        } else {
-            SpinImage::gpu::QUICCIImages images = SpinImage::gpu::generateQUICCImages(descriptors);
 
-            SpinImage::cpu::QUICCIImages host_images = SpinImage::copy::QUICCIDescriptorsToHost(images);
-
-            SpinImage::dump::descriptors(host_images, outputFile.value(), imagesPerRow.value());
-
-            cudaFree(images.horizontallyIncreasingImages);
-            cudaFree(images.horizontallyDecreasingImages);
-
+        std::cout << "Dumping results.. " << std::endl;
+        SpinImage::array<radialIntersectionCountImagePixelType> hostDescriptors =
+                SpinImage::copy::RICIDescriptorsToHost(descriptors, imageCount);
+        if(imageLimit.value() != -1) {
+            hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
+        SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, imagesPerRow.value());
+        delete[] hostDescriptors.content;
+
         cudaFree(descriptors.content);
 
+    } else if(generationMode.value() == "quicci") {
+        SpinImage::gpu::QUICCIImages images = SpinImage::gpu::generateQUICCImages(deviceMesh,
+                                                                                  spinOrigins,
+                                                                                  spinImageWidth.value());
+
+        std::cout << "Dumping results.. " << std::endl;
+
+        SpinImage::cpu::QUICCIImages host_images = SpinImage::copy::QUICCIDescriptorsToHost(images);
+
+        SpinImage::dump::descriptors(host_images, outputFile.value(), imagesPerRow.value());
+
+        cudaFree(images.horizontallyIncreasingImages);
     } else {
         std::cerr << "Unrecognised image type: " << generationMode.value() << std::endl;
         std::cerr << "Should be either 'si', 'rici', or 'quicci'." << std::endl;

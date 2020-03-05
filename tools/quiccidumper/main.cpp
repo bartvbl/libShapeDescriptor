@@ -60,10 +60,7 @@ int main(int argc, const char** argv) {
     SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> uniqueVertices =
             SpinImage::utilities::computeUniqueVertices(deviceMesh);
 
-    SpinImage::array<radialIntersectionCountImagePixelType> RICImages =
-            SpinImage::gpu::generateRadialIntersectionCountImages(deviceMesh, uniqueVertices, spinImageWidth.value());
-
-    SpinImage::gpu::QUICCIImages images = SpinImage::gpu::generateQUICCImages(RICImages);
+    SpinImage::gpu::QUICCIImages images = SpinImage::gpu::generateQUICCImages(deviceMesh, uniqueVertices, spinImageWidth.value());
     SpinImage::cpu::QUICCIImages hostImages = SpinImage::copy::QUICCIDescriptorsToHost(images);
 
     std::cout << "Writing output file.." << std::endl,
@@ -71,7 +68,7 @@ int main(int argc, const char** argv) {
 
     SpinImage::gpu::freeMesh(deviceMesh);
     cudaFree(uniqueVertices.content);
-    cudaFree(RICImages.content);
+    cudaFree(images.horizontallyIncreasingImages);
 
 }
 

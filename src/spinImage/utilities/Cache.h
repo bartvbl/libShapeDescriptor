@@ -75,30 +75,36 @@ private:
 
     void evictLeastRecentlyUsedItem() {
         statistics.evictions++;
-        CachedItem<IDType, CachedItemType>* leastRecentlyUsedItem = nullptr;
+        typename std::list<CachedItem<IDType, CachedItemType>>::reverse_iterator leastRecentlyUsedItem;
 
         for(auto entry = lruItemQueue.rbegin(); entry != lruItemQueue.rend(); ++entry) {
-            if(!(*entry).isInUse) {
-                leastRecentlyUsedItem = &(*entry);
+            if(!entry->isInUse) {
+                leastRecentlyUsedItem = entry;
                 break;
             }
         }
 
+
+        IDType evictedItemID = leastRecentlyUsedItem->ID;
+        std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is ejecting item " + evictedItemID + "\n" << std::flush;
+        CachedItemType* itemReference = leastRecentlyUsedItem->item;
+        leastRecentlyUsedItem->isInUse = true;
+
+        typename std::list<CachedItem<IDType, CachedItemType>>::iterator it = std::next(leastRecentlyUsedItem).base();
+
         if(leastRecentlyUsedItem->isDirty) {
             statistics.dirtyEvictions++;
-            leastRecentlyUsedItem->isInUse = true;
 
             cacheLock.unlock();
             eject(leastRecentlyUsedItem->item);
             cacheLock.lock();
         }
 
-        typename std::list<CachedItem<IDType, CachedItemType>>::iterator it_start =
-                randomAccessMap.find(leastRecentlyUsedItem->ID)->second;
-        this->lruItemQueue.erase(it_start);
-        this->randomAccessMap.erase(leastRecentlyUsedItem->ID);
+        assert(it->ID == evictedItemID);
+        this->lruItemQueue.erase(it);
+        this->randomAccessMap.erase(evictedItemID);
 
-        delete leastRecentlyUsedItem->item;
+        delete itemReference;
     }
 
     CacheLookupResult<CachedItemType> attemptItemLookup(IDType &itemID) {
@@ -106,6 +112,7 @@ private:
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
                 it = randomAccessMap.find(itemID);
         CachedItemType* cachedItemEntry = nullptr;
+
 
         if(it != randomAccessMap.end())
         {
@@ -131,6 +138,7 @@ private:
                 cacheLock.unlock();
                 return {false, nullptr};
             }
+            std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has experienced a cache miss on item " + itemID + " and is loading it from disk!\n" << std::flush;
             statistics.misses++;
             beingLoadedList.push_back(itemID);
             cacheLock.unlock();
@@ -139,6 +147,7 @@ private:
             cacheLock.lock();
             beingLoadedList.erase(beingLoadedList.begin() + indexOfItemBeingLoaded(itemID));
         }
+        std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is borrowing " + itemID + "\n" << std::flush;
         cacheLock.unlock();
         return {true, cachedItemEntry};
     }
@@ -162,9 +171,9 @@ protected:
         cacheLock.lock();
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
                 it = randomAccessMap.find(itemID);
-        CachedItem<IDType, CachedItemType>* item = &(*(it->second));
+        std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is returning item " + itemID + "\n" << std::flush;
         assert(it != randomAccessMap.end());
-        assert(item->isInUse);
+        assert(it->second->isInUse);
         it->second->isInUse = false;
         cacheLock.unlock();
         //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has now returned item " + itemID + "\n" << std::flush;
@@ -172,7 +181,7 @@ protected:
 
     // Insert an item into the cache. May cause another item to be ejected. Marks item as in use.
     void insertItem(IDType &itemID, CachedItemType* item, bool dirty = false) {
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting a new item with ID " + itemID + "\n" << std::flush;
+        std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting a new item with ID " + itemID + "\n" << std::flush;
 
         CachedItem<IDType, CachedItemType> cachedItem = {false, false, "", nullptr};
         cachedItem.ID = itemID;
@@ -200,7 +209,7 @@ protected:
     // Set the dirty flag of a given item.
     void markItemDirty(IDType &itemID) {
         cacheLock.lock();
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is marking item " + itemID + " as dirty\n" << std::flush;
+        std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is marking item " + itemID + " as dirty\n" << std::flush;
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator it = randomAccessMap.find(itemID);
         assert(it != randomAccessMap.end());
         // Not a thorough check that everything is as it should be,
@@ -221,8 +230,6 @@ protected:
     virtual CachedItemType* load(IDType &itemID) = 0;
 
     explicit Cache(const size_t capacity) : itemCapacity(capacity) {
-        // std::list does not have a reserve()
-        //lruItemQueue.reserve(capacity);
         randomAccessMap.reserve(capacity);
     }
 public:

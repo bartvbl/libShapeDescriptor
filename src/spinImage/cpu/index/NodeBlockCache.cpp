@@ -117,10 +117,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
 
             // 2. Mark modified entry as dirty.
             // Do this first to avoid cases where item is going to ejected from the cache when node is split
-            // Root node is never ejected, and not technically part of the cache, so we avoid it
-            if(levelReached > 0) {
-                markItemDirty(itemID);
-            }
+            markItemDirty(itemID);
 
             // 3. Split if threshold has been reached, but not if we're at the deepest possible level
             if(currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) >= NODE_SPLIT_THRESHOLD &&

@@ -146,7 +146,7 @@ Index SpinImage::index::build(
 
     NodeBlock* rootBlock = new NodeBlock();
 
-    const size_t cacheCapacity = 15000;
+    const size_t cacheCapacity = 10000;
     NodeBlockCache cache(cacheCapacity, indexDirectory, rootBlock);
 
     IndexConstructionSettings constructionSettings =

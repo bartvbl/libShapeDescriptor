@@ -77,13 +77,18 @@ private:
         statistics.evictions++;
         typename std::list<CachedItem<IDType, CachedItemType>>::reverse_iterator leastRecentlyUsedItem;
 
+        bool foundEntry = false;
         for(auto entry = lruItemQueue.rbegin(); entry != lruItemQueue.rend(); ++entry) {
             if(!entry->isInUse) {
                 leastRecentlyUsedItem = entry;
+                foundEntry = true;
                 break;
             }
         }
 
+        if(!foundEntry) {
+            return;
+        }
 
         IDType evictedItemID = leastRecentlyUsedItem->ID;
         //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is ejecting item " + evictedItemID + "\n" << std::flush;

@@ -5,6 +5,8 @@
 void NodeBlockCache::eject(NodeBlock *block) {
     #pragma omp atomic
     nodeBlockStatistics.totalWriteCount++;
+    #pragma omp atomic
+    currentImageCount -= block->leafNodeContents.size();
     auto writeStart = std::chrono::high_resolution_clock::now();
 
     SpinImage::index::io::writeNodeBlock(block, indexRoot);
@@ -13,8 +15,6 @@ void NodeBlockCache::eject(NodeBlock *block) {
     std::chrono::duration<double, std::nano> writeDuration = writeEnd - writeStart;
     #pragma omp atomic
     nodeBlockStatistics.totalWriteTimeNanoseconds += writeDuration.count();
-    #pragma omp atomic
-    currentImageCount -= block->leafNodeContents.size();
 }
 
 // May be called by multiple threads simultaneously

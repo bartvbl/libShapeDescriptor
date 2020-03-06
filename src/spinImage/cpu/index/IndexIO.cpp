@@ -94,8 +94,7 @@ void SpinImage::index::io::writeIndex(const Index& index, std::experimental::fil
 
 const size_t headerSize = sizeof(unsigned int);
 const size_t leafNodeBoolArraySize = BoolArray<NODES_PER_BLOCK>::computeArrayLength() * sizeof(unsigned int);
-const size_t entryCountArraySize = NODES_PER_BLOCK * sizeof(unsigned short);
-const size_t blockStructSize = leafNodeBoolArraySize + entryCountArraySize;
+const size_t blockStructSize = leafNodeBoolArraySize;
 const size_t entrySize = (sizeof(IndexEntry) + sizeof(QuiccImage));
 
 NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory) {
@@ -108,31 +107,22 @@ NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const
     size_t fileSize;
     const char* inputBuffer = SpinImage::utilities::readCompressedFile(nodeBlockFilePath, &fileSize, false);
 
-    int totalEntryCount = *(reinterpret_cast<const int*>(inputBuffer));
-
     NodeBlock* nodeBlock = new NodeBlock();
     nodeBlock->identifier = blockID;
-    nodeBlock->leafNodeContents.resize(totalEntryCount);
     memcpy((void *) nodeBlock->childNodeIsLeafNode.data(), &inputBuffer[headerSize], leafNodeBoolArraySize);
-    memcpy(nodeBlock->leafNodeContentsLength.data(), &inputBuffer[headerSize + leafNodeBoolArraySize], entryCountArraySize);
 
-    int nextEntryIndex = 0;
-    const char* entryListBasePointer = inputBuffer + headerSize + blockStructSize;
-    size_t entryPointerOffset = 0;
+    const char* bufferPointer = inputBuffer + headerSize + blockStructSize;
 
     for(int node = 0; node < NODES_PER_BLOCK; node++) {
-        if(nodeBlock->leafNodeContentsLength.at(node) != 0) {
-            nodeBlock->leafNodeContentsStartIndices.at(node) = nextEntryIndex;
-            for(int entry = 0; entry < nodeBlock->leafNodeContentsLength.at(node); entry++) {
-                nodeBlock->leafNodeContents.at(nextEntryIndex).indexEntry =
-                        *reinterpret_cast<const IndexEntry*>(entryListBasePointer + entryPointerOffset);
-                nodeBlock->leafNodeContents.at(nextEntryIndex).image =
-                        *reinterpret_cast<const QuiccImage*>(entryListBasePointer + entryPointerOffset + sizeof(IndexEntry));
-                nodeBlock->leafNodeContents.at(nextEntryIndex).nextEntryIndex =
-                        (entry + 1 == nodeBlock->leafNodeContentsLength.at(node) ? -1 : nextEntryIndex + 1);
-                entryPointerOffset += entrySize;
-                nextEntryIndex++;
-            }
+        unsigned int entryCount = *reinterpret_cast<const unsigned int*>(bufferPointer);
+        bufferPointer += sizeof(unsigned int);
+        std::vector<NodeBlockEntry>* entryList = &nodeBlock->leafNodeContents.at(node);
+        entryList->reserve(entryCount);
+        for(int entry = 0; entry < entryCount; entry++) {
+            entryList->emplace_back(
+                *reinterpret_cast<const IndexEntry*>(bufferPointer),
+                *reinterpret_cast<const QuiccImage*>(bufferPointer + sizeof(IndexEntry)));
+            bufferPointer += entrySize;
         }
     }
 
@@ -144,30 +134,26 @@ void SpinImage::index::io::writeNodeBlock(const NodeBlock *block, const std::exp
     int totalIndexEntryCount = 0;
     //std::cout << "w" << std::flush;
     for(int i = 0; i < NODES_PER_BLOCK; i++) {
-        totalIndexEntryCount += block->leafNodeContentsLength.at(i);
+        totalIndexEntryCount += block->leafNodeContents.at(i).size();
     }
 
-    size_t entryListSize = totalIndexEntryCount * entrySize;
+    size_t entryListSize = totalIndexEntryCount * entrySize + NODES_PER_BLOCK * sizeof(unsigned int);
     size_t outputBufferSize = headerSize + blockStructSize + entryListSize;
 
     char* outputBuffer = new char[outputBufferSize];
 
     *reinterpret_cast<unsigned int*>(&outputBuffer[0]) = totalIndexEntryCount;
     memcpy(&outputBuffer[headerSize], block->childNodeIsLeafNode.data(), leafNodeBoolArraySize);
-    memcpy(&outputBuffer[headerSize + leafNodeBoolArraySize], block->leafNodeContentsLength.data(), entryCountArraySize);
-    char* entryListBasePointer = outputBuffer + headerSize + blockStructSize;
-    size_t entryPointerOffset = 0;
+    char* bufferPointer = outputBuffer + headerSize + blockStructSize;
     for(int node = 0; node < NODES_PER_BLOCK; node++) {
-        int nextListEntryIndex = block->leafNodeContentsStartIndices.at(node);
-        for(int entry = 0; entry < block->leafNodeContentsLength.at(node); entry++) {
-            *reinterpret_cast<IndexEntry*>(entryListBasePointer + entryPointerOffset) =
-                    block->leafNodeContents.at(nextListEntryIndex).indexEntry;
-            *reinterpret_cast<QuiccImage*>(entryListBasePointer + entryPointerOffset + sizeof(IndexEntry)) =
-                    block->leafNodeContents.at(nextListEntryIndex).image;
-            entryPointerOffset += entrySize;
-            nextListEntryIndex = block->leafNodeContents.at(nextListEntryIndex).nextEntryIndex;
+        *reinterpret_cast<unsigned int*>(bufferPointer) = block->leafNodeContents.at(node).size();
+        bufferPointer += sizeof(unsigned int);
+        for(const auto& entry : block->leafNodeContents.at(node)) {
+            *reinterpret_cast<IndexEntry*>(bufferPointer) = entry.indexEntry;
+            bufferPointer += sizeof(IndexEntry);
+            *reinterpret_cast<QuiccImage*>(bufferPointer) = entry.image;
+            bufferPointer += sizeof(QuiccImage);
         }
-        assert(nextListEntryIndex == -1);
     }
 
     std::experimental::filesystem::path nodeBlockFilePath = indexRootDirectory / block->identifier / "block.dat";

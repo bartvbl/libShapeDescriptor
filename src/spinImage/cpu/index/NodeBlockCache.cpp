@@ -15,8 +15,6 @@ void NodeBlockCache::eject(NodeBlock *block) {
     currentImageCount -= countImages(block->leafNodeContents);
     #pragma omp atomic
     nodeBlockStatistics.totalWriteCount++;
-    #pragma omp atomic
-    currentImageCount -= block->leafNodeContents.size();
     auto writeStart = std::chrono::high_resolution_clock::now();
 
     SpinImage::index::io::writeNodeBlock(block, indexRoot);

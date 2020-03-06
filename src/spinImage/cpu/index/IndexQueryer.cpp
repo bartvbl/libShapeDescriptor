@@ -194,7 +194,7 @@ void visitNode(
 std::vector<IndexEntry> queryIndex(Index index, const QuiccImage &queryImage, unsigned int resultCount) {
     BitCountMipmapStack queryImageBitCountMipmapStack(queryImage);
 
-    NodeBlockCache cache(25000, index.indexDirectory, index.rootNode);
+    NodeBlockCache cache(25000, 75000000, index.indexDirectory, index.rootNode);
 
     std::priority_queue<UnvisitedNode> closedNodeQueue;
     std::vector<SearchResultEntry> currentSearchResults;

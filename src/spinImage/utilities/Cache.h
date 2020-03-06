@@ -86,7 +86,7 @@ private:
 
 
         IDType evictedItemID = leastRecentlyUsedItem->ID;
-        std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is ejecting item " + evictedItemID + "\n" << std::flush;
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is ejecting item " + evictedItemID + "\n" << std::flush;
         CachedItemType* itemReference = leastRecentlyUsedItem->item;
         leastRecentlyUsedItem->isInUse = true;
 
@@ -113,7 +113,6 @@ private:
                 it = randomAccessMap.find(itemID);
         CachedItemType* cachedItemEntry = nullptr;
 
-
         if(it != randomAccessMap.end())
         {
             // Cache hit
@@ -138,18 +137,42 @@ private:
                 cacheLock.unlock();
                 return {false, nullptr};
             }
-            std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has experienced a cache miss on item " + itemID + " and is loading it from disk!\n" << std::flush;
+            //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has experienced a cache miss on item " + itemID + " and is loading it from disk!\n" << std::flush;
             statistics.misses++;
             beingLoadedList.push_back(itemID);
             cacheLock.unlock();
             cachedItemEntry = load(itemID);
-            insertItem(itemID, cachedItemEntry);
             cacheLock.lock();
+            doItemInsertion(itemID, cachedItemEntry);
+            it = randomAccessMap.find(itemID);
+            it->second->isInUse = true;
             beingLoadedList.erase(beingLoadedList.begin() + indexOfItemBeingLoaded(itemID));
         }
-        std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is borrowing " + itemID + "\n" << std::flush;
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is borrowing " + itemID + "\n" << std::flush;
         cacheLock.unlock();
         return {true, cachedItemEntry};
+    }
+
+    void doItemInsertion(IDType &itemID, CachedItemType* item, bool dirty = false) {
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting a new item with ID " + itemID + "\n" << std::flush;
+
+        CachedItem<IDType, CachedItemType> cachedItem = {false, false, "", nullptr};
+        cachedItem.ID = itemID;
+        cachedItem.item = item;
+        cachedItem.isDirty = dirty;
+
+        // If cache is full (or due to a race condition over capacity),
+        // make space before we insert the new one
+        while(lruItemQueue.size() >= itemCapacity) {
+            evictLeastRecentlyUsedItem();
+        }
+
+        // When the node is inserted, it is by definition the most recently used one
+        // We therefore put it in the front of the queue right away
+        lruItemQueue.emplace_front(cachedItem);
+        randomAccessMap[itemID] = lruItemQueue.begin();
+
+        statistics.insertions++;
     }
 
 protected:
@@ -171,7 +194,8 @@ protected:
         cacheLock.lock();
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
                 it = randomAccessMap.find(itemID);
-        std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is returning item " + itemID + "\n" << std::flush;
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is returning item " + itemID + "\n" << std::flush;
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is returning item " + itemID + "\n" << std::flush;
         assert(it != randomAccessMap.end());
         assert(it->second->isInUse);
         it->second->isInUse = false;
@@ -181,35 +205,21 @@ protected:
 
     // Insert an item into the cache. May cause another item to be ejected. Marks item as in use.
     void insertItem(IDType &itemID, CachedItemType* item, bool dirty = false) {
-        std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting a new item with ID " + itemID + "\n" << std::flush;
-
-        CachedItem<IDType, CachedItemType> cachedItem = {false, false, "", nullptr};
-        cachedItem.ID = itemID;
-        cachedItem.item = item;
-        cachedItem.isDirty = dirty;
-
         cacheLock.lock();
+        doItemInsertion(itemID, item, dirty);
+        cacheLock.unlock();
+    }
 
-        // If cache is full (or due to a race condition over capacity),
-        // make space before we insert the new one
-        while(lruItemQueue.size() >= itemCapacity) {
-            evictLeastRecentlyUsedItem();
-        }
-
-        // When the node is inserted, it is by definition the most recently used one
-        // We therefore put it in the front of the queue right away
-        lruItemQueue.emplace_front(cachedItem);
-        randomAccessMap[itemID] = lruItemQueue.begin();
-
-        statistics.insertions++;
-
+    void forceLeastRecentlyUsedEviction() {
+        cacheLock.lock();
+        evictLeastRecentlyUsedItem();
         cacheLock.unlock();
     }
 
     // Set the dirty flag of a given item.
     void markItemDirty(IDType &itemID) {
         cacheLock.lock();
-        std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is marking item " + itemID + " as dirty\n" << std::flush;
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is marking item " + itemID + " as dirty\n" << std::flush;
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator it = randomAccessMap.find(itemID);
         assert(it != randomAccessMap.end());
         // Not a thorough check that everything is as it should be,
@@ -247,11 +257,11 @@ public:
                     continue;
                 }
 
-                if((*item).isDirty) {
-                    eject((*item).item);
+                if(item->isDirty) {
+                    eject(item->item);
                 }
 
-                delete (*item).item;
+                delete item->item;
 
                 index++;
             }
@@ -262,6 +272,7 @@ public:
         randomAccessMap.clear();
     }
 
+    // NOT thread safe!
     size_t getCurrentItemCount() const {
         return lruItemQueue.size();
     }

@@ -25,7 +25,8 @@ struct IndexedFileStatistics {
     std::string filePath;
     size_t imageCount;
     size_t fileIndex;
-    size_t cachedItemCount;
+    size_t cachedNodeBlockCount;
+    size_t cachedImageCount;
     double totalExecutionTimeMilliseconds;
     double totalLinearInsertionTimeMilliseconds;
 
@@ -49,7 +50,8 @@ struct IndexedFileStatistics {
 struct IndexConstructionSettings {
     std::experimental::filesystem::path quicciImageDumpDirectory;
     std::experimental::filesystem::path indexDumpDirectory;
-    size_t cacheCapacity;
+    size_t cacheNodeBlockCapacity;
+    size_t cacheImageCapacity;
 };
 
 IndexedFileStatistics gatherFileStatistics(
@@ -63,7 +65,8 @@ IndexedFileStatistics gatherFileStatistics(
     stats.filePath = filePath;
     stats.fileIndex = fileIndex;
     stats.imageCount = imageCount;
-    stats.cachedItemCount = cache->getCurrentItemCount();
+    stats.cachedNodeBlockCount = cache->getCurrentItemCount();
+    stats.cachedImageCount = cache->getCurrentImageCount();
     stats.totalExecutionTimeMilliseconds = totalExecutionTimeMilliseconds;
     stats.totalLinearInsertionTimeMilliseconds = totalImageDurationMilliseconds;
 
@@ -90,10 +93,11 @@ void dumpStatisticsFile(
         const std::experimental::filesystem::path &path) {
     json outJson;
 
-    outJson["version"] = "v1";
+    outJson["version"] = "v2";
     outJson["nodesPerBlock"] = NODES_PER_BLOCK;
     outJson["nodeSplitThreshold"] = NODE_SPLIT_THRESHOLD;
-    outJson["cacheCapacity"] = constructionSettings.cacheCapacity;
+    outJson["cacheNodeBlockCapacity"] = constructionSettings.cacheNodeBlockCapacity;
+    outJson["cacheImageCapacity"] = constructionSettings.cacheImageCapacity;
     outJson["outputIndexDirectory"] = constructionSettings.indexDumpDirectory;
     outJson["inputImageDirectory"] = constructionSettings.quicciImageDumpDirectory;
 
@@ -103,7 +107,8 @@ void dumpStatisticsFile(
 
         outJson["fileStats"][fileStats.filePath]["fileIndex"] = fileStats.fileIndex;
         outJson["fileStats"][fileStats.filePath]["imageCount"] = fileStats.imageCount;
-        outJson["fileStats"][fileStats.filePath]["cachedItemCount"] = fileStats.cachedItemCount;
+        outJson["fileStats"][fileStats.filePath]["cachedNodeBlockCount"] = fileStats.cachedNodeBlockCount;
+        outJson["fileStats"][fileStats.filePath]["cachedImageCount"] = fileStats.cachedImageCount;
         outJson["fileStats"][fileStats.filePath]["totalExecutionTimeMilliseconds"] = fileStats.totalExecutionTimeMilliseconds;
         outJson["fileStats"][fileStats.filePath]["totalLinearInsertionTimeMilliseconds"] = fileStats.totalLinearInsertionTimeMilliseconds;
 
@@ -131,6 +136,8 @@ Index SpinImage::index::build(
         std::experimental::filesystem::path quicciImageDumpDirectory,
         std::experimental::filesystem::path indexDumpDirectory,
         std::experimental::filesystem::path statisticsFileDumpLocation) {
+    std::cout << "Size of node block: " << sizeof(NodeBlock) << std::endl;
+    std::cout << "Size of QuiccImage: " << sizeof(NodeBlockEntry) << std::endl;
     std::vector<std::experimental::filesystem::path> filesInDirectory = SpinImage::utilities::listDirectory(quicciImageDumpDirectory);
     std::experimental::filesystem::path indexDirectory(indexDumpDirectory);
     omp_set_nested(1);
@@ -146,13 +153,14 @@ Index SpinImage::index::build(
 
     NodeBlock* rootBlock = new NodeBlock();
 
-    const size_t cacheCapacity = 10000;
-    NodeBlockCache cache(cacheCapacity, indexDirectory, rootBlock);
+    const size_t cacheNodeBlockCapacity = 50000;
+    const size_t cacheImageCapacity = 75000000;
+    NodeBlockCache cache(cacheNodeBlockCapacity, cacheImageCapacity, indexDirectory, rootBlock);
 
     IndexConstructionSettings constructionSettings =
-            {quicciImageDumpDirectory, indexDumpDirectory, cacheCapacity};
+            {quicciImageDumpDirectory, indexDumpDirectory, cacheNodeBlockCapacity, cacheImageCapacity};
 
-#pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for schedule(dynamic)
     for(unsigned int fileIndex = 0; fileIndex < filesInDirectory.size(); fileIndex++) {
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
         const std::string archivePath = path.string();
@@ -160,20 +168,20 @@ Index SpinImage::index::build(
         SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
         indexedFiles->emplace_back(archivePath);
         double totalImageDurationMilliseconds = 0;
-#pragma omp critical
+        #pragma omp critical
         {
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-#pragma omp parallel for schedule(dynamic)
+            #pragma omp parallel for schedule(dynamic)
             for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
                 std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
                 QuiccImage combined = MipmapStack::combine(
                         images.horizontallyIncreasingImages[imageIndex],
                         images.horizontallyDecreasingImages[imageIndex]);
                 IndexEntry entry = {fileIndex, imageIndex};
-                std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting image " + std::to_string(imageIndex)  + "\n";
+                //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting image " + std::to_string(imageIndex)  + "\n";
                 cache.insertImage(combined, entry);
                 std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
-#pragma omp atomic
+                #pragma omp atomic
                 totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(imageEndTime - imageStartTime).count() / 1000000.0;
             }
 
@@ -182,6 +190,7 @@ Index SpinImage::index::build(
                     std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
 
             if(enableStatisticsDump && fileIndex % 100 == 99) {
+                std::cout << "Writing statistics file..\n";
                 fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, totalImageDurationMilliseconds, durationMilliseconds, images.imageCount, archivePath));
                 cache.statistics.reset();
                 cache.nodeBlockStatistics.reset();
@@ -190,8 +199,10 @@ Index SpinImage::index::build(
 
             std::cout << "Added file " << (fileIndex + 1) << "/" << filesInDirectory.size()
                       << ": " << archivePath
-                      << ", Cache: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity
-                      << ", Duration: " << (durationMilliseconds / 1000.0) << "s" << std::endl;
+                      << ", Cache (nodes: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity
+                      << ", images: " << cache.getCurrentImageCount() << "/" << cache.imageCapacity << ")"
+                      << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
+                      << ", Image count: " << images.imageCount << std::endl;
         };
 
 

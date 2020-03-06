@@ -3,7 +3,7 @@
 
 // May be called by multiple threads simultaneously
 void NodeBlockCache::eject(NodeBlock *block) {
-#pragma omp atomic
+    #pragma omp atomic
     nodeBlockStatistics.totalWriteCount++;
     auto writeStart = std::chrono::high_resolution_clock::now();
 
@@ -11,13 +11,15 @@ void NodeBlockCache::eject(NodeBlock *block) {
 
     auto writeEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::nano> writeDuration = writeEnd - writeStart;
-#pragma omp atomic
+    #pragma omp atomic
     nodeBlockStatistics.totalWriteTimeNanoseconds += writeDuration.count();
+    #pragma omp atomic
+    currentImageCount -= block->leafNodeContents.size();
 }
 
 // May be called by multiple threads simultaneously
 NodeBlock *NodeBlockCache::load(std::string &itemID) {
-#pragma omp atomic
+    #pragma omp atomic
     nodeBlockStatistics.totalReadCount++;
     auto readStart = std::chrono::high_resolution_clock::now();
 
@@ -25,13 +27,16 @@ NodeBlock *NodeBlockCache::load(std::string &itemID) {
 
     auto readEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::nano> readDuration = readEnd - readStart;
-#pragma omp atomic
+    #pragma omp atomic
     nodeBlockStatistics.totalReadTimeNanoseconds += readDuration.count();
+    #pragma omp atomic
+    currentImageCount += readBlock->leafNodeContents.size();
 
     return readBlock;
 }
 
 void NodeBlockCache::insertImageIntoNode(const QuiccImage &image, const IndexEntry &entry, NodeBlock *currentNodeBlock, unsigned char outgoingEdgeIndex) {
+
     // 1. Insert the new entry at the start of the list
     int currentStartIndex = currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex);
     int entryIndex = -1;
@@ -56,7 +61,7 @@ void NodeBlockCache::splitNode(
         NodeBlock *currentNodeBlock,
         unsigned char outgoingEdgeIndex,
         std::string &childNodeID) {
-#pragma omp atomic
+    #pragma omp atomic
     nodeBlockStatistics.nodeSplitCount++;
 
     // Create and insert new node into cache
@@ -88,6 +93,9 @@ void NodeBlockCache::splitNode(
     currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) = 0;
     currentNodeBlock->childNodeIsLeafNode.set(outgoingEdgeIndex, false);
 
+    #pragma omp atomic
+    currentImageCount += childNodeBlock->leafNodeContents.size();
+
     // Add item to the cache
     insertItem(childNodeID, childNodeBlock, true);
 }
@@ -95,6 +103,8 @@ void NodeBlockCache::splitNode(
 void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry reference) {
     #pragma omp atomic
     nodeBlockStatistics.imageInsertionCount++;
+    #pragma omp atomic
+    currentImageCount++;
 
     // Follow path until leaf node is reached, or the bottom of the index
     unsigned short levelReached = 0;
@@ -144,6 +154,15 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             currentNodeBlock = borrowItemByID(currentNodeID);
         }
     }
+
+    // Clean up the cache to ensure memory usage doesn't get out of hand
+    while(currentImageCount > imageCapacity) {
+        forceLeastRecentlyUsedEviction();
+    }
+}
+
+size_t NodeBlockCache::getCurrentImageCount() const {
+    return currentImageCount;
 }
 
 

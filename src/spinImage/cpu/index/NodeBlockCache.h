@@ -46,11 +46,6 @@ private:
     const std::experimental::filesystem::path indexRoot;
     size_t currentImageCount = 0;
 
-    void insertImageIntoNode(
-            const QuiccImage &image,
-            const IndexEntry &entry,
-            NodeBlock *currentNodeBlock,
-            unsigned char levelByte);
     void splitNode(
             unsigned short levelReached,
             NodeBlock *currentNodeBlock,

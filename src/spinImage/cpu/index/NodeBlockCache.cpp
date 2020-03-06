@@ -1,6 +1,14 @@
 #include <cassert>
 #include "NodeBlockCache.h"
 
+size_t countImages(std::array<std::vector<NodeBlockEntry>, NODES_PER_BLOCK> &entries) {
+    unsigned int entryCount = 0;
+    for(const auto& entry : entries) {
+        entryCount += entry.size();
+    }
+    return entryCount;
+}
+
 // May be called by multiple threads simultaneously
 void NodeBlockCache::eject(NodeBlock *block) {
     #pragma omp atomic
@@ -14,7 +22,7 @@ void NodeBlockCache::eject(NodeBlock *block) {
     #pragma omp atomic
     nodeBlockStatistics.totalWriteTimeNanoseconds += writeDuration.count();
     #pragma omp atomic
-    currentImageCount -= block->leafNodeContents.size();
+    currentImageCount -= countImages(block->leafNodeContents);
 }
 
 // May be called by multiple threads simultaneously
@@ -30,30 +38,9 @@ NodeBlock *NodeBlockCache::load(std::string &itemID) {
     #pragma omp atomic
     nodeBlockStatistics.totalReadTimeNanoseconds += readDuration.count();
     #pragma omp atomic
-    currentImageCount += readBlock->leafNodeContents.size();
+    currentImageCount += countImages(readBlock->leafNodeContents);
 
     return readBlock;
-}
-
-void NodeBlockCache::insertImageIntoNode(const QuiccImage &image, const IndexEntry &entry, NodeBlock *currentNodeBlock, unsigned char outgoingEdgeIndex) {
-
-    // 1. Insert the new entry at the start of the list
-    int currentStartIndex = currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex);
-    int entryIndex = -1;
-    if(currentNodeBlock->freeListStartIndex != -1) {
-        // We have spare capacity from nodes that were deleted previously
-        entryIndex = currentNodeBlock->freeListStartIndex;
-        int nextFreeListIndex = currentNodeBlock->leafNodeContents.at(entryIndex).nextEntryIndex;
-        currentNodeBlock->leafNodeContents.at(entryIndex) = {entry, image, currentStartIndex};
-        currentNodeBlock->freeListStartIndex = nextFreeListIndex;
-    } else {
-        // Otherwise, when no spare capacity is available,
-        // we allocate a new node at the end of the list
-        entryIndex = currentNodeBlock->leafNodeContents.size();
-        currentNodeBlock->leafNodeContents.push_back({entry, image, currentStartIndex});
-    }
-    currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex) = entryIndex;
-    currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex)++;
 }
 
 void NodeBlockCache::splitNode(
@@ -68,33 +55,19 @@ void NodeBlockCache::splitNode(
     NodeBlock* childNodeBlock = new NodeBlock();
     childNodeBlock->identifier = childNodeID;
 
-
     // Follow linked list and move all nodes into new child node block
-    int nextLinkedNodeIndex = currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex);
-    while(nextLinkedNodeIndex != -1) {
+    for(const auto& entryToMove : currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex))
+    {
         // Copy over node into new child node block
-        NodeBlockEntry* entryToMove = &currentNodeBlock->leafNodeContents.at(nextLinkedNodeIndex);
-        MipmapStack entryMipmaps(entryToMove->image);
+        MipmapStack entryMipmaps(entryToMove.image);
         unsigned char childLevelByte = entryMipmaps.computeLevelByte(levelReached + 1);
-        insertImageIntoNode(entryToMove->image, entryToMove->indexEntry,
-                            childNodeBlock, childLevelByte);
-
-        // Mark entry in parent node as available by appending it to the free list
-        int nextFreeEntryIndex = currentNodeBlock->freeListStartIndex;
-        entryToMove->nextEntryIndex = nextFreeEntryIndex;
-        currentNodeBlock->freeListStartIndex = nextLinkedNodeIndex;
-
-        // Moving on to next entry in the linked list
-        nextLinkedNodeIndex = entryToMove->nextEntryIndex;
+        childNodeBlock->leafNodeContents.at(childLevelByte).emplace_back(entryToMove);
     }
 
     // Mark the entry in the node block as an intermediate node
-    currentNodeBlock->leafNodeContentsStartIndices.at(outgoingEdgeIndex) = -1;
-    currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) = 0;
+    currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).resize(0);
+    currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).shrink_to_fit();
     currentNodeBlock->childNodeIsLeafNode.set(outgoingEdgeIndex, false);
-
-    #pragma omp atomic
-    currentImageCount += childNodeBlock->leafNodeContents.size();
 
     // Add item to the cache
     insertItem(childNodeID, childNodeBlock, true);
@@ -123,14 +96,14 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;
             std::string itemID = pathBuilder.str();
-            insertImageIntoNode(image, reference, currentNodeBlock, outgoingEdgeIndex);
+            currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).emplace_back(reference, image);
 
             // 2. Mark modified entry as dirty.
             // Do this first to avoid cases where item is going to ejected from the cache when node is split
             markItemDirty(itemID);
 
             // 3. Split if threshold has been reached, but not if we're at the deepest possible level
-            if(currentNodeBlock->leafNodeContentsLength.at(outgoingEdgeIndex) >= NODE_SPLIT_THRESHOLD &&
+            if(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).size() >= NODE_SPLIT_THRESHOLD &&
                     (levelReached < 8 + (2 * 16) + (4 * 32) - 1)) {
                 pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
                 std::string childNodeID = pathBuilder.str();

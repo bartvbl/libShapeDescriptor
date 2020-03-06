@@ -136,8 +136,6 @@ Index SpinImage::index::build(
         std::experimental::filesystem::path quicciImageDumpDirectory,
         std::experimental::filesystem::path indexDumpDirectory,
         std::experimental::filesystem::path statisticsFileDumpLocation) {
-    std::cout << "Size of node block: " << sizeof(NodeBlock) << std::endl;
-    std::cout << "Size of QuiccImage: " << sizeof(NodeBlockEntry) << std::endl;
     std::vector<std::experimental::filesystem::path> filesInDirectory = SpinImage::utilities::listDirectory(quicciImageDumpDirectory);
     std::experimental::filesystem::path indexDirectory(indexDumpDirectory);
     omp_set_nested(1);

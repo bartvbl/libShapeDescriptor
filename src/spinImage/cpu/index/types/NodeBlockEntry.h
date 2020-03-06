@@ -6,5 +6,7 @@
 struct NodeBlockEntry {
     IndexEntry indexEntry;
     QuiccImage image;
-    int nextEntryIndex;
+
+    NodeBlockEntry(const IndexEntry entry, QuiccImage image) : indexEntry(entry), image(image) {}
+    NodeBlockEntry() {}
 };

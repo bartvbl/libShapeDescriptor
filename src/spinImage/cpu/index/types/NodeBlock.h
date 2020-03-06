@@ -9,14 +9,8 @@
 struct NodeBlock {
     std::string identifier;
     BoolArray<NODES_PER_BLOCK> childNodeIsLeafNode = {true};
-    std::array<int, NODES_PER_BLOCK> leafNodeContentsStartIndices;
-    std::array<unsigned short, NODES_PER_BLOCK> leafNodeContentsLength;
-    int freeListStartIndex = -1;
-
-    std::vector<NodeBlockEntry> leafNodeContents;
+    std::array<std::vector<NodeBlockEntry>, NODES_PER_BLOCK> leafNodeContents;
 
     NodeBlock() {
-        leafNodeContentsStartIndices.fill(-1);
-        leafNodeContentsLength.fill(0);
     }
 };

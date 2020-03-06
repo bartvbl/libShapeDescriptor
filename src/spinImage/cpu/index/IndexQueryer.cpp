@@ -163,16 +163,13 @@ void visitNode(
     for(int child = 0; child < NODES_PER_BLOCK; child++) {
         if(block->childNodeIsLeafNode[child]) {
             // If child is a leaf node, insert its images into the search result list
-            int nextNodeID = block->leafNodeContentsStartIndices[child];
-            while(nextNodeID != -1) {
-                NodeBlockEntry entry = block->leafNodeContents.at(nextNodeID);
+            for(const NodeBlockEntry& entry : block->leafNodeContents.at(child)) {
                 unsigned int distanceScore = computeDistance(queryImage, entry.image);
 
                 // Only consider the image if it is potentially better than what's there already
                 if(distanceScore <= searchResultScoreThreshold) {
                     currentSearchResults.emplace_back(entry.indexEntry, distanceScore);
                 }
-                nextNodeID = entry.nextEntryIndex;
             }
         } else {
             // If the child is an intermediate node, enqueue it in the closed node list

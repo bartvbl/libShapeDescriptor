@@ -190,7 +190,7 @@ void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, 
 	}
 
     for(unsigned int imageIndex = 0; imageIndex < hostDescriptors.imageCount; imageIndex++) {
-        for (unsigned int chunkIndex = 0; chunkIndex < hostDescriptors.imageCount * uintsPerImage; chunkIndex++) {
+        for (unsigned int chunkIndex = 0; chunkIndex < UINTS_PER_QUICCI; chunkIndex++) {
             unsigned int chunk = hostDescriptors.horizontallyDecreasingImages[imageIndex][chunkIndex];
             std::bitset<32> entryBits(chunk);
             for (char bit = 0; bit < 32; bit++) {

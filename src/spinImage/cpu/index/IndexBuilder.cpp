@@ -189,11 +189,11 @@ Index SpinImage::index::build(
             double durationMilliseconds =
                     std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
 
+            fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, totalImageDurationMilliseconds, durationMilliseconds, images.imageCount, archivePath));
+            cache.statistics.reset();
+            cache.nodeBlockStatistics.reset();
             if(enableStatisticsDump && fileIndex % 100 == 99) {
                 std::cout << "Writing statistics file..\n";
-                fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, totalImageDurationMilliseconds, durationMilliseconds, images.imageCount, archivePath));
-                cache.statistics.reset();
-                cache.nodeBlockStatistics.reset();
                 dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
             }
 

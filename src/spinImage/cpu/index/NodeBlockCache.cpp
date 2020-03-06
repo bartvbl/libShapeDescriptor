@@ -12,6 +12,8 @@ size_t countImages(std::array<std::vector<NodeBlockEntry>, NODES_PER_BLOCK> &ent
 // May be called by multiple threads simultaneously
 void NodeBlockCache::eject(NodeBlock *block) {
     #pragma omp atomic
+    currentImageCount -= countImages(block->leafNodeContents);
+    #pragma omp atomic
     nodeBlockStatistics.totalWriteCount++;
     auto writeStart = std::chrono::high_resolution_clock::now();
 
@@ -21,8 +23,6 @@ void NodeBlockCache::eject(NodeBlock *block) {
     std::chrono::duration<double, std::nano> writeDuration = writeEnd - writeStart;
     #pragma omp atomic
     nodeBlockStatistics.totalWriteTimeNanoseconds += writeDuration.count();
-    #pragma omp atomic
-    currentImageCount -= countImages(block->leafNodeContents);
 }
 
 // May be called by multiple threads simultaneously

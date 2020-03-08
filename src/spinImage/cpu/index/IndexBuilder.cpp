@@ -201,6 +201,17 @@ Index SpinImage::index::build(
                       << ", images: " << cache.getCurrentImageCount() << "/" << cache.imageCapacity << ")"
                       << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
                       << ", Image count: " << images.imageCount << std::endl;
+
+            /*unsigned int totalImageCount = 0;
+            for(CachedItem<std::string, NodeBlock> &block : cache.lruItemQueue) {
+                unsigned int entryCount = 0;
+                for(const auto& entry : block.item->leafNodeContents) {
+                    entryCount += entry.size();
+                }
+                totalImageCount += entryCount;
+            }
+            std::cout << totalImageCount << " vs " << cache.getCurrentImageCount() << std::endl;
+            assert(totalImageCount == cache.getCurrentImageCount());*/
         };
 
 

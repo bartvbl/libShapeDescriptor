@@ -56,6 +56,7 @@ void NodeBlockCache::splitNode(
 
     // Create and insert new node into cache
     NodeBlock* childNodeBlock = new NodeBlock();
+    childNodeBlock->blockLock.lock();
     childNodeBlock->identifier = childNodeID;
 
     // Follow linked list and move all nodes into new child node block
@@ -63,8 +64,9 @@ void NodeBlockCache::splitNode(
     {
         // Copy over node into new child node block
         MipmapStack entryMipmaps(entryToMove.image);
+        // Look at the next byte in the mipmap to determine which child bucket will receive the child node
         unsigned char childLevelByte = entryMipmaps.computeLevelByte(levelReached + 1);
-        childNodeBlock->leafNodeContents.at(childLevelByte).emplace_back(entryToMove);
+        childNodeBlock->leafNodeContents.at(childLevelByte)->push_back(entryToMove);
     }
 
     // Mark the entry in the node block as an intermediate node
@@ -74,6 +76,7 @@ void NodeBlockCache::splitNode(
 
     // Add item to the cache
     insertItem(childNodeID, childNodeBlock, true);
+    childNodeBlock->blockLock.unlock();
 }
 
 void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry reference) {
@@ -92,6 +95,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
     std::string currentNodeID;
     // currentNodeID initialises to "", which causes this to fetch the root node
     NodeBlock* currentNodeBlock = borrowItemByID(currentNodeID);
+    currentNodeBlock->blockLock.lock();
     MipmapStack mipmaps(image);
     while(!currentNodeIsLeafNode) {
         unsigned char outgoingEdgeIndex = mipmaps.computeLevelByte(levelReached);
@@ -99,7 +103,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;
             std::string itemID = pathBuilder.str();
-            currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).emplace_back(reference, image);
+            currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex)->push_back(NodeBlockEntry(reference, image));
 
             // 2. Mark modified entry as dirty.
             // Do this first to avoid cases where item is going to ejected from the cache when node is split
@@ -120,14 +124,17 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
                 #pragma omp atomic
                 nodeBlockStatistics.totalSplitTimeNanoseconds += splitDuration.count();
             }
+            currentNodeBlock->blockLock.unlock();
             returnItemByID(currentNodeID);
         } else {
+            currentNodeBlock->blockLock.unlock();
             returnItemByID(currentNodeID);
             // Fetch child of intermediateNode, then start the process over again.
             levelReached++;
             pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
             currentNodeID = pathBuilder.str();
             currentNodeBlock = borrowItemByID(currentNodeID);
+            currentNodeBlock->blockLock.lock();
         }
     }
 

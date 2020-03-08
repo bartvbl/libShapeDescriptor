@@ -93,6 +93,7 @@ private:
         CachedItem<IDType, CachedItemType> evictedItem = *leastRecentlyUsedItem;
         //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is ejecting item " + evictedItem.ID + "\n" << std::flush;
         assert(!evictedItem.isInUse);
+        assert(randomAccessMap.find(evictedItem.ID) != randomAccessMap.end());
         leastRecentlyUsedItem->isInUse = true;
 
         onEviction(evictedItem.item);
@@ -110,6 +111,7 @@ private:
         assert(it->ID == evictedItem.ID);
         this->lruItemQueue.erase(it);
         this->randomAccessMap.erase(evictedItem.ID);
+        assert(randomAccessMap.find(evictedItem.ID) == randomAccessMap.end());
 
         delete evictedItem.item;
     }

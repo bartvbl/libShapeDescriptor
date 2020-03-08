@@ -6,6 +6,7 @@
 const int LZMA2_COMPRESSION_LEVEL = 9;
 
 static FL2_DCtx* decompressionContext = FL2_createDCtxMt(6);
+static FL2_CCtx* compressionContext = FL2_createCCtxMt(6);
 
 std::vector<std::experimental::filesystem::path> SpinImage::utilities::listDirectory(const std::string& directory) {
     std::vector<std::experimental::filesystem::path> foundFiles;
@@ -37,15 +38,18 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
 
     decompressStream.read(compressedBuffer, compressedBufferSize);
 
-    if(enableMultithreading) {
-        FL2_decompressDCtx(
-                decompressionContext,
-                (void*) decompressedBuffer, decompressedBufferSize,
-                (void*) compressedBuffer, compressedBufferSize);
-    } else {
-        FL2_decompress(
-                (void*) decompressedBuffer, decompressedBufferSize,
-                (void*) compressedBuffer, compressedBufferSize);
+//#pragma omp critical
+    {
+        if(enableMultithreading) {
+            FL2_decompressDCtx(
+                    decompressionContext,
+                    (void*) decompressedBuffer, decompressedBufferSize,
+                    (void*) compressedBuffer, compressedBufferSize);
+        } else {
+            FL2_decompress(
+                    (void*) decompressedBuffer, decompressedBufferSize,
+                    (void*) compressedBuffer, compressedBufferSize);
+        }
     }
 
     delete[] compressedBuffer;
@@ -59,11 +63,15 @@ void SpinImage::utilities::writeCompressedFile(const char *buffer, size_t buffer
 
     const size_t maxCompressedBufferSize = FL2_compressBound(bufferSize);
     char* compressedBuffer = new char[maxCompressedBufferSize];
-    unsigned long compressedBufferSize =
-            FL2_compress(
-                    (void*) compressedBuffer, maxCompressedBufferSize,
-                    (void*) buffer, bufferSize,
-                    LZMA2_COMPRESSION_LEVEL);
+    unsigned long compressedBufferSize;
+ //   #pragma omp critical
+    {
+        compressedBufferSize =
+                FL2_compress(
+                        (void*) compressedBuffer, maxCompressedBufferSize,
+                        (void*) buffer, bufferSize,
+                        LZMA2_COMPRESSION_LEVEL);
+    }
 
     const char header[5] = "CDXF";
 

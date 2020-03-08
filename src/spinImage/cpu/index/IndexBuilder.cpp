@@ -164,10 +164,10 @@ Index SpinImage::index::build(
         const std::string archivePath = path.string();
 
         SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
-        indexedFiles->emplace_back(archivePath);
         double totalImageDurationMilliseconds = 0;
         #pragma omp critical
         {
+            indexedFiles->emplace_back(archivePath);
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
             #pragma omp parallel for schedule(dynamic)
             for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {

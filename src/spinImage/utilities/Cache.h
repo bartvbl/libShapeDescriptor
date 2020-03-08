@@ -90,10 +90,13 @@ private:
             return;
         }
 
+
         IDType evictedItemID = leastRecentlyUsedItem->ID;
         //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is ejecting item " + evictedItemID + "\n" << std::flush;
         CachedItemType* itemReference = leastRecentlyUsedItem->item;
         leastRecentlyUsedItem->isInUse = true;
+
+        onEviction(itemReference);
 
         typename std::list<CachedItem<IDType, CachedItemType>>::iterator it = std::next(leastRecentlyUsedItem).base();
 
@@ -158,13 +161,14 @@ private:
         return {true, cachedItemEntry};
     }
 
-    void doItemInsertion(IDType &itemID, CachedItemType* item, bool dirty = false) {
+    void doItemInsertion(IDType &itemID, CachedItemType* item, bool dirty = false, bool borrow = false) {
         //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting a new item with ID " + itemID + "\n" << std::flush;
 
         CachedItem<IDType, CachedItemType> cachedItem = {false, false, "", nullptr};
         cachedItem.ID = itemID;
         cachedItem.item = item;
         cachedItem.isDirty = dirty;
+        cachedItem.isInUse = borrow;
 
         // If cache is full (or due to a race condition over capacity),
         // make space before we insert the new one
@@ -196,11 +200,10 @@ protected:
     }
 
     void returnItemByID(IDType &itemID) {
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is returning item " + itemID + "\n" << std::flush;
         cacheLock.lock();
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
                 it = randomAccessMap.find(itemID);
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is returning item " + itemID + "\n" << std::flush;
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is returning item " + itemID + "\n" << std::flush;
         assert(it != randomAccessMap.end());
         assert(it->second->isInUse);
         it->second->isInUse = false;
@@ -209,13 +212,15 @@ protected:
     }
 
     // Insert an item into the cache. May cause another item to be ejected. Marks item as in use.
-    void insertItem(IDType &itemID, CachedItemType* item, bool dirty = false) {
+    void insertItem(IDType &itemID, CachedItemType* item, bool dirty = false, bool borrowItem = false) {
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting item " + itemID + "\n" << std::flush;
         cacheLock.lock();
-        doItemInsertion(itemID, item, dirty);
+        doItemInsertion(itemID, item, dirty, borrowItem);
         cacheLock.unlock();
     }
 
     void forceLeastRecentlyUsedEviction() {
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is forcing an eviction\n" << std::flush;
         cacheLock.lock();
         evictLeastRecentlyUsedItem();
         cacheLock.unlock();
@@ -223,8 +228,8 @@ protected:
 
     // Set the dirty flag of a given item.
     void markItemDirty(IDType &itemID) {
-        cacheLock.lock();
         //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is marking item " + itemID + " as dirty\n" << std::flush;
+        cacheLock.lock();
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator it = randomAccessMap.find(itemID);
         assert(it != randomAccessMap.end());
         // Not a thorough check that everything is as it should be,
@@ -239,6 +244,8 @@ protected:
     // What needs to happen when a cache miss or eviction occurs depends on the specific use case
     // Since this class is a general implementation, a subclass needs to implement this functionality.
 
+    // May be called by multiple threads simultaneously
+    virtual void onEviction(CachedItemType* item) = 0;
     // May be called by multiple threads simultaneously
     virtual void eject(CachedItemType* item) = 0;
     // May be called by multiple threads simultaneously

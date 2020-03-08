@@ -215,7 +215,7 @@ Index SpinImage::index::build(
     dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
 
     // Final construction of the index
-    Index index(indexDirectory, indexedFiles, rootBlock);
+    Index index(indexDirectory, indexedFiles);
 
     // Write the root node to disk
     std::cout << "Writing core index files.." << std::endl;

@@ -53,6 +53,7 @@ private:
             std::string &childNodeID);
 protected:
     void eject(NodeBlock* item) override;
+    void onEviction(NodeBlock* item) override;
     NodeBlock* load(std::string &itemID) override;
 public:
     NodeBlockCacheStatistics nodeBlockStatistics;
@@ -61,14 +62,13 @@ public:
     NodeBlockCache(
             size_t nodeBlockCapacity,
             size_t imageCapacity,
-            const std::experimental::filesystem::path &indexRootPath,
-            NodeBlock* root)
+            const std::experimental::filesystem::path &indexRootPath)
     :   Cache(nodeBlockCapacity),
         indexRoot(indexRootPath),
         imageCapacity(imageCapacity)
         {
-            std::string rootNodeID("");
-            insertItem(rootNodeID, root, true);
+            std::string rootNodeID;
+            insertItem(rootNodeID, new NodeBlock(), true);
         }
     void insertImage(const QuiccImage &image, const IndexEntry reference);
     size_t getCurrentImageCount() const;

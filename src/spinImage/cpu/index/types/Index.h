@@ -27,9 +27,7 @@ struct Index {
     NodeBlock* rootNode;
 
     Index(std::experimental::filesystem::path &indexedDirectory,
-          std::vector<std::experimental::filesystem::path>* indexedFiles,
-          NodeBlock* root) :
+          std::vector<std::experimental::filesystem::path>* indexedFiles) :
             indexDirectory(indexedDirectory),
-            indexedFileList(indexedFiles),
-            rootNode(root) { }
+            indexedFileList(indexedFiles) { }
 };

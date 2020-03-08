@@ -30,4 +30,8 @@ struct Index {
           std::vector<std::experimental::filesystem::path>* indexedFiles) :
             indexDirectory(indexedDirectory),
             indexedFileList(indexedFiles) { }
+
+    ~Index() {
+        delete indexedFileList;
+    }
 };

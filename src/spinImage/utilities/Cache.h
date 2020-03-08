@@ -262,26 +262,11 @@ public:
     void flush() {
 #pragma omp parallel
         {
-            size_t index = 0;
-            for(auto item = lruItemQueue.begin(); item != lruItemQueue.end(); item++) {
-                if(index % omp_get_num_threads() != omp_get_thread_num()) {
-                    index++;
-                    continue;
-                }
-
-                if(item->isDirty) {
-                    eject(item->item);
-                }
-
-                delete item->item;
-
-                index++;
+            while(lruItemQueue.size() > 0) {
+                std::cout << std::to_string(lruItemQueue.size()) + "\n";
+                forceLeastRecentlyUsedEviction();
             }
         };
-
-        // Empty all cached items
-        lruItemQueue.clear();
-        randomAccessMap.clear();
     }
 
     // NOT thread safe!

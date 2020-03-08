@@ -149,7 +149,7 @@ Index SpinImage::index::build(
     indexedFiles->reserve(filesInDirectory.size());
     std::vector<IndexedFileStatistics> fileStatistics;
 
-    NodeBlock* rootBlock = new NodeBlock();
+    const size_t cacheNodeBlockCapacity = 1000;
 
     const size_t cacheNodeBlockCapacity = 50000;
     const size_t cacheImageCapacity = 40000000;

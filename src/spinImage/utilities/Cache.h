@@ -58,10 +58,9 @@ private:
         // Move the desired node to the front of the LRU queue
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
                 it = randomAccessMap.find(itemID);
-        bool doesContain = it != randomAccessMap.end();
-        assert(doesContain);
-        auto itemReference = randomAccessMap[itemID];
-        lruItemQueue.splice(lruItemQueue.begin(), lruItemQueue, itemReference);
+        assert(it != randomAccessMap.end());
+        assert(it->second->ID == itemID);
+        lruItemQueue.splice(lruItemQueue.begin(), lruItemQueue, it->second);
     }
 
     unsigned int indexOfItemBeingLoaded(IDType &id) {
@@ -90,32 +89,33 @@ private:
             return;
         }
 
-
-        IDType evictedItemID = leastRecentlyUsedItem->ID;
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is ejecting item " + evictedItemID + "\n" << std::flush;
-        CachedItemType* itemReference = leastRecentlyUsedItem->item;
+        // Make a copy so we don't rely on the iterator
+        CachedItem<IDType, CachedItemType> evictedItem = *leastRecentlyUsedItem;
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is ejecting item " + evictedItem.ID + "\n" << std::flush;
+        assert(!evictedItem.isInUse);
         leastRecentlyUsedItem->isInUse = true;
 
-        onEviction(itemReference);
+        onEviction(evictedItem.item);
 
         typename std::list<CachedItem<IDType, CachedItemType>>::iterator it = std::next(leastRecentlyUsedItem).base();
 
-        if(leastRecentlyUsedItem->isDirty) {
+        if(evictedItem.isDirty) {
             statistics.dirtyEvictions++;
 
             cacheLock.unlock();
-            eject(leastRecentlyUsedItem->item);
+            eject(evictedItem.item);
             cacheLock.lock();
         }
 
-        assert(it->ID == evictedItemID);
+        assert(it->ID == evictedItem.ID);
         this->lruItemQueue.erase(it);
-        this->randomAccessMap.erase(evictedItemID);
+        this->randomAccessMap.erase(evictedItem.ID);
 
-        delete itemReference;
+        delete evictedItem.item;
     }
 
     CacheLookupResult<CachedItemType> attemptItemLookup(IDType &itemID) {
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is attempting lookup of item " + itemID + "\n" << std::flush;
         cacheLock.lock();
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
                 it = randomAccessMap.find(itemID);
@@ -123,6 +123,8 @@ private:
 
         if(it != randomAccessMap.end())
         {
+            assert(it->second->ID == itemID);
+
             // Cache hit
             if(it->second->isInUse) {
                 // Collision!

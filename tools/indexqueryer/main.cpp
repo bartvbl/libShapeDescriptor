@@ -68,4 +68,20 @@ int main(int argc, const char** argv) {
     std::cout << "Querying index.." << std::endl;
     std::vector<SpinImage::index::QueryResult> searchResults = SpinImage::index::query(index, queryQUIICIMage, resultCount);
 
+    std::cout << "Dumping results.." << std::endl;
+    SpinImage::cpu::QUICCIImages imageBuffer;
+    imageBuffer.horizontallyIncreasingImages = new QuiccImage[resultCount];
+    imageBuffer.horizontallyDecreasingImages = new QuiccImage[resultCount];
+    imageBuffer.imageCount = resultCount;
+
+    QuiccImage blankImage;
+    std::fill(blankImage.begin(), blankImage.end(), 0);
+    std::fill(imageBuffer.horizontallyIncreasingImages, imageBuffer.horizontallyIncreasingImages + resultCount, blankImage);
+    std::fill(imageBuffer.horizontallyDecreasingImages, imageBuffer.horizontallyDecreasingImages + resultCount, blankImage);
+
+    for(int searchResult = 0; searchResult < resultCount; searchResult++) {
+        imageBuffer.horizontallyIncreasingImages[searchResult] = searchResults.at(searchResult).image;
+    }
+
+    SpinImage::dump::descriptors(imageBuffer, "searchResults.png", 50);
 }

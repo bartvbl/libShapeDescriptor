@@ -34,4 +34,7 @@ template<typename FodderType>
 void CannonFodderCache<FodderType>::insertSomeBlock(size_t ID, FodderType* item) {
     std::string idString = std::to_string(ID);
     this->insertItem(idString, item, true, false);
+    std::string fuzzerID = std::to_string((ID * 5) % 32);
+    this->borrowItemByID(fuzzerID);
+    this->returnItemByID(fuzzerID);
 }

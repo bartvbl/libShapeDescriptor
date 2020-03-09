@@ -12,6 +12,8 @@
 #include "NodeBlockCache.h"
 #include "tsl/ordered_map.h"
 
+#include <fast-lzma2.h>
+
 template<class Key, class T, class Ignore, class Allocator,
         class Hash = std::hash<Key>, class KeyEqual = std::equal_to<Key>,
         class AllocatorPair = typename std::allocator_traits<Allocator>::template rebind_alloc<std::pair<Key, T>>,
@@ -172,23 +174,44 @@ Index SpinImage::index::build(
         delete[] images.horizontallyDecreasingImages;
     }
 }*/
-/*    SpinImage::cpu::QUICCIImages tempImages = SpinImage::read::QUICCImagesFromDumpFile(filesInDirectory.at(0));
+ /*   SpinImage::cpu::QUICCIImages tempImages = SpinImage::read::QUICCImagesFromDumpFile(filesInDirectory.at(0));
     std::cout << "hello " << tempImages.imageCount << std::endl;
-    CannonFodderCache<NodeBlock> lolCache(1000);
+    CannonFodderCache<NodeBlock> lolCache(500);
     for(size_t i = 0; i < 10000000; i++) {
         std::cout << "lol " << i << std::endl;
 #pragma omp parallel for
-        for(unsigned int fileIndex = 0; fileIndex < 250 filesInDirectory.size(); fileIndex++) {
+        for(unsigned int fileIndex = 0; fileIndex < 250; fileIndex++) {
             NodeBlock* block = new NodeBlock();
 
             for(int j = 0; j < tempImages.imageCount; j++) {
-                block->leafNodeContents.at(j % 256).push_back({{0, 0}, tempImages.horizontallyDecreasingImages[j]});
+                block->leafNodeContents.at(j % 256).emplace_back(IndexEntry(0, 0), tempImages.horizontallyDecreasingImages[j]);
             }
             lolCache.insertSomeBlock(i, block);
         }
     }
     lolCache.flush();
 */
+  /*  for(size_t i = 0; i < 10000000; i++) {
+        std::cout << "lol " << i << std::endl;
+#pragma omp parallel
+        {
+            size_t bufferSize = 512 * sizeof(QuiccImage);
+            QuiccImage *imageArray = new QuiccImage[512];
+            char* compressedImages = new char[bufferSize];
+            for (unsigned int fileIndex = 0; fileIndex < 1000; fileIndex++) {
+                FL2_compress(
+                        (void*) compressedImages, bufferSize,
+                        (void*) imageArray, bufferSize,
+                        9);
+                FL2_decompress(
+                        (void*) imageArray, bufferSize,
+                        (void*) compressedImages, bufferSize);
+            }
+            delete[] imageArray;
+            delete[] compressedImages;
+        }
+    }*/
+
     #pragma omp parallel for schedule(dynamic)
     for(unsigned int fileIndex = 0; fileIndex < 75 /*filesInDirectory.size()*/; fileIndex++) {
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);

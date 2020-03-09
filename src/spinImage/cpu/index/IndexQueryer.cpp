@@ -22,10 +22,11 @@ struct UnvisitedNode {
 };
 
 struct SearchResultEntry {
-    SearchResultEntry(IndexEntry entry, unsigned int minDistance)
-        : reference(entry), distanceScore(minDistance) {}
+    SearchResultEntry(IndexEntry entry, const QuiccImage &imageEntry, unsigned int minDistance)
+        : reference(entry), image(imageEntry), distanceScore(minDistance) {}
 
     IndexEntry reference;
+    QuiccImage image;
     unsigned int distanceScore;
 
     bool operator< (const SearchResultEntry &right) const {
@@ -168,7 +169,7 @@ void visitNode(
 
                 // Only consider the image if it is potentially better than what's there already
                 if(distanceScore <= searchResultScoreThreshold) {
-                    currentSearchResults.emplace_back(entry.indexEntry, distanceScore);
+                    currentSearchResults.emplace_back(entry.indexEntry, entry.image, distanceScore);
                 }
             }
         } else {
@@ -188,7 +189,7 @@ void visitNode(
     }
 }
 
-std::vector<IndexEntry> queryIndex(Index index, const QuiccImage &queryImage, unsigned int resultCount) {
+std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index, const QuiccImage &queryImage, unsigned int resultCount) {
     BitCountMipmapStack queryImageBitCountMipmapStack(queryImage);
 
     NodeBlockCache cache(25000, 75000000, index.indexDirectory);
@@ -207,7 +208,7 @@ std::vector<IndexEntry> queryIndex(Index index, const QuiccImage &queryImage, un
             computeMinDistanceThreshold(currentSearchResults) > closedNodeQueue.top().minDistanceScore) {
         UnvisitedNode nextBestUnvisitedNode = closedNodeQueue.top();
         closedNodeQueue.pop();
-        const NodeBlock* block = nullptr;//cache.fetch(nextBestUnvisitedNode.nodeID);
+        const NodeBlock* block = cache.getNodeBlockByID(nextBestUnvisitedNode.nodeID);
         visitNode(block, nextBestUnvisitedNode.path, nextBestUnvisitedNode.nodeID, nextBestUnvisitedNode.level, closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
 
         // Re-sort search results
@@ -221,11 +222,11 @@ std::vector<IndexEntry> queryIndex(Index index, const QuiccImage &queryImage, un
 
     std::cout << "Query finished, " << computeMinDistanceThreshold(currentSearchResults) << " vs " << closedNodeQueue.top().minDistanceScore << std::endl;
 
-    std::vector<IndexEntry> queryResults;
+    std::vector<SpinImage::index::QueryResult> queryResults;
     queryResults.reserve(resultCount);
 
     for(int i = 0; i < resultCount; i++) {
-        queryResults.push_back(currentSearchResults.at(i).reference);
+        queryResults.push_back({currentSearchResults.at(i).reference, currentSearchResults.at(i).image});
     }
 
     return queryResults;

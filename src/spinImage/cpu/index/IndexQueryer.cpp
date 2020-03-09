@@ -200,7 +200,7 @@ std::vector<IndexEntry> queryIndex(Index index, const QuiccImage &queryImage, un
 
     // Root node path is not referenced, so can be left uninitialised
     IndexPath rootNodePath = {0};
-    visitNode(index.rootNode, rootNodePath, "", 0, closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
+    //visitNode(index.rootNode, rootNodePath, "", 0, closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
 
     // Iteratively add additional nodes until there's no chance any additional node can improve the best distance score
     while(  !closedNodeQueue.empty() &&

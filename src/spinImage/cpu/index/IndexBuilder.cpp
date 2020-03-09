@@ -7,6 +7,7 @@
 #include <spinImage/cpu/types/QuiccImage.h>
 #include <json.hpp>
 #include <fstream>
+#include <spinImage/cpu/index/types/CannonFodderCache.h>
 #include "IndexBuilder.h"
 #include "NodeBlockCache.h"
 #include "tsl/ordered_map.h"
@@ -157,6 +158,37 @@ Index SpinImage::index::build(
     IndexConstructionSettings constructionSettings =
             {quicciImageDumpDirectory, indexDumpDirectory, cacheNodeBlockCapacity, cacheImageCapacity};
 
+/*for(int i = 0; i < 100; i++) {
+    std::cout << "lol " << i << std::endl;
+#pragma omp parallel for
+    for(unsigned int fileIndex = 0; fileIndex < 75 filesInDirectory.size(); fileIndex++) {
+        std::cout << "hai " + std::to_string(fileIndex) + "\n";
+        std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
+        const std::string archivePath = path.string();
+
+        SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
+
+        delete[] images.horizontallyIncreasingImages;
+        delete[] images.horizontallyDecreasingImages;
+    }
+}*/
+/*    SpinImage::cpu::QUICCIImages tempImages = SpinImage::read::QUICCImagesFromDumpFile(filesInDirectory.at(0));
+    std::cout << "hello " << tempImages.imageCount << std::endl;
+    CannonFodderCache<NodeBlock> lolCache(1000);
+    for(size_t i = 0; i < 10000000; i++) {
+        std::cout << "lol " << i << std::endl;
+#pragma omp parallel for
+        for(unsigned int fileIndex = 0; fileIndex < 250 filesInDirectory.size(); fileIndex++) {
+            NodeBlock* block = new NodeBlock();
+
+            for(int j = 0; j < tempImages.imageCount; j++) {
+                block->leafNodeContents.at(j % 256).push_back({{0, 0}, tempImages.horizontallyDecreasingImages[j]});
+            }
+            lolCache.insertSomeBlock(i, block);
+        }
+    }
+    lolCache.flush();
+*/
     #pragma omp parallel for schedule(dynamic)
     for(unsigned int fileIndex = 0; fileIndex < 75 /*filesInDirectory.size()*/; fileIndex++) {
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
@@ -169,7 +201,7 @@ Index SpinImage::index::build(
             indexedFiles->emplace_back(archivePath);
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
             #pragma omp parallel for schedule(dynamic)
-            for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
+            for (IndexImageID imageIndex = 0; imageIndex < /*std::min<unsigned int>(*/images.imageCount/*, 20000)*/; imageIndex++) {
                 std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
                 QuiccImage combined = MipmapStack::combine(
                         images.horizontallyIncreasingImages[imageIndex],
@@ -193,6 +225,9 @@ Index SpinImage::index::build(
                 std::cout << "Writing statistics file..\n";
                 dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
             }
+            //if(fileIndex % 10 == 9) {
+            //    cache.flush();
+            //}
 
             std::cout << "Added file " << (fileIndex + 1) << "/" << filesInDirectory.size()
                       << ": " << archivePath

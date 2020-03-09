@@ -72,8 +72,7 @@ void NodeBlockCache::splitNode(
     }
 
     // Mark the entry in the node block as an intermediate node
-    std::vector<NodeBlockEntry> temp;
-    currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).swap(temp);
+    std::vector<NodeBlockEntry>().swap(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex));
     currentNodeBlock->childNodeIsLeafNode.set(outgoingEdgeIndex, false);
 
     // Add item to the cache

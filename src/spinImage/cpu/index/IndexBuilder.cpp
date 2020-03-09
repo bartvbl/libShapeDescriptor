@@ -248,7 +248,7 @@ Index SpinImage::index::build(
                 std::cout << "Writing statistics file..\n";
                 dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
             }
-            //if(fileIndex % 10 == 9) {
+            //if(fileStatistics.size() % 20 == 19) {
             //    cache.flush();
             //}
 
@@ -270,14 +270,23 @@ Index SpinImage::index::build(
             std::cout << totalImageCount << " vs " << cache.getCurrentImageCount() << std::endl;
             assert(totalImageCount == cache.getCurrentImageCount());*/
             unsigned long totalCapacity = 0;
+            unsigned long totalImageCount = 0;
+            unsigned long maximumImageCount = 0;
+            unsigned long leafNodeCount = 0;
             for(CachedItem<std::string, NodeBlock> &block : cache.lruItemQueue) {
                 unsigned int entryCount = 0;
-                for(const auto& entry : block.item->leafNodeContents) {
+                for(int i = 0; i < NODES_PER_BLOCK; i++) {
+                    const auto& entry = block.item->leafNodeContents.at(i);
                     entryCount += entry.capacity();
+                    totalImageCount += entry.size();
+                    maximumImageCount = std::max<unsigned long>(maximumImageCount, entry.size());
+                    if(block.item->childNodeIsLeafNode[i]) {
+                        leafNodeCount++;
+                    }
                 }
                 totalCapacity += entryCount;
             }
-            std::cout << totalCapacity << std::endl;
+            std::cout << totalImageCount << "/" << totalCapacity << " (max " << maximumImageCount << ", average " << (double(totalCapacity) / double(leafNodeCount)) << ")" << std::endl;
         };
 
 

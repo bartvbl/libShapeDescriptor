@@ -188,6 +188,13 @@ public:
         statistics.insertions++;
     }
 
+    void forceLeastRecentlyUsedEviction() {
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is forcing an eviction\n" << std::flush;
+        cacheLock.lock();
+        evictLeastRecentlyUsedItem();
+        cacheLock.unlock();
+    }
+
 protected:
     // Get hold of an item. May cause another item to be ejected. Marks item as in use.
     CachedItemType* borrowItemByID(IDType &itemID) {
@@ -221,13 +228,6 @@ protected:
         //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting item " + itemID + "\n" << std::flush;
         cacheLock.lock();
         doItemInsertion(itemID, item, dirty, borrowItem);
-        cacheLock.unlock();
-    }
-
-    void forceLeastRecentlyUsedEviction() {
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is forcing an eviction\n" << std::flush;
-        cacheLock.lock();
-        evictLeastRecentlyUsedItem();
         cacheLock.unlock();
     }
 

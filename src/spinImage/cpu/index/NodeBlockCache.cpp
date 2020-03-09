@@ -83,6 +83,13 @@ void NodeBlockCache::splitNode(
         // Look at the next byte in the mipmap to determine which child bucket will receive the child node
         unsigned char childLevelByte = entryMipmaps.computeLevelByte(levelReached + 1);
         childNodeBlock->leafNodeContents.at(childLevelByte).push_back(entryToMove);
+
+        // If the child node's leaf node is full, that one needs to be split as well
+        //if(shouldSplit(childNodeBlock->leafNodeContents.at(childLevelByte).size(), levelReached + 1)) {
+        //    std::string splitNodeID = childNodeID + byteToHex(childLevelByte) + "/";
+        //    std::cout << splitNodeID << std::endl;
+        //    splitNode(levelReached + 1, childNodeBlock, childLevelByte, splitNodeID);
+        //}
     }
 
     // Mark the entry in the node block as an intermediate node

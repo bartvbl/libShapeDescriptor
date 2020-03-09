@@ -46,6 +46,18 @@ void NodeBlockCache::onEviction(NodeBlock *block) {
     currentImageCount -= countImages(block->leafNodeContents);
 }
 
+bool shouldSplit(unsigned int leafNodeSize, unsigned int levelReached) {
+    return leafNodeSize >= NODE_SPLIT_THRESHOLD && (levelReached < 8 + (2 * 16) + (4 * 32) - 1);
+}
+
+std::string byteToHex(unsigned char byte) {
+    std::string byteString;
+    const std::string characterMap = "0123456789abcdef";
+    byteString += characterMap.at((byte >> 4U) & 0x0FU);
+    byteString += characterMap.at((byte & 0x0FU));
+    return byteString;
+}
+
 void NodeBlockCache::splitNode(
         unsigned short levelReached,
         NodeBlock *currentNodeBlock,
@@ -53,6 +65,8 @@ void NodeBlockCache::splitNode(
         std::string &childNodeID) {
     #pragma omp atomic
     nodeBlockStatistics.nodeSplitCount++;
+
+    assert(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex]);
 
     //std::cout << "s" << std::flush;
 
@@ -111,8 +125,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             markItemDirty(itemID);
 
             // 3. Split if threshold has been reached, but not if we're at the deepest possible level
-            if(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).size() >= NODE_SPLIT_THRESHOLD &&
-                    (levelReached < 8 + (2 * 16) + (4 * 32) - 1)) {
+            if(shouldSplit(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).size(), levelReached)) {
                 pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
                 std::string childNodeID = pathBuilder.str();
 

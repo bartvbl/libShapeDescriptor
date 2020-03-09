@@ -5,8 +5,8 @@
 
 const int LZMA2_COMPRESSION_LEVEL = 9;
 
-static FL2_DCtx* decompressionContext = FL2_createDCtxMt(6);
-static FL2_CCtx* compressionContext = FL2_createCCtxMt(6);
+//static FL2_DCtx* decompressionContext = FL2_createDCtxMt(6);
+//static FL2_CCtx* compressionContext = FL2_createCCtxMt(6);
 
 std::vector<std::experimental::filesystem::path> SpinImage::utilities::listDirectory(const std::string& directory) {
     std::vector<std::experimental::filesystem::path> foundFiles;
@@ -42,16 +42,17 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
 
 //#pragma omp critical
     {
-        if(enableMultithreading) {
-            FL2_decompressDCtx(
-                    decompressionContext,
-                    (void*) decompressedBuffer, decompressedBufferSize,
-                    (void*) compressedBuffer, compressedBufferSize);
-        } else {
+        //if(enableMultithreading) {
+
+            //FL2_decompressDCtx(
+            //        decompressionContext,
+            //        (void*) decompressedBuffer, decompressedBufferSize,
+            //        (void*) compressedBuffer, compressedBufferSize);
+        //} else {
             FL2_decompress(
                     (void*) decompressedBuffer, decompressedBufferSize,
                     (void*) compressedBuffer, compressedBufferSize);
-        }
+        //}
     }
 
     delete[] compressedBuffer;

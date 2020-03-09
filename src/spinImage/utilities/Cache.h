@@ -39,7 +39,7 @@ struct CacheStatistics {
 };
 
 template<typename IDType, typename CachedItemType> class Cache {
-private:
+public:
     // Nodes are evicted on a Least Recently Used basis
     // This is most efficiently done by using a doubly linked list
     std::list<CachedItem<IDType, CachedItemType>> lruItemQueue;

@@ -147,6 +147,12 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
     }
 }
 
+const NodeBlock* NodeBlockCache::getNodeBlockByID(std::string blockID) {
+    NodeBlock* block = borrowItemByID(blockID);
+    returnItemByID(blockID);
+    return block;
+}
+
 size_t NodeBlockCache::getCurrentImageCount() const {
     return currentImageCount;
 }

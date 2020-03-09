@@ -188,7 +188,7 @@ void visitNode(
     }
 }
 
-std::vector<IndexEntry> queryIndex(Index index, const QuiccImage &queryImage, unsigned int resultCount) {
+std::vector<IndexEntry> queryIndex(Index &index, const QuiccImage &queryImage, unsigned int resultCount) {
     BitCountMipmapStack queryImageBitCountMipmapStack(queryImage);
 
     NodeBlockCache cache(25000, 75000000, index.indexDirectory);
@@ -207,7 +207,7 @@ std::vector<IndexEntry> queryIndex(Index index, const QuiccImage &queryImage, un
             computeMinDistanceThreshold(currentSearchResults) > closedNodeQueue.top().minDistanceScore) {
         UnvisitedNode nextBestUnvisitedNode = closedNodeQueue.top();
         closedNodeQueue.pop();
-        const NodeBlock* block = nullptr;//cache.fetch(nextBestUnvisitedNode.nodeID);
+        const NodeBlock* block = cache.getNodeBlockByID(nextBestUnvisitedNode.nodeID);
         visitNode(block, nextBestUnvisitedNode.path, nextBestUnvisitedNode.nodeID, nextBestUnvisitedNode.level, closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
 
         // Re-sort search results

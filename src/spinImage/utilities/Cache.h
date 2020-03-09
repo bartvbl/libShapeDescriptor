@@ -191,6 +191,7 @@ private:
 protected:
     // Get hold of an item. May cause another item to be ejected. Marks item as in use.
     CachedItemType* borrowItemByID(IDType &itemID) {
+        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " wants to borrow item " + itemID + "\n" << std::flush;
         CacheLookupResult<CachedItemType> lookupResult = {false, nullptr};
         while(!lookupResult.lookupSuccessful) {
             lookupResult = attemptItemLookup(itemID);

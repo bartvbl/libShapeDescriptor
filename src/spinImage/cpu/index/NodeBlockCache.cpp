@@ -54,6 +54,8 @@ void NodeBlockCache::splitNode(
     #pragma omp atomic
     nodeBlockStatistics.nodeSplitCount++;
 
+    //std::cout << "s" << std::flush;
+
     // Create and insert new node into cache
     NodeBlock* childNodeBlock = new NodeBlock();
     childNodeBlock->blockLock.lock();
@@ -66,12 +68,12 @@ void NodeBlockCache::splitNode(
         MipmapStack entryMipmaps(entryToMove.image);
         // Look at the next byte in the mipmap to determine which child bucket will receive the child node
         unsigned char childLevelByte = entryMipmaps.computeLevelByte(levelReached + 1);
-        childNodeBlock->leafNodeContents.at(childLevelByte)->push_back(entryToMove);
+        childNodeBlock->leafNodeContents.at(childLevelByte).push_back(entryToMove);
     }
 
     // Mark the entry in the node block as an intermediate node
-    currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).resize(0);
-    currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).shrink_to_fit();
+    std::vector<NodeBlockEntry> temp;
+    currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).swap(temp);
     currentNodeBlock->childNodeIsLeafNode.set(outgoingEdgeIndex, false);
 
     // Add item to the cache
@@ -103,7 +105,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;
             std::string itemID = pathBuilder.str();
-            currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex)->push_back(NodeBlockEntry(reference, image));
+            currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).push_back(NodeBlockEntry(reference, image));
 
             // 2. Mark modified entry as dirty.
             // Do this first to avoid cases where item is going to ejected from the cache when node is split
@@ -133,6 +135,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             levelReached++;
             pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
             currentNodeID = pathBuilder.str();
+            assert(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).empty());
             currentNodeBlock = borrowItemByID(currentNodeID);
             currentNodeBlock->blockLock.lock();
         }

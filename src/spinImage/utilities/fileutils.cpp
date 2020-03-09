@@ -23,7 +23,7 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
     size_t compressedBufferSize;
     size_t decompressedBufferSize;
 
-    std::ifstream decompressStream(archiveFile.string(), std::ios::out | std::ios::binary);
+    std::ifstream decompressStream(archiveFile.string(), std::ios::in | std::ios::binary);
 
     decompressStream.read(headerTitle.data(), 5);
     decompressStream.read((char*) &decompressedBufferSize, sizeof(size_t));
@@ -37,6 +37,8 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
     assert(std::string(headerTitle.data()) == "CDXF");
 
     decompressStream.read(compressedBuffer, compressedBufferSize);
+
+    decompressStream.close();
 
 //#pragma omp critical
     {

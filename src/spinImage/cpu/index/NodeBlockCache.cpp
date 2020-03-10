@@ -165,7 +165,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             levelReached++;
             pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
             currentNodeID = pathBuilder.str();
-            assert(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).empty());
+            assert(isBottomLevel(levelReached) || currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).empty());
             currentNodeBlock = borrowItemByID(currentNodeID);
             currentNodeBlock->blockLock.lock();
         }

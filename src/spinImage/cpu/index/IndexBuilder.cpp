@@ -273,20 +273,25 @@ Index SpinImage::index::build(
             unsigned long totalImageCount = 0;
             unsigned long maximumImageCount = 0;
             unsigned long leafNodeCount = 0;
+            unsigned long maximumImagesPerNode = 0;
             for(CachedItem<std::string, NodeBlock> &block : cache.lruItemQueue) {
                 unsigned int entryCount = 0;
+                unsigned long nodeImageCount = 0;
                 for(int i = 0; i < NODES_PER_BLOCK; i++) {
                     const auto& entry = block.item->leafNodeContents.at(i);
                     entryCount += entry.capacity();
                     totalImageCount += entry.size();
+                    nodeImageCount += entry.size();
                     maximumImageCount = std::max<unsigned long>(maximumImageCount, entry.size());
                     if(block.item->childNodeIsLeafNode[i]) {
                         leafNodeCount++;
                     }
                 }
+                maximumImagesPerNode = std::max<unsigned long>(maximumImagesPerNode, nodeImageCount);
                 totalCapacity += entryCount;
             }
-            std::cout << totalImageCount << "/" << totalCapacity << " (max " << maximumImageCount << ", average " << (double(totalCapacity) / double(leafNodeCount)) << ")" << std::endl;
+            std::cout << totalImageCount << "/" << (double(totalCapacity*sizeof(NodeBlockEntry)) / double(1024*1024*1024)) << "GB (max " << maximumImageCount << ", max per node " << maximumImagesPerNode << ", average " << (double(totalCapacity) / double(leafNodeCount)) << ")" << std::endl;
+            //cache.flush();
         };
 
 

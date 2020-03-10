@@ -46,8 +46,12 @@ void NodeBlockCache::onEviction(NodeBlock *block) {
     currentImageCount -= countImages(block->leafNodeContents);
 }
 
+bool isBottomLevel(unsigned int levelReached) {
+    return levelReached >= 8 + (2 * 16) + (4 * 32) - 1;
+}
+
 bool shouldSplit(unsigned int leafNodeSize, unsigned int levelReached) {
-    return leafNodeSize >= NODE_SPLIT_THRESHOLD && (levelReached < 8 + (2 * 16) + (4 * 32) - 1);
+    return leafNodeSize >= NODE_SPLIT_THRESHOLD && !isBottomLevel(levelReached);
 }
 
 std::string byteToHex(unsigned char byte) {

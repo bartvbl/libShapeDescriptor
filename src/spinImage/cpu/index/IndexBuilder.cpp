@@ -7,7 +7,6 @@
 #include <spinImage/cpu/types/QuiccImage.h>
 #include <json.hpp>
 #include <fstream>
-#include <spinImage/cpu/index/types/CannonFodderCache.h>
 #include "IndexBuilder.h"
 #include "NodeBlockCache.h"
 #include "tsl/ordered_map.h"
@@ -161,77 +160,6 @@ Index SpinImage::index::build(
     IndexConstructionSettings constructionSettings =
             {quicciImageDumpDirectory, indexDumpDirectory, cacheNodeBlockCapacity, cacheImageCapacity};
 
-/*for(int i = 0; i < 100; i++) {
-    std::cout << "lol " << i << std::endl;
-#pragma omp parallel for
-    for(unsigned int fileIndex = 0; fileIndex < 75 filesInDirectory.size(); fileIndex++) {
-        std::cout << "hai " + std::to_string(fileIndex) + "\n";
-        std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
-        const std::string archivePath = path.string();
-
-        SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
-
-        delete[] images.horizontallyIncreasingImages;
-        delete[] images.horizontallyDecreasingImages;
-    }
-}*/
- /*   SpinImage::cpu::QUICCIImages tempImages = SpinImage::read::QUICCImagesFromDumpFile(filesInDirectory.at(0));
-    std::cout << "hello " << tempImages.imageCount << std::endl;
-    CannonFodderCache<NodeBlock> lolCache(500);
-    for(size_t i = 0; i < 10000000; i++) {
-        std::cout << "lol " << i << std::endl;
-#pragma omp parallel for
-        for(unsigned int fileIndex = 0; fileIndex < 250; fileIndex++) {
-            NodeBlock* block = new NodeBlock();
-
-            for(int j = 0; j < tempImages.imageCount; j++) {
-                block->leafNodeContents.at(j % 256).emplace_back(IndexEntry(0, 0), tempImages.horizontallyDecreasingImages[j]);
-            }
-            lolCache.insertSomeBlock(i, block);
-        }
-    }
-    lolCache.flush();
-*/
-  /*  for(size_t i = 0; i < 10000000; i++) {
-        std::cout << "lol " << i << std::endl;
-#pragma omp parallel
-        {
-            size_t bufferSize = 512 * sizeof(QuiccImage);
-            QuiccImage *imageArray = new QuiccImage[512];
-            char* compressedImages = new char[bufferSize];
-            for (unsigned int fileIndex = 0; fileIndex < 1000; fileIndex++) {
-                FL2_compress(
-                        (void*) compressedImages, bufferSize,
-                        (void*) imageArray, bufferSize,
-                        9);
-                FL2_decompress(
-                        (void*) imageArray, bufferSize,
-                        (void*) compressedImages, bufferSize);
-            }
-            delete[] imageArray;
-            delete[] compressedImages;
-        }
-    }*/
-    /*SpinImage::cpu::QUICCIImages tempImages = SpinImage::read::QUICCImagesFromDumpFile(filesInDirectory.at(0));
-    for(size_t i = 0; i < 10000000; i++) {
-        std::cout << "lol " << i << std::endl;
-
-        NodeBlock *block = new NodeBlock();
-
-        for (int j = 0; j < tempImages.imageCount; j++) {
-            block->leafNodeContents.at(j % 256).emplace_back(IndexEntry(0, 0),
-                                                             tempImages.horizontallyDecreasingImages[j]);
-        }
-#pragma omp parallel for
-        for (unsigned int fileIndex = 0; fileIndex < 250; fileIndex++) {
-            std::cout << fileIndex << std::endl;
-            SpinImage::index::io::writeNodeBlock(block, "testing_dump_" + std::to_string(omp_get_thread_num()));
-            NodeBlock * readBlock = SpinImage::index::io::readNodeBlock("testing_dump_" + std::to_string(omp_get_thread_num()), ".");
-            delete readBlock;
-        }
-    }*/
-
-
     #pragma omp parallel for schedule(dynamic)
     for(unsigned int fileIndex = 0; fileIndex < filesInDirectory.size(); fileIndex++) {
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
@@ -243,6 +171,7 @@ Index SpinImage::index::build(
         {
             indexedFiles->emplace_back(archivePath);
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+
             #pragma omp parallel for schedule(dynamic)
             for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
                 std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
@@ -250,7 +179,6 @@ Index SpinImage::index::build(
                         images.horizontallyIncreasingImages[imageIndex],
                         images.horizontallyDecreasingImages[imageIndex]);
                 IndexEntry entry = {fileIndex, imageIndex};
-                //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting image " + std::to_string(imageIndex)  + "\n";
                 cache.insertImage(combined, entry);
                 std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
                 #pragma omp atomic
@@ -262,15 +190,14 @@ Index SpinImage::index::build(
                     std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
 
             fileStatistics.push_back(gatherFileStatistics(&cache, fileIndex, totalImageDurationMilliseconds, durationMilliseconds, images.imageCount, archivePath));
+
             cache.statistics.reset();
             cache.nodeBlockStatistics.reset();
+
             if(enableStatisticsDump && fileIndex % 100 == 99) {
                 std::cout << "Writing statistics file..\n";
                 dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
             }
-            //if(fileStatistics.size() % 20 == 19) {
-            //    cache.flush();
-            //}
 
             std::cout << "Added file " << (fileIndex + 1) << "/" << filesInDirectory.size()
                       << ": " << archivePath
@@ -279,16 +206,6 @@ Index SpinImage::index::build(
                       << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
                       << ", Image count: " << images.imageCount << std::endl;
 
-            /*unsigned int totalImageCount = 0;
-            for(CachedItem<std::string, NodeBlock> &block : cache.lruItemQueue) {
-                unsigned int entryCount = 0;
-                for(const auto& entry : block.item->leafNodeContents) {
-                    entryCount += entry.size();
-                }
-                totalImageCount += entryCount;
-            }
-            std::cout << totalImageCount << " vs " << cache.getCurrentImageCount() << std::endl;
-            assert(totalImageCount == cache.getCurrentImageCount());*/
             unsigned long totalCapacity = 0;
             unsigned long totalImageCount = 0;
             unsigned long maximumImageCount = 0;
@@ -311,10 +228,11 @@ Index SpinImage::index::build(
                 totalCapacity += entryCount;
             }
             std::cout << totalImageCount << "/" << (double(totalCapacity*sizeof(NodeBlockEntry)) / double(1024*1024*1024)) << "GB (max " << maximumImageCount << ", max per node " << maximumImagesPerNode << ", average " << (double(totalCapacity) / double(leafNodeCount)) << ")" << std::endl;
-            //cache.flush();
         };
 
+        // Necessity to prevent libc from hogging all system memory
         malloc_trim(0);
+
         delete[] images.horizontallyIncreasingImages;
         delete[] images.horizontallyDecreasingImages;
     }

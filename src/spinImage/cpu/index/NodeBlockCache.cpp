@@ -74,8 +74,6 @@ void NodeBlockCache::splitNode(
 
     assert(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex]);
 
-    //std::cout << "s" << std::flush;
-
     // Create and insert new node into cache
     NodeBlock* childNodeBlock = new NodeBlock();
     childNodeBlock->blockLock.lock();
@@ -161,7 +159,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
         } else {
             currentNodeBlock->blockLock.unlock();
             returnItemByID(currentNodeID);
-            // Fetch child of intermediateNode, then start the process over again.
+            // Fetch child of intermediate node, then start the process over again.
             levelReached++;
             pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
             currentNodeID = pathBuilder.str();

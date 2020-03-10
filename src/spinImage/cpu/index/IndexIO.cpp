@@ -19,8 +19,6 @@ Index SpinImage::index::io::readIndex(std::experimental::filesystem::path indexD
     int indexedFileCount = *reinterpret_cast<const int*>(inputBuffer + sizeof(int));
     fileNames->reserve(indexedFileCount);
 
-    size_t stringBufferSize = *reinterpret_cast<const size_t*>(inputBuffer + 2 * sizeof(int));
-
     const char* nextStringBufferEntry = inputBuffer + 2 * sizeof(int) + sizeof(size_t);
 
     std::string tempPathString;
@@ -97,7 +95,6 @@ const size_t entrySize = (sizeof(IndexEntry) + sizeof(QuiccImage));
 
 NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory) {
     std::experimental::filesystem::path nodeBlockFilePath = indexRootDirectory / blockID / "block.dat";
-    //std::cout << "r" << std::flush;
 
     assert(std::experimental::filesystem::exists(nodeBlockFilePath));
 
@@ -132,7 +129,6 @@ NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const
 
 void SpinImage::index::io::writeNodeBlock(const NodeBlock *block, const std::experimental::filesystem::path &indexRootDirectory) {
     int totalIndexEntryCount = 0;
-    //std::cout << "w" << std::flush;
     for(int i = 0; i < NODES_PER_BLOCK; i++) {
         totalIndexEntryCount += block->leafNodeContents.at(i).size();
     }

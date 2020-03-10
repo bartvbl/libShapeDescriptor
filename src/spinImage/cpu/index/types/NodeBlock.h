@@ -13,9 +13,5 @@ struct NodeBlock {
     std::array<std::vector<NodeBlockEntry>, NODES_PER_BLOCK> leafNodeContents;
     std::mutex blockLock;
 
-    NodeBlock() {
-        //for(auto &entry : leafNodeContents) {
-        //    entry.reserve(NODE_SPLIT_THRESHOLD);
-        //}
-    }
+    NodeBlock() {}
 };

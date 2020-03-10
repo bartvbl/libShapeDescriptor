@@ -91,7 +91,6 @@ public:
 
         // Make a copy so we don't rely on the iterator
         CachedItem<IDType, CachedItemType> evictedItem = *leastRecentlyUsedItem;
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is ejecting item " + evictedItem.ID + "\n" << std::flush;
         assert(!evictedItem.isInUse);
         assert(randomAccessMap.find(evictedItem.ID) != randomAccessMap.end());
         leastRecentlyUsedItem->isInUse = true;
@@ -119,7 +118,6 @@ public:
     }
 
     CacheLookupResult<CachedItemType> attemptItemLookup(IDType &itemID) {
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is attempting lookup of item " + itemID + "\n" << std::flush;
         cacheLock.lock();
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
                 it = randomAccessMap.find(itemID);
@@ -133,7 +131,6 @@ public:
             if(it->second->isInUse) {
                 // Collision!
                 // The thread which is trying to read this value will have to come back later
-                //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has experienced a collision!\n" << std::flush;
                 cacheLock.unlock();
                 return {false, nullptr};
             } else {
@@ -151,7 +148,6 @@ public:
                 cacheLock.unlock();
                 return {false, nullptr};
             }
-            //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has experienced a cache miss on item " + itemID + " and is loading it from disk!\n" << std::flush;
             statistics.misses++;
             beingLoadedList.push_back(itemID);
             cacheLock.unlock();
@@ -162,14 +158,11 @@ public:
             it->second->isInUse = true;
             beingLoadedList.erase(beingLoadedList.begin() + indexOfItemBeingLoaded(itemID));
         }
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is borrowing " + itemID + "\n" << std::flush;
         cacheLock.unlock();
         return {true, cachedItemEntry};
     }
 
     void doItemInsertion(IDType &itemID, CachedItemType* item, bool dirty = false, bool borrow = false) {
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting a new item with ID " + itemID + "\n" << std::flush;
-
         CachedItem<IDType, CachedItemType> cachedItem = {false, false, "", nullptr};
         cachedItem.ID = itemID;
         cachedItem.item = item;
@@ -191,7 +184,6 @@ public:
     }
 
     void forceLeastRecentlyUsedEviction() {
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is forcing an eviction\n" << std::flush;
         cacheLock.lock();
         evictLeastRecentlyUsedItem();
         cacheLock.unlock();
@@ -200,21 +192,17 @@ public:
 protected:
     // Get hold of an item. May cause another item to be ejected. Marks item as in use.
     CachedItemType* borrowItemByID(IDType &itemID) {
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " wants to borrow item " + itemID + "\n" << std::flush;
         CacheLookupResult<CachedItemType> lookupResult = {false, nullptr};
         while(!lookupResult.lookupSuccessful) {
             lookupResult = attemptItemLookup(itemID);
             if(!lookupResult.lookupSuccessful) {
-                //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has determined item " + itemID + " is currently in use and is waiting\n" << std::flush;
                 std::this_thread::sleep_for (std::chrono::milliseconds(10));
             }
         }
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is now borrowing item " + itemID + "\n" << std::flush;
         return lookupResult.item;
     }
 
     void returnItemByID(IDType &itemID) {
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is returning item " + itemID + "\n" << std::flush;
         cacheLock.lock();
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
                 it = randomAccessMap.find(itemID);
@@ -222,12 +210,10 @@ protected:
         assert(it->second->isInUse);
         it->second->isInUse = false;
         cacheLock.unlock();
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " has now returned item " + itemID + "\n" << std::flush;
     }
 
     // Insert an item into the cache. May cause another item to be ejected. Marks item as in use.
     void insertItem(IDType &itemID, CachedItemType* item, bool dirty = false, bool borrowItem = false) {
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is inserting item " + itemID + "\n" << std::flush;
         cacheLock.lock();
         doItemInsertion(itemID, item, dirty, borrowItem);
         cacheLock.unlock();
@@ -235,7 +221,6 @@ protected:
 
     // Set the dirty flag of a given item.
     void markItemDirty(IDType &itemID) {
-        //std::cout << "Thread " + std::to_string(omp_get_thread_num()) + " is marking item " + itemID + " as dirty\n" << std::flush;
         cacheLock.lock();
         typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator it = randomAccessMap.find(itemID);
         assert(it != randomAccessMap.end());
@@ -270,7 +255,6 @@ public:
 #pragma omp parallel
         {
             while(lruItemQueue.size() > 0) {
-                //std::cout << std::to_string(lruItemQueue.size()) + "\n";
                 forceLeastRecentlyUsedEviction();
             }
         };
@@ -282,6 +266,4 @@ public:
     size_t getCurrentItemCount() const {
         return lruItemQueue.size();
     }
-
-
 };

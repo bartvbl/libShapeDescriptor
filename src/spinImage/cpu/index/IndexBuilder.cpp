@@ -211,6 +211,25 @@ Index SpinImage::index::build(
             delete[] compressedImages;
         }
     }*/
+    /*SpinImage::cpu::QUICCIImages tempImages = SpinImage::read::QUICCImagesFromDumpFile(filesInDirectory.at(0));
+    for(size_t i = 0; i < 10000000; i++) {
+        std::cout << "lol " << i << std::endl;
+
+        NodeBlock *block = new NodeBlock();
+
+        for (int j = 0; j < tempImages.imageCount; j++) {
+            block->leafNodeContents.at(j % 256).emplace_back(IndexEntry(0, 0),
+                                                             tempImages.horizontallyDecreasingImages[j]);
+        }
+#pragma omp parallel for
+        for (unsigned int fileIndex = 0; fileIndex < 250; fileIndex++) {
+            std::cout << fileIndex << std::endl;
+            SpinImage::index::io::writeNodeBlock(block, "testing_dump_" + std::to_string(omp_get_thread_num()));
+            NodeBlock * readBlock = SpinImage::index::io::readNodeBlock("testing_dump_" + std::to_string(omp_get_thread_num()), ".");
+            delete readBlock;
+        }
+    }*/
+
 
     #pragma omp parallel for schedule(dynamic)
     for(unsigned int fileIndex = 0; fileIndex < 75 /*filesInDirectory.size()*/; fileIndex++) {

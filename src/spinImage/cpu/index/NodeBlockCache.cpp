@@ -46,6 +46,22 @@ void NodeBlockCache::onEviction(NodeBlock *block) {
     currentImageCount -= countImages(block->leafNodeContents);
 }
 
+bool isBottomLevel(unsigned int levelReached) {
+    return levelReached >= 8 + (2 * 16) + (4 * 32) - 1;
+}
+
+bool shouldSplit(unsigned int leafNodeSize, unsigned int levelReached) {
+    return leafNodeSize >= NODE_SPLIT_THRESHOLD && !isBottomLevel(levelReached);
+}
+
+std::string byteToHex(unsigned char byte) {
+    std::string byteString;
+    const std::string characterMap = "0123456789abcdef";
+    byteString += characterMap.at((byte >> 4U) & 0x0FU);
+    byteString += characterMap.at((byte & 0x0FU));
+    return byteString;
+}
+
 void NodeBlockCache::splitNode(
         unsigned short levelReached,
         NodeBlock *currentNodeBlock,
@@ -53,6 +69,8 @@ void NodeBlockCache::splitNode(
         std::string &childNodeID) {
     #pragma omp atomic
     nodeBlockStatistics.nodeSplitCount++;
+
+    assert(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex]);
 
     //std::cout << "s" << std::flush;
 
@@ -69,11 +87,17 @@ void NodeBlockCache::splitNode(
         // Look at the next byte in the mipmap to determine which child bucket will receive the child node
         unsigned char childLevelByte = entryMipmaps.computeLevelByte(levelReached + 1);
         childNodeBlock->leafNodeContents.at(childLevelByte).push_back(entryToMove);
+
+        // If the child node's leaf node is full, that one needs to be split as well
+        //if(shouldSplit(childNodeBlock->leafNodeContents.at(childLevelByte).size(), levelReached + 1)) {
+        //    std::string splitNodeID = childNodeID + byteToHex(childLevelByte) + "/";
+        //    std::cout << splitNodeID << std::endl;
+        //    splitNode(levelReached + 1, childNodeBlock, childLevelByte, splitNodeID);
+        //}
     }
 
     // Mark the entry in the node block as an intermediate node
-    std::vector<NodeBlockEntry> temp;
-    currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).swap(temp);
+    std::vector<NodeBlockEntry>().swap(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex));
     currentNodeBlock->childNodeIsLeafNode.set(outgoingEdgeIndex, false);
 
     // Add item to the cache
@@ -112,8 +136,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             markItemDirty(itemID);
 
             // 3. Split if threshold has been reached, but not if we're at the deepest possible level
-            if(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).size() >= NODE_SPLIT_THRESHOLD &&
-                    (levelReached < 8 + (2 * 16) + (4 * 32) - 1)) {
+            if(shouldSplit(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).size(), levelReached)) {
                 pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
                 std::string childNodeID = pathBuilder.str();
 

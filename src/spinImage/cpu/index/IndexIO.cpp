@@ -124,6 +124,8 @@ NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const
         }
     }
 
+    assert(bufferPointer - inputBuffer == fileSize);
+
     delete[] inputBuffer;
     return nodeBlock;
 }
@@ -153,6 +155,8 @@ void SpinImage::index::io::writeNodeBlock(const NodeBlock *block, const std::exp
             bufferPointer += sizeof(QuiccImage);
         }
     }
+
+    assert(bufferPointer - outputBuffer == outputBufferSize);
 
     std::experimental::filesystem::path nodeBlockFilePath = indexRootDirectory / block->identifier / "block.dat";
     std::experimental::filesystem::create_directories(nodeBlockFilePath.parent_path());

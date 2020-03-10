@@ -13,6 +13,7 @@
 #include "tsl/ordered_map.h"
 
 #include <fast-lzma2.h>
+#include <malloc.h>
 
 template<class Key, class T, class Ignore, class Allocator,
         class Hash = std::hash<Key>, class KeyEqual = std::equal_to<Key>,
@@ -153,8 +154,8 @@ Index SpinImage::index::build(
     indexedFiles->reserve(filesInDirectory.size());
     std::vector<IndexedFileStatistics> fileStatistics;
 
-    const size_t cacheNodeBlockCapacity = 1000;
-    const size_t cacheImageCapacity = 500000;
+    const size_t cacheNodeBlockCapacity = 250000;
+    const size_t cacheImageCapacity = 50000000;
     NodeBlockCache cache(cacheNodeBlockCapacity, cacheImageCapacity, indexDirectory);
 
     IndexConstructionSettings constructionSettings =
@@ -232,7 +233,7 @@ Index SpinImage::index::build(
 
 
     #pragma omp parallel for schedule(dynamic)
-    for(unsigned int fileIndex = 0; fileIndex < 75 /*filesInDirectory.size()*/; fileIndex++) {
+    for(unsigned int fileIndex = 0; fileIndex < filesInDirectory.size(); fileIndex++) {
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
         const std::string archivePath = path.string();
 
@@ -243,7 +244,7 @@ Index SpinImage::index::build(
             indexedFiles->emplace_back(archivePath);
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
             #pragma omp parallel for schedule(dynamic)
-            for (IndexImageID imageIndex = 0; imageIndex < /*std::min<unsigned int>(*/images.imageCount/*, 20000)*/; imageIndex++) {
+            for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
                 std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
                 QuiccImage combined = MipmapStack::combine(
                         images.horizontallyIncreasingImages[imageIndex],
@@ -313,7 +314,7 @@ Index SpinImage::index::build(
             //cache.flush();
         };
 
-
+        malloc_trim(0);
         delete[] images.horizontallyIncreasingImages;
         delete[] images.horizontallyDecreasingImages;
     }

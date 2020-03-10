@@ -14,8 +14,8 @@ struct NodeBlock {
     std::mutex blockLock;
 
     NodeBlock() {
-        for(auto &entry : leafNodeContents) {
-            entry.reserve(NODE_SPLIT_THRESHOLD);
-        }
+        //for(auto &entry : leafNodeContents) {
+        //    entry.reserve(NODE_SPLIT_THRESHOLD);
+        //}
     }
 };

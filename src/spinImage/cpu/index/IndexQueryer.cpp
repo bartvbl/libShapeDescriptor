@@ -163,6 +163,7 @@ void visitNode(
     std::cout << "Visiting node " << nodeID << " - " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes" << std::endl;
     for(int child = 0; child < NODES_PER_BLOCK; child++) {
         if(block->childNodeIsLeafNode[child]) {
+            std::cout << "Child " << child << " is leaf node!" << std::endl;
             // If child is a leaf node, insert its images into the search result list
             for(const NodeBlockEntry& entry : block->leafNodeContents.at(child)) {
                 unsigned int distanceScore = computeDistance(queryImage, entry.image);
@@ -192,7 +193,7 @@ void visitNode(
 std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index, const QuiccImage &queryImage, unsigned int resultCount) {
     BitCountMipmapStack queryImageBitCountMipmapStack(queryImage);
 
-    NodeBlockCache cache(25000, 75000000, index.indexDirectory);
+    NodeBlockCache cache(1000, 500000, index.indexDirectory);
 
     std::priority_queue<UnvisitedNode> closedNodeQueue;
     std::vector<SearchResultEntry> currentSearchResults;
@@ -201,7 +202,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
 
     // Root node path is not referenced, so can be left uninitialised
     IndexPath rootNodePath = {0};
-    visitNode(index.rootNode, rootNodePath, "", 0, closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
+    closedNodeQueue.emplace(rootNodePath, "", 0, 0);
 
     // Iteratively add additional nodes until there's no chance any additional node can improve the best distance score
     while(  !closedNodeQueue.empty() &&

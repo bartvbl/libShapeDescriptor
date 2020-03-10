@@ -96,7 +96,6 @@ public:
         assert(randomAccessMap.find(evictedItem.ID) != randomAccessMap.end());
         leastRecentlyUsedItem->isInUse = true;
 
-        onEviction(evictedItem.item);
 
         typename std::list<CachedItem<IDType, CachedItemType>>::iterator it = std::next(leastRecentlyUsedItem).base();
 
@@ -107,6 +106,9 @@ public:
             eject(evictedItem.item);
             cacheLock.lock();
         }
+
+        onEviction(evictedItem.item);
+
 
         assert(it->ID == evictedItem.ID);
         this->lruItemQueue.erase(it);
@@ -268,10 +270,12 @@ public:
 #pragma omp parallel
         {
             while(lruItemQueue.size() > 0) {
-                std::cout << std::to_string(lruItemQueue.size()) + "\n";
+                //std::cout << std::to_string(lruItemQueue.size()) + "\n";
                 forceLeastRecentlyUsedEviction();
             }
         };
+        assert(lruItemQueue.empty());
+        assert(randomAccessMap.empty());
     }
 
     // NOT thread safe!

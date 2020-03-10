@@ -51,7 +51,9 @@ bool isBottomLevel(unsigned int levelReached) {
 }
 
 bool shouldSplit(unsigned int leafNodeSize, unsigned int levelReached) {
-    return leafNodeSize >= NODE_SPLIT_THRESHOLD && !isBottomLevel(levelReached);
+    return !isBottomLevel(levelReached) ?
+          leafNodeSize >= NODE_SPLIT_THRESHOLD
+        : leafNodeSize >= NODE_SPLIT_THRESHOLD /* * NODES_PER_BLOC*/;
 }
 
 std::string byteToHex(unsigned char byte) {
@@ -79,25 +81,30 @@ void NodeBlockCache::splitNode(
     childNodeBlock->blockLock.lock();
     childNodeBlock->identifier = childNodeID;
 
-    // Follow linked list and move all nodes into new child node block
-    for(const auto& entryToMove : currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex))
-    {
-        // Copy over node into new child node block
-        MipmapStack entryMipmaps(entryToMove.image);
-        // Look at the next byte in the mipmap to determine which child bucket will receive the child node
-        unsigned char childLevelByte = entryMipmaps.computeLevelByte(levelReached + 1);
-        childNodeBlock->leafNodeContents.at(childLevelByte).push_back(entryToMove);
+    if(!isBottomLevel(levelReached)) {
+        // Follow linked list and move all nodes into new child node block
+        for(const auto& entryToMove : currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex))
+        {
+            // Copy over node into new child node block
+            MipmapStack entryMipmaps(entryToMove.image);
+            // Look at the next byte in the mipmap to determine which child bucket will receive the child node
+            unsigned char childLevelByte = entryMipmaps.computeLevelByte(levelReached + 1);
+            childNodeBlock->leafNodeContents.at(childLevelByte).push_back(entryToMove);
+        }
 
-        // If the child node's leaf node is full, that one needs to be split as well
-        //if(shouldSplit(childNodeBlock->leafNodeContents.at(childLevelByte).size(), levelReached + 1)) {
-        //    std::string splitNodeID = childNodeID + byteToHex(childLevelByte) + "/";
-        //    std::cout << splitNodeID << std::endl;
-        //    splitNode(levelReached + 1, childNodeBlock, childLevelByte, splitNodeID);
-        //}
+        // If any node in the new child block is full, that one needs to be split as well
+        for(unsigned int childIndex = 0; childIndex < NODES_PER_BLOCK; childIndex++) {
+            if(shouldSplit(childNodeBlock->leafNodeContents.at(childIndex).size(), levelReached + 1)) {
+                std::string splitNodeID = childNodeID + byteToHex(childIndex) + "/";
+                splitNode(levelReached + 1, childNodeBlock, childIndex, splitNodeID);
+            }
+        }
+
+        // Clear memory occupied by child node
+        std::vector<NodeBlockEntry>().swap(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex));
     }
 
     // Mark the entry in the node block as an intermediate node
-    std::vector<NodeBlockEntry>().swap(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex));
     currentNodeBlock->childNodeIsLeafNode.set(outgoingEdgeIndex, false);
 
     // Add item to the cache

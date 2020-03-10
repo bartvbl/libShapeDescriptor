@@ -209,12 +209,8 @@ struct MipmapStack {
         }
 
         // Level 3 starts after level 2, and contains 32 columns of 4 chunks each
-        if(level < level3StartChunk + (32 * 4)) {
-            return level3.computeLevelByte(level);
-        }
-
-        // Index has run out of intermediate levels, and this function should never be called in that case.
-        throw std::runtime_error("Level byte requested from mipmap stack that is out of bounds!");
+        // Repeating the final byte is a hack
+        return level3.computeLevelByte(std::min<unsigned int>(level, level3StartChunk + (32 * 4) - 1));
     }
 
     template<typename printedType, int intCount> void printBitwiseImage(const std::array<printedType, intCount> &image, int size) {

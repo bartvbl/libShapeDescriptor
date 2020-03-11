@@ -55,6 +55,8 @@ struct IndexConstructionSettings {
     std::experimental::filesystem::path indexDumpDirectory;
     size_t cacheNodeBlockCapacity;
     size_t cacheImageCapacity;
+    size_t fileStartIndex;
+    size_t fileEndIndex;
 };
 
 IndexedFileStatistics gatherFileStatistics(
@@ -103,6 +105,8 @@ void dumpStatisticsFile(
     outJson["cacheImageCapacity"] = constructionSettings.cacheImageCapacity;
     outJson["outputIndexDirectory"] = constructionSettings.indexDumpDirectory;
     outJson["inputImageDirectory"] = constructionSettings.quicciImageDumpDirectory;
+    outJson["fileStartIndex"] = constructionSettings.fileStartIndex;
+    outJson["fileEndIndex"] = constructionSettings.fileEndIndex;
 
     outJson["fileStats"] = {};
     for(const IndexedFileStatistics &fileStats : fileStatistics) {
@@ -138,6 +142,10 @@ void dumpStatisticsFile(
 Index SpinImage::index::build(
         std::experimental::filesystem::path quicciImageDumpDirectory,
         std::experimental::filesystem::path indexDumpDirectory,
+        size_t cacheNodeLimit,
+        size_t cacheImageLimit,
+        size_t fileStartIndex,
+        size_t fileEndIndex,
         bool appendToExistingIndex,
         std::experimental::filesystem::path statisticsFileDumpLocation) {
     std::vector<std::experimental::filesystem::path> filesInDirectory = SpinImage::utilities::listDirectory(quicciImageDumpDirectory);
@@ -154,12 +162,10 @@ Index SpinImage::index::build(
     indexedFiles->reserve(filesInDirectory.size());
     std::vector<IndexedFileStatistics> fileStatistics;
 
-    const size_t cacheNodeBlockCapacity = 250000;
-    const size_t cacheImageCapacity = 50000000;
-    NodeBlockCache cache(cacheNodeBlockCapacity, cacheImageCapacity, indexDirectory, appendToExistingIndex);
+    NodeBlockCache cache(cacheNodeLimit, cacheImageLimit, indexDirectory, appendToExistingIndex);
 
     IndexConstructionSettings constructionSettings =
-            {quicciImageDumpDirectory, indexDumpDirectory, cacheNodeBlockCapacity, cacheImageCapacity};
+            {quicciImageDumpDirectory, indexDumpDirectory, cacheNodeLimit, cacheImageLimit, fileStartIndex, fileEndIndex};
 
     #pragma omp parallel for schedule(dynamic)
     for(unsigned int fileIndex = 0; fileIndex < filesInDirectory.size(); fileIndex++) {

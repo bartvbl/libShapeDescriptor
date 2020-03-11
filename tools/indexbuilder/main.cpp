@@ -12,6 +12,14 @@ int main(int argc, const char** argv) {
             "runtime-json-file", "Dump time measurement and statistics into the specified JSON file.", '\0', arrrgh::Optional, "/none/selected");
     const auto& appendToIndex = parser.add<bool>(
             "append", "Append to existing index.", '\0', arrrgh::Optional, false);
+    const auto& fileStartIndex = parser.add<size_t>(
+            "from-file-index", "Start adding objects at this index in the file listing.", '\0', arrrgh::Optional, 0);
+    const auto& fileEndIndex = parser.add<size_t>(
+            "to-file-index", "Add objects up to this index in the file listing.", '\0', arrrgh::Optional, 0);
+    const auto& cacheNodeLimit = parser.add<size_t>(
+            "cache-node-limit", "Sets the cache's node capacity.", '\0', arrrgh::Optional, 15000);
+    const auto& imageLimit = parser.add<size_t>(
+            "cache-image-limit", "Sets the cache's image capacity.", '\0', arrrgh::Optional, 500000);
     const auto& showHelp = parser.add<bool>(
             "help", "Show this help message.", 'h', arrrgh::Optional, false);
 
@@ -37,7 +45,8 @@ int main(int argc, const char** argv) {
     std::cout << "Building index from files in " << sourceDirectory.value() << "..." << std::endl;
     std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
-    Index index = SpinImage::index::build(sourceDirectory.value(), indexDirectory.value(), appendToIndex.value(), outJsonPath);
+    Index index = SpinImage::index::build(sourceDirectory.value(), indexDirectory.value(),
+            cacheNodeLimit.value(), imageLimit.value(), fileStartIndex.value(), fileEndIndex.value(), appendToIndex.value(), outJsonPath);
 
     std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);

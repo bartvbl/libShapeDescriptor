@@ -48,6 +48,14 @@ struct IndexedFileStatistics {
     double totalReadTimeMilliseconds;
     double totalWriteTimeMilliseconds;
     double totalSplitTimeMilliseconds;
+
+    // Various cache related statistics
+    unsigned long totalAllocatedImageCapacity;
+    unsigned long totalCachedImageCount;
+    unsigned long cachedLeafNodeCount;
+    unsigned long cachedIntermediateNodeCount;
+    unsigned long maximumImagesPerNode;
+    unsigned long maximumImagesPerNodeBlock;
 };
 
 struct IndexConstructionSettings {
@@ -60,12 +68,38 @@ struct IndexConstructionSettings {
 };
 
 IndexedFileStatistics gatherFileStatistics(
-        const NodeBlockCache *cache,
+        NodeBlockCache *cache,
         size_t fileIndex,
         double totalImageDurationMilliseconds,
         double totalExecutionTimeMilliseconds,
         size_t imageCount,
         const std::string &filePath) {
+    unsigned long totalCapacity = 0;
+    unsigned long totalImageCount = 0;
+    unsigned long maximumImageCount = 0;
+    unsigned long leafNodeCount = 0;
+    unsigned long intermediateNodeCount = 0;
+    unsigned long maximumImagesPerNode = 0;
+    for(CachedItem<std::string, NodeBlock> &block : cache.lruItemQueue) {
+        unsigned int entryCount = 0;
+        unsigned long nodeImageCount = 0;
+        for(int i = 0; i < NODES_PER_BLOCK; i++) {
+            const auto& entry = block.item->leafNodeContents.at(i);
+            entryCount += entry.capacity();
+            totalImageCount += entry.size();
+            nodeImageCount += entry.size();
+            maximumImageCount = std::max<unsigned long>(maximumImageCount, entry.size());
+            if(block.item->childNodeIsLeafNode[i]) {
+                leafNodeCount++;
+            } else {
+                intermediateNodeCount++;
+            }
+        }
+        maximumImagesPerNode = std::max<unsigned long>(maximumImagesPerNode, nodeImageCount);
+        totalCapacity += entryCount;
+    }
+    std::cout << (double(totalImageCount*sizeof(NodeBlockEntry)) / double(1024*1024*1024)) << "GB/" << (double(totalCapacity*sizeof(NodeBlockEntry)) / double(1024*1024*1024)) << "GB (max " << maximumImageCount << ", max per node " << maximumImagesPerNode << ", average " << (double(totalCapacity) / double(leafNodeCount)) << ")" << std::endl;
+
     IndexedFileStatistics stats;
     stats.filePath = filePath;
     stats.fileIndex = fileIndex;
@@ -89,6 +123,13 @@ IndexedFileStatistics gatherFileStatistics(
     stats.totalWriteTimeMilliseconds = cache->nodeBlockStatistics.totalWriteTimeNanoseconds / 1000000.0;
     stats.totalSplitTimeMilliseconds = cache->nodeBlockStatistics.totalSplitTimeNanoseconds / 1000000.0;
 
+    stats.totalAllocatedImageCapacity = totalCapacity;
+    stats.totalCachedImageCount = totalImageCount;
+    stats.cachedLeafNodeCount = leafNodeCount;
+    stats.cachedIntermediateNodeCount = intermediateNodeCount;
+    stats.maximumImagesPerNode = maximumImageCount;
+    stats.maximumImagesPerNodeBlock = maximumImagesPerNode;
+
     return stats;
 }
 
@@ -98,7 +139,7 @@ void dumpStatisticsFile(
         const std::experimental::filesystem::path &path) {
     json outJson;
 
-    outJson["version"] = "v2";
+    outJson["version"] = "v3";
     outJson["nodesPerBlock"] = NODES_PER_BLOCK;
     outJson["nodeSplitThreshold"] = NODE_SPLIT_THRESHOLD;
     outJson["cacheNodeBlockCapacity"] = constructionSettings.cacheNodeBlockCapacity;
@@ -132,6 +173,13 @@ void dumpStatisticsFile(
         outJson["fileStats"][fileStats.filePath]["totalReadTimeMilliseconds"] = fileStats.totalReadTimeMilliseconds;
         outJson["fileStats"][fileStats.filePath]["totalWriteTimeMilliseconds"] = fileStats.totalWriteTimeMilliseconds;
         outJson["fileStats"][fileStats.filePath]["totalSplitTimeMilliseconds"] = fileStats.totalSplitTimeMilliseconds;
+
+        outJson["fileStats"][fileStats.filePath]["totalAllocatedImageCapacity"] = fileStats.totalAllocatedImageCapacity;
+        outJson["fileStats"][fileStats.filePath]["totalCachedImageCount"] = fileStats.totalCachedImageCount;
+        outJson["fileStats"][fileStats.filePath]["cachedLeafNodeCount"] = fileStats.cachedLeafNodeCount;
+        outJson["fileStats"][fileStats.filePath]["cachedIntermediateNodeCount"] = fileStats.cachedIntermediateNodeCount;
+        outJson["fileStats"][fileStats.filePath]["maximumImagesPerNode"] = fileStats.maximumImagesPerNode;
+        outJson["fileStats"][fileStats.filePath]["maximumImagesPerNodeBlock"] = fileStats.maximumImagesPerNodeBlock;
     }
 
     std::ofstream outFile(path);
@@ -212,29 +260,6 @@ Index SpinImage::index::build(
                       << ", images: " << cache.getCurrentImageCount() << "/" << cache.imageCapacity << ")"
                       << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
                       << ", Image count: " << images.imageCount << std::endl;
-
-            unsigned long totalCapacity = 0;
-            unsigned long totalImageCount = 0;
-            unsigned long maximumImageCount = 0;
-            unsigned long leafNodeCount = 0;
-            unsigned long maximumImagesPerNode = 0;
-            for(CachedItem<std::string, NodeBlock> &block : cache.lruItemQueue) {
-                unsigned int entryCount = 0;
-                unsigned long nodeImageCount = 0;
-                for(int i = 0; i < NODES_PER_BLOCK; i++) {
-                    const auto& entry = block.item->leafNodeContents.at(i);
-                    entryCount += entry.capacity();
-                    totalImageCount += entry.size();
-                    nodeImageCount += entry.size();
-                    maximumImageCount = std::max<unsigned long>(maximumImageCount, entry.size());
-                    if(block.item->childNodeIsLeafNode[i]) {
-                        leafNodeCount++;
-                    }
-                }
-                maximumImagesPerNode = std::max<unsigned long>(maximumImagesPerNode, nodeImageCount);
-                totalCapacity += entryCount;
-            }
-            std::cout << totalImageCount << "/" << (double(totalCapacity*sizeof(NodeBlockEntry)) / double(1024*1024*1024)) << "GB (max " << maximumImageCount << ", max per node " << maximumImagesPerNode << ", average " << (double(totalCapacity) / double(leafNodeCount)) << ")" << std::endl;
         };
 
         // Necessity to prevent libc from hogging all system memory

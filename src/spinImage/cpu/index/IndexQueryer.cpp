@@ -18,7 +18,7 @@ struct UnvisitedNode {
     unsigned int level;
 
     bool operator< (const UnvisitedNode &right) const {
-        return minDistanceScore < right.minDistanceScore;
+        return minDistanceScore > right.minDistanceScore;
     }
 };
 
@@ -163,7 +163,7 @@ void visitNode(
     const unsigned int searchResultScoreThreshold =
             computeMinDistanceThreshold(currentSearchResults);
 
-    std::cout << "Visiting node " << nodeID << " - " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes" << std::endl;
+    std::cout << "Visiting node " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes, " << searchResultScoreThreshold  << " vs " << closedNodeQueue.top().minDistanceScore << " - " << nodeID << std::endl;
     for(int child = 0; child < NODES_PER_BLOCK; child++) {
         if(block->childNodeIsLeafNode[child]) {
             //std::cout << "Child " << child << " is leaf node!" << std::endl;
@@ -184,6 +184,8 @@ void visitNode(
 
             if(minDistanceScore <= searchResultScoreThreshold) {
                 //unsigned int hammingDistance = computeHammingDistance(queryImageMipmapStack, childPath, level);
+                //std::cout << "Enqueued " << appendPath(nodeID, child) << " -> " << minDistanceScore << std::endl;
+                //std::cout << "Enqueued " << appendPath(nodeID, child) << " -> " << minDistanceScore << std::endl;
                 closedNodeQueue.emplace(
                     childPath,
                     appendPath(nodeID, child),
@@ -218,6 +220,12 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
 
         // Re-sort search results
         std::sort(currentSearchResults.begin(), currentSearchResults.end());
+
+        //std::cout << "Search results: ";
+        //for(int i = 0; i < currentSearchResults.size(); i++) {
+        //    std::cout << currentSearchResults.at(i).distanceScore << ", ";
+        //}
+        //std::cout << std::endl;
 
         // Chop off irrelevant search results
         if(currentSearchResults.size() > resultCount) {

@@ -9,6 +9,7 @@ namespace SpinImage {
         Index build(
                 std::experimental::filesystem::path quicciImageDumpDirectory,
                 std::experimental::filesystem::path indexDumpDirectory,
+                bool appendToExistingIndex = false,
                 std::experimental::filesystem::path statisticsFileDumpLocation = "/none/selected");
     }
 }

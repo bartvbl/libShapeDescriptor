@@ -138,6 +138,7 @@ void dumpStatisticsFile(
 Index SpinImage::index::build(
         std::experimental::filesystem::path quicciImageDumpDirectory,
         std::experimental::filesystem::path indexDumpDirectory,
+        bool appendToExistingIndex,
         std::experimental::filesystem::path statisticsFileDumpLocation) {
     std::vector<std::experimental::filesystem::path> filesInDirectory = SpinImage::utilities::listDirectory(quicciImageDumpDirectory);
     std::cout << "Sizes: " << sizeof(NodeBlock) << ", " << sizeof(NodeBlockEntry) << std::endl;
@@ -155,7 +156,7 @@ Index SpinImage::index::build(
 
     const size_t cacheNodeBlockCapacity = 250000;
     const size_t cacheImageCapacity = 50000000;
-    NodeBlockCache cache(cacheNodeBlockCapacity, cacheImageCapacity, indexDirectory);
+    NodeBlockCache cache(cacheNodeBlockCapacity, cacheImageCapacity, indexDirectory, appendToExistingIndex);
 
     IndexConstructionSettings constructionSettings =
             {quicciImageDumpDirectory, indexDumpDirectory, cacheNodeBlockCapacity, cacheImageCapacity};

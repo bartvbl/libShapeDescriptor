@@ -14,6 +14,7 @@ struct UnvisitedNode {
     IndexPath path;
     std::string nodeID;
     unsigned int minDistanceScore;
+    unsigned int hammingDistanceScore;
     unsigned int level;
 
     bool operator< (const UnvisitedNode &right) const {
@@ -36,11 +37,13 @@ struct SearchResultEntry {
 
 std::stringstream IDBuilder;
 
-std::string appendPath(const std::string &parentNodeID, unsigned int childIndex) {
-    IDBuilder.str(std::string());
-    IDBuilder << std::hex;
-    IDBuilder << (childIndex < 16 ? "0" : "") << int(childIndex) << "/";
-    return IDBuilder.str();
+std::string appendPath(const std::string &parentNodeID, unsigned char childIndex) {
+    std::string byteString = parentNodeID;
+    const std::string characterMap = "0123456789abcdef";
+    byteString += characterMap.at((childIndex >> 4U) & 0x0FU);
+    byteString += characterMap.at((childIndex & 0x0FU));
+    byteString += "/";
+    return byteString;
 }
 
 unsigned int computeDistance(const QuiccImage &needle, const QuiccImage &haystack) {
@@ -163,7 +166,7 @@ void visitNode(
     std::cout << "Visiting node " << nodeID << " - " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes" << std::endl;
     for(int child = 0; child < NODES_PER_BLOCK; child++) {
         if(block->childNodeIsLeafNode[child]) {
-            std::cout << "Child " << child << " is leaf node!" << std::endl;
+            //std::cout << "Child " << child << " is leaf node!" << std::endl;
             // If child is a leaf node, insert its images into the search result list
             for(const NodeBlockEntry& entry : block->leafNodeContents.at(child)) {
                 unsigned int distanceScore = computeDistance(queryImage, entry.image);
@@ -180,6 +183,7 @@ void visitNode(
             unsigned int minDistanceScore = computeMinDistance(queryImageMipmapStack, childPath, level);
 
             if(minDistanceScore <= searchResultScoreThreshold) {
+                //unsigned int hammingDistance = computeHammingDistance(queryImageMipmapStack, childPath, level);
                 closedNodeQueue.emplace(
                     childPath,
                     appendPath(nodeID, child),
@@ -193,7 +197,7 @@ void visitNode(
 std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index, const QuiccImage &queryImage, unsigned int resultCount) {
     BitCountMipmapStack queryImageBitCountMipmapStack(queryImage);
 
-    NodeBlockCache cache(1000, 500000, index.indexDirectory);
+    NodeBlockCache cache(100000, 2500000, index.indexDirectory, true);
 
     std::priority_queue<UnvisitedNode> closedNodeQueue;
     std::vector<SearchResultEntry> currentSearchResults;

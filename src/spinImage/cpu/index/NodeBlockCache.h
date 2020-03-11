@@ -62,13 +62,16 @@ public:
     NodeBlockCache(
             size_t nodeBlockCapacity,
             size_t imageCapacity,
-            const std::experimental::filesystem::path &indexRootPath)
+            const std::experimental::filesystem::path &indexRootPath,
+            bool loadExisting = false)
     :   Cache(nodeBlockCapacity),
         indexRoot(indexRootPath),
         imageCapacity(imageCapacity)
         {
-            std::string rootNodeID;
-            insertItem(rootNodeID, new NodeBlock(), true);
+            if(!loadExisting) {
+                std::string rootNodeID;
+                insertItem(rootNodeID, new NodeBlock(), true);
+            }
         }
     void insertImage(const QuiccImage &image, const IndexEntry reference);
     const NodeBlock* getNodeBlockByID(std::string blockID);

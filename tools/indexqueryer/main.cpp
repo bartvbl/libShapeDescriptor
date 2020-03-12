@@ -49,13 +49,15 @@ int main(int argc, const char** argv) {
 
     QuiccImage queryQUIICIMage;
 
-    for(int row = 0; row < spinImageWidthPixels; row++) {
-        std::bitset<32> bitQueue(0);
-        for(int col = 0; col < spinImageWidthPixels; col++) {
-            bitQueue[col % 32] = imageData.at(4 * (row * spinImageWidthPixels + col)) != 0;
-            if(col % 32 == 0) {
-                queryQUIICIMage[row * (spinImageWidthPixels / 32) + (col / 32)] = bitQueue.to_ulong();
-                bitQueue.reset();
+    for(unsigned int row = 0; row < spinImageWidthPixels; row++) {
+        unsigned int chunk = 0;
+        for(unsigned int col = 0; col < spinImageWidthPixels; col++) {
+            const unsigned int colourChannelsPerPixel = 4;
+            unsigned int bit = imageData.at(colourChannelsPerPixel * (row * spinImageWidthPixels + col)) != 0 ? 1 : 0;
+            chunk = chunk | (bit << (31U - col%32));
+            if(col % 32 == 31) {
+                queryQUIICIMage[row * (spinImageWidthPixels / 32) + (col / 32)] = chunk;
+                chunk = 0;
             }
         }
     }

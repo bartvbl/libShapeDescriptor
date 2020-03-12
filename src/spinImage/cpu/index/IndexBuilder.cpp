@@ -80,7 +80,7 @@ IndexedFileStatistics gatherFileStatistics(
     unsigned long leafNodeCount = 0;
     unsigned long intermediateNodeCount = 0;
     unsigned long maximumImagesPerNode = 0;
-    for(CachedItem<std::string, NodeBlock> &block : cache.lruItemQueue) {
+    for(CachedItem<std::string, NodeBlock> &block : cache->lruItemQueue) {
         unsigned int entryCount = 0;
         unsigned long nodeImageCount = 0;
         for(int i = 0; i < NODES_PER_BLOCK; i++) {

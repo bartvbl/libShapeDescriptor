@@ -17,6 +17,9 @@ struct UnvisitedNode {
     unsigned int hammingDistanceScore;
     unsigned int level;
 
+    // We want the open node priority queue to sort items by lowest score
+    // Since the priority queue by default optimises for finding the highest sorted element,
+    // we need to invert the sort order.
     bool operator< (const UnvisitedNode &right) const {
         return minDistanceScore > right.minDistanceScore;
     }
@@ -91,7 +94,7 @@ unsigned int computeMinDistance(
                 needle.level1[level * 8 + 6],
                 needle.level1[level * 8 + 7]
             };
-        } else if(level < 16 + 8) {
+        } else if(level < 8 + 16) {
             bitDistances = {
                 needle.level2[(level - 8) * 8 + 0],
                 needle.level2[(level - 8) * 8 + 1],

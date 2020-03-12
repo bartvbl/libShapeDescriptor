@@ -26,11 +26,16 @@ struct BitCountMipmapStack {
 
         for(int mipmapRow = 0; mipmapRow < 32; mipmapRow++) {
             for(int mipmapCol = 0; mipmapCol < 32; mipmapCol++) {
-                unsigned int top = quiccImage[2 * 2 * mipmapRow + (mipmapCol / 16)];
-                unsigned int bottom = quiccImage[2 * 2 * mipmapRow + (mipmapCol / 16) + 2];
-                std::bitset<32> topBits(top);
-                std::bitset<32> bottomBits(bottom);
-                unsigned char relativeCol = (2 * mipmapCol) % 32;
+                // One row is 2 unsigned integers
+                const unsigned int uintsPerRow = 2;
+                unsigned int quiccImageRow = 2 * mipmapRow;
+                unsigned int quiccImageCol = mipmapCol / 16;
+                unsigned int topIndex = quiccImageRow * uintsPerRow + quiccImageCol;
+                unsigned int bottomIndex = (quiccImageRow + 1) * uintsPerRow + quiccImageCol;
+                unsigned int top = quiccImage[topIndex];
+                unsigned int bottom = quiccImage[bottomIndex];
+
+                unsigned int relativeCol = (2 * mipmapCol) % 32;
 
                 const char bitShuffleIndices[32] =
                     {24, 25, 26, 27,
@@ -46,11 +51,12 @@ struct BitCountMipmapStack {
                 int transposedMipmapCol = bitShuffleIndices[mipmapRow];
 
                 image[transposedMipmapRow * 32 + transposedMipmapCol] =
-                    int(topBits[31 - relativeCol]) +
-                    int(topBits[31 - (relativeCol + 1)]) +
-                    int(bottomBits[31 - relativeCol]) +
-                    int(bottomBits[31 - (relativeCol + 1)]);
+                    int((top >> (31 - relativeCol)) & 0x1) +
+                    int((top >> (31 - relativeCol - 1)) & 0x1) +
+                    int((bottom >> (31 - relativeCol)) & 0x1) +
+                    int((bottom >> (31 - relativeCol - 1)) & 0x1);
             }
+            std::cout << std::endl;
         }
 
         return image;
@@ -100,7 +106,7 @@ struct BitCountMipmapStack {
         for(unsigned int row = 0; row < 8; row++) {
             std::cout << "\t";
             for(unsigned int col = 0; col < 8; col++) {
-                std::cout << (level1[row * 8 + col]) << (col < 7 ? ", " : "");
+                std::cout << (level1[row * 8 + col]) << (col < 7 ? " " : "");
             }
             std::cout << std::endl;
         }
@@ -109,7 +115,7 @@ struct BitCountMipmapStack {
         for(unsigned int row = 0; row < 16; row++) {
             std::cout << "\t";
             for(unsigned int col = 0; col < 16; col++) {
-                std::cout << (level2[row * 16 + col]) << (col < 15 ? ", " : "");
+                std::cout << (level2[row * 16 + col]) << (col < 15 ? " " : "");
             }
             std::cout << std::endl;
         }

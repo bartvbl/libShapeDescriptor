@@ -56,7 +56,6 @@ struct BitCountMipmapStack {
                     int((bottom >> (31 - relativeCol)) & 0x1) +
                     int((bottom >> (31 - relativeCol - 1)) & 0x1);
             }
-            std::cout << std::endl;
         }
 
         return image;
@@ -99,6 +98,7 @@ struct BitCountMipmapStack {
           level2(computeLevel2()),
           level1(computeLevel1()) {
         static_assert(spinImageWidthPixels == 64, "The index implementation of the library has been constructed for images of size 64x64");
+        print();
     }
 
     void print() {
@@ -106,7 +106,8 @@ struct BitCountMipmapStack {
         for(unsigned int row = 0; row < 8; row++) {
             std::cout << "\t";
             for(unsigned int col = 0; col < 8; col++) {
-                std::cout << (level1[row * 8 + col]) << (col < 7 ? " " : "");
+                int value = (level1[row * 8 + col]);
+                std::cout << (value == 0 ? "." : std::to_string(value)) << (col < 7 ? " " : "");
             }
             std::cout << std::endl;
         }
@@ -115,7 +116,8 @@ struct BitCountMipmapStack {
         for(unsigned int row = 0; row < 16; row++) {
             std::cout << "\t";
             for(unsigned int col = 0; col < 16; col++) {
-                std::cout << (level2[row * 16 + col]) << (col < 15 ? " " : "");
+                int value = (level2[row * 16 + col]);
+                std::cout << (value == 0 ? "." : std::to_string(value)) << (col < 15 ? " " : "");
             }
             std::cout << std::endl;
         }
@@ -124,7 +126,8 @@ struct BitCountMipmapStack {
         for(unsigned int row = 0; row < 32; row++) {
             std::cout << "\t";
             for(unsigned int col = 0; col < 32; col++) {
-                std::cout << int(level3[row * 32 + col]);
+                int value = int(level3[row * 32 + col]);
+                std::cout << (value == 0 ? "." : std::to_string(value)) << (col < 31 ? " " : "");
             }
             std::cout << std::endl;
         }

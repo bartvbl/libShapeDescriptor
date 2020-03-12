@@ -203,11 +203,19 @@ Index SpinImage::index::build(
 
     std::vector<std::experimental::filesystem::path>* indexedFiles =
             new std::vector<std::experimental::filesystem::path>();
+
+    if(appendToExistingIndex) {
+        Index loadedIndex = SpinImage::index::io::readIndex(indexDumpDirectory);
+        indexedFiles->resize(loadedIndex.indexedFileList->size());
+        std::copy(loadedIndex.indexedFileList->begin(), loadedIndex.indexedFileList->end(), indexedFiles->begin());
+    } else {
+        indexedFiles->reserve(filesInDirectory.size());
+    }
+
     bool enableStatisticsDump = statisticsFileDumpLocation != std::experimental::filesystem::path("/none/selected");
     if(enableStatisticsDump) {
         std::cout << "Statistics will be dumped to " << statisticsFileDumpLocation << std::endl;
     }
-    indexedFiles->reserve(filesInDirectory.size());
     std::vector<IndexedFileStatistics> fileStatistics;
 
     NodeBlockCache cache(cacheNodeLimit, cacheImageLimit, indexDirectory, appendToExistingIndex);
@@ -215,8 +223,10 @@ Index SpinImage::index::build(
     IndexConstructionSettings constructionSettings =
             {quicciImageDumpDirectory, indexDumpDirectory, cacheNodeLimit, cacheImageLimit, fileStartIndex, fileEndIndex};
 
+    size_t endIndex = fileEndIndex == fileStartIndex ? filesInDirectory.size() : fileEndIndex;
+
     #pragma omp parallel for schedule(dynamic)
-    for(unsigned int fileIndex = 0; fileIndex < filesInDirectory.size(); fileIndex++) {
+    for(unsigned int fileIndex = 0; fileIndex < endIndex; fileIndex++) {
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
         const std::string archivePath = path.string();
 
@@ -254,7 +264,7 @@ Index SpinImage::index::build(
                 dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
             }
 
-            std::cout << "Added file " << (fileIndex + 1) << "/" << filesInDirectory.size()
+            std::cout << "Added file " << (fileIndex + 1) << "/" << endIndex
                       << ": " << archivePath
                       << ", Cache (nodes: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity
                       << ", images: " << cache.getCurrentImageCount() << "/" << cache.imageCapacity << ")"

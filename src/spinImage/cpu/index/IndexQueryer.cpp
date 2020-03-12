@@ -157,6 +157,7 @@ void visitNode(
         const std::string &nodeID,
         const unsigned int level,
         std::priority_queue<UnvisitedNode> &closedNodeQueue,
+        std::vector<UnvisitedNode> &debug_closedNodeQueue,
         std::vector<SearchResultEntry> &currentSearchResults,
         const BitCountMipmapStack &queryImageMipmapStack,
         const QuiccImage &queryImage) {
@@ -194,6 +195,11 @@ void visitNode(
                     appendPath(nodeID, child),
                     minDistanceScore,
                     childLevel);
+                debug_closedNodeQueue.emplace_back(
+                    childPath,
+                    appendPath(nodeID, child),
+                    minDistanceScore,
+                    childLevel);
             }
         }
     }
@@ -205,6 +211,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
     NodeBlockCache cache(100000, 2500000, index.indexDirectory, true);
 
     std::priority_queue<UnvisitedNode> closedNodeQueue;
+    std::vector<UnvisitedNode> debug_closedNodeQueue;
     std::vector<SearchResultEntry> currentSearchResults;
 
     currentSearchResults.reserve(30000 + resultCount + NODES_PER_BLOCK * NODE_SPLIT_THRESHOLD);
@@ -212,28 +219,38 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
     // Root node path is not referenced, so can be left uninitialised
     IndexPath rootNodePath = {0};
     closedNodeQueue.emplace(rootNodePath, "", 0, 0);
+    debug_closedNodeQueue.emplace_back(rootNodePath, "", 0, 0);
 
     // Iteratively add additional nodes until there's no chance any additional node can improve the best distance score
     while(  !closedNodeQueue.empty() &&
             computeMinDistanceThreshold(currentSearchResults) > closedNodeQueue.top().minDistanceScore) {
         UnvisitedNode nextBestUnvisitedNode = closedNodeQueue.top();
         closedNodeQueue.pop();
+        debug_closedNodeQueue.erase(debug_closedNodeQueue.begin());
         const NodeBlock* block = cache.getNodeBlockByID(nextBestUnvisitedNode.nodeID);
-        visitNode(block, nextBestUnvisitedNode.path, nextBestUnvisitedNode.nodeID, nextBestUnvisitedNode.level, closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
+        visitNode(block, nextBestUnvisitedNode.path, nextBestUnvisitedNode.nodeID, nextBestUnvisitedNode.level,
+                closedNodeQueue, debug_closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
 
         // Re-sort search results
         std::sort(currentSearchResults.begin(), currentSearchResults.end());
-
-        //std::cout << "Search results: ";
-        //for(int i = 0; i < currentSearchResults.size(); i++) {
-        //    std::cout << currentSearchResults.at(i).distanceScore << ", ";
-        //}
-        //std::cout << std::endl;
 
         // Chop off irrelevant search results
         if(currentSearchResults.size() > resultCount) {
             currentSearchResults.erase(currentSearchResults.begin() + resultCount, currentSearchResults.end());
         }
+
+        std::sort(debug_closedNodeQueue.begin(), debug_closedNodeQueue.end());
+
+        /*std::cout << "Search results: ";
+        for(int i = 0; i < currentSearchResults.size(); i++) {
+            std::cout << currentSearchResults.at(i).distanceScore << ", ";
+        }
+        std::cout << std::endl;
+        std::cout << "Closed nodes: ";
+        for(int i = 0; i < debug_closedNodeQueue.size(); i++) {
+            std::cout << debug_closedNodeQueue.at(i).minDistanceScore << "|" << debug_closedNodeQueue.at(i).nodeID << ", ";
+        }
+        std::cout << std::endl;*/
     }
 
     std::cout << "Query finished, " << computeMinDistanceThreshold(currentSearchResults) << " vs " << closedNodeQueue.top().minDistanceScore << std::endl;

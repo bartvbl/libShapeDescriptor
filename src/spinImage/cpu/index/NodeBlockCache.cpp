@@ -53,7 +53,7 @@ bool isBottomLevel(unsigned int levelReached) {
 bool shouldSplit(unsigned int leafNodeSize, unsigned int levelReached) {
     return !isBottomLevel(levelReached) ?
           leafNodeSize >= NODE_SPLIT_THRESHOLD
-        : leafNodeSize >= NODE_SPLIT_THRESHOLD /* * NODES_PER_BLOC*/;
+        : leafNodeSize >= NODE_SPLIT_THRESHOLD * 64;
 }
 
 std::string byteToHex(unsigned char byte) {

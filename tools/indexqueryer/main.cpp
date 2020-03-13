@@ -53,7 +53,7 @@ int main(int argc, const char** argv) {
         unsigned int chunk = 0;
         for(unsigned int col = 0; col < spinImageWidthPixels; col++) {
             const unsigned int colourChannelsPerPixel = 4;
-            unsigned int bit = imageData.at(colourChannelsPerPixel * (row * spinImageWidthPixels + col)) != 0 ? 1 : 0;
+            unsigned int bit = imageData.at(colourChannelsPerPixel * ((spinImageWidthPixels - 1 - row) * spinImageWidthPixels + col)) != 0 ? 1 : 0;
             chunk = chunk | (bit << (31U - col%32));
             if(col % 32 == 31) {
                 queryQUIICIMage[row * (spinImageWidthPixels / 32) + (col / 32)] = chunk;

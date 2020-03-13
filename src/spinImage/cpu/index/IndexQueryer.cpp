@@ -21,20 +21,27 @@ struct UnvisitedNode {
     // Since the priority queue by default optimises for finding the highest sorted element,
     // we need to invert the sort order.
     bool operator< (const UnvisitedNode &right) const {
-        return minDistanceScore > right.minDistanceScore;
+        if(minDistanceScore != right.minDistanceScore) {
+            return minDistanceScore > right.minDistanceScore;
+        }
+        return level < right.level;
     }
 };
 
 struct SearchResultEntry {
-    SearchResultEntry(IndexEntry entry, const QuiccImage &imageEntry, unsigned int minDistance)
-        : reference(entry), image(imageEntry), distanceScore(minDistance) {}
+    SearchResultEntry(IndexEntry entry, const QuiccImage &imageEntry, unsigned int minDistance, unsigned int hammingDistance)
+        : reference(entry), image(imageEntry), distanceScore(minDistance), hammingDistanceScore(hammingDistance) {}
 
     IndexEntry reference;
     QuiccImage image;
     unsigned int distanceScore;
+    unsigned int hammingDistanceScore;
 
     bool operator< (const SearchResultEntry &right) const {
-        return distanceScore < right.distanceScore;
+        if(distanceScore != right.distanceScore) {
+            return distanceScore < right.distanceScore;
+        }
+        return hammingDistanceScore < right.hammingDistanceScore;
     }
 };
 
@@ -57,16 +64,37 @@ unsigned int computeDistance(const QuiccImage &needle, const QuiccImage &haystac
     return score;
 }
 
+unsigned int computeHammingDistance(const QuiccImage &needle, const QuiccImage &haystack) {
+    unsigned int score = 0;
+    for(int i = 0; i < needle.size(); i++) {
+        score += std::bitset<32>(needle[i] ^ haystack[i]).count();
+    }
+    return score;
+}
+
+unsigned int computeMinHammingDistance(const std::array<unsigned short, 8> &bitDistances, const unsigned char levelByte) {
+    unsigned char needleByte =
+            (bitDistances[0] != 0 ? 0x80 : 0x00) |
+            (bitDistances[1] != 0 ? 0x40 : 0x00) |
+            (bitDistances[2] != 0 ? 0x20 : 0x00) |
+            (bitDistances[3] != 0 ? 0x10 : 0x00) |
+            (bitDistances[4] != 0 ? 0x08 : 0x00) |
+            (bitDistances[5] != 0 ? 0x04 : 0x00) |
+            (bitDistances[6] != 0 ? 0x02 : 0x00) |
+            (bitDistances[7] != 0 ? 0x01 : 0x00);
+    return std::bitset<8>(needleByte ^ levelByte).count();
+}
+
 unsigned int computeLevelByteMinDistance(const std::array<unsigned short, 8> &bitDistances, const unsigned char levelByte) {
-    std::bitset<8> levelByteBits(levelByte);
-    return levelByteBits[7] * (bitDistances[0] == 0 ? 1 : 0) +
-           levelByteBits[6] * (bitDistances[1] == 0 ? 1 : 0) +
-           levelByteBits[5] * (bitDistances[2] == 0 ? 1 : 0) +
-           levelByteBits[4] * (bitDistances[3] == 0 ? 1 : 0) +
-           levelByteBits[3] * (bitDistances[4] == 0 ? 1 : 0) +
-           levelByteBits[2] * (bitDistances[5] == 0 ? 1 : 0) +
-           levelByteBits[1] * (bitDistances[6] == 0 ? 1 : 0) +
-           levelByteBits[0] * (bitDistances[7] == 0 ? 1 : 0);
+    return
+           (1 - int((levelByte >> 7) & 0x1)) * bitDistances[0] +
+           (1 - int((levelByte >> 6) & 0x1)) * bitDistances[1] +
+           (1 - int((levelByte >> 5) & 0x1)) * bitDistances[2] +
+           (1 - int((levelByte >> 4) & 0x1)) * bitDistances[3] +
+           (1 - int((levelByte >> 3) & 0x1)) * bitDistances[4] +
+           (1 - int((levelByte >> 2) & 0x1)) * bitDistances[5] +
+           (1 - int((levelByte >> 1) & 0x1)) * bitDistances[6] +
+           (1 - int((levelByte >> 0) & 0x1)) * bitDistances[7];
 }
 
 unsigned int computeMinDistance(
@@ -121,6 +149,7 @@ unsigned int computeMinDistance(
         // Compute and update partial min distance score
         columnMinDistance += computeLevelByteMinDistance(bitDistances, levelByte);
 
+        // Once we have reached the end of the column, we commit the results
             // Level 1
         if  ((level < 8) ||
             // Level 2
@@ -157,7 +186,6 @@ void visitNode(
         const std::string &nodeID,
         const unsigned int level,
         std::priority_queue<UnvisitedNode> &closedNodeQueue,
-        std::vector<UnvisitedNode> &debug_closedNodeQueue,
         std::vector<SearchResultEntry> &currentSearchResults,
         const BitCountMipmapStack &queryImageMipmapStack,
         const QuiccImage &queryImage) {
@@ -177,7 +205,8 @@ void visitNode(
 
                 // Only consider the image if it is potentially better than what's there already
                 if(distanceScore <= searchResultScoreThreshold) {
-                    currentSearchResults.emplace_back(entry.indexEntry, entry.image, distanceScore);
+                    unsigned int hammingDistanceScore = computeHammingDistance(queryImage, entry.image);
+                    currentSearchResults.emplace_back(entry.indexEntry, entry.image, distanceScore, hammingDistanceScore);
                 }
             }
         } else {
@@ -195,11 +224,6 @@ void visitNode(
                     appendPath(nodeID, child),
                     minDistanceScore,
                     childLevel);
-                debug_closedNodeQueue.emplace_back(
-                    childPath,
-                    appendPath(nodeID, child),
-                    minDistanceScore,
-                    childLevel);
             }
         }
     }
@@ -211,7 +235,6 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
     NodeBlockCache cache(100000, 2500000, index.indexDirectory, true);
 
     std::priority_queue<UnvisitedNode> closedNodeQueue;
-    std::vector<UnvisitedNode> debug_closedNodeQueue;
     std::vector<SearchResultEntry> currentSearchResults;
 
     currentSearchResults.reserve(30000 + resultCount + NODES_PER_BLOCK * NODE_SPLIT_THRESHOLD);
@@ -219,17 +242,15 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
     // Root node path is not referenced, so can be left uninitialised
     IndexPath rootNodePath = {0};
     closedNodeQueue.emplace(rootNodePath, "", 0, 0);
-    debug_closedNodeQueue.emplace_back(rootNodePath, "", 0, 0);
 
     // Iteratively add additional nodes until there's no chance any additional node can improve the best distance score
     while(  !closedNodeQueue.empty() &&
             computeMinDistanceThreshold(currentSearchResults) > closedNodeQueue.top().minDistanceScore) {
         UnvisitedNode nextBestUnvisitedNode = closedNodeQueue.top();
         closedNodeQueue.pop();
-        debug_closedNodeQueue.erase(debug_closedNodeQueue.begin());
         const NodeBlock* block = cache.getNodeBlockByID(nextBestUnvisitedNode.nodeID);
         visitNode(block, nextBestUnvisitedNode.path, nextBestUnvisitedNode.nodeID, nextBestUnvisitedNode.level,
-                closedNodeQueue, debug_closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
+                closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
 
         // Re-sort search results
         std::sort(currentSearchResults.begin(), currentSearchResults.end());
@@ -238,8 +259,6 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
         if(currentSearchResults.size() > resultCount) {
             currentSearchResults.erase(currentSearchResults.begin() + resultCount, currentSearchResults.end());
         }
-
-        std::sort(debug_closedNodeQueue.begin(), debug_closedNodeQueue.end());
 
         /*std::cout << "Search results: ";
         for(int i = 0; i < currentSearchResults.size(); i++) {

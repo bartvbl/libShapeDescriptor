@@ -14,7 +14,6 @@ struct UnvisitedNode {
     IndexPath path;
     std::string nodeID;
     unsigned int minDistanceScore;
-    unsigned int hammingDistanceScore;
     unsigned int level;
 
     // We want the open node priority queue to sort items by lowest score
@@ -41,7 +40,7 @@ struct SearchResultEntry {
         if(distanceScore != right.distanceScore) {
             return distanceScore < right.distanceScore;
         }
-        return hammingDistanceScore < right.hammingDistanceScore;
+        return hammingDistanceScore > right.hammingDistanceScore;
     }
 };
 

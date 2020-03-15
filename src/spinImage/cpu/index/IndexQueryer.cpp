@@ -45,6 +45,7 @@ struct SearchResultEntry {
 };
 
 std::stringstream IDBuilder;
+unsigned int debug_visitedNodeCount = 0;
 
 std::string appendPath(const std::string &parentNodeID, unsigned char childIndex) {
     std::string byteString = parentNodeID;
@@ -72,6 +73,7 @@ unsigned int computeHammingDistance(const QuiccImage &needle, const QuiccImage &
 }
 
 unsigned int computeMinHammingDistance(const std::array<unsigned short, 8> &bitDistances, const unsigned char levelByte) {
+    // Convert pixel counts into corresponding bit vector
     unsigned char needleByte =
             (bitDistances[0] != 0 ? 0x80 : 0x00) |
             (bitDistances[1] != 0 ? 0x40 : 0x00) |
@@ -81,6 +83,7 @@ unsigned int computeMinHammingDistance(const std::array<unsigned short, 8> &bitD
             (bitDistances[5] != 0 ? 0x04 : 0x00) |
             (bitDistances[6] != 0 ? 0x02 : 0x00) |
             (bitDistances[7] != 0 ? 0x01 : 0x00);
+    // Next, compute hamming distance by computing popcnt over the XOR of the two bit vectors
     return std::bitset<8>(needleByte ^ levelByte).count();
 }
 
@@ -146,7 +149,7 @@ unsigned int computeMinDistance(
         }
 
         // Compute and update partial min distance score
-        columnMinDistance += computeLevelByteMinDistance(bitDistances, levelByte);
+        columnMinDistance += computeLevelByteMinDistance(bitDistances, levelByte) + computeMinHammingDistance(bitDistances, levelByte);
 
         // Once we have reached the end of the column, we commit the results
             // Level 1
@@ -194,13 +197,14 @@ void visitNode(
     const unsigned int searchResultScoreThreshold =
             computeMinDistanceThreshold(currentSearchResults);
 
-    std::cout << "Visiting node " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes, " << searchResultScoreThreshold  << " vs " << closedNodeQueue.top().minDistanceScore << " - " << nodeID << std::endl;
+
+    std::cout << "\rVisiting node " << debug_visitedNodeCount << " -> " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes, " << searchResultScoreThreshold  << " vs " << closedNodeQueue.top().minDistanceScore << " - " << nodeID << std::flush;
     for(int child = 0; child < NODES_PER_BLOCK; child++) {
         if(block->childNodeIsLeafNode[child]) {
             //std::cout << "Child " << child << " is leaf node!" << std::endl;
             // If child is a leaf node, insert its images into the search result list
             for(const NodeBlockEntry& entry : block->leafNodeContents.at(child)) {
-                unsigned int distanceScore = computeDistance(queryImage, entry.image);
+                unsigned int distanceScore = computeHammingDistance(queryImage, entry.image);
 
                 // Only consider the image if it is potentially better than what's there already
                 if(distanceScore <= searchResultScoreThreshold) {
@@ -241,6 +245,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
     // Root node path is not referenced, so can be left uninitialised
     IndexPath rootNodePath = {0};
     closedNodeQueue.emplace(rootNodePath, "", 0, 0);
+    debug_visitedNodeCount = 0;
 
     // Iteratively add additional nodes until there's no chance any additional node can improve the best distance score
     while(  !closedNodeQueue.empty() &&
@@ -250,6 +255,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
         const NodeBlock* block = cache.getNodeBlockByID(nextBestUnvisitedNode.nodeID);
         visitNode(block, nextBestUnvisitedNode.path, nextBestUnvisitedNode.nodeID, nextBestUnvisitedNode.level,
                 closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
+        debug_visitedNodeCount++;
 
         // Re-sort search results
         std::sort(currentSearchResults.begin(), currentSearchResults.end());

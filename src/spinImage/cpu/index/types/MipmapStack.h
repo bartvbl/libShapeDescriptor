@@ -220,7 +220,7 @@ struct MipmapStack {
         for(int row = 0; row < size; row++) {
             for(int col = 0; col < size; col++) {
                 printedType currentBits = image[byteIndex];
-                std::cout << ((currentBits >> (bitsPerType - 1 - bitIndex)) & 0x1);
+                std::cout << (((currentBits >> (bitsPerType - 1U - bitIndex)) & 0x1U) == 1 ? "1" : ".");
                 bitIndex++;
                 if(bitIndex == bitsPerType) {
                     byteIndex++;

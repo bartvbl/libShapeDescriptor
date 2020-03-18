@@ -13,13 +13,38 @@ struct BitCountMipmapStack {
     //   3       32x32 images   1024          2x2 pixels       0-4           256 bytes, 2 bits/pixel
     //   -- 64x64: source --
 
-    const std::array<unsigned short, 32*32> level5;
-    const std::array<unsigned short, 16*16> level4;
-    const std::array<unsigned short, 8*8> level3;
-    const std::array<unsigned short, 4*4> level2;
+    const std::array<unsigned short, 32*32> level6;
+    const std::array<unsigned short, 16*16> level5;
+    const std::array<unsigned short, 8*8> level4;
+    const std::array<unsigned short, 4*4> level3;
+    const std::array<unsigned short, 4*2> level2;
     const std::array<unsigned short, 2*2> level1;
 
-    std::array<unsigned short, 32*32> computeLevel5(const QuiccImage &quiccImage) {
+    std::array<unsigned short, 8> computeBitSequence() {
+        unsigned short min = 0;
+        unsigned short max = (spinImageWidthPixels * spinImageWidthPixels) / 4;
+        std::array<unsigned short, 8> bitSequence = {0, 0, 0, 0, 0, 0, 0, 0};
+
+        for(int i = 0; i < 3; i++) {
+            unsigned char levelByte = 0;
+           //s unsigned char topLeft = level1;
+            bitSequence[i] = levelByte;
+        }
+
+        return bitSequence;
+    }
+
+    std::array<unsigned short, 4 * 2> computeLevel2(const std::array<unsigned short, 4 * 4> level3) {
+        std::array<unsigned short, 4 * 2> image;
+        for(int row = 0; row < 4; row++) {
+            for(int col = 0; col < 2; col++) {
+                image[2 * row + col] = level3[4 * row + 2 * col + 0] + level3[4 * row + 2 * col + 1];
+            }
+        }
+        return image;
+    }
+
+    std::array<unsigned short, 32*32> computeLevel6(const QuiccImage &quiccImage) {
         std::array<unsigned short, 32*32> image;
 
         for(int mipmapRow = 0; mipmapRow < 32; mipmapRow++) {
@@ -64,22 +89,23 @@ struct BitCountMipmapStack {
     }
 
     explicit BitCountMipmapStack(const QuiccImage &quiccImage)
-        : level5(computeLevel5(quiccImage)),
-          level4(computeLevel<32>(level5)),
-          level3(computeLevel<16>(level4)),
-          level2(computeLevel<8>(level3)),
-          level1(computeLevel<4>(level2)) {
+        : level6(computeLevel6(quiccImage)),
+          level5(computeLevel<32>(level6)),
+          level4(computeLevel<16>(level5)),
+          level3(computeLevel<8>(level4)),
+          level2(computeLevel2(level3)),
+          level1(computeLevel<4>(level3)) {
         static_assert(spinImageWidthPixels == 64, "The index implementation of the library has been constructed for images of size 64x64");
         print();
     }
 
-    template<int edgeSize> void printLevel(const std::array<unsigned short, edgeSize * edgeSize> &image) {
+    template<int width, int height> void printLevel(const std::array<unsigned short, width * height> &image) {
         // Origin is in the bottom left corner, but we start printing at the top
         // We thus need to flip the image.
-        for(int row = edgeSize - 1; row >= 0; row--) {
+        for(int row = height - 1; row >= 0; row--) {
             std::cout << "\t";
-            for(unsigned int col = 0; col < edgeSize; col++) {
-                int value = (image[row * edgeSize + col]);
+            for(unsigned int col = 0; col < width; col++) {
+                int value = (image[row * width + col]);
                 std::cout << (value == 0 ? "." : std::to_string(value)) << " ";
             }
             std::cout << std::endl;
@@ -88,18 +114,21 @@ struct BitCountMipmapStack {
 
     void print() {
         std::cout << std::endl << "Level 1" << std::endl;
-        printLevel<2>(level1);
+        printLevel<2, 2>(level1);
 
         std::cout << std::endl << "Level 2" << std::endl;
-        printLevel<4>(level2);
+        printLevel<2, 4>(level2);
 
         std::cout << std::endl << "Level 3" << std::endl;
-        printLevel<8>(level3);
+        printLevel<4, 4>(level3);
 
         std::cout << std::endl << "Level 4" << std::endl;
-        printLevel<16>(level4);
+        printLevel<8, 8>(level4);
 
         std::cout << std::endl << "Level 5" << std::endl;
-        printLevel<32>(level5);
+        printLevel<16, 16>(level5);
+
+        std::cout << std::endl << "Level 6" << std::endl;
+        printLevel<32, 32>(level6);
     }
 };

@@ -1,4 +1,5 @@
 #include <cassert>
+#include <spinImage/cpu/index/types/BitCountMipmapStack.h>
 #include "NodeBlockCache.h"
 
 size_t countImages(std::array<std::vector<NodeBlockEntry>, NODES_PER_BLOCK> &entries) {
@@ -46,12 +47,8 @@ void NodeBlockCache::onEviction(NodeBlock *block) {
     currentImageCount -= countImages(block->leafNodeContents);
 }
 
-bool isBottomLevel(unsigned int levelReached) {
-    return levelReached >= 8 + (2 * 16) + (4 * 32) - 1;
-}
-
-bool shouldSplit(unsigned int leafNodeSize, unsigned int levelReached) {
-    return !isBottomLevel(levelReached) ?
+bool shouldSplit(unsigned int leafNodeSize, unsigned int levelReached, bool isBottomLevel) {
+    return !isBottomLevel ?
           leafNodeSize >= NODE_SPLIT_THRESHOLD
         : leafNodeSize >= NODE_SPLIT_THRESHOLD * 64;
 }
@@ -68,6 +65,7 @@ void NodeBlockCache::splitNode(
         unsigned short levelReached,
         NodeBlock *currentNodeBlock,
         unsigned char outgoingEdgeIndex,
+        BitSequence &bitSequence,
         std::string &childNodeID) {
     #pragma omp atomic
     nodeBlockStatistics.nodeSplitCount++;
@@ -79,7 +77,7 @@ void NodeBlockCache::splitNode(
     childNodeBlock->blockLock.lock();
     childNodeBlock->identifier = childNodeID;
 
-    if(!isBottomLevel(levelReached)) {
+    if(!bitSequence.isBottomLevel(levelReached)) {
         // Follow linked list and move all nodes into new child node block
         for(const auto& entryToMove : currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex))
         {
@@ -92,9 +90,9 @@ void NodeBlockCache::splitNode(
 
         // If any node in the new child block is full, that one needs to be split as well
         for(unsigned int childIndex = 0; childIndex < NODES_PER_BLOCK; childIndex++) {
-            if(shouldSplit(childNodeBlock->leafNodeContents.at(childIndex).size(), levelReached + 1)) {
+            if(shouldSplit(childNodeBlock->leafNodeContents.at(childIndex).size(), levelReached + 1, bitSequence.isBottomLevel(levelReached + 1))) {
                 std::string splitNodeID = childNodeID + byteToHex(childIndex) + "/";
-                splitNode(levelReached + 1, childNodeBlock, childIndex, splitNodeID);
+                splitNode(levelReached + 1, childNodeBlock, childIndex, bitSequence, splitNodeID);
             }
         }
 
@@ -127,9 +125,10 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
     // currentNodeID initialises to "", which causes this to fetch the root node
     NodeBlock* currentNodeBlock = borrowItemByID(currentNodeID);
     currentNodeBlock->blockLock.lock();
-    MipmapStack mipmaps(image);
+    BitCountMipmapStack mipmaps(image);
+    BitSequence bitSequence = mipmaps.computeBitSequence();
     while(!currentNodeIsLeafNode) {
-        unsigned char outgoingEdgeIndex = mipmaps.computeLevelByte(levelReached);
+        unsigned char outgoingEdgeIndex = bitSequence.at(levelReached);
         if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;
@@ -141,13 +140,13 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             markItemDirty(itemID);
 
             // 3. Split if threshold has been reached, but not if we're at the deepest possible level
-            if(shouldSplit(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).size(), levelReached)) {
+            if(shouldSplit(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).size(), levelReached, bitSequence.isBottomLevel(levelReached))) {
                 pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
                 std::string childNodeID = pathBuilder.str();
 
                 auto splitStart = std::chrono::high_resolution_clock::now();
 
-                splitNode(levelReached, currentNodeBlock, outgoingEdgeIndex, childNodeID);
+                splitNode(levelReached, currentNodeBlock, outgoingEdgeIndex, bitSequence, childNodeID);
 
                 auto splitEnd = std::chrono::high_resolution_clock::now();
                 std::chrono::duration<double, std::nano> splitDuration = splitEnd - splitStart;
@@ -163,7 +162,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             levelReached++;
             pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
             currentNodeID = pathBuilder.str();
-            assert(isBottomLevel(levelReached) || currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).empty());
+            assert(bitSequence.isBottomLevel(levelReached) || currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).empty());
             currentNodeBlock = borrowItemByID(currentNodeID);
             assert(currentNodeID == currentNodeBlock->identifier);
             currentNodeBlock->blockLock.lock();

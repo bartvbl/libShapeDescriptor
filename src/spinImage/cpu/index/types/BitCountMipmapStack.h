@@ -5,6 +5,9 @@
 #include <array>
 #include <bitset>
 #include <spinImage/cpu/types/QuiccImage.h>
+#include "BitSequence.h"
+
+static_assert(spinImageWidthPixels <= 512, "The bit count mipmap stack stores its values as unsigned short, which is able to represent bit counts for images up to 512x512 in size. If you go over this value, make sure to swap out unsigned shorts for unsigned ints.");
 
 struct BitCountMipmapStack {
     //   level   mipmap size    pixel count   area per pixel   value range   space needed
@@ -20,18 +23,34 @@ struct BitCountMipmapStack {
     const std::array<unsigned short, 4*2> level2;
     const std::array<unsigned short, 2*2> level1;
 
-    std::array<unsigned short, 8> computeBitSequence() {
-        unsigned short min = 0;
-        unsigned short max = (spinImageWidthPixels * spinImageWidthPixels) / 4;
-        std::array<unsigned short, 8> bitSequence = {0, 0, 0, 0, 0, 0, 0, 0};
+    template<unsigned int width, unsigned int height> unsigned long computeSingleBitSequence(const std::array<unsigned short, width*height> &image, std::array<unsigned short, width*height> &mins, std::array<unsigned short, width*height> &maxes) {
+        unsigned long bitSequence = 0;
 
-        for(int i = 0; i < 3; i++) {
-            unsigned char levelByte = 0;
-           //s unsigned char topLeft = level1;
-            bitSequence[i] = levelByte;
+        for(unsigned int i = 0; i < width * height; i++) {
+            unsigned short pivot = (maxes[i] - mins[i]) / 2;
+            bool directionBit = image[i] >= pivot;
+            bitSequence = bitSequence | (((unsigned int) directionBit) << (width * height - 1 - i));
+            if(directionBit) {
+                mins[i] = pivot;
+            } else {
+                maxes[i] = pivot;
+            }
         }
 
         return bitSequence;
+    }
+
+    BitSequence computeBitSequence() {
+        const unsigned short initialMax = (spinImageWidthPixels * spinImageWidthPixels) / 4;
+        std::array<unsigned short, 8> mins = {0, 0, 0, 0, 0, 0, 0, 0};
+        std::array<unsigned short, 8> maxes = {initialMax, initialMax, initialMax, initialMax, initialMax, initialMax, initialMax, initialMax};
+        std::array<unsigned long, 8> bitSequence = {0, 0, 0, 0, 0, 0, 0, 0};
+
+        for(int i = 0; i < 8; i++) {
+            computeSingleBitSequence<2, 4>(level2, mins, maxes);
+        }
+
+        return {bitSequence};
     }
 
     std::array<unsigned short, 4 * 2> computeLevel2(const std::array<unsigned short, 4 * 4> level3) {
@@ -96,7 +115,7 @@ struct BitCountMipmapStack {
           level2(computeLevel2(level3)),
           level1(computeLevel<4>(level3)) {
         static_assert(spinImageWidthPixels == 64, "The index implementation of the library has been constructed for images of size 64x64");
-        print();
+        //print();
     }
 
     template<int width, int height> void printLevel(const std::array<unsigned short, width * height> &image) {

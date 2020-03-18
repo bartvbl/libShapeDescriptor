@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <spinImage/cpu/types/QuiccImage.h>
 #include <spinImage/utilities/Cache.h>
+#include <spinImage/cpu/index/types/BitSequence.h>
 #include "IndexIO.h"
 
 /* Notes on where I'm at right now
@@ -50,6 +51,7 @@ private:
             unsigned short levelReached,
             NodeBlock *currentNodeBlock,
             unsigned char levelByte,
+            BitSequence &bitSequence,
             std::string &childNodeID);
 protected:
     void eject(NodeBlock* item) override;

@@ -8,6 +8,7 @@
 #include <iostream>
 #include <condition_variable>
 #include <thread>
+#include <malloc.h>
 
 // The cached nodes are stored as pointers to avoid accidental copies being created
 template<typename IDType, typename CachedItemType> struct CachedItem {
@@ -252,11 +253,17 @@ public:
 
     // Eject all items from the cache, leave it empty
     void flush() {
-#pragma omp parallel
+        size_t flushedCount = 0;
+        #pragma omp parallel
         {
             while(lruItemQueue.size() > 0) {
                 forceLeastRecentlyUsedEviction();
-                malloc_trim(0);
+                #pragma omp atomic
+                flushedCount++;
+
+                if(flushedCount % 1000 == 0) {
+                    malloc_trim(0);
+                }
             }
         };
         assert(lruItemQueue.empty());

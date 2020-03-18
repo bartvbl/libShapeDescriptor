@@ -33,11 +33,13 @@ struct BitCountMipmapStack {
                 unsigned int top = quiccImage[topIndex];
                 unsigned int bottom = quiccImage[bottomIndex];
 
+                unsigned int relativeCol = (2 * mipmapCol) % 32;
+
                 image[mipmapRow * 32 + mipmapCol] =
-                    int((top >> (31 - mipmapCol)) & 0x1) +
-                    int((top >> (31 - mipmapCol - 1)) & 0x1) +
-                    int((bottom >> (31 - mipmapCol)) & 0x1) +
-                    int((bottom >> (31 - mipmapCol - 1)) & 0x1);
+                    int((top >> (31 - relativeCol)) & 0x1) +
+                    int((top >> (31 - relativeCol - 1)) & 0x1) +
+                    int((bottom >> (31 - relativeCol)) & 0x1) +
+                    int((bottom >> (31 - relativeCol - 1)) & 0x1);
             }
         }
 
@@ -72,7 +74,9 @@ struct BitCountMipmapStack {
     }
 
     template<int edgeSize> void printLevel(const std::array<unsigned short, edgeSize * edgeSize> &image) {
-        for(unsigned int row = 0; row < edgeSize; row++) {
+        // Origin is in the bottom left corner, but we start printing at the top
+        // We thus need to flip the image.
+        for(int row = edgeSize - 1; row >= 0; row--) {
             std::cout << "\t";
             for(unsigned int col = 0; col < edgeSize; col++) {
                 int value = (image[row * edgeSize + col]);

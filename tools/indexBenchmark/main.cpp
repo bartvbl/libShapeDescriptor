@@ -8,6 +8,7 @@
 #include <spinImage/utilities/fileutils.h>
 #include <random>
 #include <spinImage/utilities/readers/quicciReader.h>
+#include <spinImage/cpu/index/types/BitCountMipmapStack.h>
 
 int main(int argc, const char** argv) {
     arrrgh::parser parser("benchmarkindex", "Compare the time for looking up a randomly selected image from a directory of QUICCI dump files relative to iterating over the entire index.");
@@ -60,10 +61,10 @@ int main(int argc, const char** argv) {
     SpinImage::cpu::QUICCIImages queryImages = SpinImage::read::QUICCImagesFromDumpFile(chosenQueryFilePath);
     std::uniform_int_distribution<size_t> queryImageDistribution(0, queryImages.imageCount);
     size_t chosenQueryImageIndex = queryImageDistribution(generator);
-    QuiccImage chosenQueryImage = MipmapStack::combine(
+    QuiccImage chosenQueryImage = combineQuiccImages(
             queryImages.horizontallyIncreasingImages[chosenQueryImageIndex],
             queryImages.horizontallyDecreasingImages[chosenQueryImageIndex]);
-    MipmapStack(chosenQueryImage).print();
+    BitCountMipmapStack(chosenQueryImage).print();
     std::cout << "\tChose image " << chosenQueryImageIndex << "/" << queryImages.imageCount << " from selected image file." << std::endl;
 
     std::cout << "Reading index metadata.." << std::endl;

@@ -3,7 +3,6 @@
 #include <array>
 #include <spinImage/cpu/types/BoolArray.h>
 #include <spinImage/cpu/index/types/IndexEntry.h>
-#include <spinImage/cpu/index/types/MipmapStack.h>
 #include <mutex>
 #include "NodeBlockEntry.h"
 

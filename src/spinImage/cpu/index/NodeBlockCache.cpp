@@ -81,10 +81,8 @@ void NodeBlockCache::splitNode(
         // Follow linked list and move all nodes into new child node block
         for(const auto& entryToMove : currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex))
         {
-            // Copy over node into new child node block
-            MipmapStack entryMipmaps(entryToMove.image);
             // Look at the next byte in the mipmap to determine which child bucket will receive the child node
-            unsigned char childLevelByte = entryMipmaps.computeLevelByte(levelReached + 1);
+            unsigned char childLevelByte = bitSequence.at(levelReached + 1);
             childNodeBlock->leafNodeContents.at(childLevelByte).push_back(entryToMove);
         }
 
@@ -126,7 +124,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
     NodeBlock* currentNodeBlock = borrowItemByID(currentNodeID);
     currentNodeBlock->blockLock.lock();
     BitCountMipmapStack mipmaps(image);
-    BitSequence bitSequence = mipmaps.computeBitSequence();
+    BitSequence bitSequence = BitSequence(mipmaps);
     while(!currentNodeIsLeafNode) {
         unsigned char outgoingEdgeIndex = bitSequence.at(levelReached);
         if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {

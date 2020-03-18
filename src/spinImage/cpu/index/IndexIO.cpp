@@ -3,6 +3,7 @@
 #include <cassert>
 #include <spinImage/utilities/fileutils.h>
 #include <cstring>
+#include <iostream>
 #include <spinImage/cpu/types/QuiccImage.h>
 
 Index SpinImage::index::io::readIndex(std::experimental::filesystem::path indexDirectory) {

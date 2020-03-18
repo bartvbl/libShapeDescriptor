@@ -162,7 +162,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
         std::cout << std::endl;*/
     }
 
-    std::cout << "Query finished, " << computeMinDistanceThreshold(currentSearchResults) << " vs " << closedNodeQueue.top().minDistanceScore << std::endl;
+    std::cout << std::endl << "Query finished, " << computeMinDistanceThreshold(currentSearchResults) << " vs " << closedNodeQueue.top().minDistanceScore << std::endl;
 
     std::vector<SpinImage::index::QueryResult> queryResults;
     queryResults.reserve(resultCount);

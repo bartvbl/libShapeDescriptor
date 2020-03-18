@@ -9,7 +9,9 @@
 class IndexPath {
 private:
     std::vector<unsigned long> pathDirections;
+public:
     unsigned int length;
+private:
 
     template<unsigned int width, unsigned int height> unsigned long computeSingleBitSequence(
             const std::array<unsigned short, width*height> &image, 
@@ -65,8 +67,8 @@ public:
             pathDirections({0, 0, 0, 0, 0, 0, 0, 0}),
             length(0) {}
 
-    bool isBottomLevel(unsigned int level) {
-        return level >= INDEX_PATH_MAX_LENGTH;
+    bool isBottomLevel() {
+        return length >= INDEX_PATH_MAX_LENGTH;
     }
 
     unsigned long at(unsigned int level) {
@@ -99,5 +101,24 @@ public:
             newPath.push_back(direction);
         }
         return IndexPath(newPath);
+    }
+private:
+    std::string byteToHex(unsigned char byte) {
+        std::string byteString;
+        const std::string characterMap = "0123456789abcdef";
+        byteString += characterMap.at((byte >> 4U) & 0x0FU);
+        byteString += characterMap.at((byte & 0x0FU));
+        return byteString;
+    }
+public:
+    std::string to_string() {
+        std::stringstream pathBuilder;
+        pathBuilder << std::hex;
+        // childNodeID + byteToHex(childIndex) + "/";
+        // pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
+
+        // Default append
+        // pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
+        // currentNodeID = pathBuilder.str();
     }
 };

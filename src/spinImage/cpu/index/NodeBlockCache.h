@@ -48,11 +48,9 @@ private:
     size_t currentImageCount = 0;
 
     void splitNode(
-            unsigned short levelReached,
             NodeBlock *currentNodeBlock,
-            unsigned char levelByte,
-            IndexPath &indexPath,
-            std::string &childNodeID);
+            unsigned long bucketIndexToSplit,
+            IndexPath &indexPath);
 protected:
     void eject(NodeBlock* item) override;
     void onEviction(NodeBlock* item) override;

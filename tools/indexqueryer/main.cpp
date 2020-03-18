@@ -5,6 +5,7 @@
 #include <lodepng.h>
 #include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/utilities/dumpers/spinImageDumper.h>
+#include <spinImage/cpu/index/types/BitCountMipmapStack.h>
 
 int main(int argc, const char** argv) {
     arrrgh::parser parser("queryindex", "Query an existing index of QUICCI images.");
@@ -61,6 +62,7 @@ int main(int argc, const char** argv) {
             }
         }
     }
+    BitCountMipmapStack(queryQUIICIMage).print();
 
     std::cout << "Reading index metadata.." << std::endl;
     Index index = SpinImage::index::io::readIndex(indexDirectory.value());

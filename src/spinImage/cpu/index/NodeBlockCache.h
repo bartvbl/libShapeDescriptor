@@ -51,7 +51,7 @@ private:
             unsigned short levelReached,
             NodeBlock *currentNodeBlock,
             unsigned char levelByte,
-            BitSequence &bitSequence,
+            IndexPath &indexPath,
             std::string &childNodeID);
 protected:
     void eject(NodeBlock* item) override;

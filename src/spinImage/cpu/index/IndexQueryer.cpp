@@ -5,8 +5,6 @@
 #include <algorithm>
 #include <climits>
 
-typedef std::array<unsigned char, 8 + (16 * 16) + (32 * 32)> IndexPath;
-
 struct UnvisitedNode {
     UnvisitedNode(IndexPath indexPath, std::string unvisitedNodeID, unsigned int minDistance, unsigned int nodeLevel)
     : path(indexPath), nodeID(unvisitedNodeID), minDistanceScore(minDistance), level(nodeLevel) {}
@@ -56,124 +54,12 @@ std::string appendPath(const std::string &parentNodeID, unsigned char childIndex
     return byteString;
 }
 
-unsigned int computeDistance(const QuiccImage &needle, const QuiccImage &haystack) {
-    unsigned int score = 0;
-    for(int i = 0; i < needle.size(); i++) {
-        score += std::bitset<32>((needle[i] ^ haystack[i]) & needle[i]).count();
-    }
-    return score;
-}
-
 unsigned int computeHammingDistance(const QuiccImage &needle, const QuiccImage &haystack) {
     unsigned int score = 0;
     for(int i = 0; i < needle.size(); i++) {
         score += std::bitset<32>(needle[i] ^ haystack[i]).count();
     }
     return score;
-}
-
-unsigned int computeMinHammingDistance(const std::array<unsigned short, 8> &bitDistances, const unsigned char levelByte) {
-    // Convert pixel counts into corresponding bit vector
-    unsigned char needleByte =
-            (bitDistances[0] != 0 ? 0x80 : 0x00) |
-            (bitDistances[1] != 0 ? 0x40 : 0x00) |
-            (bitDistances[2] != 0 ? 0x20 : 0x00) |
-            (bitDistances[3] != 0 ? 0x10 : 0x00) |
-            (bitDistances[4] != 0 ? 0x08 : 0x00) |
-            (bitDistances[5] != 0 ? 0x04 : 0x00) |
-            (bitDistances[6] != 0 ? 0x02 : 0x00) |
-            (bitDistances[7] != 0 ? 0x01 : 0x00);
-    // Next, compute hamming distance by computing popcnt over the XOR of the two bit vectors
-    return std::bitset<8>(needleByte ^ levelByte).count();
-}
-
-unsigned int computeLevelByteMinDistance(const std::array<unsigned short, 8> &bitDistances, const unsigned char levelByte) {
-    return
-           (1 - int((levelByte >> 7) & 0x1)) * bitDistances[0] +
-           (1 - int((levelByte >> 6) & 0x1)) * bitDistances[1] +
-           (1 - int((levelByte >> 5) & 0x1)) * bitDistances[2] +
-           (1 - int((levelByte >> 4) & 0x1)) * bitDistances[3] +
-           (1 - int((levelByte >> 3) & 0x1)) * bitDistances[4] +
-           (1 - int((levelByte >> 2) & 0x1)) * bitDistances[5] +
-           (1 - int((levelByte >> 1) & 0x1)) * bitDistances[6] +
-           (1 - int((levelByte >> 0) & 0x1)) * bitDistances[7];
-}
-
-unsigned int computeMinDistance(
-        const BitCountMipmapStack &needle,
-        const IndexPath &haystack,
-        unsigned int upToLevel) {
-    std::array<unsigned short, 8> partialScores =
-            {0, 0, 0, 0, 0, 0, 0, 0};
-
-    unsigned int columnIndex = 0;
-    unsigned short columnMinDistance = 0;
-    for(int level = 0; level <= upToLevel; level++) {
-        unsigned char levelByte = haystack[level];
-
-        std::array<unsigned short, 8> bitDistances;
-
-        if(level < 8) {
-            bitDistances = {
-                needle.level1[level * 8 + 0],
-                needle.level1[level * 8 + 1],
-                needle.level1[level * 8 + 2],
-                needle.level1[level * 8 + 3],
-                needle.level1[level * 8 + 4],
-                needle.level1[level * 8 + 5],
-                needle.level1[level * 8 + 6],
-                needle.level1[level * 8 + 7]
-            };
-        } else if(level < 8 + 16) {
-            bitDistances = {
-                needle.level2[(level - 8) * 8 + 0],
-                needle.level2[(level - 8) * 8 + 1],
-                needle.level2[(level - 8) * 8 + 2],
-                needle.level2[(level - 8) * 8 + 3],
-                needle.level2[(level - 8) * 8 + 4],
-                needle.level2[(level - 8) * 8 + 5],
-                needle.level2[(level - 8) * 8 + 6],
-                needle.level2[(level - 8) * 8 + 7]
-            };
-        } else {
-            bitDistances = {
-                    needle.level3[(level - 8 - (2 * 16)) * 8 + 0],
-                    needle.level3[(level - 8 - (2 * 16)) * 8 + 1],
-                    needle.level3[(level - 8 - (2 * 16)) * 8 + 2],
-                    needle.level3[(level - 8 - (2 * 16)) * 8 + 3],
-                    needle.level3[(level - 8 - (2 * 16)) * 8 + 4],
-                    needle.level3[(level - 8 - (2 * 16)) * 8 + 5],
-                    needle.level3[(level - 8 - (2 * 16)) * 8 + 6],
-                    needle.level3[(level - 8 - (2 * 16)) * 8 + 7]
-            };
-        }
-
-        // Compute and update partial min distance score
-        columnMinDistance += computeLevelByteMinDistance(bitDistances, levelByte) + computeMinHammingDistance(bitDistances, levelByte);
-
-        // Once we have reached the end of the column, we commit the results
-            // Level 1
-        if  ((level < 8) ||
-            // Level 2
-            ((level >= 8) && (level < 8 + (2 * 16)) && (level % 4 == 3)) ||
-            // Level 3
-            ((level >= 8 + (2 * 16)) && (level % 16 == 15))) {
-            // Scores can only increase, and since we look at parts of columns at a time,
-            partialScores[columnIndex] = std::max<unsigned short>(columnMinDistance, partialScores[columnIndex]);
-            columnIndex++;
-            columnIndex = columnIndex % 8;
-            columnMinDistance = 0;
-        }
-    }
-    // Also commit final partial column
-    partialScores[columnIndex] = std::max<unsigned short>(columnMinDistance, partialScores[columnIndex]);
-
-    // Finally, compute sum of partial sums
-    unsigned int minDistanceSum = 0;
-    for(unsigned short partialScore : partialScores) {
-        minDistanceSum += partialScore;
-    }
-    return minDistanceSum;
 }
 
 const unsigned int computeMinDistanceThreshold(std::vector<SearchResultEntry> &currentSearchResults) {
@@ -184,7 +70,7 @@ const unsigned int computeMinDistanceThreshold(std::vector<SearchResultEntry> &c
 
 void visitNode(
         const NodeBlock* block,
-        const IndexPath &path,
+        IndexPath path,
         const std::string &nodeID,
         const unsigned int level,
         std::priority_queue<UnvisitedNode> &closedNodeQueue,
@@ -214,9 +100,8 @@ void visitNode(
             }
         } else {
             // If the child is an intermediate node, enqueue it in the closed node list
-            IndexPath childPath = path;
-            childPath[level] = (unsigned char) child;
-            unsigned int minDistanceScore = computeMinDistance(queryImageMipmapStack, childPath, level);
+            IndexPath childPath = path.append(child);
+            unsigned int minDistanceScore = path.computeMinDistanceTo(queryImageMipmapStack);
 
             if(minDistanceScore <= searchResultScoreThreshold) {
                 //unsigned int hammingDistance = computeHammingDistance(queryImageMipmapStack, childPath, level);
@@ -243,7 +128,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
     currentSearchResults.reserve(30000 + resultCount + NODES_PER_BLOCK * NODE_SPLIT_THRESHOLD);
 
     // Root node path is not referenced, so can be left uninitialised
-    IndexPath rootNodePath = {0};
+    IndexPath rootNodePath;
     closedNodeQueue.emplace(rootNodePath, "", 0, 0);
     debug_visitedNodeCount = 0;
 

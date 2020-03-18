@@ -3,13 +3,16 @@
 #include <array>
 #include "BitCountMipmapStack.h"
 
-#define BIT_SEQUENCE_LENGTH 8
+#define INDEX_PATH_MAX_LENGTH 8
 
-class BitSequence {
+class IndexPath {
 private:
-    const std::array<unsigned long, BIT_SEQUENCE_LENGTH> bitSequence;
+    const std::array<unsigned long, INDEX_PATH_MAX_LENGTH> bitSequence;
 
-    template<unsigned int width, unsigned int height> unsigned long computeSingleBitSequence(const std::array<unsigned short, width*height> &image, std::array<unsigned short, width*height> &mins, std::array<unsigned short, width*height> &maxes) {
+    template<unsigned int width, unsigned int height> unsigned long computeSingleBitSequence(
+            const std::array<unsigned short, width*height> &image, 
+            std::array<unsigned short, width*height> &mins, 
+            std::array<unsigned short, width*height> &maxes) {
         unsigned long bitSequence = 0;
 
         for(unsigned int i = 0; i < width * height; i++) {
@@ -50,7 +53,7 @@ public:
         return bitSequence.at(level);
     }
 
-    unsigned short computeDistanceTo(BitCountMipmapStack mipmapStack) {
+    unsigned short computeMinDistanceTo(BitSequence otherSequence, unsigned int level) {
 
     }
 };

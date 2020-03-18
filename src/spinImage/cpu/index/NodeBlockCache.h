@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <spinImage/cpu/types/QuiccImage.h>
 #include <spinImage/utilities/Cache.h>
-#include <spinImage/cpu/index/types/BitSequence.h>
+#include <spinImage/cpu/index/types/IndexPath.h>
 #include "IndexIO.h"
 
 /* Notes on where I'm at right now

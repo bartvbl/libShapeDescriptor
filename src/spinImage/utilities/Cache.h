@@ -256,6 +256,7 @@ public:
         {
             while(lruItemQueue.size() > 0) {
                 forceLeastRecentlyUsedEviction();
+                malloc_trim(0);
             }
         };
         assert(lruItemQueue.empty());

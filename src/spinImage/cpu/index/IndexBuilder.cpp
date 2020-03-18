@@ -247,6 +247,10 @@ Index SpinImage::index::build(
                 std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
                 #pragma omp atomic
                 totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(imageEndTime - imageStartTime).count() / 1000000.0;
+                // Occasionally force frees memory such that memory does not accumulate too much over time
+                if(imageIndex % 25000 == 0) {
+                    malloc_trim(0);
+                }
             }
 
             std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();

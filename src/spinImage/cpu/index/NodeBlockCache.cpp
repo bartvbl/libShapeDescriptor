@@ -76,7 +76,7 @@ void NodeBlockCache::splitNode(
             // Look at the next byte in the mipmap to determine which child bucket will receive the child node
             BitCountMipmapStack entryMipmapStack(entryToMove.image);
             IndexPath entryGuidePath(entryMipmapStack);
-            unsigned long childLevelByte = entryGuidePath.at(pathInIndex.length + 1);
+            unsigned long childLevelByte = entryGuidePath.at(pathInIndex.length() + 1);
             childNodeBlock->leafNodeContents.at(childLevelByte).push_back(entryToMove);
         }
 
@@ -119,7 +119,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
     IndexPath pathInIndex = IndexPath();
 
     while(!currentNodeIsLeafNode) {
-        unsigned long outgoingEdgeIndex = guidePath.at(pathInIndex.length);
+        unsigned long outgoingEdgeIndex = guidePath.at(pathInIndex.length());
         if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;
@@ -149,7 +149,8 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             returnItemByID(currentNodeID);
             // Fetch child of intermediate node, then start the process over again.
 
-            pathInIndex = pathInIndex.append(guidePath.at(pathInIndex.length));
+            pathInIndex = pathInIndex.append(guidePath.at(pathInIndex.length()));
+            currentNodeID = pathInIndex.to_string();
             assert(pathInIndex.isBottomLevel() || currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).empty());
             currentNodeBlock = borrowItemByID(currentNodeID);
             assert(currentNodeID == currentNodeBlock->identifier);

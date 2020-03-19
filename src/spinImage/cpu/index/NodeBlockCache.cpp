@@ -72,24 +72,24 @@ void NodeBlockCache::splitNode(
 
     if(!childPathInIndex.isBottomLevel()) {
         // Follow linked list and move all nodes into new child node block
-        for(const auto& entryToMove : currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex))
+        for(const auto& entryToMove : *currentNodeBlock->getNodeContentsByIndex(outgoingEdgeIndex))
         {
             // Look at the next byte in the mipmap to determine which child bucket will receive the child node
             BitCountMipmapStack entryMipmapStack(entryToMove.image);
             IndexPath entryGuidePath(entryMipmapStack);
-            unsigned long childLevelByte = entryGuidePath.at(pathInIndex.length() + 1);
-            childNodeBlock->leafNodeContents.at(childLevelByte).push_back(entryToMove);
+            unsigned long childNodeDirection = entryGuidePath.at(pathInIndex.length() + 1);
+            childNodeBlock->getNodeContentsByIndex(childNodeDirection)->push_back(entryToMove);
         }
 
         // If any node in the new child block is full, that one needs to be split as well
-        for(unsigned int childIndex = 0; childIndex < NODES_PER_BLOCK; childIndex++) {
-            if(shouldSplit(childNodeBlock->leafNodeContents.at(childIndex).size(), childPathInIndex.isBottomLevel())) {
-                splitNode(childNodeBlock, childIndex, childPathInIndex);
+        for(unsigned long childOutgoingEdgeIndex : *childNodeBlock->getOutgoingEdgeIndices()) {
+            if(shouldSplit(childNodeBlock->getNodeContentsByIndex(childOutgoingEdgeIndex)->size(), childPathInIndex.isBottomLevel())) {
+                splitNode(childNodeBlock, childOutgoingEdgeIndex, childPathInIndex);
             }
         }
 
         // Clear memory occupied by child node
-        std::vector<NodeBlockEntry>().swap(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex));
+        std::vector<NodeBlockEntry>().swap(*currentNodeBlock->getEntriesByOutgoingEdgeIndex(outgoingEdgeIndex));
     }
 
     // Mark the entry in the node block as an intermediate node
@@ -124,7 +124,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
         if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;
-            currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).push_back(NodeBlockEntry(reference, image));
+            currentNodeBlock->insert(outgoingEdgeIndex, NodeBlockEntry(reference, image));
 
             // 2. Mark modified entry as dirty.
             // Do this first to avoid cases where item is going to ejected from the cache when node is split
@@ -132,7 +132,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             markItemDirty(itemID);
 
             // 3. Split if threshold has been reached, but not if we're at the deepest possible level
-            if(shouldSplit(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).size(), pathInIndex.isBottomLevel())) {
+            if(shouldSplit(currentNodeBlock->getNodeContentsByIndex(outgoingEdgeIndex)->size(), pathInIndex.isBottomLevel())) {
 
                 auto splitStart = std::chrono::high_resolution_clock::now();
 
@@ -148,8 +148,8 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
         } else {
             currentNodeBlock->blockLock.unlock();
             returnItemByID(currentNodeID);
-            // Fetch child of intermediate node, then start the process over again.
 
+            // Fetch child of intermediate node, then start the process over again.
             pathInIndex.append(guidePath.at(pathInIndex.length()));
             currentNodeID = pathInIndex.to_string();
             assert(pathInIndex.isBottomLevel() || currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).empty());

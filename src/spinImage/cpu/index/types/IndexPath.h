@@ -10,7 +10,7 @@ class IndexPath {
 private:
     std::vector<unsigned long> pathDirections;
 
-    template<unsigned int width, unsigned int height> unsigned long computeSingleBitSequence(
+    template<unsigned int width, unsigned int height> unsigned long computeSingleDirection(
             const std::array<unsigned short, width*height> &image, 
             std::array<unsigned short, width*height>* mins,
             std::array<unsigned short, width*height>* maxes) {
@@ -40,7 +40,7 @@ private:
                  INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX};
 
         for(int i = 0; i < INDEX_PATH_MAX_LENGTH; i++) {
-            bitSequence->push_back(computeSingleBitSequence<2, 4>(mipmapStack.level2, mins, maxes));
+            bitSequence->push_back(computeSingleDirection<2, 4>(mipmapStack.level2, mins, maxes));
         }
     }
 
@@ -83,10 +83,13 @@ public:
         computeBitSequence(mipmapStack, &mins, &maxes, &bitSequence);
 
         for(int i = 0; i < 8; i++) {
+            int deltas = int(mins[i]) + int(mipmapStack.level2[i]) - int(1024);
             // For index i, the number of bits set for all images whose paths start with this one
             // lie between mins[i] and maxes[i].
             if((mins[i] == 0) ^ (mipmapStack.level2[i] == 0)) {
                 computedMinDistance += mins[i] + mipmapStack.level2[i];
+            } else if (deltas > 0) {
+                computedMinDistance += deltas;
             }
         }
 

@@ -91,7 +91,6 @@ void SpinImage::index::io::writeIndex(const Index& index, std::experimental::fil
 
 const size_t headerSize = sizeof(unsigned int);
 const size_t leafNodeBoolArraySize = BoolArray<NODES_PER_BLOCK>::computeArrayLength() * sizeof(unsigned int);
-const size_t blockStructSize = leafNodeBoolArraySize;
 const size_t entrySize = (sizeof(IndexEntry) + sizeof(QuiccImage));
 
 NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory) {
@@ -109,10 +108,12 @@ NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const
 
     const char* bufferPointer = inputBuffer + headerSize + blockStructSize;
 
-    for(int node = 0; node < NODES_PER_BLOCK; node++) {
+    std::vector<unsigned long>* directions = nodeBlock->getOutgoingEdgeIndices();
+
+    for(unsigned long node : *directions) {
         unsigned int entryCount = *reinterpret_cast<const unsigned int*>(bufferPointer);
         bufferPointer += sizeof(unsigned int);
-        std::vector<NodeBlockEntry>* entryList = &nodeBlock->leafNodeContents.at(node);
+        std::vector<NodeBlockEntry>* entryList = nodeBlock->getNodeContentsByIndex(node);
         entryList->reserve(entryCount);
         for(int entry = 0; entry < entryCount; entry++) {
             entryList->emplace_back(
@@ -128,14 +129,22 @@ NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const
     return nodeBlock;
 }
 
-void SpinImage::index::io::writeNodeBlock(const NodeBlock *block, const std::experimental::filesystem::path &indexRootDirectory) {
+void SpinImage::index::io::writeNodeBlock(NodeBlock *block, const std::experimental::filesystem::path &indexRootDirectory) {
     int totalIndexEntryCount = 0;
-    for(int i = 0; i < NODES_PER_BLOCK; i++) {
-        totalIndexEntryCount += block->leafNodeContents.at(i).size();
+    const std::vector<unsigned long>* outgoingEdgeIndices = block->getOutgoingEdgeIndices();
+    for(unsigned long edgeIndex : *outgoingEdgeIndices) {
+        totalIndexEntryCount += block->getNodeContentsByIndex(edgeIndex)->size();
     }
 
-    size_t entryListSize = totalIndexEntryCount * entrySize + NODES_PER_BLOCK * sizeof(unsigned int);
-    size_t outputBufferSize = headerSize + blockStructSize + entryListSize;
+    size_t outputBufferSize =
+            // File identifier
+            headerSize +
+            // Metadata for each entry list:
+            // - Edge index (1 unsigned long)
+            // - Image count (1 unsigned int)
+            outgoingEdgeIndices->size() * (sizeof(unsigned long) + sizeof(unsigned int)) +
+            // Space for storing all images
+            totalIndexEntryCount * entrySize;
 
     char* outputBuffer = new char[outputBufferSize];
 

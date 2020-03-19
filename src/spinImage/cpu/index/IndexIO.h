@@ -13,7 +13,7 @@ namespace SpinImage {
 
             NodeBlock* readNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory);
 
-            void writeNodeBlock(const NodeBlock *block, const std::experimental::filesystem::path &indexRootDirectory);
+            void writeNodeBlock(NodeBlock *block, const std::experimental::filesystem::path &indexRootDirectory);
         }
     }
 }

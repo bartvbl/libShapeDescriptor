@@ -26,19 +26,15 @@ struct UnvisitedNode {
 };
 
 struct SearchResultEntry {
-    SearchResultEntry(IndexEntry entry, const QuiccImage &imageEntry, unsigned int minDistance, unsigned int hammingDistance)
-        : reference(entry), image(imageEntry), distanceScore(minDistance), hammingDistanceScore(hammingDistance) {}
+    SearchResultEntry(IndexEntry entry, const QuiccImage &imageEntry, unsigned int minDistance)
+        : reference(entry), image(imageEntry), distanceScore(minDistance) {}
 
     IndexEntry reference;
     QuiccImage image;
     unsigned int distanceScore;
-    unsigned int hammingDistanceScore;
 
     bool operator< (const SearchResultEntry &right) const {
-        if(distanceScore != right.distanceScore) {
-            return distanceScore < right.distanceScore;
-        }
-        return hammingDistanceScore > right.hammingDistanceScore;
+        return distanceScore < right.distanceScore;
     }
 };
 
@@ -94,14 +90,13 @@ void visitNode(
 
                 // Only consider the image if it is potentially better than what's there already
                 if(distanceScore <= searchResultScoreThreshold) {
-                    unsigned int hammingDistanceScore = computeHammingDistance(queryImage, entry.image);
-                    currentSearchResults.emplace_back(entry.indexEntry, entry.image, distanceScore, hammingDistanceScore);
+                    currentSearchResults.emplace_back(entry.indexEntry, entry.image, distanceScore);
                 }
             }
         } else {
             // If the child is an intermediate node, enqueue it in the closed node list
             IndexPath childPath = path.append(child);
-            unsigned int minDistanceScore = path.computeMinDistanceTo(queryImageMipmapStack);
+            unsigned int minDistanceScore = childPath.computeMinDistanceTo(queryImageMipmapStack);
 
             if(minDistanceScore <= searchResultScoreThreshold) {
                 //unsigned int hammingDistance = computeHammingDistance(queryImageMipmapStack, childPath, level);

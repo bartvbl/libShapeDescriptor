@@ -9,22 +9,26 @@
 class IndexPath {
 private:
     std::vector<unsigned long> pathDirections;
-    unsigned int length;
+public:
+    size_t length() {
+        return pathDirections.size();
+    }
 
+private:
     template<unsigned int width, unsigned int height> unsigned long computeSingleBitSequence(
-            const std::array<unsigned short, width*height> &image, 
-            std::array<unsigned short, width*height> &mins, 
-            std::array<unsigned short, width*height> &maxes) {
+            const std::array<unsigned short, width*height> &image,
+            std::array<unsigned short, width*height>* mins,
+            std::array<unsigned short, width*height>* maxes) {
         unsigned long bitSequence = 0;
 
         for(unsigned int i = 0; i < width * height; i++) {
-            unsigned short pivot = (maxes[i] - mins[i]) / 2;
+            unsigned short pivot = (maxes->at(i) - mins->at(i)) / 2;
             bool directionBit = image[i] >= pivot;
             bitSequence = bitSequence | (((unsigned int) directionBit) << (width * height - 1 - i));
             if(directionBit) {
-                mins[i] = pivot;
+                mins->at(i) = pivot;
             } else {
-                maxes[i] = pivot;
+                maxes->at(i) = pivot;
             }
         }
 
@@ -33,15 +37,15 @@ private:
 
     void computeBitSequence(
             BitCountMipmapStack mipmapStack,
-            std::array<unsigned short, 8> &mins,
-            std::array<unsigned short, 8> &maxes,
-            std::vector<unsigned long> &bitSequence) {
-        mins = {0, 0, 0, 0, 0, 0, 0, 0};
-        maxes = {INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX,
+            std::array<unsigned short, 8>* mins,
+            std::array<unsigned short, 8>* maxes,
+            std::vector<unsigned long>* bitSequence) {
+        *mins = {0, 0, 0, 0, 0, 0, 0, 0};
+        *maxes = {INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX,
                  INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX};
 
-        for(int i = 0; i < length; i++) {
-            bitSequence.push_back(computeSingleBitSequence<2, 4>(mipmapStack.level2, mins, maxes));
+        for(int i = 0; i < length(); i++) {
+            bitSequence->push_back(computeSingleBitSequence<2, 4>(mipmapStack.level2, mins, maxes));
         }
     }
 
@@ -50,20 +54,17 @@ private:
         std::array<unsigned short, 8> mins;
         std::array<unsigned short, 8> maxes;
         std::vector<unsigned long> bitSequence;
-        computeBitSequence(mipmapStack, mins, maxes, bitSequence);
+        computeBitSequence(mipmapStack, &mins, &maxes, &bitSequence);
         return bitSequence;
     }
 
     IndexPath(const std::vector<unsigned long> &existingPath) :
-            pathDirections(existingPath),
-            length(existingPath.size()) {}
+            pathDirections(existingPath) {}
 public:
     IndexPath(BitCountMipmapStack mipmapStack) :
-            pathDirections(computeBitSequence(mipmapStack)),
-            length(INDEX_PATH_MAX_LENGTH) {}
+            pathDirections(computeBitSequence(mipmapStack)) {}
     IndexPath() :
-            pathDirections({0, 0, 0, 0, 0, 0, 0, 0}),
-            length(0) {}
+            pathDirections() {}
 
     bool isBottomLevel(unsigned int level) {
         return level >= INDEX_PATH_MAX_LENGTH;
@@ -80,13 +81,23 @@ public:
         std::array<unsigned short, 8> mins;
         std::array<unsigned short, 8> maxes;
         std::vector<unsigned long> bitSequence;
-        computeBitSequence(mipmapStack, mins, maxes, bitSequence);
+        computeBitSequence(mipmapStack, &mins, &maxes, &bitSequence);
+
 
         for(int i = 0; i < 8; i++) {
+            int deltas = int(mins[i]) + int(mipmapStack.level2[i]) - int(1024);
+
             // For index i, the number of bits set for all images whose paths start with this one
             // lie between mins[i] and maxes[i].
-            if((mins[i] == 0) ^ (mipmapStack.level2[i] == 0)) {
+            if(mins[i] > mipmapStack.level2[i]) {
+                computedMinDistance += mins[i] - mipmapStack.level2[i];
+            } else if(maxes[i] < mipmapStack.level2[i]) {
+                computedMinDistance += mipmapStack.level2[i] - maxes[i];
+            }/* else if(mins[i] == 0 ^ mipmapStack.level2[i] == 0) {
                 computedMinDistance += mins[i] + mipmapStack.level2[i];
+            }*/
+            else if (deltas > 0) {
+                computedMinDistance += deltas;
             }
         }
 
@@ -95,7 +106,7 @@ public:
 
     IndexPath append(unsigned long direction) {
         std::vector<unsigned long> newPath = pathDirections;
-        if(length <= INDEX_PATH_MAX_LENGTH) {
+        if(length() <= INDEX_PATH_MAX_LENGTH) {
             newPath.push_back(direction);
         }
         return IndexPath(newPath);

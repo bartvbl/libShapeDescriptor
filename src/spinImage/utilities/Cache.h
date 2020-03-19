@@ -257,11 +257,13 @@ public:
         #pragma omp parallel
         {
             while(lruItemQueue.size() > 0) {
+                size_t previousCount = lruItemQueue.size();
                 forceLeastRecentlyUsedEviction();
                 #pragma omp atomic
                 flushedCount++;
+                std::cout << "\rRemaining: " << lruItemQueue.size() << "     " << std::flush;
 
-                if(flushedCount % 1000 == 0) {
+                if(flushedCount % 1000 == 0 && previousCount != lruItemQueue.size()) {
                     malloc_trim(0);
                 }
             }

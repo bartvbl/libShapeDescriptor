@@ -2,10 +2,10 @@
 #include <spinImage/cpu/index/types/BitCountMipmapStack.h>
 #include "NodeBlockCache.h"
 
-size_t countImages(std::array<std::vector<NodeBlockEntry>, NODES_PER_BLOCK> &entries) {
+size_t countImages(NodeBlock *block) {
     unsigned int entryCount = 0;
-    for(const auto& entry : entries) {
-        entryCount += entry.size();
+    for(const auto& entry : *block->getOutgoingEdgeIndices()) {
+        entryCount += block->getNodeContentsByIndex(entry)->size();
     }
     return entryCount;
 }
@@ -37,14 +37,14 @@ NodeBlock *NodeBlockCache::load(std::string &itemID) {
     #pragma omp atomic
     nodeBlockStatistics.totalReadTimeNanoseconds += readDuration.count();
     #pragma omp atomic
-    currentImageCount += countImages(readBlock->leafNodeContents);
+    currentImageCount += countImages(readBlock);
 
     return readBlock;
 }
 
 void NodeBlockCache::onEviction(NodeBlock *block) {
     #pragma omp atomic
-    currentImageCount -= countImages(block->leafNodeContents);
+    currentImageCount -= countImages(block);
 }
 
 bool shouldSplit(unsigned int leafNodeSize, bool isBottomLevel) {
@@ -78,7 +78,7 @@ void NodeBlockCache::splitNode(
             BitCountMipmapStack entryMipmapStack(entryToMove.image);
             IndexPath entryGuidePath(entryMipmapStack);
             unsigned long childNodeDirection = entryGuidePath.at(pathInIndex.length() + 1);
-            childNodeBlock->getNodeContentsByIndex(childNodeDirection)->push_back(entryToMove);
+            childNodeBlock->insert(childNodeDirection, entryToMove);
         }
 
         // If any node in the new child block is full, that one needs to be split as well
@@ -89,11 +89,11 @@ void NodeBlockCache::splitNode(
         }
 
         // Clear memory occupied by child node
-        std::vector<NodeBlockEntry>().swap(*currentNodeBlock->getEntriesByOutgoingEdgeIndex(outgoingEdgeIndex));
+        std::vector<NodeBlockEntry>().swap(*currentNodeBlock->getNodeContentsByIndex(outgoingEdgeIndex));
     }
 
     // Mark the entry in the node block as an intermediate node
-    currentNodeBlock->childNodeIsLeafNode.set(outgoingEdgeIndex, false);
+    currentNodeBlock->markChildNodeAsLeafNode(outgoingEdgeIndex, false);
 
     // Add item to the cache
     insertItem(childNodeID, childNodeBlock, true);
@@ -121,7 +121,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
 
     while(!currentNodeIsLeafNode) {
         unsigned long outgoingEdgeIndex = guidePath.at(pathInIndex.length());
-        if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
+        if(currentNodeBlock->childNodeIsLeafNode(outgoingEdgeIndex)) {
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;
             currentNodeBlock->insert(outgoingEdgeIndex, NodeBlockEntry(reference, image));

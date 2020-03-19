@@ -17,7 +17,7 @@ private:
         unsigned long bitSequence = 0;
 
         for(unsigned int i = 0; i < width * height; i++) {
-            unsigned short pivot = (maxes->at(i) - mins->at(i)) / 2;
+            unsigned short pivot = (maxes->at(i) - mins->at(i)) / 4;
             bool directionBit = image[i] >= pivot;
             bitSequence = bitSequence | (((unsigned int) directionBit) << (width * height - 1 - i));
             if(directionBit) {

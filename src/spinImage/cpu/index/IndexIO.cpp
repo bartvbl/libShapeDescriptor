@@ -90,7 +90,6 @@ void SpinImage::index::io::writeIndex(const Index& index, std::experimental::fil
 // The above is compressed and stored in a separate compressed file format
 
 const size_t headerSize = sizeof(unsigned int);
-const size_t leafNodeBoolArraySize = BoolArray<NODES_PER_BLOCK>::computeArrayLength() * sizeof(unsigned int);
 const size_t entrySize = (sizeof(IndexEntry) + sizeof(QuiccImage));
 
 NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory) {
@@ -104,15 +103,23 @@ NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const
 
     NodeBlock* nodeBlock = new NodeBlock();
     nodeBlock->identifier = blockID;
-    memcpy((void *) nodeBlock->childNodeIsLeafNode.data(), &inputBuffer[headerSize], leafNodeBoolArraySize);
 
-    const char* bufferPointer = inputBuffer + headerSize + blockStructSize;
+    const char* bufferPointer = inputBuffer + headerSize;
 
-    std::vector<unsigned long>* directions = nodeBlock->getOutgoingEdgeIndices();
+    const std::vector<unsigned long>* directions = nodeBlock->getOutgoingEdgeIndices();
 
     for(unsigned long node : *directions) {
+        // Metadata - edge index
+        bool edgeIndex = *reinterpret_cast<const unsigned long*>(bufferPointer);
+        bufferPointer += sizeof(unsigned long);
+        // Metadata - is leaf node
+        bool isLeafNode = *reinterpret_cast<const bool*>(bufferPointer);
+        bufferPointer += sizeof(bool);
+        // Metadata - image count
         unsigned int entryCount = *reinterpret_cast<const unsigned int*>(bufferPointer);
         bufferPointer += sizeof(unsigned int);
+
+        // Content
         std::vector<NodeBlockEntry>* entryList = nodeBlock->getNodeContentsByIndex(node);
         entryList->reserve(entryCount);
         for(int entry = 0; entry < entryCount; entry++) {
@@ -141,20 +148,31 @@ void SpinImage::index::io::writeNodeBlock(NodeBlock *block, const std::experimen
             headerSize +
             // Metadata for each entry list:
             // - Edge index (1 unsigned long)
+            // - Is leaf node (1 bool)
             // - Image count (1 unsigned int)
-            outgoingEdgeIndices->size() * (sizeof(unsigned long) + sizeof(unsigned int)) +
+            outgoingEdgeIndices->size() * (sizeof(unsigned long) + sizeof(unsigned int) + sizeof(bool)) +
             // Space for storing all images
             totalIndexEntryCount * entrySize;
 
     char* outputBuffer = new char[outputBufferSize];
 
     *reinterpret_cast<unsigned int*>(&outputBuffer[0]) = totalIndexEntryCount;
-    memcpy(&outputBuffer[headerSize], block->childNodeIsLeafNode.data(), leafNodeBoolArraySize);
-    char* bufferPointer = outputBuffer + headerSize + blockStructSize;
-    for(int node = 0; node < NODES_PER_BLOCK; node++) {
-        *reinterpret_cast<unsigned int*>(bufferPointer) = block->leafNodeContents.at(node).size();
+    char* bufferPointer = outputBuffer + headerSize;
+    for(unsigned long edge : *block->getOutgoingEdgeIndices()) {
+        std::vector<NodeBlockEntry>* edgeEntries = block->getNodeContentsByIndex(edge);
+
+        // Metadata - edge index
+        *reinterpret_cast<unsigned long*>(bufferPointer) = edge;
+        bufferPointer += sizeof(unsigned long);
+        // Metadata - is leaf node
+        *reinterpret_cast<bool*>(bufferPointer) = block->childNodeIsLeafNode(edge);
+        bufferPointer += sizeof(bool);
+        // Metadata - image count
+        *reinterpret_cast<unsigned int*>(bufferPointer) = edgeEntries->size();
         bufferPointer += sizeof(unsigned int);
-        for(const auto& entry : block->leafNodeContents.at(node)) {
+
+        // Contents
+        for(const auto& entry : *edgeEntries) {
             *reinterpret_cast<IndexEntry*>(bufferPointer) = entry.indexEntry;
             bufferPointer += sizeof(IndexEntry);
             *reinterpret_cast<QuiccImage*>(bufferPointer) = entry.image;

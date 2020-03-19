@@ -138,8 +138,7 @@ void dumpStatisticsFile(
         const std::experimental::filesystem::path &path) {
     json outJson;
 
-    outJson["version"] = "v3";
-    outJson["nodesPerBlock"] = NODES_PER_BLOCK;
+    outJson["version"] = "v4";
     outJson["nodeSplitThreshold"] = NODE_SPLIT_THRESHOLD;
     outJson["cacheNodeBlockCapacity"] = constructionSettings.cacheNodeBlockCapacity;
     outJson["cacheImageCapacity"] = constructionSettings.cacheImageCapacity;

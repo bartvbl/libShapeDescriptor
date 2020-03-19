@@ -9,10 +9,9 @@
 class NodeBlock {
 public:
     std::string identifier;
-    BoolArray<NODES_PER_BLOCK> childNodeIsLeafNode = {true};
 private:
     std::vector<unsigned long> directions;
-    std::array<std::vector<NodeBlockEntry>, NODES_PER_BLOCK> leafNodeContents;
+    std::vector<std::vector<NodeBlockEntry>> leafNodeContents;
 public:
     std::mutex blockLock;
 
@@ -28,5 +27,13 @@ public:
 
     const std::vector<unsigned long>* getOutgoingEdgeIndices() const {
         return &directions;
+    }
+
+    void markChildNodeAsLeafNode(unsigned long edge, bool isLeafNode) {
+
+    }
+
+    bool childNodeIsLeafNode(unsigned long edge) {
+        return false;
     }
 };

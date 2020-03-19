@@ -100,7 +100,8 @@ void visitNode(
             }
         } else {
             // If the child is an intermediate node, enqueue it in the closed node list
-            IndexPath childPath = path.append(child);
+            IndexPath childPath = path;
+            childPath.append(child);
             unsigned int minDistanceScore = path.computeMinDistanceTo(queryImageMipmapStack);
 
             if(minDistanceScore <= searchResultScoreThreshold) {

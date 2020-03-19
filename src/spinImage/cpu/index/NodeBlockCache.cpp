@@ -61,7 +61,8 @@ void NodeBlockCache::splitNode(
     nodeBlockStatistics.nodeSplitCount++;
 
     assert(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex]);
-    IndexPath childPathInIndex = pathInIndex.append(outgoingEdgeIndex);
+    IndexPath childPathInIndex = pathInIndex;
+    childPathInIndex.append(outgoingEdgeIndex);
     std::string childNodeID = childPathInIndex.to_string();
 
     // Create and insert new node into cache
@@ -149,7 +150,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             returnItemByID(currentNodeID);
             // Fetch child of intermediate node, then start the process over again.
 
-            pathInIndex = pathInIndex.append(guidePath.at(pathInIndex.length()));
+            pathInIndex.append(guidePath.at(pathInIndex.length()));
             currentNodeID = pathInIndex.to_string();
             assert(pathInIndex.isBottomLevel() || currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).empty());
             currentNodeBlock = borrowItemByID(currentNodeID);

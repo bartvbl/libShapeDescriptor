@@ -93,12 +93,10 @@ public:
         return computedMinDistance;
     }
 
-    IndexPath append(unsigned long direction) {
-        std::vector<unsigned long> newPath = pathDirections;
+    void append(unsigned long direction) {
         if(length() <= INDEX_PATH_MAX_LENGTH) {
-            newPath.push_back(direction);
+            pathDirections.push_back(direction);
         }
-        return IndexPath(newPath);
     }
 
 public:

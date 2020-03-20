@@ -54,6 +54,9 @@ public:
     // List which keeps track of which entries are in the process of being loaded/unloaded
     std::vector<IDType> beingLoadedList;
 
+    std::mutex queueLock;
+    std::condition_variable queueConditionVariable;
+
     // Mark an item present in the cache as most recently used
     void touchItem(IDType &itemID) {
         // Move the desired node to the front of the LRU queue
@@ -193,13 +196,15 @@ public:
 protected:
     // Get hold of an item. May cause another item to be ejected. Marks item as in use.
     CachedItemType* borrowItemByID(IDType &itemID) {
+        std::unique_lock<std::mutex> mainLock(queueLock);
         CacheLookupResult<CachedItemType> lookupResult = {false, nullptr};
         while(!lookupResult.lookupSuccessful) {
             lookupResult = attemptItemLookup(itemID);
             if(!lookupResult.lookupSuccessful) {
-                std::this_thread::sleep_for (std::chrono::nanoseconds (100000));
+                queueConditionVariable.wait_until(mainLock, std::chrono::steady_clock::now() + std::chrono::nanoseconds(10000));
             }
         }
+        queueConditionVariable.notify_all();
         return lookupResult.item;
     }
 

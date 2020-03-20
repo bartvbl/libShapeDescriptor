@@ -60,7 +60,7 @@ void NodeBlockCache::splitNode(
     #pragma omp atomic
     nodeBlockStatistics.nodeSplitCount++;
 
-    assert(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex]);
+    assert(currentNodeBlock->childNodeIsLeafNode(outgoingEdgeIndex));
     IndexPath childPathInIndex = pathInIndex;
     childPathInIndex.append(outgoingEdgeIndex);
     std::string childNodeID = childPathInIndex.to_string();
@@ -152,7 +152,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             // Fetch child of intermediate node, then start the process over again.
             pathInIndex.append(guidePath.at(pathInIndex.length()));
             currentNodeID = pathInIndex.to_string();
-            assert(pathInIndex.isBottomLevel() || currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).empty());
+            assert(pathInIndex.isBottomLevel() || currentNodeBlock->getNodeContentsByIndex(outgoingEdgeIndex)->empty());
             currentNodeBlock = borrowItemByID(currentNodeID);
             assert(currentNodeID == currentNodeBlock->identifier);
             currentNodeBlock->blockLock.lock();
@@ -165,7 +165,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
     }
 }
 
-const NodeBlock* NodeBlockCache::getNodeBlockByID(std::string blockID) {
+NodeBlock* NodeBlockCache::getNodeBlockByID(std::string blockID) {
     NodeBlock* block = borrowItemByID(blockID);
     returnItemByID(blockID);
     return block;

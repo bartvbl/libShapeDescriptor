@@ -69,7 +69,7 @@ const unsigned int computeMinDistanceThreshold(std::vector<SearchResultEntry> &c
 }
 
 void visitNode(
-        const NodeBlock* block,
+        NodeBlock* block,
         IndexPath path,
         const std::string &nodeID,
         const unsigned int level,
@@ -85,11 +85,12 @@ void visitNode(
 
 
     std::cout << "\rVisiting node " << debug_visitedNodeCount << " -> " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes, " << searchResultScoreThreshold  << " vs " << closedNodeQueue.top().minDistanceScore << " - " << nodeID << std::flush;
-    for(int child = 0; child < NODES_PER_BLOCK; child++) {
-        if(block->childNodeIsLeafNode[child]) {
+    const std::vector<unsigned long>* childIndices = block->getOutgoingEdgeIndices();
+    for(unsigned long child : *childIndices) {
+        if(block->childNodeIsLeafNode(child)) {
             //std::cout << "Child " << child << " is leaf node!" << std::endl;
             // If child is a leaf node, insert its images into the search result list
-            for(const NodeBlockEntry& entry : block->leafNodeContents.at(child)) {
+            for(const NodeBlockEntry& entry : *block->getNodeContentsByIndex(child)) {
                 unsigned int distanceScore = computeHammingDistance(queryImage, entry.image);
 
                 // Only consider the image if it is potentially better than what's there already
@@ -126,7 +127,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
     std::priority_queue<UnvisitedNode> closedNodeQueue;
     std::vector<SearchResultEntry> currentSearchResults;
 
-    currentSearchResults.reserve(30000 + resultCount + NODES_PER_BLOCK * NODE_SPLIT_THRESHOLD);
+    currentSearchResults.reserve(30000 + resultCount + 65536 * NODE_SPLIT_THRESHOLD);
 
     // Root node path is not referenced, so can be left uninitialised
     IndexPath rootNodePath;
@@ -138,7 +139,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
             computeMinDistanceThreshold(currentSearchResults) > closedNodeQueue.top().minDistanceScore) {
         UnvisitedNode nextBestUnvisitedNode = closedNodeQueue.top();
         closedNodeQueue.pop();
-        const NodeBlock* block = cache.getNodeBlockByID(nextBestUnvisitedNode.nodeID);
+        NodeBlock* block = cache.getNodeBlockByID(nextBestUnvisitedNode.nodeID);
         visitNode(block, nextBestUnvisitedNode.path, nextBestUnvisitedNode.nodeID, nextBestUnvisitedNode.level,
                 closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
         debug_visitedNodeCount++;

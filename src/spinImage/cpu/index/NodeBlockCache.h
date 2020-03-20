@@ -74,6 +74,6 @@ public:
             }
         }
     void insertImage(const QuiccImage &image, const IndexEntry reference);
-    const NodeBlock* getNodeBlockByID(std::string blockID);
+    NodeBlock* getNodeBlockByID(std::string blockID);
     size_t getCurrentImageCount() const;
 };

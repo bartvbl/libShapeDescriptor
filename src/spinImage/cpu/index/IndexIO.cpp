@@ -110,7 +110,7 @@ NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const
 
     for(unsigned long node : *directions) {
         // Metadata - edge index
-        bool edgeIndex = *reinterpret_cast<const unsigned long*>(bufferPointer);
+        unsigned long edgeIndex = *reinterpret_cast<const unsigned long*>(bufferPointer);
         bufferPointer += sizeof(unsigned long);
         // Metadata - is leaf node
         bool isLeafNode = *reinterpret_cast<const bool*>(bufferPointer);
@@ -120,7 +120,8 @@ NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const
         bufferPointer += sizeof(unsigned int);
 
         // Content
-        std::vector<NodeBlockEntry>* entryList = nodeBlock->getNodeContentsByIndex(node);
+        std::vector<NodeBlockEntry>* entryList = nodeBlock->getNodeContentsByIndex(edgeIndex);
+        nodeBlock->markChildNodeAsLeafNode(edgeIndex, isLeafNode);
         entryList->reserve(entryCount);
         for(int entry = 0; entry < entryCount; entry++) {
             entryList->emplace_back(
@@ -144,7 +145,7 @@ void SpinImage::index::io::writeNodeBlock(NodeBlock *block, const std::experimen
     }
 
     size_t outputBufferSize =
-            // File identifier
+            // File identifier and child node count
             headerSize +
             // Metadata for each entry list:
             // - Edge index (1 unsigned long)

@@ -23,6 +23,10 @@ const char *SpinImage::utilities::readCompressedFile(const std::experimental::fi
     size_t compressedBufferSize;
     size_t decompressedBufferSize;
 
+    if(!std::experimental::filesystem::exists(archiveFile)) {
+        throw std::runtime_error("The file " + std::experimental::filesystem::absolute(archiveFile).string() + " was not found.");
+    }
+
     std::ifstream decompressStream(archiveFile.string(), std::ios::in | std::ios::binary);
 
     decompressStream.read(headerTitle.data(), 5);

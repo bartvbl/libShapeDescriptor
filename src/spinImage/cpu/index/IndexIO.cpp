@@ -97,7 +97,9 @@ const size_t entrySize = (sizeof(IndexEntry) + sizeof(QuiccImage));
 NodeBlock* SpinImage::index::io::readNodeBlock(const std::string &blockID, const std::experimental::filesystem::path &indexRootDirectory) {
     std::experimental::filesystem::path nodeBlockFilePath = indexRootDirectory / blockID / "block.dat";
 
-    assert(std::experimental::filesystem::exists(nodeBlockFilePath));
+    if(!std::experimental::filesystem::exists(nodeBlockFilePath)) {
+        throw std::runtime_error("Attempted to read node block from " + std::experimental::filesystem::absolute(nodeBlockFilePath).string() + ", but the file was not found.");
+    }
 
     // Multithreading is disabled because the used multithreading context is not thread safe
     size_t fileSize;

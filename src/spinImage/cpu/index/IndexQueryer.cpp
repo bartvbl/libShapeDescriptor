@@ -41,7 +41,7 @@ struct SearchResultEntry {
 std::stringstream IDBuilder;
 unsigned int debug_visitedNodeCount = 0;
 
-std::string appendPath(const std::string &parentNodeID, unsigned char childIndex) {
+std::string appendPath(const std::string &parentNodeID, unsigned long childIndex) {
     std::string byteString = parentNodeID;
     const std::string characterMap = "0123456789abcdef";
     byteString += characterMap.at((childIndex >> 4U) & 0x0FU);

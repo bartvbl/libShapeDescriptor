@@ -3,8 +3,7 @@
 #include <array>
 #include "BitCountMipmapStack.h"
 
-#define INDEX_PATH_MAX_LENGTH 8
-#define INDEX_PATH_INITIAL_MAX ((spinImageWidthPixels * spinImageWidthPixels) / 8)
+#define INDEX_PATH_MAX_LENGTH 32
 
 class IndexPath {
 private:
@@ -15,53 +14,23 @@ public:
     }
 
 private:
-    template<unsigned int width, unsigned int height> unsigned long computeSingleBitSequence(
-            const std::array<unsigned short, width*height> &image,
-            std::array<unsigned short, width*height>* mins,
-            std::array<unsigned short, width*height>* maxes) {
-        unsigned long bitSequence = 0;
-
-        for(unsigned int i = 0; i < width * height; i++) {
-            unsigned short pivot = (maxes->at(i) - mins->at(i)) / 2;
-            bool directionBit = image[i] >= pivot;
-            bitSequence = bitSequence | (((unsigned int) directionBit) << (width * height - 1 - i));
-            if(directionBit) {
-                mins->at(i) = pivot;
-            } else {
-                maxes->at(i) = pivot;
+    std::vector<unsigned long> computeBitSequence(const BitCountMipmapStack &mipmapStack) {
+        std::vector<unsigned long> columnSums;
+        columnSums.resize(32);
+        for(int column = 0; column < 32; column++) {
+            unsigned int columnSum = 0;
+            for(int row = 0; row < 32; row++) {
+                columnSum += mipmapStack.level6[32 * row + column];
             }
+            columnSums.at(column) = columnSum;
         }
-
-        return bitSequence;
-    }
-
-    void computeBitSequence(
-            BitCountMipmapStack mipmapStack,
-            std::array<unsigned short, 8>* mins,
-            std::array<unsigned short, 8>* maxes,
-            std::vector<unsigned long>* bitSequence) {
-        *mins = {0, 0, 0, 0, 0, 0, 0, 0};
-        *maxes = {INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX,
-                 INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX, INDEX_PATH_INITIAL_MAX};
-
-        for(int i = 0; i < length(); i++) {
-            bitSequence->push_back(computeSingleBitSequence<2, 4>(mipmapStack.level2, mins, maxes));
-        }
-    }
-
-    std::vector<unsigned long> computeBitSequence(
-            BitCountMipmapStack mipmapStack) {
-        std::array<unsigned short, 8> mins;
-        std::array<unsigned short, 8> maxes;
-        std::vector<unsigned long> bitSequence;
-        computeBitSequence(mipmapStack, &mins, &maxes, &bitSequence);
-        return bitSequence;
+        return columnSums;
     }
 
     IndexPath(const std::vector<unsigned long> &existingPath) :
             pathDirections(existingPath) {}
 public:
-    IndexPath(BitCountMipmapStack mipmapStack) :
+    IndexPath(const BitCountMipmapStack &mipmapStack) :
             pathDirections(computeBitSequence(mipmapStack)) {}
     IndexPath() :
             pathDirections() {}
@@ -75,30 +44,16 @@ public:
         return pathDirections.at(level);
     }
 
+    unsigned short computeDeltaAt(std::vector<unsigned long> &reference, unsigned int index) {
+        return std::abs((signed long) (reference[index]) - (signed long) (pathDirections[index]));
+    }
+
     unsigned short computeMinDistanceTo(const BitCountMipmapStack &mipmapStack) {
+        std::vector<unsigned long> referenceBitSequence = computeBitSequence(mipmapStack);
+
         unsigned short computedMinDistance = 0;
-
-        std::array<unsigned short, 8> mins;
-        std::array<unsigned short, 8> maxes;
-        std::vector<unsigned long> bitSequence;
-        computeBitSequence(mipmapStack, &mins, &maxes, &bitSequence);
-
-
-        for(int i = 0; i < 8; i++) {
-            int deltas = int(mins[i]) + int(mipmapStack.level2[i]) - int(1024);
-
-            // For index i, the number of bits set for all images whose paths start with this one
-            // lie between mins[i] and maxes[i].
-            if(mins[i] > mipmapStack.level2[i]) {
-                computedMinDistance += mins[i] - mipmapStack.level2[i];
-            } else if(maxes[i] < mipmapStack.level2[i]) {
-                computedMinDistance += mipmapStack.level2[i] - maxes[i];
-            }/* else if(mins[i] == 0 ^ mipmapStack.level2[i] == 0) {
-                computedMinDistance += mins[i] + mipmapStack.level2[i];
-            }*/
-            else if (deltas > 0) {
-                computedMinDistance += deltas;
-            }
+        for(unsigned int i = 0; i < length(); i++) {
+            computedMinDistance += computeDeltaAt(referenceBitSequence, i);
         }
 
         return computedMinDistance;

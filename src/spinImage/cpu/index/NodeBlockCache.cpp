@@ -60,11 +60,10 @@ std::string byteToHex(unsigned char byte) {
     byteString += characterMap.at((byte & 0x0FU));
     return byteString;
 }
-
 void NodeBlockCache::splitNode(
         unsigned short levelReached,
         NodeBlock *currentNodeBlock,
-        unsigned char outgoingEdgeIndex,
+        unsigned long outgoingEdgeIndex,
         IndexPath &indexPath,
         std::string &childNodeID) {
     #pragma omp atomic
@@ -81,9 +80,9 @@ void NodeBlockCache::splitNode(
         // Follow linked list and move all nodes into new child node block
         for(const auto& entryToMove : currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex))
         {
-            // Look at the next byte in the mipmap to determine which child bucket will receive the child node
-            unsigned char childLevelByte = indexPath.at(levelReached + 1);
-            childNodeBlock->leafNodeContents.at(childLevelByte).push_back(entryToMove);
+            BitCountMipmapStack entryMipmapStack(entryToMove.image);
+            IndexPath entryGuidePath(entryMipmapStack);
+            childNodeBlock->leafNodeContents.at(entryGuidePath.at(levelReached + 1)).push_back(entryToMove);
         }
 
         // If any node in the new child block is full, that one needs to be split as well
@@ -126,7 +125,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
     BitCountMipmapStack mipmaps(image);
     IndexPath indexPath = IndexPath(mipmaps);
     while(!currentNodeIsLeafNode) {
-        unsigned char outgoingEdgeIndex = indexPath.at(levelReached);
+        unsigned long outgoingEdgeIndex = indexPath.at(levelReached);
         if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;

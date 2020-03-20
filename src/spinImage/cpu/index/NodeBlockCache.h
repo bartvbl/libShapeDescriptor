@@ -50,7 +50,7 @@ private:
     void splitNode(
             unsigned short levelReached,
             NodeBlock *currentNodeBlock,
-            unsigned char levelByte,
+            unsigned long levelByte,
             IndexPath &indexPath,
             std::string &childNodeID);
 protected:

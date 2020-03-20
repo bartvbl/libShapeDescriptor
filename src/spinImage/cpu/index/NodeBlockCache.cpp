@@ -53,9 +53,11 @@ bool shouldSplit(unsigned int leafNodeSize, unsigned int levelReached, bool isBo
         : leafNodeSize >= NODE_SPLIT_THRESHOLD * 64;
 }
 
-std::string byteToHex(unsigned char byte) {
+std::string shortToHex(unsigned long byte) {
     std::string byteString;
     const std::string characterMap = "0123456789abcdef";
+    byteString += characterMap.at((byte >> 12U) & 0x0FU);
+    byteString += characterMap.at((byte >> 8U) & 0x0FU);
     byteString += characterMap.at((byte >> 4U) & 0x0FU);
     byteString += characterMap.at((byte & 0x0FU));
     return byteString;
@@ -88,7 +90,7 @@ void NodeBlockCache::splitNode(
         // If any node in the new child block is full, that one needs to be split as well
         for(unsigned int childIndex = 0; childIndex < NODES_PER_BLOCK; childIndex++) {
             if(shouldSplit(childNodeBlock->leafNodeContents.at(childIndex).size(), levelReached + 1, indexPath.isBottomLevel(levelReached + 1))) {
-                std::string splitNodeID = childNodeID + byteToHex(childIndex) + "/";
+                std::string splitNodeID = childNodeID + shortToHex(childIndex) + "/";
                 splitNode(levelReached + 1, childNodeBlock, childIndex, indexPath, splitNodeID);
             }
         }
@@ -138,7 +140,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
 
             // 3. Split if threshold has been reached, but not if we're at the deepest possible level
             if(shouldSplit(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).size(), levelReached, indexPath.isBottomLevel(levelReached))) {
-                pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
+                pathBuilder << shortToHex(outgoingEdgeIndex) << "/";
                 std::string childNodeID = pathBuilder.str();
 
                 auto splitStart = std::chrono::high_resolution_clock::now();
@@ -157,7 +159,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             returnItemByID(currentNodeID);
             // Fetch child of intermediate node, then start the process over again.
             levelReached++;
-            pathBuilder << (outgoingEdgeIndex < 16 ? "0" : "") << int(outgoingEdgeIndex) << "/";
+            pathBuilder << shortToHex(outgoingEdgeIndex) << "/";
             currentNodeID = pathBuilder.str();
             assert(indexPath.isBottomLevel(levelReached) || currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).empty());
             currentNodeBlock = borrowItemByID(currentNodeID);

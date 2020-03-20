@@ -44,10 +44,13 @@ unsigned int debug_visitedNodeCount = 0;
 std::string appendPath(const std::string &parentNodeID, unsigned long childIndex) {
     std::string byteString = parentNodeID;
     const std::string characterMap = "0123456789abcdef";
+    byteString += characterMap.at((childIndex >> 12U) & 0x0FU);
+    byteString += characterMap.at((childIndex >> 8U) & 0x0FU);
     byteString += characterMap.at((childIndex >> 4U) & 0x0FU);
     byteString += characterMap.at((childIndex & 0x0FU));
     byteString += "/";
     return byteString;
+
 }
 
 unsigned int computeHammingDistance(const QuiccImage &needle, const QuiccImage &haystack) {

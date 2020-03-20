@@ -16,13 +16,13 @@ public:
 private:
     std::vector<unsigned long> computeBitSequence(const BitCountMipmapStack &mipmapStack) {
         std::vector<unsigned long> columnSums;
+        unsigned long cumulativeSum = mipmapStack.level1[0] + mipmapStack.level1[1] + mipmapStack.level1[2] + mipmapStack.level1[3];
         columnSums.resize(32);
         for(int column = 0; column < 32; column++) {
-            unsigned int columnSum = 0;
             for(int row = 0; row < 32; row++) {
-                columnSum += mipmapStack.level6[32 * row + column];
+                cumulativeSum -= mipmapStack.level6[32 * row + column];
             }
-            columnSums.at(column) = columnSum;
+            columnSums.at(column) = cumulativeSum;
         }
         return columnSums;
     }

@@ -44,17 +44,23 @@ public:
         return pathDirections.at(level);
     }
 
-    unsigned short computeDeltaAt(std::vector<unsigned long> &reference, unsigned int index) {
-        return std::abs((signed long) (reference[index]) - (signed long) (pathDirections[index]));
+    unsigned short computeDeltaAt(std::vector<unsigned long> &columnSums, unsigned int index) {
+        int columnValue = (index < 31) ? pathDirections[index + 1] - pathDirections[index] : pathDirections[index];
+        return std::abs(int(columnSums[index]) - columnValue);
     }
 
-    unsigned short computeMinDistanceTo(const BitCountMipmapStack &mipmapStack) {
-        std::vector<unsigned long> referenceBitSequence = computeBitSequence(mipmapStack);
+    unsigned short computeMinDistanceTo(const BitCountMipmapStack &referenceMipmapStack) {
+        std::vector<unsigned long> referenceBitSequence = computeBitSequence(referenceMipmapStack);
 
+        // For the columns that are part of the path, we can compute the exact difference
         unsigned short computedMinDistance = 0;
-        for(unsigned int i = 0; i < length(); i++) {
-            computedMinDistance += computeDeltaAt(referenceBitSequence, i);
+        unsigned int column = 0;
+        for(; column < length(); column++) {
+            computedMinDistance += computeDeltaAt(referenceBitSequence, column);
         }
+
+        // For the remainder, we look at the bit count difference for all columns
+        computedMinDistance += std::abs(int(pathDirections[column]) - int(referenceBitSequence[column]));
 
         return computedMinDistance;
     }

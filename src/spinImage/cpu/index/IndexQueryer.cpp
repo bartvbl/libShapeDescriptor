@@ -83,7 +83,7 @@ void visitNode(
             computeMinDistanceThreshold(currentSearchResults);
 
 
-    std::cout << "\rVisiting node " << debug_visitedNodeCount << " -> " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes, " << searchResultScoreThreshold  << " vs " << closedNodeQueue.top().minDistanceScore << " - " << nodeID << std::flush;
+    std::cout << "Visiting node " << debug_visitedNodeCount << " -> " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes, " << searchResultScoreThreshold  << " vs " << closedNodeQueue.top().minDistanceScore << " - " << nodeID << std::endl;
     for(int child = 0; child < NODES_PER_BLOCK; child++) {
         if(block->childNodeIsLeafNode[child]) {
             //std::cout << "Child " << child << " is leaf node!" << std::endl;

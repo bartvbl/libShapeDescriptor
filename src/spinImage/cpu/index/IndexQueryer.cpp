@@ -132,7 +132,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
 
     // Iteratively add additional nodes until there's no chance any additional node can improve the best distance score
     while(  !closedNodeQueue.empty() &&
-            computeMinDistanceThreshold(currentSearchResults) > closedNodeQueue.top().minDistanceScore) {
+            computeMinDistanceThreshold(currentSearchResults) >= closedNodeQueue.top().minDistanceScore) {
         UnvisitedNode nextBestUnvisitedNode = closedNodeQueue.top();
         closedNodeQueue.pop();
         const NodeBlock* block = cache.getNodeBlockByID(nextBestUnvisitedNode.nodeID);

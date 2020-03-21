@@ -18,11 +18,12 @@ private:
         std::vector<unsigned long> columnSums;
         unsigned long cumulativeSum = mipmapStack.level1[0] + mipmapStack.level1[1] + mipmapStack.level1[2] + mipmapStack.level1[3];
         columnSums.resize(32);
-        for(int column = 0; column < 32; column++) {
+        columnSums.at(0) = cumulativeSum;
+        for(int column = 0; column < 32 - 1; column++) {
             for(int row = 0; row < 32; row++) {
                 cumulativeSum -= mipmapStack.level6[32 * row + column];
             }
-            columnSums.at(column) = cumulativeSum;
+            columnSums.at(column + 1) = cumulativeSum;
         }
         return columnSums;
     }
@@ -44,23 +45,31 @@ public:
         return pathDirections.at(level);
     }
 
-    unsigned short computeDeltaAt(std::vector<unsigned long> &columnSums, unsigned int index) {
-        int columnValue = (index < 31) ? pathDirections[index + 1] - pathDirections[index] : pathDirections[index];
-        return std::abs(int(columnSums[index]) - columnValue);
+    unsigned short computeDeltaAt(std::vector<unsigned long> &referenceSums, unsigned int index) {
+        int pathDeltaValue = (index < 31) ? int(pathDirections[index]) - int(pathDirections[index + 1]) : int(pathDirections[index]);
+        int referenceDeltaValue = (index < 31) ? int(referenceSums[index]) - int(referenceSums[index + 1]) : int(referenceSums[index]);
+        return std::abs(pathDeltaValue - referenceDeltaValue);
     }
 
     unsigned short computeMinDistanceTo(const BitCountMipmapStack &referenceMipmapStack) {
         std::vector<unsigned long> referenceBitSequence = computeBitSequence(referenceMipmapStack);
 
+        // If the path is empty, we can't say anything about the distance
+        if(length() == 0) {
+            return 0;
+        }
+
         // For the columns that are part of the path, we can compute the exact difference
         unsigned short computedMinDistance = 0;
-        unsigned int column = 0;
-        for(; column < length(); column++) {
+        int column = 0;
+        for(; column < int(length()) - 1; column++) {
             computedMinDistance += computeDeltaAt(referenceBitSequence, column);
         }
 
         // For the remainder, we look at the bit count difference for all columns
-        computedMinDistance += std::abs(int(pathDirections[column]) - int(referenceBitSequence[column]));
+        if(length() < 31) {
+            computedMinDistance += std::abs(int(pathDirections[column]) - int(referenceBitSequence[column]));
+        }
 
         return computedMinDistance;
     }

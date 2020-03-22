@@ -78,7 +78,7 @@ void NodeBlockCache::splitNode(
     childNodeBlock->blockLock.lock();
     childNodeBlock->identifier = childNodeID;
 
-    if(!indexPath.isBottomLevel(levelReached)) {
+    if(!IndexPath::isBottomLevel(indexPath, levelReached)) {
         // Follow linked list and move all nodes into new child node block
         for(const auto& entryToMove : currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex))
         {
@@ -89,7 +89,7 @@ void NodeBlockCache::splitNode(
 
         // If any node in the new child block is full, that one needs to be split as well
         for(unsigned int childIndex = 0; childIndex < NODES_PER_BLOCK; childIndex++) {
-            if(shouldSplit(childNodeBlock->leafNodeContents.at(childIndex).size(), levelReached + 1, indexPath.isBottomLevel(levelReached + 1))) {
+            if(shouldSplit(childNodeBlock->leafNodeContents.at(childIndex).size(), levelReached + 1, IndexPath::isBottomLevel(indexPath, levelReached + 1))) {
                 std::string splitNodeID = childNodeID + shortToHex(childIndex) + "/";
                 splitNode(levelReached + 1, childNodeBlock, childIndex, indexPath, splitNodeID);
             }
@@ -139,7 +139,7 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             markItemDirty(itemID);
 
             // 3. Split if threshold has been reached, but not if we're at the deepest possible level
-            if(shouldSplit(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).size(), levelReached, indexPath.isBottomLevel(levelReached))) {
+            if(shouldSplit(currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).size(), levelReached, IndexPath::isBottomLevel(indexPath, levelReached))) {
                 pathBuilder << shortToHex(outgoingEdgeIndex) << "/";
                 std::string childNodeID = pathBuilder.str();
 

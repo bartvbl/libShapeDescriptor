@@ -7,6 +7,7 @@
 #include <spinImage/cpu/types/QuiccImage.h>
 #include <spinImage/utilities/Cache.h>
 #include <spinImage/cpu/index/types/IndexPath.h>
+#include <set>
 #include "IndexIO.h"
 
 /* Notes on where I'm at right now
@@ -47,6 +48,11 @@ private:
     const std::experimental::filesystem::path indexRoot;
     size_t currentImageCount = 0;
 
+    std::set<std::string> seenNodeBlockIDs;
+    std::mutex seenNodeBlockListLock;
+
+    bool hasNodeBeenSeen(std::string &nodeID);
+
     void splitNode(
             unsigned short levelReached,
             NodeBlock *currentNodeBlock,
@@ -73,6 +79,7 @@ public:
             if(!loadExisting) {
                 std::string rootNodeID;
                 insertItem(rootNodeID, new NodeBlock(), true);
+                seenNodeBlockIDs.insert("");
             }
         }
     void insertImage(const QuiccImage &image, const IndexEntry reference);

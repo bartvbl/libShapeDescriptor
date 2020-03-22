@@ -105,6 +105,20 @@ void NodeBlockCache::splitNode(
     // Add item to the cache
     insertItem(childNodeID, childNodeBlock, true);
     childNodeBlock->blockLock.unlock();
+
+    // Updating the set of seen node IDs must be done after the node has been added to the cache
+    // Otherwise, a thread might try to request it before it exists within the cache itself,
+    // and the program will crash
+    seenNodeBlockListLock.lock();
+    seenNodeBlockIDs.insert(childNodeID);
+    seenNodeBlockListLock.unlock();
+}
+
+bool NodeBlockCache::hasNodeBeenSeen(std::string &nodeID) {
+    seenNodeBlockListLock.lock();
+    bool hasNodeBeenSeen = seenNodeBlockIDs.find(nodeID) != seenNodeBlockIDs.end();
+    seenNodeBlockListLock.unlock();
+    return hasNodeBeenSeen;
 }
 
 void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry reference) {
@@ -120,15 +134,26 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
     pathBuilder << std::hex;
 
     bool currentNodeIsLeafNode = false;
-    std::string currentNodeID;
+
     // currentNodeID initialises to "", which causes this to fetch the root node
-    NodeBlock* currentNodeBlock = borrowItemByID(currentNodeID);
-    currentNodeBlock->blockLock.lock();
+    std::string currentNodeID;
+    NodeBlock* currentNodeBlock = nullptr;
+
     BitCountMipmapStack mipmaps(image);
     IndexPath indexPath = IndexPath(mipmaps);
+
     while(!currentNodeIsLeafNode) {
         unsigned long outgoingEdgeIndex = indexPath.at(levelReached);
-        if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
+        std::string nextNodeID = currentNodeID + shortToHex(outgoingEdgeIndex) + "/";
+        bool currentNodeIsDefinitelyIntermediate = hasNodeBeenSeen(nextNodeID);
+
+        if(!currentNodeIsDefinitelyIntermediate) {
+            currentNodeBlock = borrowItemByID(currentNodeID);
+            currentNodeBlock->blockLock.lock();
+            assert(currentNodeID == currentNodeBlock->identifier);
+        }
+
+        if(!currentNodeIsDefinitelyIntermediate && currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;
             std::string itemID = pathBuilder.str();
@@ -155,16 +180,14 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             currentNodeBlock->blockLock.unlock();
             returnItemByID(currentNodeID);
         } else {
-            currentNodeBlock->blockLock.unlock();
-            returnItemByID(currentNodeID);
+            if(!currentNodeIsDefinitelyIntermediate) {
+                currentNodeBlock->blockLock.unlock();
+                returnItemByID(currentNodeID);
+            }
             // Fetch child of intermediate node, then start the process over again.
             levelReached++;
             pathBuilder << shortToHex(outgoingEdgeIndex) << "/";
             currentNodeID = pathBuilder.str();
-            assert(indexPath.isBottomLevel(levelReached) || currentNodeBlock->leafNodeContents.at(outgoingEdgeIndex).empty());
-            currentNodeBlock = borrowItemByID(currentNodeID);
-            assert(currentNodeID == currentNodeBlock->identifier);
-            currentNodeBlock->blockLock.lock();
         }
     }
 

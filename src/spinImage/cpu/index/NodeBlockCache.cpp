@@ -105,21 +105,8 @@ void NodeBlockCache::splitNode(
     // Add item to the cache
     insertItem(childNodeID, childNodeBlock, true);
     childNodeBlock->blockLock.unlock();
-
-    // Updating the set of seen node IDs must be done after the node has been added to the cache
-    // Otherwise, a thread might try to request it before it exists within the cache itself,
-    // and the program will crash
-    seenNodeBlockListLock.lock();
-    seenNodeBlockIDs.insert(childNodeID);
-    seenNodeBlockListLock.unlock();
 }
 
-bool NodeBlockCache::hasNodeBeenSeen(std::string &nodeID) {
-    seenNodeBlockListLock.lock();
-    bool hasNodeBeenSeen = seenNodeBlockIDs.find(nodeID) != seenNodeBlockIDs.end();
-    seenNodeBlockListLock.unlock();
-    return hasNodeBeenSeen;
-}
 
 void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry reference) {
     #pragma omp atomic
@@ -145,15 +132,12 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
     while(!currentNodeIsLeafNode) {
         unsigned long outgoingEdgeIndex = indexPath.at(levelReached);
         std::string nextNodeID = currentNodeID + shortToHex(outgoingEdgeIndex) + "/";
-        bool currentNodeIsDefinitelyIntermediate = hasNodeBeenSeen(nextNodeID);
 
-        if(!currentNodeIsDefinitelyIntermediate) {
-            currentNodeBlock = borrowItemByID(currentNodeID);
-            currentNodeBlock->blockLock.lock();
-            assert(currentNodeID == currentNodeBlock->identifier);
-        }
+        currentNodeBlock = borrowItemByID(currentNodeID);
+        currentNodeBlock->blockLock.lock();
+        assert(currentNodeID == currentNodeBlock->identifier);
 
-        if(!currentNodeIsDefinitelyIntermediate && currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
+        if(currentNodeBlock->childNodeIsLeafNode[outgoingEdgeIndex] == true) {
             // Leaf node reached. Insert image into it
             currentNodeIsLeafNode = true;
             std::string itemID = pathBuilder.str();
@@ -180,10 +164,9 @@ void NodeBlockCache::insertImage(const QuiccImage &image, const IndexEntry refer
             currentNodeBlock->blockLock.unlock();
             returnItemByID(currentNodeID);
         } else {
-            if(!currentNodeIsDefinitelyIntermediate) {
-                currentNodeBlock->blockLock.unlock();
-                returnItemByID(currentNodeID);
-            }
+            currentNodeBlock->blockLock.unlock();
+            returnItemByID(currentNodeID);
+
             // Fetch child of intermediate node, then start the process over again.
             levelReached++;
             pathBuilder << shortToHex(outgoingEdgeIndex) << "/";

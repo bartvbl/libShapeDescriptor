@@ -48,11 +48,6 @@ private:
     const std::experimental::filesystem::path indexRoot;
     size_t currentImageCount = 0;
 
-    std::set<std::string> seenNodeBlockIDs;
-    std::mutex seenNodeBlockListLock;
-
-    bool hasNodeBeenSeen(std::string &nodeID);
-
     void splitNode(
             unsigned short levelReached,
             NodeBlock *currentNodeBlock,
@@ -79,7 +74,6 @@ public:
             if(!loadExisting) {
                 std::string rootNodeID;
                 insertItem(rootNodeID, new NodeBlock(), true);
-                seenNodeBlockIDs.insert("");
             }
         }
     void insertImage(const QuiccImage &image, const IndexEntry reference);

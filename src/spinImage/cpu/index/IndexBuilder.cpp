@@ -238,6 +238,16 @@ Index SpinImage::index::build(
 
             #pragma omp parallel for schedule(dynamic)
             for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
+                if(imageIndex % 5000 == 0) {
+                    std::stringstream progressBar;
+                    progressBar << "\r[";
+                    int dashCount = int((float(imageIndex) / float(images.imageCount)) * 25.0f) + 1;
+                    for(int i = 0; i < 25; i++) {
+                        progressBar << ((i <= dashCount) ? "=" : " ");
+                    }
+                    progressBar << "] " << imageIndex << "/" << images.imageCount << "\r";
+                    std::cout << progressBar.str() << std::flush;
+                }
                 std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
                 QuiccImage combined = combineQuiccImages(
                         images.horizontallyIncreasingImages[imageIndex],

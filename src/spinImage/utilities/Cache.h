@@ -204,7 +204,7 @@ protected:
             // Done to ensure only threads don't hold up other threads trying to do useful stuff in the cache
             typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
                     it = randomAccessMap.find(itemID);
-            if(it != randomAccessMap.end() && !it->second->isInUse) {
+            if(it == randomAccessMap.end() || (it != randomAccessMap.end() && !it->second->isInUse)) {
                 lookupResult = attemptItemLookup(itemID);
             }
             if(!lookupResult.lookupSuccessful) {

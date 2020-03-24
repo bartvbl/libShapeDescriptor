@@ -199,11 +199,19 @@ protected:
         std::unique_lock<std::mutex> mainLock(queueLock);
         CacheLookupResult<CachedItemType> lookupResult = {false, nullptr};
         while(!lookupResult.lookupSuccessful) {
-            lookupResult = attemptItemLookup(itemID);
+            lookupResult.lookupSuccessful = false;
+            // THREAD UNSAFE LOOKUP!!
+            // Done to ensure only threads don't hold up other threads trying to do useful stuff in the cache
+            typename std::unordered_map<IDType, typename std::list<CachedItem<IDType, CachedItemType>>::iterator>::iterator
+                    it = randomAccessMap.find(itemID);
+            if(it != randomAccessMap.end() && !it->second->isInUse) {
+                lookupResult = attemptItemLookup(itemID);
+            }
             if(!lookupResult.lookupSuccessful) {
                 queueConditionVariable.wait_until(mainLock, std::chrono::steady_clock::now() + std::chrono::nanoseconds(10000));
             }
         }
+        // Wake up next thread to go in
         queueConditionVariable.notify_all();
         return lookupResult.item;
     }

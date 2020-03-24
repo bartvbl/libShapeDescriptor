@@ -4,14 +4,15 @@
 #include <spinImage/cpu/index/types/BitCountMipmapStack.h>
 #include <algorithm>
 #include <climits>
+#include <cfloat>
 
 struct UnvisitedNode {
-    UnvisitedNode(IndexPath indexPath, std::string unvisitedNodeID, unsigned int minDistance, unsigned int nodeLevel)
+    UnvisitedNode(IndexPath indexPath, std::string unvisitedNodeID, float minDistance, unsigned int nodeLevel)
     : path(indexPath), nodeID(unvisitedNodeID), minDistanceScore(minDistance), level(nodeLevel) {}
 
     IndexPath path;
     std::string nodeID;
-    unsigned int minDistanceScore;
+    float minDistanceScore;
     unsigned int level;
 
     // We want the open node priority queue to sort items by lowest score
@@ -26,12 +27,13 @@ struct UnvisitedNode {
 };
 
 struct SearchResultEntry {
-    SearchResultEntry(IndexEntry entry, const QuiccImage &imageEntry, unsigned int minDistance)
-        : reference(entry), image(imageEntry), distanceScore(minDistance) {}
+    SearchResultEntry(IndexEntry entry, const QuiccImage &imageEntry, std::string debug_nodeID, float minDistance)
+        : reference(entry), image(imageEntry), debug_indexPath(debug_nodeID), distanceScore(minDistance) {}
 
     IndexEntry reference;
     QuiccImage image;
-    unsigned int distanceScore;
+    std::string debug_indexPath;
+    float distanceScore;
 
     bool operator< (const SearchResultEntry &right) const {
         return distanceScore < right.distanceScore;
@@ -53,17 +55,34 @@ std::string appendPath(const std::string &parentNodeID, unsigned long childIndex
 
 }
 
-unsigned int computeHammingDistance(const QuiccImage &needle, const QuiccImage &haystack) {
-    unsigned int score = 0;
+float computeWeightedHammingDistance(const QuiccImage &needle, const BitCountMipmapStack &needleMipmapStack, const QuiccImage &haystack) {
+    const unsigned int bitsPerImage = spinImageWidthPixels * spinImageWidthPixels;
+    unsigned int queryImageSetBitCount = needleMipmapStack.level1[0] + needleMipmapStack.level1[1]
+            + needleMipmapStack.level1[2] + needleMipmapStack.level1[3];
+    unsigned int queryImageUnsetBitCount = bitsPerImage - queryImageSetBitCount;
+
+    // If any count is 0, bump it up to 1
+    queryImageSetBitCount = std::max<unsigned int>(queryImageSetBitCount, 1);
+    queryImageUnsetBitCount = std::max<unsigned int>(queryImageUnsetBitCount, 1);
+
+    // The fewer bits exist of a specific pixel type, the greater the penalty for not containing it
+    float missedSetBitPenalty = float(bitsPerImage) / float(queryImageSetBitCount);
+    float missedUnsetBitPenalty = float(bitsPerImage) / float(queryImageUnsetBitCount);
+
+    // Wherever pixels don't match, we apply a penalty for each of them
+    float score = 0;
     for(int i = 0; i < needle.size(); i++) {
-        score += std::bitset<32>(needle[i] ^ haystack[i]).count();
+        unsigned int wrongSetBitCount = std::bitset<32>((needle[i] ^ haystack[i]) & needle[i]).count();
+        unsigned int wrongUnsetBitCount = std::bitset<32>((~needle[i] ^ ~haystack[i]) & ~needle[i]).count();
+        score += float(wrongSetBitCount) * missedSetBitPenalty + float(wrongUnsetBitCount) * missedUnsetBitPenalty;
     }
+
     return score;
 }
 
-const unsigned int computeMinDistanceThreshold(std::vector<SearchResultEntry> &currentSearchResults) {
+const float computeMinDistanceThreshold(std::vector<SearchResultEntry> &currentSearchResults) {
     return currentSearchResults.empty() ?
-               INT_MAX
+               std::numeric_limits<float>::max()
                : currentSearchResults.at(currentSearchResults.size() - 1).distanceScore;
 }
 
@@ -79,7 +98,7 @@ void visitNode(
     // Divide child nodes over both queues
     const unsigned int childLevel = level + 1;
     // If we have not yet acquired any search results, disable the threshold
-    const unsigned int searchResultScoreThreshold =
+    const float searchResultScoreThreshold =
             computeMinDistanceThreshold(currentSearchResults);
 
 
@@ -89,17 +108,17 @@ void visitNode(
             //std::cout << "Child " << child << " is leaf node!" << std::endl;
             // If child is a leaf node, insert its images into the search result list
             for(const NodeBlockEntry& entry : block->leafNodeContents.at(child)) {
-                unsigned int distanceScore = computeHammingDistance(queryImage, entry.image);
+                float distanceScore = computeWeightedHammingDistance(queryImage, queryImageMipmapStack, entry.image);
 
                 // Only consider the image if it is potentially better than what's there already
                 if(distanceScore <= searchResultScoreThreshold) {
-                    currentSearchResults.emplace_back(entry.indexEntry, entry.image, distanceScore);
+                    currentSearchResults.emplace_back(entry.indexEntry, entry.image, nodeID, distanceScore);
                 }
             }
         } else {
             // If the child is an intermediate node, enqueue it in the closed node list
             IndexPath childPath = path.append(child);
-            unsigned int minDistanceScore = childPath.computeMinDistanceTo(queryImageMipmapStack);
+            float minDistanceScore = childPath.computeMinDistanceTo(queryImageMipmapStack);
 
             if(minDistanceScore <= searchResultScoreThreshold) {
                 //unsigned int hammingDistance = computeHammingDistance(queryImageMipmapStack, childPath, level);
@@ -167,6 +186,11 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
 
     for(int i = 0; i < resultCount; i++) {
         queryResults.push_back({currentSearchResults.at(i).reference, currentSearchResults.at(i).image});
+        std::cout << "Result " << i << ": "
+               "file " << currentSearchResults.at(i).reference.fileIndex <<
+               ", image " << currentSearchResults.at(i).reference.imageIndex <<
+               ", score " << currentSearchResults.at(i).distanceScore <<
+               ", path " << currentSearchResults.at(i).debug_indexPath << std::endl;
     }
 
     return queryResults;

@@ -44,13 +44,7 @@ public:
         return pathDirections.at(level);
     }
 
-    unsigned short computeDeltaAt(std::array<unsigned short, 32> &referenceSums, unsigned int index) {
-        int pathDeltaValue = (index < 31) ? int(pathDirections[index]) - int(pathDirections[index + 1]) : int(pathDirections[index]);
-        int referenceDeltaValue = (index < 31) ? int(referenceSums[index]) - int(referenceSums[index + 1]) : int(referenceSums[index]);
-        return std::abs(pathDeltaValue - referenceDeltaValue);
-    }
-
-    unsigned short computeMinDistanceTo(const BitCountMipmapStack &referenceMipmapStack) {
+    float computeMinDistanceTo(const BitCountMipmapStack &referenceMipmapStack) {
         std::array<unsigned short, 32> referenceBitSequence = computeBitSequence(referenceMipmapStack);
 
         // If the path is empty, we can't say anything about the distance
@@ -58,16 +52,46 @@ public:
             return 0;
         }
 
+        const unsigned int bitsPerImage = spinImageWidthPixels * spinImageWidthPixels;
+        unsigned int queryImageSetBitCount = referenceMipmapStack.level1[0] + referenceMipmapStack.level1[1]
+                                             + referenceMipmapStack.level1[2] + referenceMipmapStack.level1[3];
+        unsigned int queryImageUnsetBitCount = bitsPerImage - queryImageSetBitCount;
+
+        // If any count is 0, bump it up to 1
+        queryImageSetBitCount = std::max<unsigned int>(queryImageSetBitCount, 1);
+        queryImageUnsetBitCount = std::max<unsigned int>(queryImageUnsetBitCount, 1);
+
+        // The fewer bits exist of a specific pixel type, the greater the penalty for not containing it
+        float missedSetBitPenalty = float(bitsPerImage) / float(queryImageSetBitCount);
+        float missedUnsetBitPenalty = float(bitsPerImage) / float(queryImageUnsetBitCount);
+
         // For the columns that are part of the path, we can compute the exact difference
-        unsigned short computedMinDistance = 0;
+        float computedMinDistance = 0;
         int column = 0;
         for(; column < int(length) - 1; column++) {
-            computedMinDistance += computeDeltaAt(referenceBitSequence, column);
+            int haystackColumnBitSum = (column < 31)
+                    ? int(pathDirections[column]) - int(pathDirections[column + 1])
+                    : int(pathDirections[column]);
+            int needleColumnBitSum = (column < 31)
+                    ? int(referenceBitSequence[column]) - int(referenceBitSequence[column + 1])
+                    : int(referenceBitSequence[column]);
+
+            // Lower than 0: Haystack must miss some needle set pixels
+            // Greater than 0: Haystack must miss some needle unset pixels;
+            int signedDelta = haystackColumnBitSum - needleColumnBitSum;
+
+            computedMinDistance += signedDelta < 0
+                    ? float(std::abs(signedDelta)) * missedSetBitPenalty
+                    : float(std::abs(signedDelta)) * missedUnsetBitPenalty;
         }
 
         // For the remainder, we look at the bit count difference for all columns
         if(length < 31) {
-            computedMinDistance += std::abs(int(pathDirections[column]) - int(referenceBitSequence[column]));
+            int signedDelta = int(pathDirections[column]) - int(referenceBitSequence[column]);
+
+            computedMinDistance += signedDelta < 0
+                   ? float(std::abs(signedDelta)) * missedSetBitPenalty
+                   : float(std::abs(signedDelta)) * missedUnsetBitPenalty;
         }
 
         return computedMinDistance;

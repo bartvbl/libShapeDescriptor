@@ -273,7 +273,7 @@ Index SpinImage::index::build(
             cache.nodeBlockStatistics.reset();
 
             if(enableStatisticsDump && fileIndex % 100 == 99) {
-                std::cout << "Writing statistics file..\n";
+                std::cout << "Writing statistics file..                                      \n";
                 dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
             }
 

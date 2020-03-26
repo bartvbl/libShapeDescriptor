@@ -272,21 +272,30 @@ public:
 
     // Eject all items from the cache, leave it empty
     void flush() {
+        cacheLock.lock();
         size_t flushedCount = 0;
-        #pragma omp parallel
-        {
-            while(lruItemQueue.size() > 0) {
-                size_t previousCount = lruItemQueue.size();
-                forceLeastRecentlyUsedEviction();
+        #pragma omp parallel for
+        for (auto item = lruItemQueue.begin(); item != lruItemQueue.end(); ++item) {
+            #pragma omp atomic
+            statistics.evictions++;
+            if(item->isDirty) {
                 #pragma omp atomic
-                flushedCount++;
-                std::cout << "\rRemaining: " << lruItemQueue.size() << "     " << std::flush;
-
-                if(flushedCount % 1000 == 0 && previousCount != lruItemQueue.size()) {
-                    malloc_trim(0);
-                }
+                statistics.dirtyEvictions++;
+                eject(item->item);
             }
-        };
+            #pragma omp atomic
+            flushedCount++;
+            std::cout << "\rRemaining: " + std::to_string(lruItemQueue.size() - flushedCount) + "     " << std::flush;
+
+            if (flushedCount % 1000 == 0) {
+                malloc_trim(0);
+            }
+        }
+
+
+        lruItemQueue.clear();
+        randomAccessMap.clear();
+        cacheLock.unlock();
         assert(lruItemQueue.empty());
         assert(randomAccessMap.empty());
     }

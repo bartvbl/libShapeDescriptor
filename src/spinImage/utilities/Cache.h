@@ -198,6 +198,7 @@ protected:
     CachedItemType* borrowItemByID(IDType &itemID) {
         std::unique_lock<std::mutex> mainLock(queueLock);
         CacheLookupResult<CachedItemType> lookupResult = {false, nullptr};
+        unsigned int failedCount = 0;
         while(!lookupResult.lookupSuccessful) {
             lookupResult.lookupSuccessful = false;
             // THREAD UNSAFE LOOKUP!!
@@ -206,8 +207,11 @@ protected:
                     it = randomAccessMap.find(itemID);
             // If the item is not in the cache, it can't be contested, so we can go ahead and grab it.
             // If the item is in the cache, take a quick peek to see if it is available right now
-            if(it == randomAccessMap.end() || (it != randomAccessMap.end() && !it->second->isInUse)) {
+            if((it == randomAccessMap.end() || (it != randomAccessMap.end() && !it->second->isInUse)) || failedCount >= 100) {
                 lookupResult = attemptItemLookup(itemID);
+                failedCount = 0;
+            } else {
+                failedCount++;
             }
             if(!lookupResult.lookupSuccessful) {
                 queueConditionVariable.wait_until(mainLock, std::chrono::steady_clock::now() + std::chrono::nanoseconds(10000));

@@ -283,6 +283,9 @@ public:
                 statistics.dirtyEvictions++;
                 eject(item->item);
             }
+            onEviction(item->item);
+            delete item->item;
+
             #pragma omp atomic
             flushedCount++;
             std::cout << "\rRemaining: " + std::to_string(lruItemQueue.size() - flushedCount) + "     " << std::flush;

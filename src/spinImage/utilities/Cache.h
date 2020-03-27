@@ -273,27 +273,36 @@ public:
     // Eject all items from the cache, leave it empty
     void flush() {
         cacheLock.lock();
+
         size_t flushedCount = 0;
-        #pragma omp parallel for
-        for (auto item = lruItemQueue.begin(); item != lruItemQueue.end(); ++item) {
-            #pragma omp atomic
-            statistics.evictions++;
-            if(item->isDirty) {
-                #pragma omp atomic
-                statistics.dirtyEvictions++;
-                eject(item->item);
-            }
-            onEviction(item->item);
-            delete item->item;
+        #pragma omp parallel
+        #pragma omp single
+        {
+            for (auto item = lruItemQueue.begin(); item != lruItemQueue.end(); ++item) {
+                #pragma omp task firstprivate(item)
+                {
+                    #pragma omp atomic
+                    statistics.evictions++;
+                    if(item->isDirty) {
+                        #pragma omp atomic
+                        statistics.dirtyEvictions++;
+                        eject(item->item);
+                    }
+                    onEviction(item->item);
+                    delete item->item;
 
-            #pragma omp atomic
-            flushedCount++;
-            std::cout << "\rRemaining: " + std::to_string(lruItemQueue.size() - flushedCount) + "     " << std::flush;
+                    #pragma omp atomic
+                    flushedCount++;
+                    std::cout << "\rRemaining: " + std::to_string(lruItemQueue.size() - flushedCount) + "     " << std::flush;
 
-            if (flushedCount % 1000 == 0) {
-                malloc_trim(0);
+                    if (flushedCount % 1000 == 0) {
+                        malloc_trim(0);
+                    }
+                }
             }
-        }
+            #pragma omp taskwait
+        };
+
 
 
         lruItemQueue.clear();

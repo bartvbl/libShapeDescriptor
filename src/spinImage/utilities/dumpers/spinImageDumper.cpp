@@ -11,7 +11,7 @@
 #include <spinImage/cpu/types/QUICCIImages.h>
 
 template<typename spinPixelType>
-void performSpinDump(SpinImage::array<spinPixelType> descriptors, const std::string &imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
+void performSpinDump(SpinImage::array<spinPixelType> descriptors, const std::experimental::filesystem::path &imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
 	size_t rowCount = (descriptors.length / imagesPerRow) + ((descriptors.length % imagesPerRow == 0) ? 0 : 1);
 	std::cout << "Dumping " << rowCount << " rows containing " << descriptors.length << " images." << std::endl;
 
@@ -143,17 +143,17 @@ void performSpinDump(SpinImage::array<spinPixelType> descriptors, const std::str
 	}
 }
 
-void SpinImage::dump::descriptors(array<spinImagePixelType> hostDescriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void SpinImage::dump::descriptors(array<spinImagePixelType> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
 	performSpinDump<spinImagePixelType>(hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void SpinImage::dump::descriptors(array<radialIntersectionCountImagePixelType> hostDescriptors, std::string imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void SpinImage::dump::descriptors(array<radialIntersectionCountImagePixelType> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
 	performSpinDump<radialIntersectionCountImagePixelType> (hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, std::string imageDestinationFile, unsigned int imagesPerRow) {
+void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, std::experimental::filesystem::path imageDestinationFile, unsigned int imagesPerRow) {
 	// Compute the number of images that should be inserted to separate the two series
 	// If the number of rows fits the images exactly, an extra one is inserted for better clarity.
 	size_t rowRemainder = hostDescriptors.imageCount % imagesPerRow;
@@ -172,6 +172,8 @@ void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, 
 	const size_t uintsPerImage = pixelsPerImage / 32;
 
 	size_t pixelIndex = 0;
+
+
 
 	for(unsigned int imageIndex = 0; imageIndex < hostDescriptors.imageCount; imageIndex++) {
 	    for(unsigned int chunkIndex = 0; chunkIndex < UINTS_PER_QUICCI; chunkIndex++) {
@@ -200,7 +202,33 @@ void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, 
         }
     }
 
-	performSpinDump<unsigned int>(decompressedDesciptors, imageDestinationFile, false, imagesPerRow);
+    performSpinDump<unsigned int>(decompressedDesciptors, imageDestinationFile, false, imagesPerRow);
 
-	delete[] decompressedDesciptors.content;
+    delete[] decompressedDesciptors.content;
+}
+
+void descriptors(
+        const std::vector<QuiccImage> &hostDescriptors,
+        std::experimental::filesystem::path imageDestinationFile,
+        unsigned int imagesPerRow) {
+    size_t pixelIndex = 0;
+
+    SpinImage::array<unsigned int> decompressedDescriptors = {
+            hostDescriptors.size(),
+            new unsigned int[hostDescriptors.size() * (sizeof(QuiccImage) / sizeof(unsigned int))]};
+
+    for(unsigned int imageIndex = 0; imageIndex < hostDescriptors.size(); imageIndex++) {
+        for(unsigned int chunkIndex = 0; chunkIndex < UINTS_PER_QUICCI; chunkIndex++) {
+            unsigned int chunk = hostDescriptors.at(imageIndex)[chunkIndex];
+            std::bitset<32> entryBits(chunk);
+            for(char bit = 0; bit < 32; bit++) {
+                decompressedDescriptors.content[pixelIndex] = unsigned(int(entryBits[31 - bit]) * 255);
+                pixelIndex++;
+            }
+        }
+    }
+
+    performSpinDump<unsigned int>(decompressedDescriptors, imageDestinationFile, false, imagesPerRow);
+
+    delete decompressedDescriptors.content;
 }

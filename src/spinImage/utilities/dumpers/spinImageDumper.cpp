@@ -207,7 +207,7 @@ void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, 
     delete[] decompressedDesciptors.content;
 }
 
-void descriptors(
+void SpinImage::dump::descriptors(
         const std::vector<QuiccImage> &hostDescriptors,
         std::experimental::filesystem::path imageDestinationFile,
         unsigned int imagesPerRow) {

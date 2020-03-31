@@ -186,6 +186,19 @@ void dumpStatisticsFile(
     outFile.close();
 }
 
+void dumpCountFile(std::array<size_t, 4096> &counts, const std::string &path) {
+    std::ofstream countFile(path);
+    for(int row = 0; row < 64; row++) {
+        for(int col = 0; col < 64; col++) {
+            countFile << counts.at((63 - row) * 64 + col) << (col < 63 ? ", " : "");
+        }
+        if(row < 63) {
+            countFile << std::endl;
+        }
+    }
+    countFile.close();
+}
+
 Index SpinImage::index::build(
         std::experimental::filesystem::path quicciImageDumpDirectory,
         std::experimental::filesystem::path indexDumpDirectory,
@@ -224,8 +237,15 @@ Index SpinImage::index::build(
 
     size_t endIndex = fileEndIndex == fileStartIndex ? filesInDirectory.size() : fileEndIndex;
 
-    std::array<size_t, 4096> counts;
-    std::fill(counts.begin(), counts.end(), 0);
+    std::array<size_t, 4096> zeros;
+    std::fill(zeros.begin(), zeros.end(), 0);
+
+    std::array<size_t, 4096> counts = zeros;
+    std::array<size_t, 4096> counts_horizontal_one_equal = zeros;
+    std::array<size_t, 4096> counts_vertical_one_equal = zeros;
+    std::array<size_t, 4096> counts_horizontal_zero_equal = zeros;
+    std::array<size_t, 4096> counts_vertical_zero_equal = zeros;
+
     size_t totalImageCount = 0;
 
     #pragma omp parallel for schedule(dynamic)
@@ -243,8 +263,11 @@ Index SpinImage::index::build(
 
             #pragma omp parallel
             {
-                std::array<size_t, 4096> thread_counts;
-                std::fill(thread_counts.begin(), thread_counts.end(), 0);
+                std::array<size_t, 4096> thread_counts = zeros;
+                std::array<size_t, 4096> thread_horizontal_one_equal_counts = zeros;
+                std::array<size_t, 4096> thread_horizontal_zero_equal_counts = zeros;
+                std::array<size_t, 4096> thread_vertical_one_equal_counts = zeros;
+                std::array<size_t, 4096> thread_vertical_zero_equal_counts = zeros;
                 #pragma omp for schedule(dynamic)
                 for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
                     if (imageIndex % 5000 == 0) {
@@ -263,8 +286,28 @@ Index SpinImage::index::build(
                             images.horizontallyDecreasingImages[imageIndex]);
                     IndexEntry entry = {fileIndex, imageIndex};
 
-                    for(unsigned int i = 0; i < 4096; i++) {
-                        thread_counts.at(i) += (combined.at(i / 32) >> (31 - (i % 32))) & 0x1U;
+                    for(unsigned int row = 0; row < 64; row++) {
+                        for(unsigned int col = 0; col < 64; col++) {
+                            unsigned int currentBitSet = (combined.at(row * 2 + col/32) >> (31 - (col % 32))) & 0x1U;
+                            unsigned int currentBitUnset = 1 - currentBitSet;
+                            thread_counts.at(64 * row + col) += currentBitSet;
+                            if(col < 63) {
+                                unsigned int rightBitSet = (combined.at(row * 2 + (col+1)/32) >> (31 - ((col + 1) % 32))) & 0x1U;
+                                unsigned int rightBitUnset = 1 - rightBitSet;
+                                unsigned int bothBitsSet = currentBitSet & rightBitSet;
+                                unsigned int bothBitsUnset = currentBitUnset & rightBitUnset;
+                                thread_horizontal_one_equal_counts.at(64 * row + col) += bothBitsSet;
+                                thread_horizontal_zero_equal_counts.at(64 * row + col) += bothBitsUnset;
+                            }
+                            if(row < 63) {
+                                unsigned int bottomBitSet = (combined.at((row + 1) * 2 + col/32) >> (31 - (col % 32))) & 0x1U;
+                                unsigned int bottomBitUnset = 1 - bottomBitSet;
+                                unsigned int bothBitsSet = currentBitSet & bottomBitSet;
+                                unsigned int bothBitsUnset = currentBitUnset & bottomBitUnset;
+                                thread_vertical_one_equal_counts.at(64 * row + col) += bothBitsSet;
+                                thread_vertical_zero_equal_counts.at(64 * row + col) += bothBitsUnset;
+                            }
+                        }
                     }
 
                     //cache.insertImage(combined, entry);
@@ -278,6 +321,14 @@ Index SpinImage::index::build(
                 for(int i = 0; i < 4096; i++) {
                     #pragma omp atomic
                     counts[i] += thread_counts[i];
+                    #pragma omp atomic
+                    counts_horizontal_one_equal[i] += thread_horizontal_one_equal_counts[i];
+                    #pragma omp atomic
+                    counts_horizontal_zero_equal[i] += thread_horizontal_zero_equal_counts[i];
+                    #pragma omp atomic
+                    counts_vertical_one_equal[i] += thread_vertical_one_equal_counts[i];
+                    #pragma omp atomic
+                    counts_vertical_zero_equal[i] += thread_vertical_zero_equal_counts[i];
                 }
             }
 
@@ -310,12 +361,11 @@ Index SpinImage::index::build(
         delete[] images.horizontallyDecreasingImages;
     }
 
-    for(int row = 0; row < 64; row++) {
-        for(int col = 0; col < 64; col++) {
-            std::cout << counts.at((63 - row) * 64 + col) << " ";
-        }
-        std::cout << std::endl;
-    }
+    dumpCountFile(counts, "counts_total.txt");
+    dumpCountFile(counts_horizontal_one_equal, "counts_horizontal_one_equal.txt");
+    dumpCountFile(counts_horizontal_zero_equal, "counts_horizontal_zero_equal.txt");
+    dumpCountFile(counts_vertical_one_equal, "counts_vertical_one_equal.txt");
+    dumpCountFile(counts_vertical_zero_equal, "counts_vertical_zero_equal.txt");
     std::cout << std::endl << "Total Image Count: " << totalImageCount << std::endl;
 
     // Ensuring all changes are written to disk
@@ -333,3 +383,5 @@ Index SpinImage::index::build(
 
     return index;
 }
+
+

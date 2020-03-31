@@ -224,6 +224,10 @@ Index SpinImage::index::build(
 
     size_t endIndex = fileEndIndex == fileStartIndex ? filesInDirectory.size() : fileEndIndex;
 
+    std::array<size_t, 4096> counts;
+    std::fill(counts.begin(), counts.end(), 0);
+    size_t totalImageCount = 0;
+
     #pragma omp parallel for schedule(dynamic)
     for(unsigned int fileIndex = 0; fileIndex < endIndex; fileIndex++) {
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
@@ -233,33 +237,47 @@ Index SpinImage::index::build(
         double totalImageDurationMilliseconds = 0;
         #pragma omp critical
         {
+            totalImageCount += images.imageCount;
             indexedFiles->emplace_back(archivePath);
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
-            #pragma omp parallel for schedule(dynamic)
-            for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
-                if(imageIndex % 5000 == 0) {
-                    std::stringstream progressBar;
-                    progressBar << "\r[";
-                    int dashCount = int((float(imageIndex) / float(images.imageCount)) * 25.0f) + 1;
-                    for(int i = 0; i < 25; i++) {
-                        progressBar << ((i <= dashCount) ? "=" : " ");
+            #pragma omp parallel
+            {
+                std::array<size_t, 4096> thread_counts;
+                std::fill(thread_counts.begin(), thread_counts.end(), 0);
+                #pragma omp for schedule(dynamic)
+                for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
+                    if (imageIndex % 5000 == 0) {
+                        std::stringstream progressBar;
+                        progressBar << "\r[";
+                        int dashCount = int((float(imageIndex) / float(images.imageCount)) * 25.0f) + 1;
+                        for (int i = 0; i < 25; i++) {
+                            progressBar << ((i <= dashCount) ? "=" : " ");
+                        }
+                        progressBar << "] " << imageIndex << "/" << images.imageCount << "\r";
+                        std::cout << progressBar.str() << std::flush;
                     }
-                    progressBar << "] " << imageIndex << "/" << images.imageCount << "\r";
-                    std::cout << progressBar.str() << std::flush;
+                    std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
+                    QuiccImage combined = combineQuiccImages(
+                            images.horizontallyIncreasingImages[imageIndex],
+                            images.horizontallyDecreasingImages[imageIndex]);
+                    IndexEntry entry = {fileIndex, imageIndex};
+
+                    for(unsigned int i = 0; i < 4096; i++) {
+                        thread_counts.at(i) += (combined.at(i / 32) >> (31 - (i % 32))) & 0x1U;
+                    }
+
+                    //cache.insertImage(combined, entry);
+                    std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
+                    #pragma omp atomic
+                    totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                            imageEndTime - imageStartTime).count() / 1000000.0;
                 }
-                std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
-                QuiccImage combined = combineQuiccImages(
-                        images.horizontallyIncreasingImages[imageIndex],
-                        images.horizontallyDecreasingImages[imageIndex]);
-                IndexEntry entry = {fileIndex, imageIndex};
-                cache.insertImage(combined, entry);
-                std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
-                #pragma omp atomic
-                totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(imageEndTime - imageStartTime).count() / 1000000.0;
-                // Occasionally force frees memory such that memory does not accumulate too much over time
-                if(imageIndex % 25000 == 0) {
-                    malloc_trim(0);
+
+
+                for(int i = 0; i < 4096; i++) {
+                    #pragma omp atomic
+                    counts[i] += thread_counts[i];
                 }
             }
 
@@ -291,6 +309,14 @@ Index SpinImage::index::build(
         delete[] images.horizontallyIncreasingImages;
         delete[] images.horizontallyDecreasingImages;
     }
+
+    for(int row = 0; row < 64; row++) {
+        for(int col = 0; col < 64; col++) {
+            std::cout << counts.at((63 - row) * 64 + col) << " ";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl << "Total Image Count: " << totalImageCount << std::endl;
 
     // Ensuring all changes are written to disk
     std::cout << "Flushing cache.." << std::endl;

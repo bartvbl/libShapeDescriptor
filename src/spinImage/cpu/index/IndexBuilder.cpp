@@ -237,16 +237,14 @@ Index SpinImage::index::build(
 
     size_t endIndex = fileEndIndex == fileStartIndex ? filesInDirectory.size() : fileEndIndex;
 
-    std::array<size_t, 4096> zeros;
+    size_t totalImageCount = 0;
+    size_t currentTotalImageIndex = 0;
+
+    std::array<size_t, 65536> zeros;
     std::fill(zeros.begin(), zeros.end(), 0);
 
-    std::array<size_t, 4096> counts = zeros;
-    std::array<size_t, 4096> counts_horizontal_one_equal = zeros;
-    std::array<size_t, 4096> counts_vertical_one_equal = zeros;
-    std::array<size_t, 4096> counts_horizontal_zero_equal = zeros;
-    std::array<size_t, 4096> counts_vertical_zero_equal = zeros;
-
-    size_t totalImageCount = 0;
+    std::array<std::array<size_t, 65536>, 4096>* counts = new std::array<std::array<size_t, 65536>, 4096>();
+    std::fill(counts->begin(), counts->end(), zeros);
 
     #pragma omp parallel for schedule(dynamic)
     for(unsigned int fileIndex = 0; fileIndex < endIndex; fileIndex++) {
@@ -261,14 +259,8 @@ Index SpinImage::index::build(
             indexedFiles->emplace_back(archivePath);
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
-            #pragma omp parallel
+            #pragma omp parallel num_threads(32)
             {
-                std::array<size_t, 4096> thread_counts = zeros;
-                std::array<size_t, 4096> thread_horizontal_one_equal_counts = zeros;
-                std::array<size_t, 4096> thread_horizontal_zero_equal_counts = zeros;
-                std::array<size_t, 4096> thread_vertical_one_equal_counts = zeros;
-                std::array<size_t, 4096> thread_vertical_zero_equal_counts = zeros;
-                #pragma omp for schedule(dynamic)
                 for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
                     if (imageIndex % 5000 == 0) {
                         std::stringstream progressBar;
@@ -286,27 +278,19 @@ Index SpinImage::index::build(
                             images.horizontallyDecreasingImages[imageIndex]);
                     IndexEntry entry = {fileIndex, imageIndex};
 
-                    for(unsigned int row = 0; row < 64; row++) {
-                        for(unsigned int col = 0; col < 64; col++) {
-                            unsigned int currentBitSet = (combined.at(row * 2 + col/32) >> (31 - (col % 32))) & 0x1U;
-                            unsigned int currentBitUnset = 1 - currentBitSet;
-                            thread_counts.at(64 * row + col) += currentBitSet;
-                            if(col < 63) {
-                                unsigned int rightBitSet = (combined.at(row * 2 + (col+1)/32) >> (31 - ((col + 1) % 32))) & 0x1U;
-                                unsigned int rightBitUnset = 1 - rightBitSet;
-                                unsigned int bothBitsSet = currentBitSet & rightBitSet;
-                                unsigned int bothBitsUnset = currentBitUnset & rightBitUnset;
-                                thread_horizontal_one_equal_counts.at(64 * row + col) += bothBitsSet;
-                                thread_horizontal_zero_equal_counts.at(64 * row + col) += bothBitsUnset;
+                    for(unsigned int row = 0; row < 64 - 4; row++) {
+                        for(unsigned int col = omp_get_thread_num(); col < 64 - 4; col += 32) {
+                            unsigned short bitPattern = 0;
+                            for(unsigned int chunkX = col; chunkX < col + 4; chunkX++) {
+                                for(unsigned int chunkY = row; chunkY < row + 4; chunkY++) {
+                                    unsigned int bitVectorIndex = chunkY * 2 + chunkX/32;
+                                    unsigned int currentBitSet =
+                                            (combined.at(bitVectorIndex)
+                                                >> (31 - (chunkX % 32))) & 0x1U;
+                                    bitPattern = bitPattern | (currentBitSet << (15 - (4 * (chunkY - row) + (chunkX - col))));
+                                }
                             }
-                            if(row < 63) {
-                                unsigned int bottomBitSet = (combined.at((row + 1) * 2 + col/32) >> (31 - (col % 32))) & 0x1U;
-                                unsigned int bottomBitUnset = 1 - bottomBitSet;
-                                unsigned int bothBitsSet = currentBitSet & bottomBitSet;
-                                unsigned int bothBitsUnset = currentBitUnset & bottomBitUnset;
-                                thread_vertical_one_equal_counts.at(64 * row + col) += bothBitsSet;
-                                thread_vertical_zero_equal_counts.at(64 * row + col) += bothBitsUnset;
-                            }
+                            counts->at(64 * row + col).at(bitPattern)++;
                         }
                     }
 
@@ -317,19 +301,6 @@ Index SpinImage::index::build(
                             imageEndTime - imageStartTime).count() / 1000000.0;
                 }
 
-
-                for(int i = 0; i < 4096; i++) {
-                    #pragma omp atomic
-                    counts[i] += thread_counts[i];
-                    #pragma omp atomic
-                    counts_horizontal_one_equal[i] += thread_horizontal_one_equal_counts[i];
-                    #pragma omp atomic
-                    counts_horizontal_zero_equal[i] += thread_horizontal_zero_equal_counts[i];
-                    #pragma omp atomic
-                    counts_vertical_one_equal[i] += thread_vertical_one_equal_counts[i];
-                    #pragma omp atomic
-                    counts_vertical_zero_equal[i] += thread_vertical_zero_equal_counts[i];
-                }
             }
 
             std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
@@ -361,11 +332,25 @@ Index SpinImage::index::build(
         delete[] images.horizontallyDecreasingImages;
     }
 
-    dumpCountFile(counts, "counts_total.txt");
-    dumpCountFile(counts_horizontal_one_equal, "counts_horizontal_one_equal.txt");
-    dumpCountFile(counts_horizontal_zero_equal, "counts_horizontal_zero_equal.txt");
-    dumpCountFile(counts_vertical_one_equal, "counts_vertical_one_equal.txt");
-    dumpCountFile(counts_vertical_zero_equal, "counts_vertical_zero_equal.txt");
+    std::array<size_t, 4096> zeroImage;
+    std::fill(zeroImage.begin(), zeroImage.end(), 0);
+
+    for(int pattern = 0; pattern < 65536; pattern++) {
+        std::array<size_t, 4096> finalCounts = zeroImage;
+        for(int bin = 0; bin < 4096; bin++) {
+            finalCounts.at(bin) = counts->at(bin).at(pattern);
+        }
+        std::string patternString = "";
+        for(int i = 0; i < 16; i++) {
+            if(i != 0 && i % 4 == 0) {
+                patternString += "|";
+            }
+            patternString += std::to_string((pattern >> (15 - i)) & 0x1);
+        }
+        std::cout << "Dumping pattern " << patternString << std::endl;
+        dumpCountFile(finalCounts, "counts_" + patternString + ".txt");
+    }
+
     std::cout << std::endl << "Total Image Count: " << totalImageCount << std::endl;
 
     // Ensuring all changes are written to disk

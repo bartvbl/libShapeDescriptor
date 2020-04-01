@@ -11,7 +11,8 @@ namespace SpinImage {
             QuiccImage image;
         };
 
-        std::vector<QueryResult> query(Index &index, const QuiccImage &queryImage, unsigned int resultCount);
+        std::vector<QueryResult> query(Index &index, const QuiccImage &queryImage,
+                unsigned int resultCountLimit, unsigned int distanceLimit = std::numeric_limits<unsigned int>::max());
     }
 }
 

@@ -74,16 +74,20 @@ int main(int argc, const char** argv) {
 
     std::cout << "Dumping results.." << std::endl;
     SpinImage::cpu::QUICCIImages imageBuffer;
-    imageBuffer.horizontallyIncreasingImages = new QuiccImage[resultCount];
-    imageBuffer.horizontallyDecreasingImages = new QuiccImage[resultCount];
-    imageBuffer.imageCount = resultCount;
+    imageBuffer.horizontallyIncreasingImages = new QuiccImage[std::max<unsigned int>(searchResults.size(), 1)];
+    imageBuffer.horizontallyDecreasingImages = new QuiccImage[std::max<unsigned int>(searchResults.size(), 1)];
+    imageBuffer.imageCount = std::max<unsigned int>(searchResults.size(), 1);
 
     QuiccImage blankImage;
     std::fill(blankImage.begin(), blankImage.end(), 0);
-    std::fill(imageBuffer.horizontallyIncreasingImages, imageBuffer.horizontallyIncreasingImages + resultCount, blankImage);
-    std::fill(imageBuffer.horizontallyDecreasingImages, imageBuffer.horizontallyDecreasingImages + resultCount, blankImage);
+    std::fill(imageBuffer.horizontallyIncreasingImages,
+              imageBuffer.horizontallyIncreasingImages + std::max<unsigned int>(searchResults.size(), 1),
+                  blankImage);
+    std::fill(imageBuffer.horizontallyDecreasingImages,
+              imageBuffer.horizontallyDecreasingImages + std::max<unsigned int>(searchResults.size(), 1),
+                  blankImage);
 
-    for(int searchResult = 0; searchResult < resultCount; searchResult++) {
+    for(int searchResult = 0; searchResult < searchResults.size(); searchResult++) {
         imageBuffer.horizontallyIncreasingImages[searchResult] = searchResults.at(searchResult).image;
     }
 

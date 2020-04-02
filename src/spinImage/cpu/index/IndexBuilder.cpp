@@ -186,19 +186,6 @@ void dumpStatisticsFile(
     outFile.close();
 }
 
-void dumpCountFile(std::array<size_t, 4096> &counts, const std::string &path) {
-    std::ofstream countFile(path);
-    for(int row = 0; row < 64; row++) {
-        for(int col = 0; col < 64; col++) {
-            countFile << counts.at((63 - row) * 64 + col) << (col < 63 ? ", " : "");
-        }
-        if(row < 63) {
-            countFile << std::endl;
-        }
-    }
-    countFile.close();
-}
-
 Index SpinImage::index::build(
         std::experimental::filesystem::path quicciImageDumpDirectory,
         std::experimental::filesystem::path indexDumpDirectory,
@@ -240,12 +227,6 @@ Index SpinImage::index::build(
     size_t totalImageCount = 0;
     size_t currentTotalImageIndex = 0;
 
-    std::array<size_t, 65536> zeros;
-    std::fill(zeros.begin(), zeros.end(), 0);
-
-    std::array<std::array<size_t, 65536>, 4096>* counts = new std::array<std::array<size_t, 65536>, 4096>();
-    std::fill(counts->begin(), counts->end(), zeros);
-
     #pragma omp parallel for schedule(dynamic)
     for(unsigned int fileIndex = 0; fileIndex < endIndex; fileIndex++) {
         std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
@@ -259,48 +240,32 @@ Index SpinImage::index::build(
             indexedFiles->emplace_back(archivePath);
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
-            #pragma omp parallel num_threads(32)
-            {
-                for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
-                    if (imageIndex % 5000 == 0) {
-                        std::stringstream progressBar;
-                        progressBar << "\r[";
-                        int dashCount = int((float(imageIndex) / float(images.imageCount)) * 25.0f) + 1;
-                        for (int i = 0; i < 25; i++) {
-                            progressBar << ((i <= dashCount) ? "=" : " ");
-                        }
-                        progressBar << "] " << imageIndex << "/" << images.imageCount << "\r";
-                        std::cout << progressBar.str() << std::flush;
+            #pragma omp parallel for
+            for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
+                if (imageIndex % 5000 == 0) {
+                    std::stringstream progressBar;
+                    progressBar << "\r[";
+                    int dashCount = int((float(imageIndex) / float(images.imageCount)) * 25.0f) + 1;
+                    for (int i = 0; i < 25; i++) {
+                        progressBar << ((i < dashCount) ? "=" : " ");
                     }
-                    std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
-                    QuiccImage combined = combineQuiccImages(
-                            images.horizontallyIncreasingImages[imageIndex],
-                            images.horizontallyDecreasingImages[imageIndex]);
-                    IndexEntry entry = {fileIndex, imageIndex};
-
-                    for(unsigned int row = 0; row < 64 - 4; row++) {
-                        for(unsigned int col = omp_get_thread_num(); col < 64 - 4; col += 32) {
-                            unsigned short bitPattern = 0;
-                            for(unsigned int chunkX = col; chunkX < col + 4; chunkX++) {
-                                for(unsigned int chunkY = row; chunkY < row + 4; chunkY++) {
-                                    unsigned int bitVectorIndex = chunkY * 2 + chunkX/32;
-                                    unsigned int currentBitSet =
-                                            (combined.at(bitVectorIndex)
-                                                >> (31 - (chunkX % 32))) & 0x1U;
-                                    bitPattern = bitPattern | (currentBitSet << (15 - (4 * (chunkY - row) + (chunkX - col))));
-                                }
-                            }
-                            counts->at(64 * row + col).at(bitPattern)++;
-                        }
-                    }
-
-                    //cache.insertImage(combined, entry);
-                    std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
-                    #pragma omp atomic
-                    totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(
-                            imageEndTime - imageStartTime).count() / 1000000.0;
+                    progressBar << "] " << imageIndex << "/" << images.imageCount << "\r";
+                    std::cout << progressBar.str() << std::flush;
                 }
 
+                std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
+                QuiccImage combined = combineQuiccImages(
+                        images.horizontallyIncreasingImages[imageIndex],
+                        images.horizontallyDecreasingImages[imageIndex]);
+                IndexEntry entry = {fileIndex, imageIndex};
+
+
+
+                //cache.insertImage(combined, entry);
+                std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
+                #pragma omp atomic
+                totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        imageEndTime - imageStartTime).count() / 1000000.0;
             }
 
             std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
@@ -332,26 +297,7 @@ Index SpinImage::index::build(
         delete[] images.horizontallyDecreasingImages;
     }
 
-    std::array<size_t, 4096> zeroImage;
-    std::fill(zeroImage.begin(), zeroImage.end(), 0);
-
-    for(int pattern = 0; pattern < 65536; pattern++) {
-        std::array<size_t, 4096> finalCounts = zeroImage;
-        for(int bin = 0; bin < 4096; bin++) {
-            finalCounts.at(bin) = counts->at(bin).at(pattern);
-        }
-        std::string patternString = "";
-        for(int i = 0; i < 16; i++) {
-            if(i != 0 && i % 4 == 0) {
-                patternString += "|";
-            }
-            patternString += std::to_string((pattern >> (15 - i)) & 0x1);
-        }
-        std::cout << "Dumping pattern " << patternString << std::endl;
-        dumpCountFile(finalCounts, "counts_" + patternString + ".txt");
-    }
-
-    std::cout << std::endl << "Total Image Count: " << totalImageCount << std::endl;
+    std::cout << std::endl << "Total Added Image Count: " << totalImageCount << std::endl;
 
     // Ensuring all changes are written to disk
     std::cout << "Flushing cache.." << std::endl;

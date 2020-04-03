@@ -238,8 +238,8 @@ Index SpinImage::index::build(
     std::array<unsigned short, 64> rowOfZeroes;
     std::fill(rowOfZeroes.begin(), rowOfZeroes.end(), 0);
 
-    for(int minSize = 0; minSize < 4096; minSize += 16) {
-        int maxSize = minSize + 16;
+    for(int minSize = 0; minSize < 4096; minSize += 4) {
+        int maxSize = minSize + 4;
 
         std::array<std::mutex, 4096> seenPatternLocks;
         std::array<std::set<QuiccImage>, 4096> seenPatterns;
@@ -328,7 +328,7 @@ Index SpinImage::index::build(
                                         }
                                     }
 
-                                    if(regionSize-1 >= minSize && regionSize-1 < maxSize) {
+                                    if(regionSize-1 >= minSize && regionSize-1 < maxSize && seenPatterns.at(regionSize-1).find(patternImage) == seenPatterns.at(regionSize-1).end()) {
                                         threadSeenPatterns.at(regionSize - 1).insert(patternImage);
                                     }
                                 }
@@ -342,6 +342,8 @@ Index SpinImage::index::build(
                                 imageEndTime - imageStartTime).count() / 1000000.0;
                     }
 
+		#pragma omp barrier
+
                     for (int i = 0; i < 4096; i++) {
                         if (!threadSeenPatterns.at(i).empty()) {
                             seenPatternLocks.at(i).lock();
@@ -350,6 +352,8 @@ Index SpinImage::index::build(
                         }
                     }
                 }
+
+
 
                 std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
                 double durationMilliseconds =
@@ -367,18 +371,25 @@ Index SpinImage::index::build(
                     dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
                 }
 
-                std::cout << minSize << "-" << maxSize << ": ";
-                for (int i = 0; i < 4096; i++) {
-                    std::cout << seenPatterns.at(i).size() << ", ";
-                }
-                std::cout << std::endl;
+//                std::cout << minSize << "-" << maxSize << ": ";
+//                for (int i = 0; i < 4096; i++) {
+//                    std::cout << seenPatterns.at(i).size() << ", ";
+//                }
+//                std::cout << std::endl;
 
-                std::cout << "Added file " << (fileIndex + 1) << "/" << endIndex
+                std::cout << "Added file " << (fileIndex + 1) << "/" << endIndex << " (" << minSize << "-" << maxSize << ")"
                           << ": " << archivePath
                           << ", Cache (nodes: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity
                           << ", images: " << cache.getCurrentImageCount() << "/" << cache.imageCapacity << ")"
                           << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
                           << ", Image count: " << images.imageCount << std::endl;
+		for(int i = 0; i < minSize; i++) {
+			std::cout << countedPatterns.at(i) << ",";
+		}
+		for(int i = minSize; i < maxSize; i++) {
+			std::cout << seenPatterns.at(i).size() << ",";
+		}
+		std::cout << std::endl;
             };
 
             // Necessity to prevent libc from hogging all system memory

@@ -230,7 +230,11 @@ Index SpinImage::index::build(
     std::array<size_t, 4096> patternCountZeroes;
     std::fill(patternCountZeroes.begin(), patternCountZeroes.end(), 0);
 
-    std::array<size_t, 4096> patternCounts = patternCountZeroes;
+    QuiccImage zeroImage;
+    std::fill(zeroImage.begin(), zeroImage.end(), 0);
+
+    std::array<std::mutex, 4096> seenPatternLocks;
+    std::array<std::set<QuiccImage>, 4096> seenPatterns;
 
     std::array<unsigned short, 64> rowOfZeroes;
     std::fill(rowOfZeroes.begin(), rowOfZeroes.end(), 0);
@@ -250,9 +254,11 @@ Index SpinImage::index::build(
 
             #pragma omp parallel
             {
-                std::array<size_t, 4096> threadPatternCounts = patternCountZeroes;
                 std::vector<std::pair<unsigned short, unsigned short>> floodFillPixels;
                 floodFillPixels.reserve(4096);
+                QuiccImage patternImage = zeroImage;
+
+                std::array<std::set<QuiccImage>, 4096> threadSeenPatterns;
 
                 #pragma omp for schedule(dynamic)
                 for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
@@ -273,7 +279,7 @@ Index SpinImage::index::build(
                             images.horizontallyDecreasingImages[imageIndex]);
                     IndexEntry entry = {fileIndex, imageIndex};
 
-                    std::array<unsigned short, 64> threadRowCount = rowOfZeroes;
+
 
                     for (unsigned int row = 0; row < 64; row++) {
                         for(unsigned int col = 0; col < 64; col++) {
@@ -285,6 +291,7 @@ Index SpinImage::index::build(
                                 unsigned int regionSize = 0;
                                 floodFillPixels.clear();
                                 floodFillPixels.emplace_back(row, col);
+                                std::fill(patternImage.begin(), patternImage.end(), 0);
 
                                 while(!floodFillPixels.empty()) {
                                     std::pair<unsigned short, unsigned short> pixelIndex = floodFillPixels.at(floodFillPixels.size() - 1);
@@ -295,9 +302,12 @@ Index SpinImage::index::build(
                                             ((chunk >> (31U - pixelIndex.second%32)) & 0x1U);
                                     if(floodPixel == 1) {
                                         regionSize++;
+                                        // Add pixel to pattern image
+                                        unsigned int bitEnablingMask = 0x1U << (31U - pixelIndex.second%32);
+                                        patternImage.at(chunkIndex) |= bitEnablingMask;
                                         // Disable pixel
-                                        unsigned int mask = ~(0x1U << (31U - pixelIndex.second%32));
-                                        combined.at(chunkIndex) = chunk & mask;
+                                        unsigned int bitDisablingMask = ~bitEnablingMask;
+                                        combined.at(chunkIndex) = chunk & bitDisablingMask;
                                         // Queue surrounding pixels
                                         for(int floodRow = std::max(int(pixelIndex.first) - 1, 0);
                                                 floodRow <= std::min(63, pixelIndex.first + 1);
@@ -311,8 +321,7 @@ Index SpinImage::index::build(
                                     }
                                 }
 
-                                // Region size is at least 1, but includes 4096
-                                threadPatternCounts[regionSize - 1]++;
+                                threadSeenPatterns.at(regionSize - 1).insert(patternImage);
                             }
                         }
                     }
@@ -325,8 +334,11 @@ Index SpinImage::index::build(
                 }
 
                 for(int i = 0; i < 4096; i++) {
-                    #pragma omp atomic
-                    patternCounts[i] += threadPatternCounts[i];
+                    if(!threadSeenPatterns.at(i).empty()) {
+                        seenPatternLocks.at(i).lock();
+                        seenPatterns.at(i).insert(threadSeenPatterns.at(i).begin(), threadSeenPatterns.at(i).end());
+                        seenPatternLocks.at(i).unlock();
+                    }
                 }
             }
 
@@ -345,7 +357,7 @@ Index SpinImage::index::build(
             }
 
             for(int i = 0; i < 4096; i++) {
-                std::cout << patternCounts[i] << ", ";
+                std::cout << seenPatterns.at(i).size() << ", ";
             }
             std::cout << std::endl;
 
@@ -365,10 +377,6 @@ Index SpinImage::index::build(
     }
 
     std::cout << std::endl << "Total Added Image Count: " << totalImageCount << std::endl;
-
-    for(int i = 0; i < 4096; i++) {
-        std::cout << "Patterns of length " << i << ": " << patternCounts[i] << std::endl;
-    }
 
     // Ensuring all changes are written to disk
     std::cout << "Flushing cache.." << std::endl;

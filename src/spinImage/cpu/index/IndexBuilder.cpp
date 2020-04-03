@@ -238,7 +238,7 @@ Index SpinImage::index::build(
     std::array<unsigned short, 64> rowOfZeroes;
     std::fill(rowOfZeroes.begin(), rowOfZeroes.end(), 0);
 
-    for(int minSize = 0; minSize < 4096; minSize += 4) {
+    for(int minSize = 4; minSize < 4096; minSize += 4) {
         int maxSize = minSize + 4;
 
         std::array<std::mutex, 4096> seenPatternLocks;
@@ -308,7 +308,6 @@ Index SpinImage::index::build(
                                                 ((chunk >> (31U - pixelIndex.second % 32)) & 0x1U);
                                         if (floodPixel == 1) {
                                             regionSize++;
-                                            if(regionSize-1 >= maxSize) break;
                                             // Add pixel to pattern image
                                             unsigned int bitEnablingMask = 0x1U << (31U - pixelIndex.second % 32);
                                             patternImage.at(chunkIndex) |= bitEnablingMask;

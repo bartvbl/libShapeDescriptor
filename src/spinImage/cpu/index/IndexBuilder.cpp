@@ -238,8 +238,8 @@ Index SpinImage::index::build(
     std::array<unsigned short, 64> rowOfZeroes;
     std::fill(rowOfZeroes.begin(), rowOfZeroes.end(), 0);
 
-    for(int minSize = 4; minSize < 4096; minSize += 4) {
-        int maxSize = minSize + 4;
+    for(int minSize = 7; minSize < 4096; minSize += 1) {
+        int maxSize = minSize + 1;
 
         std::array<std::mutex, 4096> seenPatternLocks;
         std::array<std::set<QuiccImage>, 4096> seenPatterns;

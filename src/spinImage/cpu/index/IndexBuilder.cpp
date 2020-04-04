@@ -318,12 +318,13 @@ Index SpinImage::index::build(
                                             unsigned int bitDisablingMask = ~bitEnablingMask;
                                             combined.at(chunkIndex) = chunk & bitDisablingMask;
                                             // Queue surrounding pixels
-                                            for (int floodRow = std::max(int(pixelIndex.first) - 1, 0);
-                                                 floodRow <= std::min(63, pixelIndex.first + 1);
-                                                 floodRow++) {
-                                                for (int floodCol = std::max(int(pixelIndex.second) - 1, 0);
-                                                     floodCol <= std::min(63, pixelIndex.second + 1);
-                                                     floodCol++) {
+                                            const int range = 2;
+                                            for (int floodRow = std::max(int(pixelIndex.first) - range, 0);
+                                                     floodRow <= std::min(63, pixelIndex.first + range);
+                                                     floodRow++) {
+                                                for (int floodCol = std::max(int(pixelIndex.second) - range, 0);
+                                                         floodCol <= std::min(63, pixelIndex.second + range);
+                                                         floodCol++) {
                                                     floodFillPixels.emplace_back(floodRow, floodCol);
                                                 }
                                             }

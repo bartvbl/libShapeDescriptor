@@ -238,8 +238,11 @@ Index SpinImage::index::build(
     std::array<unsigned short, 64> rowOfZeroes;
     std::fill(rowOfZeroes.begin(), rowOfZeroes.end(), 0);
 
-    for(int minSize = 7; minSize < 4096; minSize += 1) {
-        int maxSize = minSize + 1;
+
+    int minSize = 0;
+    int maxSize = 4096;
+    for(; minSize < 4096; minSize = maxSize) {
+        int maxSize = 4096;
 
         std::array<std::mutex, 4096> seenPatternLocks;
         std::array<std::set<QuiccImage>, 4096> seenPatterns;
@@ -267,7 +270,7 @@ Index SpinImage::index::build(
 
                     #pragma omp for schedule(dynamic)
                     for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
-                        if (imageIndex % 5000 == 0) {
+                        /*if (imageIndex % 5000 == 0) {
                             std::stringstream progressBar;
                             progressBar << "\r[";
                             int dashCount = int((float(imageIndex) / float(images.imageCount)) * 25.0f) + 1;
@@ -276,7 +279,7 @@ Index SpinImage::index::build(
                             }
                             progressBar << "] " << imageIndex << "/" << images.imageCount << "\r";
                             std::cout << progressBar.str() << std::flush;
-                        }
+                        }*/
 
                         std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
                         QuiccImage combined = combineQuiccImages(
@@ -351,6 +354,24 @@ Index SpinImage::index::build(
                         }
                     }
                 }
+
+                size_t totalPatternCount = 0;
+                for(int i = 0; i < 4096; i++) {
+                    totalPatternCount += seenPatterns.at(i).size();
+                }
+
+                int endIndex = 4095;
+                while(totalPatternCount > cacheImageLimit && endIndex >= 0) {
+                    size_t bucketSize = seenPatterns.at(endIndex).size();
+                    totalImageCount -= bucketSize;
+                    if(bucketSize != 0) {
+                        std::cout << "Cache is getting too large. Postponing counting patterns of length " + std::to_string(endIndex) + " to a later iteration.\n";
+                    }
+                    seenPatterns.at(endIndex).clear();
+                    endIndex--;
+                }
+                maxSize = endIndex + 1;
+
 
 
 

@@ -374,9 +374,9 @@ Index SpinImage::index::build(
                 int patternIndex = maxSize - 1;
                 while(totalPatternCount > cacheImageLimit && patternIndex >= 0) {
                     size_t bucketSize = seenPatterns.at(patternIndex).size();
-                    totalImageCount -= bucketSize;
+                    totalPatternCount -= bucketSize;
                     if(bucketSize != 0) {
-                        std::cout << "Cache is getting too large. Postponing counting patterns of length " + std::to_string(patternIndex) + " to a later iteration.\n";
+                        std::cout << "Cache is getting too large. Postponing counting patterns of length " + std::to_string(patternIndex) + " to a later iteration. New pattern count: " + std::to_string(totalPatternCount) + "\n";
                     }
                     // Delete set contents to free up memory
                     seenPatterns.at(patternIndex).clear();
@@ -414,7 +414,7 @@ Index SpinImage::index::build(
                 std::cout << "Added file " << (fileIndex + 1) << "/" << endIndex << " (" << minSize << "-" << maxSize << ")"
                           << ": " << archivePath
                           << ", Cache (nodes: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity
-                          << ", images: " << cache.getCurrentImageCount() << "/" << cache.imageCapacity << ")"
+                          << ", images: " << totalPatternCount << "/" << cache.imageCapacity << ")"
                           << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
                           << ", Image count: " << images.imageCount << std::endl;
             };

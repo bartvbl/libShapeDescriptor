@@ -367,7 +367,8 @@ Index SpinImage::index::build(
                     if(bucketSize != 0) {
                         std::cout << "Cache is getting too large. Postponing counting patterns of length " + std::to_string(endIndex) + " to a later iteration.\n";
                     }
-                    seenPatterns.at(endIndex).clear();
+                    // Delete set contents to free up memory
+                    std::set<QuiccImage>().swap(seenPatterns.at(endIndex));
                     endIndex--;
                 }
                 maxSize = endIndex + 1;

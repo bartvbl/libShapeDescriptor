@@ -371,20 +371,20 @@ Index SpinImage::index::build(
                     totalPatternOccurrenceCounts.at(i) += threadTotalSeenPatterns.at(i);
                 }
 
-                int endIndex = 4095;
-                while(totalPatternCount > cacheImageLimit && endIndex >= 0) {
-                    size_t bucketSize = seenPatterns.at(endIndex).size();
+                int patternIndex = maxSize - 1;
+                while(totalPatternCount > cacheImageLimit && patternIndex >= 0) {
+                    size_t bucketSize = seenPatterns.at(patternIndex).size();
                     totalImageCount -= bucketSize;
                     if(bucketSize != 0) {
-                        std::cout << "Cache is getting too large. Postponing counting patterns of length " + std::to_string(endIndex) + " to a later iteration.\n";
+                        std::cout << "Cache is getting too large. Postponing counting patterns of length " + std::to_string(patternIndex) + " to a later iteration.\n";
                     }
                     // Delete set contents to free up memory
-                    std::set<QuiccImage>().swap(seenPatterns.at(endIndex));
+                    seenPatterns.at(patternIndex).clear();
                     // Reset count
-                    totalPatternOccurrenceCounts.at(endIndex) = 0;
-                    endIndex--;
+                    totalPatternOccurrenceCounts.at(patternIndex) = 0;
+                    patternIndex--;
                 }
-                maxSize = endIndex + 1;
+                maxSize = patternIndex + 1;
 
 
 

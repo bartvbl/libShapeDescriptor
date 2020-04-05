@@ -243,7 +243,7 @@ Index SpinImage::index::build(
     int minSize = 0;
     int maxSize = 4096;
     for(; minSize < 4096; minSize = maxSize) {
-        int maxSize = 4096;
+
 
         std::array<std::mutex, 4096> seenPatternLocks;
         std::array<std::set<QuiccImage>, 4096> seenPatterns;
@@ -441,6 +441,8 @@ Index SpinImage::index::build(
         std::cout << std::endl;
 
         malloc_trim(0);
+
+        int maxSize = 4096;
     }
 
     std::cout << std::endl << "Total Added Image Count: " << totalImageCount << std::endl;

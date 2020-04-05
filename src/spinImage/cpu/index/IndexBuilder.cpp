@@ -442,7 +442,7 @@ Index SpinImage::index::build(
 
         malloc_trim(0);
 
-        int maxSize = 4096;
+        maxSize = 4096;
     }
 
     std::cout << std::endl << "Total Added Image Count: " << totalImageCount << std::endl;

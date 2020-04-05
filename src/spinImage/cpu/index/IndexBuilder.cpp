@@ -367,8 +367,10 @@ Index SpinImage::index::build(
                     totalPatternCount += seenPatterns.at(i).size();
                 }
                 for(int i = minSize; i < maxSize; i++) {
-                    #pragma omp atomic
-                    totalPatternOccurrenceCounts.at(i) += threadTotalSeenPatterns.at(i);
+                    if(threadTotalSeenPatterns.at(i) != 0) {
+                        #pragma omp atomic
+                        totalPatternOccurrenceCounts.at(i) += threadTotalSeenPatterns.at(i);
+                    }
                 }
 
                 int patternIndex = maxSize - 1;

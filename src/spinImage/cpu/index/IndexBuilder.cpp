@@ -98,6 +98,7 @@ Index SpinImage::index::build(
                     std::vector<std::pair<unsigned short, unsigned short>> floodFillPixels;
                     floodFillPixels.reserve(4096);
                     QuiccImage patternImage = zeroImage;
+                    QuiccImage floodFillImage = zeroImage;
 		    std::array<size_t, 4096> threadTotalSeenPatterns = patternCountZeroes;
 
                     std::array<std::set<QuiccImage>, 4096> threadSeenPatterns;
@@ -134,6 +135,7 @@ Index SpinImage::index::build(
                                     floodFillPixels.clear();
                                     floodFillPixels.emplace_back(row, col);
                                     std::fill(patternImage.begin(), patternImage.end(), 0);
+                                    std::fill(floodFillImage.begin(), floodFillImage.end(), 0);
 
                                     while (!floodFillPixels.empty()) {
                                         std::pair<unsigned short, unsigned short> pixelIndex = floodFillPixels.at(
@@ -143,6 +145,9 @@ Index SpinImage::index::build(
                                         unsigned int chunk = combined.at(chunkIndex);
                                         unsigned int floodPixel = (unsigned int)
                                                 ((chunk >> (31U - pixelIndex.second % 32)) & 0x1U);
+
+
+
                                         if (floodPixel == 1) {
                                             regionSize++;
                                             // Add pixel to pattern image
@@ -159,7 +164,16 @@ Index SpinImage::index::build(
                                                 for (int floodCol = std::max(int(pixelIndex.second) - range, 0);
                                                          floodCol <= std::min(63, pixelIndex.second + range);
                                                          floodCol++) {
-                                                    floodFillPixels.emplace_back(floodRow, floodCol);
+                                                    unsigned int childChunkIndex = 2 * floodRow + (floodCol / 32);
+                                                    unsigned int childChunk = floodFillImage.at(childChunkIndex);
+                                                    unsigned int pixelWasAlreadyVisited = (unsigned int)
+                                                            ((childChunk >> (31U - floodCol % 32)) & 0x1U);
+                                                    if(pixelWasAlreadyVisited == 0) {
+                                                        // Mark the pixel as visited
+                                                        unsigned int childMarkMask = 0x1U << (31U - floodCol % 32);
+                                                        floodFillImage.at(chunkIndex) |= childMarkMask;
+                                                        floodFillPixels.emplace_back(floodRow, floodCol);
+                                                    }
                                                 }
                                             }
                                         }

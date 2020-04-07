@@ -103,17 +103,18 @@ void visitNode(
 
     std::cout << "Visiting node " << debug_visitedNodeCount << " -> " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes, " << searchResultScoreThreshold  << " vs " << closedNodeQueue.top().minDistanceScore << " - " << nodeID << std::endl;
     for(int child = 0; child < NODES_PER_BLOCK; child++) {
-        if(block->childNodeIsLeafNode[child]) {
+        bool isLeafNode = true;
+        if(isLeafNode) {
             //std::cout << "Child " << child << " is leaf node!" << std::endl;
             // If child is a leaf node, insert its images into the search result list
-            for(const NodeBlockEntry& entry : block->leafNodeContents.at(child)) {
-                float distanceScore = computeWeightedHammingDistance(queryImage, queryImageMipmapStack, entry.image);
+            //for(const NodeBlockEntry& entry : block->leafNodeContents.at(child)) {
+               // float distanceScore = computeWeightedHammingDistance(queryImage, queryImageMipmapStack, entry.image);
 
                 // Only consider the image if it is potentially better than what's there already
-                if(distanceScore <= searchResultScoreThreshold) {
-                    currentSearchResults.emplace_back(entry.indexEntry, entry.image, nodeID, distanceScore);
-                }
-            }
+               // if(distanceScore <= searchResultScoreThreshold) {
+              //      currentSearchResults.emplace_back(entry.indexEntry, entry.image, nodeID, distanceScore);
+              //  }
+            //}
         } else {
             // If the child is an intermediate node, enqueue it in the closed node list
             IndexPath childPath = path.append(child);
@@ -151,8 +152,8 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
             computeMinDistanceThreshold(currentSearchResults) >= closedNodeQueue.top().minDistanceScore) {
         UnvisitedNode nextBestUnvisitedNode = closedNodeQueue.top();
         closedNodeQueue.pop();
-        visitNode(block, nextBestUnvisitedNode.path, nextBestUnvisitedNode.nodeID, nextBestUnvisitedNode.level,
-                closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
+        //visitNode(block, nextBestUnvisitedNode.path, nextBestUnvisitedNode.nodeID, nextBestUnvisitedNode.level,
+        //        closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
         debug_visitedNodeCount++;
 
         // Re-sort search results

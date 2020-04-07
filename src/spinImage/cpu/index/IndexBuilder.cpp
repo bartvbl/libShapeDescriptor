@@ -9,10 +9,12 @@
 #include "IndexBuilder.h"
 #include "tsl/ordered_map.h"
 #include "IndexIO.h"
+#include "Pattern.h"
 
 #include <fast-lzma2.h>
 #include <malloc.h>
 #include <spinImage/cpu/index/types/IndexEntry.h>
+#include <omp.h>
 
 template<class Key, class T, class Ignore, class Allocator,
         class Hash = std::hash<Key>, class KeyEqual = std::equal_to<Key>,
@@ -183,131 +185,7 @@ Index SpinImage::index::build(
 
     size_t endIndex = fileEndIndex == fileStartIndex ? filesInDirectory.size() : fileEndIndex;
 
-    size_t totalImageCount = 0;
-    size_t currentTotalImageIndex = 0;
 
-        #pragma omp parallel for schedule(dynamic)
-        for (unsigned int fileIndex = 0; fileIndex < endIndex; fileIndex++) {
-            std::experimental::filesystem::path path = filesInDirectory.at(fileIndex);
-            const std::string archivePath = path.string();
-
-            SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
-            double totalImageDurationMilliseconds = 0;
-            #pragma omp critical
-            {
-                totalImageCount += images.imageCount;
-                indexedFiles->emplace_back(archivePath);
-                std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-
-                #pragma omp parallel
-                {
-                    std::vector<std::pair<unsigned short, unsigned short>> floodFillPixels;
-                    floodFillPixels.reserve(4096);
-
-                    #pragma omp for schedule(dynamic)
-                    for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
-                        /*if (imageIndex % 5000 == 0) {
-                            std::stringstream progressBar;
-                            progressBar << "\r[";
-                            int dashCount = int((float(imageIndex) / float(images.imageCount)) * 25.0f) + 1;
-                            for (int i = 0; i < 25; i++) {
-                                progressBar << ((i < dashCount) ? "=" : " ");
-                            }
-                            progressBar << "] " << imageIndex << "/" << images.imageCount << "\r";
-                            std::cout << progressBar.str() << std::flush;
-                        }*/
-
-                        std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
-                        QuiccImage combined = combineQuiccImages(
-                                images.horizontallyIncreasingImages[imageIndex],
-                                images.horizontallyDecreasingImages[imageIndex]);
-                        IndexEntry entry = {fileIndex, imageIndex};
-
-
-                        for (unsigned int row = 0; row < 64; row++) {
-                            for (unsigned int col = 0; col < 64; col++) {
-
-                                unsigned int pixel = (unsigned int) ((
-                                                         combined.at(2 * row + (col / 32))
-                                                                 >> (31U - col)) & 0x1U);
-
-                                if (pixel == 1) {
-                                    unsigned int regionSize = 0;
-                                    floodFillPixels.clear();
-                                    floodFillPixels.emplace_back(row, col);
-                                    std::fill(patternImage.begin(), patternImage.end(), 0);
-
-                                    while (!floodFillPixels.empty()) {
-                                        std::pair<unsigned short, unsigned short> pixelIndex = floodFillPixels.at(
-                                                floodFillPixels.size() - 1);
-                                        floodFillPixels.erase(floodFillPixels.begin() + floodFillPixels.size() - 1);
-                                        unsigned int chunkIndex = 2 * pixelIndex.first + (pixelIndex.second / 32);
-                                        unsigned int chunk = combined.at(chunkIndex);
-                                        unsigned int floodPixel = (unsigned int)
-                                                ((chunk >> (31U - pixelIndex.second % 32)) & 0x1U);
-                                        if (floodPixel == 1) {
-                                            regionSize++;
-                                            // Add pixel to pattern image
-                                            unsigned int bitEnablingMask = 0x1U << (31U - pixelIndex.second % 32);
-                                            patternImage.at(chunkIndex) |= bitEnablingMask;
-                                            // Disable pixel
-                                            unsigned int bitDisablingMask = ~bitEnablingMask;
-                                            combined.at(chunkIndex) = chunk & bitDisablingMask;
-                                            // Queue surrounding pixels
-                                            const int range = 2;
-                                            for (int floodRow = std::max(int(pixelIndex.first) - range, 0);
-                                                     floodRow <= std::min(63, pixelIndex.first + range);
-                                                     floodRow++) {
-                                                for (int floodCol = std::max(int(pixelIndex.second) - range, 0);
-                                                         floodCol <= std::min(63, pixelIndex.second + range);
-                                                         floodCol++) {
-                                                    floodFillPixels.emplace_back(floodRow, floodCol);
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    if(regionSize-1 >= minSize && regionSize-1 < maxSize && seenPatterns.at(regionSize-1).find(patternImage) == seenPatterns.at(regionSize-1).end()) {
-                                        threadSeenPatterns.at(regionSize - 1).insert(patternImage);
-                                    }
-
-                                }
-                            }
-                        }
-
-                        std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
-                        #pragma omp atomic
-                        totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                imageEndTime - imageStartTime).count() / 1000000.0;
-                    }
-                }
-
-                std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
-                double durationMilliseconds =
-                        std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
-
-                if (enableStatisticsDump && fileIndex % 100 == 99) {
-                    std::cout << "Writing statistics file..                                      \n";
-                    dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
-                }
-
-                std::cout << "Added file " << (fileIndex + 1) << "/" << endIndex
-                          << ": " << archivePath
-                          << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
-                          << ", Image count: " << images.imageCount << std::endl;
-            };
-
-            // Necessity to prevent libc from hogging all system memory
-            malloc_trim(0);
-
-            delete[] images.horizontallyIncreasingImages;
-            delete[] images.horizontallyDecreasingImages;
-        }
-
-        malloc_trim(0);
-
-
-    std::cout << std::endl << "Total Added Image Count: " << totalImageCount << std::endl;
 
     dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
 

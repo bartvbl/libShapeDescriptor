@@ -171,7 +171,7 @@ Index SpinImage::index::build(
                                                     if(pixelWasAlreadyVisited == 0) {
                                                         // Mark the pixel as visited
                                                         unsigned int childMarkMask = 0x1U << (31U - floodCol % 32);
-                                                        floodFillImage.at(chunkIndex) |= childMarkMask;
+                                                        floodFillImage.at(childChunkIndex) |= childMarkMask;
                                                         floodFillPixels.emplace_back(floodRow, floodCol);
                                                     }
                                                 }

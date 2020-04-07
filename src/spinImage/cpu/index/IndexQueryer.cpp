@@ -1,10 +1,10 @@
 #include <queue>
 #include "IndexQueryer.h"
-#include "NodeBlockCache.h"
 #include <spinImage/cpu/index/types/BitCountMipmapStack.h>
 #include <algorithm>
 #include <climits>
 #include <cfloat>
+#include <spinImage/cpu/index/types/IndexPath.h>
 
 struct UnvisitedNode {
     UnvisitedNode(IndexPath indexPath, std::string unvisitedNodeID, float minDistance, unsigned int nodeLevel)
@@ -137,8 +137,6 @@ void visitNode(
 std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index, const QuiccImage &queryImage, unsigned int resultCount) {
     BitCountMipmapStack queryImageBitCountMipmapStack(queryImage);
 
-    NodeBlockCache cache(100000, 2500000, index.indexDirectory, true);
-
     std::priority_queue<UnvisitedNode> closedNodeQueue;
     std::vector<SearchResultEntry> currentSearchResults;
 
@@ -154,9 +152,8 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
             computeMinDistanceThreshold(currentSearchResults) >= closedNodeQueue.top().minDistanceScore) {
         UnvisitedNode nextBestUnvisitedNode = closedNodeQueue.top();
         closedNodeQueue.pop();
-        const NodeBlock* block = cache.getNodeBlockByID(nextBestUnvisitedNode.nodeID);
-        visitNode(block, nextBestUnvisitedNode.path, nextBestUnvisitedNode.nodeID, nextBestUnvisitedNode.level,
-                closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
+        //visitNode(block, nextBestUnvisitedNode.path, nextBestUnvisitedNode.nodeID, nextBestUnvisitedNode.level,
+        //        closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
         debug_visitedNodeCount++;
 
         // Re-sort search results

@@ -7,11 +7,13 @@
 #include <json.hpp>
 #include <fstream>
 #include "IndexBuilder.h"
-#include "NodeBlockCache.h"
 #include "tsl/ordered_map.h"
+#include "IndexIO.h"
 
 #include <fast-lzma2.h>
 #include <malloc.h>
+#include <omp.h>
+#include <set>
 
 template<class Key, class T, class Ignore, class Allocator,
         class Hash = std::hash<Key>, class KeyEqual = std::equal_to<Key>,
@@ -50,8 +52,6 @@ Index SpinImage::index::build(
     if(enableStatisticsDump) {
         std::cout << "Statistics will be dumped to " << statisticsFileDumpLocation << std::endl;
     }
-
-    NodeBlockCache cache(cacheNodeLimit, cacheImageLimit, indexDirectory, appendToExistingIndex);
 
     size_t endIndex = fileEndIndex == fileStartIndex ? filesInDirectory.size() : fileEndIndex;
 
@@ -223,9 +223,6 @@ Index SpinImage::index::build(
                 double durationMilliseconds =
                         std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
 
-                cache.statistics.reset();
-                cache.nodeBlockStatistics.reset();
-
 		if(fileIndex % 10 == 9) {
         		std::cout << "\rUnique pattern counts: " << std::endl;
         		for(int i = 0; i < minSize; i++) {
@@ -245,8 +242,7 @@ Index SpinImage::index::build(
 
                 std::cout << "\rAdded file " << (fileIndex + 1) << "/" << endIndex << " (" << minSize << "-" << maxSize << ")"
                           << ": " << archivePath
-                          << ", Cache (nodes: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity
-                          << ", images: " << totalPatternCount << "/" << cache.imageCapacity << ")"
+                          << ", pattern image count: " << totalPatternCount
                           << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
                           << ", Image count: " << images.imageCount << std::endl;
             };
@@ -280,12 +276,6 @@ Index SpinImage::index::build(
     }
 
     std::cout << std::endl << "Total Added Image Count: " << totalImageCount << std::endl;
-
-    // Ensuring all changes are written to disk
-    std::cout << "Flushing cache.." << std::endl;
-    cache.flush();
-
-    dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
 
     // Final construction of the index
     Index index(indexDirectory, indexedFiles);

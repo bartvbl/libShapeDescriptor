@@ -2,7 +2,6 @@
 
 #include <experimental/filesystem>
 #include <spinImage/cpu/index/types/Index.h>
-#include "NodeBlockCache.h"
 
 namespace SpinImage {
     namespace index {

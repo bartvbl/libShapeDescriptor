@@ -243,12 +243,10 @@ Index SpinImage::index::build(
     int minSize = 0;
     int maxSize = 4096;
     for(; minSize < 4096; minSize = maxSize) {
-
+	maxSize = 4096;
 
         std::array<std::mutex, 4096> seenPatternLocks;
         std::array<std::set<QuiccImage>, 4096> seenPatterns;
-
-        std::array<size_t, 4096> threadTotalSeenPatterns = patternCountZeroes;
 
         #pragma omp parallel for schedule(dynamic)
         for (unsigned int fileIndex = 0; fileIndex < endIndex; fileIndex++) {
@@ -265,9 +263,11 @@ Index SpinImage::index::build(
 
                 #pragma omp parallel
                 {
+                    std::cout << "\rRunning.." << std::flush;
                     std::vector<std::pair<unsigned short, unsigned short>> floodFillPixels;
                     floodFillPixels.reserve(4096);
                     QuiccImage patternImage = zeroImage;
+		    std::array<size_t, 4096> threadTotalSeenPatterns = patternCountZeroes;
 
                     std::array<std::set<QuiccImage>, 4096> threadSeenPatterns;
 
@@ -321,7 +321,7 @@ Index SpinImage::index::build(
                                             unsigned int bitDisablingMask = ~bitEnablingMask;
                                             combined.at(chunkIndex) = chunk & bitDisablingMask;
                                             // Queue surrounding pixels
-                                            const int range = 2;
+                                            const int range = 3;
                                             for (int floodRow = std::max(int(pixelIndex.first) - range, 0);
                                                      floodRow <= std::min(63, pixelIndex.first + range);
                                                      floodRow++) {
@@ -350,35 +350,35 @@ Index SpinImage::index::build(
                         totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(
                                 imageEndTime - imageStartTime).count() / 1000000.0;
                     }
-
-		#pragma omp barrier
-
-                    for (int i = 0; i < 4096; i++) {
+                    std::cout << "\rAwaiting barrier.." << std::flush;
+		    #pragma omp barrier
+                    std::cout << "\rCollating results.." << std::flush;
+                    for (int i = minSize; i < maxSize; i++) {
                         if (!threadSeenPatterns.at(i).empty()) {
                             seenPatternLocks.at(i).lock();
                             seenPatterns.at(i).insert(threadSeenPatterns.at(i).begin(), threadSeenPatterns.at(i).end());
                             seenPatternLocks.at(i).unlock();
                         }
-                    }
+			if(threadTotalSeenPatterns.at(i) != 0) {
+                	    #pragma omp atomic
+                	    totalPatternOccurrenceCounts.at(i) += threadTotalSeenPatterns.at(i);
+                	}
+		    }
                 }
+
+                std::cout << "\rTrimming cache..        " << std::flush;
 
                 size_t totalPatternCount = 0;
-                for(int i = 0; i < 4096; i++) {
+		for(int i = 0; i < 4096; i++) {
                     totalPatternCount += seenPatterns.at(i).size();
                 }
-                for(int i = minSize; i < maxSize; i++) {
-                    if(threadTotalSeenPatterns.at(i) != 0) {
-                        #pragma omp atomic
-                        totalPatternOccurrenceCounts.at(i) += threadTotalSeenPatterns.at(i);
-                    }
-                }
 
-                int patternIndex = maxSize - 1;
+		int patternIndex = maxSize - 1;
                 while(totalPatternCount > cacheImageLimit && patternIndex >= 0) {
                     size_t bucketSize = seenPatterns.at(patternIndex).size();
                     totalPatternCount -= bucketSize;
                     if(bucketSize != 0) {
-                        std::cout << "Cache is getting too large. Postponing counting patterns of length " + std::to_string(patternIndex) + " to a later iteration. New pattern count: " + std::to_string(totalPatternCount) + "\n";
+                        std::cout << "\rCache is getting too large. Postponing counting patterns of length " + std::to_string(patternIndex) + " to a later iteration. New pattern count: " + std::to_string(totalPatternCount) + "\n";
                     }
                     // Delete set contents to free up memory
                     seenPatterns.at(patternIndex).clear();
@@ -387,9 +387,6 @@ Index SpinImage::index::build(
                     patternIndex--;
                 }
                 maxSize = patternIndex + 1;
-
-
-
 
                 std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
                 double durationMilliseconds =
@@ -407,13 +404,24 @@ Index SpinImage::index::build(
                     dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
                 }
 
-//                std::cout << minSize << "-" << maxSize << ": ";
-//                for (int i = 0; i < 4096; i++) {
-//                    std::cout << seenPatterns.at(i).size() << ", ";
-//                }
-//                std::cout << std::endl;
+		if(fileIndex % 10 == 9) {
+        		std::cout << "\rUnique pattern counts: " << std::endl;
+        		for(int i = 0; i < minSize; i++) {
+        		    std::cout << countedPatterns.at(i) << ",";
+        		}
+        		for(int i = minSize; i < maxSize; i++) {
+			    countedPatterns.at(i) = seenPatterns.at(i).size();
+			    std::cout << seenPatterns.at(i).size() << ",";
+        		}
+        		std::cout << std::endl;
+        		std::cout << "Total pattern counts: " << std::endl;
+        		for(int i = 0; i < maxSize; i++) {
+        		    std::cout << totalPatternOccurrenceCounts.at(i) << ",";
+        		}
+        		std::cout << std::endl;
+		}
 
-                std::cout << "Added file " << (fileIndex + 1) << "/" << endIndex << " (" << minSize << "-" << maxSize << ")"
+                std::cout << "\rAdded file " << (fileIndex + 1) << "/" << endIndex << " (" << minSize << "-" << maxSize << ")"
                           << ": " << archivePath
                           << ", Cache (nodes: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity
                           << ", images: " << totalPatternCount << "/" << cache.imageCapacity << ")"
@@ -422,7 +430,9 @@ Index SpinImage::index::build(
             };
 
             // Necessity to prevent libc from hogging all system memory
-            malloc_trim(0);
+            if(fileIndex % 50 == 49) {
+		malloc_trim(0);
+            }
 
             delete[] images.horizontallyIncreasingImages;
             delete[] images.horizontallyDecreasingImages;
@@ -433,18 +443,18 @@ Index SpinImage::index::build(
             std::cout << countedPatterns.at(i) << ",";
         }
         for(int i = minSize; i < maxSize; i++) {
-            std::cout << seenPatterns.at(i).size() << ",";
+	    countedPatterns.at(i) = seenPatterns.at(i).size();
+	    std::cout << seenPatterns.at(i).size() << ",";
         }
         std::cout << std::endl;
         std::cout << "Total pattern counts: " << std::endl;
-        for(int i = 0; i < 4096; i++) {
+        for(int i = 0; i < maxSize; i++) {
             std::cout << totalPatternOccurrenceCounts.at(i) << ",";
         }
         std::cout << std::endl;
 
         malloc_trim(0);
 
-        maxSize = 4096;
     }
 
     std::cout << std::endl << "Total Added Image Count: " << totalImageCount << std::endl;

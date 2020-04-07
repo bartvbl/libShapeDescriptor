@@ -1,10 +1,10 @@
 #include <queue>
 #include "IndexQueryer.h"
-#include "NodeBlockCache.h"
 #include <spinImage/cpu/index/types/BitCountMipmapStack.h>
 #include <algorithm>
 #include <climits>
 #include <cfloat>
+#include <spinImage/cpu/index/types/IndexPath.h>
 
 struct UnvisitedNode {
     UnvisitedNode(IndexPath indexPath, std::string unvisitedNodeID, float minDistance, unsigned int nodeLevel)
@@ -87,7 +87,6 @@ const float computeMinDistanceThreshold(std::vector<SearchResultEntry> &currentS
 }
 
 void visitNode(
-        const NodeBlock* block,
         IndexPath path,
         const std::string &nodeID,
         const unsigned int level,
@@ -137,8 +136,6 @@ void visitNode(
 std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index, const QuiccImage &queryImage, unsigned int resultCount) {
     BitCountMipmapStack queryImageBitCountMipmapStack(queryImage);
 
-    NodeBlockCache cache(100000, 2500000, index.indexDirectory, true);
-
     std::priority_queue<UnvisitedNode> closedNodeQueue;
     std::vector<SearchResultEntry> currentSearchResults;
 
@@ -154,7 +151,6 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
             computeMinDistanceThreshold(currentSearchResults) >= closedNodeQueue.top().minDistanceScore) {
         UnvisitedNode nextBestUnvisitedNode = closedNodeQueue.top();
         closedNodeQueue.pop();
-        const NodeBlock* block = cache.getNodeBlockByID(nextBestUnvisitedNode.nodeID);
         visitNode(block, nextBestUnvisitedNode.path, nextBestUnvisitedNode.nodeID, nextBestUnvisitedNode.level,
                 closedNodeQueue, currentSearchResults, queryImageBitCountMipmapStack, queryImage);
         debug_visitedNodeCount++;
@@ -166,17 +162,6 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
         if(currentSearchResults.size() > resultCount) {
             currentSearchResults.erase(currentSearchResults.begin() + resultCount, currentSearchResults.end());
         }
-
-        /*std::cout << "Search results: ";
-        for(int i = 0; i < currentSearchResults.size(); i++) {
-            std::cout << currentSearchResults.at(i).distanceScore << ", ";
-        }
-        std::cout << std::endl;
-        std::cout << "Closed nodes: ";
-        for(int i = 0; i < debug_closedNodeQueue.size(); i++) {
-            std::cout << debug_closedNodeQueue.at(i).minDistanceScore << "|" << debug_closedNodeQueue.at(i).nodeID << ", ";
-        }
-        std::cout << std::endl;*/
     }
 
     std::cout << "Query finished, " << computeMinDistanceThreshold(currentSearchResults) << " vs " << closedNodeQueue.top().minDistanceScore << std::endl;

@@ -7,11 +7,12 @@
 #include <json.hpp>
 #include <fstream>
 #include "IndexBuilder.h"
-#include "NodeBlockCache.h"
 #include "tsl/ordered_map.h"
+#include "IndexIO.h"
 
 #include <fast-lzma2.h>
 #include <malloc.h>
+#include <spinImage/cpu/index/types/IndexEntry.h>
 
 template<class Key, class T, class Ignore, class Allocator,
         class Hash = std::hash<Key>, class KeyEqual = std::equal_to<Key>,
@@ -20,6 +21,16 @@ template<class Key, class T, class Ignore, class Allocator,
 using ordered_map = tsl::ordered_map<Key, T, Hash, KeyEqual, AllocatorPair, ValueTypeContainer>;
 
 using json = nlohmann::basic_json<ordered_map>;
+
+// Phase 1:
+//      - Create all pattern files, dump references into them in arbitrary order
+//          -> Should only be dependent on number of patterns being tested for.
+//             Because we write stuff immediately to disk, we don't keep much in memory
+// Phase 2:
+//      - Within each pattern file, sort all references by remaining pixel count (low to high)
+//          -> Probably requires loading in an entire file at once due to compression
+//      - Modify the header to represent which child patterns exist
+//      - Create shortcut links for patterns where no direct link exists
 
 
 struct IndexedFileStatistics {
@@ -67,67 +78,18 @@ struct IndexConstructionSettings {
 };
 
 IndexedFileStatistics gatherFileStatistics(
-        NodeBlockCache *cache,
         size_t fileIndex,
         double totalImageDurationMilliseconds,
         double totalExecutionTimeMilliseconds,
         size_t imageCount,
         const std::string &filePath) {
-    /*unsigned long totalCapacity = 0;
-    unsigned long totalImageCount = 0;
-    unsigned long maximumImageCount = 0;
-    unsigned long leafNodeCount = 0;
-    unsigned long intermediateNodeCount = 0;
-    unsigned long maximumImagesPerNode = 0;
-    for(CachedItem<std::string, NodeBlock> &block : cache->lruItemQueue) {
-        unsigned int entryCount = 0;
-        unsigned long nodeImageCount = 0;
-        for(int i = 0; i < NODES_PER_BLOCK; i++) {
-            const auto& entry = block.item->leafNodeContents.at(i);
-            entryCount += entry.capacity();
-            totalImageCount += entry.size();
-            nodeImageCount += entry.size();
-            maximumImageCount = std::max<unsigned long>(maximumImageCount, entry.size());
-            if(block.item->childNodeIsLeafNode[i]) {
-                leafNodeCount++;
-            } else {
-                intermediateNodeCount++;
-            }
-        }
-        maximumImagesPerNode = std::max<unsigned long>(maximumImagesPerNode, nodeImageCount);
-        totalCapacity += entryCount;
-    }
-    std::cout << (double(totalImageCount*sizeof(NodeBlockEntry)) / double(1024*1024*1024)) << "GB/" << (double(totalCapacity*sizeof(NodeBlockEntry)) / double(1024*1024*1024)) << "GB (max " << maximumImageCount << ", max per node " << maximumImagesPerNode << ", average " << (double(totalCapacity) / double(leafNodeCount)) << ")" << std::endl;*/
 
     IndexedFileStatistics stats;
     stats.filePath = filePath;
     stats.fileIndex = fileIndex;
     stats.imageCount = imageCount;
-    stats.cachedNodeBlockCount = cache->getCurrentItemCount();
-    stats.cachedImageCount = cache->getCurrentImageCount();
     stats.totalExecutionTimeMilliseconds = totalExecutionTimeMilliseconds;
     stats.totalLinearInsertionTimeMilliseconds = totalImageDurationMilliseconds;
-
-    stats.cacheMisses = cache->statistics.misses;
-    stats.cacheHits = cache->statistics.hits;
-    stats.cacheEvictions = cache->statistics.evictions;
-    stats.cacheDirtyEvictions = cache->statistics.dirtyEvictions;
-    stats.cacheInsertions = cache->statistics.insertions;
-
-    stats.imageInsertionCount = cache->nodeBlockStatistics.imageInsertionCount;
-    stats.nodeBlockSplitCount = cache->nodeBlockStatistics.nodeSplitCount;
-    stats.nodeBlockReadCount = cache->nodeBlockStatistics.totalReadCount;
-    stats.nodeBlockWriteCount = cache->nodeBlockStatistics.totalWriteCount;
-    stats.totalReadTimeMilliseconds = cache->nodeBlockStatistics.totalReadTimeNanoseconds / 1000000.0;
-    stats.totalWriteTimeMilliseconds = cache->nodeBlockStatistics.totalWriteTimeNanoseconds / 1000000.0;
-    stats.totalSplitTimeMilliseconds = cache->nodeBlockStatistics.totalSplitTimeNanoseconds / 1000000.0;
-
-    /*stats.totalAllocatedImageCapacity = totalCapacity;
-    stats.totalCachedImageCount = totalImageCount;
-    stats.cachedLeafNodeCount = leafNodeCount;
-    stats.cachedIntermediateNodeCount = intermediateNodeCount;
-    stats.maximumImagesPerNode = maximumImageCount;
-    stats.maximumImagesPerNodeBlock = maximumImagesPerNode;*/
 
     return stats;
 }
@@ -196,7 +158,6 @@ Index SpinImage::index::build(
         bool appendToExistingIndex,
         std::experimental::filesystem::path statisticsFileDumpLocation) {
     std::vector<std::experimental::filesystem::path> filesInDirectory = SpinImage::utilities::listDirectory(quicciImageDumpDirectory);
-    std::cout << "Sizes: " << sizeof(NodeBlock) << ", " << sizeof(NodeBlockEntry) << std::endl;
     std::experimental::filesystem::path indexDirectory(indexDumpDirectory);
     omp_set_nested(1);
 
@@ -217,8 +178,6 @@ Index SpinImage::index::build(
     }
     std::vector<IndexedFileStatistics> fileStatistics;
 
-    NodeBlockCache cache(cacheNodeLimit, cacheImageLimit, indexDirectory, appendToExistingIndex);
-
     IndexConstructionSettings constructionSettings =
             {quicciImageDumpDirectory, indexDumpDirectory, cacheNodeLimit, cacheImageLimit, fileStartIndex, fileEndIndex};
 
@@ -226,29 +185,6 @@ Index SpinImage::index::build(
 
     size_t totalImageCount = 0;
     size_t currentTotalImageIndex = 0;
-
-    std::array<size_t, 4096> patternCountZeroes;
-    std::fill(patternCountZeroes.begin(), patternCountZeroes.end(), 0);
-
-    QuiccImage zeroImage;
-    std::fill(zeroImage.begin(), zeroImage.end(), 0);
-
-    std::array<size_t, 4096> countedPatterns = patternCountZeroes;
-    std::array<size_t, 4096> totalPatternOccurrenceCounts = patternCountZeroes;
-
-    std::array<unsigned short, 64> rowOfZeroes;
-    std::fill(rowOfZeroes.begin(), rowOfZeroes.end(), 0);
-
-
-    int minSize = 0;
-    int maxSize = 4096;
-    for(; minSize < 4096; minSize = maxSize) {
-
-
-        std::array<std::mutex, 4096> seenPatternLocks;
-        std::array<std::set<QuiccImage>, 4096> seenPatterns;
-
-        std::array<size_t, 4096> threadTotalSeenPatterns = patternCountZeroes;
 
         #pragma omp parallel for schedule(dynamic)
         for (unsigned int fileIndex = 0; fileIndex < endIndex; fileIndex++) {
@@ -267,9 +203,6 @@ Index SpinImage::index::build(
                 {
                     std::vector<std::pair<unsigned short, unsigned short>> floodFillPixels;
                     floodFillPixels.reserve(4096);
-                    QuiccImage patternImage = zeroImage;
-
-                    std::array<std::set<QuiccImage>, 4096> threadSeenPatterns;
 
                     #pragma omp for schedule(dynamic)
                     for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
@@ -338,85 +271,28 @@ Index SpinImage::index::build(
                                         threadSeenPatterns.at(regionSize - 1).insert(patternImage);
                                     }
 
-                                    threadTotalSeenPatterns.at(regionSize - 1)++;
                                 }
                             }
                         }
 
-
-                        //cache.insertImage(combined, entry);
                         std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
                         #pragma omp atomic
                         totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(
                                 imageEndTime - imageStartTime).count() / 1000000.0;
                     }
-
-		#pragma omp barrier
-
-                    for (int i = 0; i < 4096; i++) {
-                        if (!threadSeenPatterns.at(i).empty()) {
-                            seenPatternLocks.at(i).lock();
-                            seenPatterns.at(i).insert(threadSeenPatterns.at(i).begin(), threadSeenPatterns.at(i).end());
-                            seenPatternLocks.at(i).unlock();
-                        }
-                    }
                 }
-
-                size_t totalPatternCount = 0;
-                for(int i = 0; i < 4096; i++) {
-                    totalPatternCount += seenPatterns.at(i).size();
-                }
-                for(int i = minSize; i < maxSize; i++) {
-                    if(threadTotalSeenPatterns.at(i) != 0) {
-                        #pragma omp atomic
-                        totalPatternOccurrenceCounts.at(i) += threadTotalSeenPatterns.at(i);
-                    }
-                }
-
-                int patternIndex = maxSize - 1;
-                while(totalPatternCount > cacheImageLimit && patternIndex >= 0) {
-                    size_t bucketSize = seenPatterns.at(patternIndex).size();
-                    totalPatternCount -= bucketSize;
-                    if(bucketSize != 0) {
-                        std::cout << "Cache is getting too large. Postponing counting patterns of length " + std::to_string(patternIndex) + " to a later iteration. New pattern count: " + std::to_string(totalPatternCount) + "\n";
-                    }
-                    // Delete set contents to free up memory
-                    seenPatterns.at(patternIndex).clear();
-                    // Reset count
-                    totalPatternOccurrenceCounts.at(patternIndex) = 0;
-                    patternIndex--;
-                }
-                maxSize = patternIndex + 1;
-
-
-
 
                 std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
                 double durationMilliseconds =
                         std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
-
-                fileStatistics.push_back(
-                        gatherFileStatistics(&cache, fileIndex, totalImageDurationMilliseconds, durationMilliseconds,
-                                             images.imageCount, archivePath));
-
-                cache.statistics.reset();
-                cache.nodeBlockStatistics.reset();
 
                 if (enableStatisticsDump && fileIndex % 100 == 99) {
                     std::cout << "Writing statistics file..                                      \n";
                     dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
                 }
 
-//                std::cout << minSize << "-" << maxSize << ": ";
-//                for (int i = 0; i < 4096; i++) {
-//                    std::cout << seenPatterns.at(i).size() << ", ";
-//                }
-//                std::cout << std::endl;
-
-                std::cout << "Added file " << (fileIndex + 1) << "/" << endIndex << " (" << minSize << "-" << maxSize << ")"
+                std::cout << "Added file " << (fileIndex + 1) << "/" << endIndex
                           << ": " << archivePath
-                          << ", Cache (nodes: " << cache.getCurrentItemCount() << "/" << cache.itemCapacity
-                          << ", images: " << totalPatternCount << "/" << cache.imageCapacity << ")"
                           << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
                           << ", Image count: " << images.imageCount << std::endl;
             };
@@ -428,30 +304,10 @@ Index SpinImage::index::build(
             delete[] images.horizontallyDecreasingImages;
         }
 
-        std::cout << "Unique pattern counts: " << std::endl;
-        for(int i = 0; i < minSize; i++) {
-            std::cout << countedPatterns.at(i) << ",";
-        }
-        for(int i = minSize; i < maxSize; i++) {
-            std::cout << seenPatterns.at(i).size() << ",";
-        }
-        std::cout << std::endl;
-        std::cout << "Total pattern counts: " << std::endl;
-        for(int i = 0; i < 4096; i++) {
-            std::cout << totalPatternOccurrenceCounts.at(i) << ",";
-        }
-        std::cout << std::endl;
-
         malloc_trim(0);
 
-        maxSize = 4096;
-    }
 
     std::cout << std::endl << "Total Added Image Count: " << totalImageCount << std::endl;
-
-    // Ensuring all changes are written to disk
-    std::cout << "Flushing cache.." << std::endl;
-    cache.flush();
 
     dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
 

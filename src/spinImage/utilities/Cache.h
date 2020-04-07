@@ -8,6 +8,7 @@
 #include <iostream>
 #include <condition_variable>
 #include <thread>
+#include <vector>
 #include <malloc.h>
 
 // The cached nodes are stored as pointers to avoid accidental copies being created

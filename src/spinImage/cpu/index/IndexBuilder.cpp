@@ -16,6 +16,7 @@
 #include <spinImage/cpu/index/types/IndexEntry.h>
 #include <omp.h>
 #include <spinImage/cpu/index/phases/StatisticsCollectionPhase.h>
+#include <spinImage/cpu/index/phases/TreeConstructionPhase.h>
 
 template<class Key, class T, class Ignore, class Allocator,
         class Hash = std::hash<Key>, class KeyEqual = std::equal_to<Key>,
@@ -186,9 +187,8 @@ Index SpinImage::index::build(
 
     size_t endIndex = fileEndIndex == fileStartIndex ? filesInDirectory.size() : fileEndIndex;
 
-    computePatternStatisticsFile(quicciImageDumpDirectory, indexDumpDirectory,
-                                 cacheImageLimit,
-            fileStartIndex, endIndex);
+    //computePatternStatisticsFile(quicciImageDumpDirectory, indexDumpDirectory, cacheImageLimit, fileStartIndex, endIndex);
+    constructIndexTree(quicciImageDumpDirectory, indexDumpDirectory, cacheImageLimit, fileStartIndex, fileEndIndex);
 
     dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);
 

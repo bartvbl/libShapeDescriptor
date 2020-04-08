@@ -11,16 +11,14 @@
 #include <malloc.h>
 #include <fstream>
 #include <fast-lzma2.h>
+#include <spinImage/cpu/index/phases/types/FileEntry.h>
 
 // First phase. Produces a file, one for each pattern length, with the following:
 // - A list of all unique patterns
 // - How often each pattern occurred in the dataset
 // - The number of outgoing shortcut links from that pattern
 
-struct FileEntry {
-    QuiccImage image;
-    size_t occurrenceCount;
-};
+
 
 void computePatternStatisticsFile(
         std::experimental::filesystem::path quicciImageDumpDirectory,
@@ -178,7 +176,7 @@ void computePatternStatisticsFile(
         std::cout << "Iteration complete. Dumping discovered patterns.." << std::endl;
         #pragma omp parallel for schedule(dynamic)
         for(int i = minSize; i < maxSize; i++) {
-            FL2_CStream* compressionStream = FL2_createCStreamMt(1, 0);;
+            FL2_CStream* compressionStream = FL2_createCStream();;
             FL2_initCStream(compressionStream, 9);
 
             std::experimental::filesystem::path dumpFileLocation =

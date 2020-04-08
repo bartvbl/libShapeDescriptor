@@ -9,16 +9,17 @@
 #include <spinImage/cpu/index/types/IndexEntry.h>
 #include <spinImage/cpu/index/Pattern.h>
 #include <malloc.h>
-#include <unordered_map>
+#include <fstream>
+#include <fast-lzma2.h>
 
 // First phase. Produces a file, one for each pattern length, with the following:
 // - A list of all unique patterns
 // - How often each pattern occurred in the dataset
 // - The number of outgoing shortcut links from that pattern
 
-struct PatternEntry {
-    QuiccImage patternImage;
-    size_t occurrenceCount = 0;
+struct FileEntry {
+    QuiccImage image;
+    size_t occurrenceCount;
 };
 
 void computePatternStatisticsFile(
@@ -40,9 +41,6 @@ void computePatternStatisticsFile(
     }*/
 
     size_t endIndex = fileEndIndex == fileStartIndex ? filesInDirectory.size() : fileEndIndex;
-
-    size_t totalImageCount = 0;
-    size_t currentTotalImageIndex = 0;
 
     std::array<size_t, 4096> countedPatterns;
     std::fill(countedPatterns.begin(), countedPatterns.end(), 0);
@@ -66,7 +64,6 @@ void computePatternStatisticsFile(
 
             #pragma omp critical
             {
-                totalImageCount += images.imageCount;
                 indexedFiles->emplace_back(archivePath);
                 std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
@@ -162,23 +159,6 @@ void computePatternStatisticsFile(
                 double durationMilliseconds =
                         std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
 
-                if(fileIndex % 10 == 9) {
-                    std::cout << "\rUnique pattern counts: " << std::endl;
-                    for(int i = 0; i < minSize; i++) {
-                        std::cout << countedPatterns.at(i) << ",";
-                    }
-                    for(int i = minSize; i < maxSize; i++) {
-                        countedPatterns.at(i) = seenPatterns.at(i).size();
-                        std::cout << seenPatterns.at(i).size() << ",";
-                    }
-                    std::cout << std::endl;
-                    std::cout << "Total pattern counts: " << std::endl;
-                    for(int i = 0; i < maxSize; i++) {
-                        std::cout << totalPatternOccurrenceCounts.at(i) << ",";
-                    }
-                    std::cout << std::endl;
-                }
-
                 std::cout << "\rAdded file " << (fileIndex + 1) << "/" << endIndex << " (" << minSize << "-" << maxSize << ")"
                           << ": " << archivePath
                           << ", pattern image count: " << totalPatternCount
@@ -195,24 +175,61 @@ void computePatternStatisticsFile(
             delete[] images.horizontallyDecreasingImages;
         }
 
-        std::cout << "Unique pattern counts: " << std::endl;
-        for(int i = 0; i < minSize; i++) {
-            std::cout << countedPatterns.at(i) << ",";
-        }
+        std::cout << "Iteration complete. Dumping discovered patterns.." << std::endl;
+        #pragma omp parallel for schedule(dynamic)
         for(int i = minSize; i < maxSize; i++) {
-            countedPatterns.at(i) = seenPatterns.at(i).size();
-            std::cout << seenPatterns.at(i).size() << ",";
-        }
-        std::cout << std::endl;
-        std::cout << "Total pattern counts: " << std::endl;
-        for(int i = 0; i < maxSize; i++) {
-            std::cout << totalPatternOccurrenceCounts.at(i) << ",";
-        }
-        std::cout << std::endl;
+            FL2_CStream* compressionStream = FL2_createCStreamMt(1, 0);;
+            FL2_initCStream(compressionStream, 9);
 
+            std::experimental::filesystem::path dumpFileLocation =
+                    patternStatisticsDirectory / ("pattern_stats_" + std::to_string(i) + ".dat");
+            std::fstream dumpFileStream(dumpFileLocation, std::ios::binary | std::ios::out);
+
+            const unsigned int imagesPerBuffer = 8;
+            const size_t uncompressedBufferSize = imagesPerBuffer * sizeof(FileEntry);
+            const size_t compressedBufferSize = imagesPerBuffer * sizeof(FileEntry);
+            unsigned char uBuffer[uncompressedBufferSize];
+            unsigned char cBuffer[compressedBufferSize];
+            FL2_inBuffer uncompressedBuffer = {uBuffer, uncompressedBufferSize, uncompressedBufferSize};
+            FL2_outBuffer compressedBuffer = {cBuffer, compressedBufferSize, 0};
+
+            // Write file header
+            const char fileID[4] = "PCF";
+            dumpFileStream.write(fileID, 4);
+            size_t patternCount = seenPatterns.at(i).size();
+            dumpFileStream.write(reinterpret_cast<const char *>(&patternCount), sizeof(size_t));
+            // Allocates space for the total compressed size
+            dumpFileStream.write(reinterpret_cast<const char *>(&patternCount), sizeof(size_t));
+            // Write file contents
+            std::map<QuiccImage, size_t>::iterator it = seenPatterns.at(i).begin();
+            do {
+                if (uncompressedBuffer.pos == uncompressedBuffer.size) {
+                    uncompressedBuffer.size = 0;
+                    for(int entry = 0; entry < imagesPerBuffer; entry++) {
+                        if(it == seenPatterns.at(i).end()) {
+                            break;
+                        }
+                        reinterpret_cast<FileEntry*>(uBuffer)[entry] = {it->first, it->second};
+                        uncompressedBuffer.size += sizeof(FileEntry);
+                        it++;
+                    }
+                    uncompressedBuffer.pos = 0;
+                }
+                FL2_compressStream(compressionStream, &compressedBuffer, &uncompressedBuffer);
+
+                dumpFileStream.write((char*) compressedBuffer.dst, compressedBuffer.pos);
+                compressedBuffer.pos = 0;
+            } while (uncompressedBuffer.size == uncompressedBufferSize);
+            // Write dictionary / metadata
+            unsigned int status;
+            do {
+                status = FL2_endStream(compressionStream, &compressedBuffer);
+                dumpFileStream.write((char*) compressedBuffer.dst, compressedBuffer.pos);
+                compressedBuffer.pos = 0;
+            } while (status);
+
+            FL2_freeCStream(compressionStream);
+        }
         malloc_trim(0);
-
     }
-
-    std::cout << std::endl << "Total Added Image Count: " << totalImageCount << std::endl;
 }

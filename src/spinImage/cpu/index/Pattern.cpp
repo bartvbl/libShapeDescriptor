@@ -53,10 +53,11 @@ bool SpinImage::index::pattern::findNext(
                                 }
                             }
                         }
-                        // We have located the pattern, and thus return
-                        return true;
                     }
                 }
+
+                // We have located the pattern, and thus return
+                return true;
             }
         }
     }

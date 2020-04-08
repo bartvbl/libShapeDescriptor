@@ -89,11 +89,11 @@ void computePatternStatisticsFile(
                         unsigned int row = 0;
                         unsigned int col = 0;
                         unsigned int patternSize = 0;
-                        while(!SpinImage::index::pattern::findNext(
+                        while(SpinImage::index::pattern::findNext(
                                 combined, patternImage, patternSize, row, col, floodFillBuffer)) {
-                            if(patternSize - 1 >= minSize
-                            && patternSize - 1 < maxSize) {
-                                std::map<QuiccImage, size_t>::iterator item = seenPatterns.at(patternSize - 1).find(patternImage);
+                            if(patternSize - 1 >= minSize && patternSize - 1 < maxSize) {
+                                std::map<QuiccImage, size_t>::iterator item =
+                                        seenPatterns.at(patternSize - 1).find(patternImage);
                                 if(item == seenPatterns.at(patternSize - 1).end()) {
                                     // Make a note of the image, start usage count at 1
                                     threadSeenPatterns.at(patternSize - 1).insert({patternImage, 1});
@@ -182,8 +182,11 @@ void computePatternStatisticsFile(
             FL2_initCStream(compressionStream, 9);
 
             std::experimental::filesystem::path dumpFileLocation =
-                    patternStatisticsDirectory / ("pattern_stats_" + std::to_string(i) + ".dat");
+                    patternStatisticsDirectory / ("pattern_stats_" + std::to_string(i+1) + ".dat");
+            std::experimental::filesystem::create_directories(dumpFileLocation.parent_path());
             std::fstream dumpFileStream(dumpFileLocation, std::ios::binary | std::ios::out);
+
+            size_t totalCompressedSize = 0;
 
             const unsigned int imagesPerBuffer = 8;
             const size_t uncompressedBufferSize = imagesPerBuffer * sizeof(FileEntry);
@@ -218,6 +221,7 @@ void computePatternStatisticsFile(
                 FL2_compressStream(compressionStream, &compressedBuffer, &uncompressedBuffer);
 
                 dumpFileStream.write((char*) compressedBuffer.dst, compressedBuffer.pos);
+                totalCompressedSize += compressedBuffer.pos;
                 compressedBuffer.pos = 0;
             } while (uncompressedBuffer.size == uncompressedBufferSize);
             // Write dictionary / metadata
@@ -225,10 +229,13 @@ void computePatternStatisticsFile(
             do {
                 status = FL2_endStream(compressionStream, &compressedBuffer);
                 dumpFileStream.write((char*) compressedBuffer.dst, compressedBuffer.pos);
+                totalCompressedSize += compressedBuffer.pos;
                 compressedBuffer.pos = 0;
             } while (status);
 
             FL2_freeCStream(compressionStream);
+            dumpFileStream.seekp(sizeof(fileID) + sizeof(size_t));
+            dumpFileStream.write(reinterpret_cast<const char *>(&compressedBufferSize), sizeof(size_t));
         }
         malloc_trim(0);
     }

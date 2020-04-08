@@ -12,6 +12,9 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
                         size_t cachedPatternLimit,
                         size_t fileStartIndex, size_t fileEndIndex) {
 
+    std::array<size_t, 4096> totalLooseNodeCount;
+    std::fill(totalLooseNodeCount.begin(), totalLooseNodeCount.end(), 0);
+
     std::set<QuiccImage> currentLayerContents;
     std::set<QuiccImage> previousLayerContents;
     for(int patternSize = 1; patternSize <= 4096; patternSize++) {
@@ -60,6 +63,7 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
             FL2_outBuffer uncompressedBuffer = {uBuffer, imagesPerBuffer * sizeof(FileEntry), 0};
             unsigned int decompressedBytesThisIteration = 0;
 
+            // Keep going until input buffer is full, or no more data is available
             while(uncompressedBuffer.pos < bufferSize && totalUncompressedBytes < fileEntryCount * sizeof(FileEntry)) {
                 // Refill the compressed buffer
                 if (compressedBuffer.pos == compressedBuffer.size) {
@@ -92,17 +96,47 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
             assert(uncompressedBuffer.pos % sizeof(FileEntry) == 0);
             unsigned int bufferImageCount = uncompressedBuffer.pos / sizeof(FileEntry);
 
-            // Copy images into complete array
+            // Copy images into set
             for(int i = 0; i < bufferImageCount; i++) {
                 currentLayerContents.insert(uBuffer[i].image);
             }
 
-            
+            if(patternSize > 1) {
+                // Attempt to locate images in previous layer
+                // Can only be done if said previous layer exists
+                for(int i = 0; i < bufferImageCount; i++) {
+                    QuiccImage patternImage = uBuffer[i].image;
+                    bool parentFound = false;
+                    for(int row = 0; row < spinImageWidthPixels && !parentFound; row++) {
+                        for(int col = 0; col < spinImageWidthPixels && !parentFound; col++) {
+                            unsigned int chunkIndex = 2 * row + (col / 32);
+                            unsigned int pixel = (unsigned int) ((patternImage.at(chunkIndex) >> (31U - col)) & 0x1U);
+                            if(pixel == 1) {
+                                // Disable pixel
+                                unsigned int bitDisableMask = ~(0x1U << (31U - col % 32));
+                                patternImage.at(chunkIndex) &= bitDisableMask;
+                                // Perform lookup
+                                bool parentExists = previousLayerContents.find(patternImage) != previousLayerContents.end();
+                                parentFound = parentExists;
+                                // Reset image
+                                patternImage = uBuffer[i].image;
+                            }
+                        }
+                    }
+                    if(!parentFound) {
+                        #pragma omp atomic
+                        totalLooseNodeCount.at(patternSize-1)++;
+                    }
+                }
+            }
         }
 
         FL2_freeDStream(decompressionStream);
-
+        
         if(patternSize > 1) {
+            size_t nodesWithParentCount = currentLayerContents.size() - totalLooseNodeCount.at(patternSize-1);
+            std::cout << "(" << patternSize << ", " << nodesWithParentCount << ", " << totalLooseNodeCount.at(patternSize-1) << "), " << std::flush;
+
             previousLayerContents.clear();
         }
         previousLayerContents.swap(currentLayerContents);

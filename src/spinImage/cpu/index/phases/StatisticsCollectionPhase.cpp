@@ -232,10 +232,9 @@ void computePatternStatisticsFile(
                 totalCompressedSize += compressedBuffer.pos;
                 compressedBuffer.pos = 0;
             } while (status);
-
             FL2_freeCStream(compressionStream);
             dumpFileStream.seekp(sizeof(fileID) + sizeof(size_t));
-            dumpFileStream.write(reinterpret_cast<const char *>(&compressedBufferSize), sizeof(size_t));
+            dumpFileStream.write(reinterpret_cast<const char *>(&totalCompressedSize), sizeof(size_t));
         }
         malloc_trim(0);
     }

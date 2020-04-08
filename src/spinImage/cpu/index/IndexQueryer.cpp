@@ -87,7 +87,6 @@ const float computeMinDistanceThreshold(std::vector<SearchResultEntry> &currentS
 }
 
 void visitNode(
-        const NodeBlock* block,
         IndexPath path,
         const std::string &nodeID,
         const unsigned int level,
@@ -104,17 +103,18 @@ void visitNode(
 
     std::cout << "Visiting node " << debug_visitedNodeCount << " -> " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes, " << searchResultScoreThreshold  << " vs " << closedNodeQueue.top().minDistanceScore << " - " << nodeID << std::endl;
     for(int child = 0; child < NODES_PER_BLOCK; child++) {
-        if(block->childNodeIsLeafNode[child]) {
+        bool isLeafNode = true;
+        if(isLeafNode) {
             //std::cout << "Child " << child << " is leaf node!" << std::endl;
             // If child is a leaf node, insert its images into the search result list
-            for(const NodeBlockEntry& entry : block->leafNodeContents.at(child)) {
-                float distanceScore = computeWeightedHammingDistance(queryImage, queryImageMipmapStack, entry.image);
+            //for(const NodeBlockEntry& entry : block->leafNodeContents.at(child)) {
+               // float distanceScore = computeWeightedHammingDistance(queryImage, queryImageMipmapStack, entry.image);
 
                 // Only consider the image if it is potentially better than what's there already
-                if(distanceScore <= searchResultScoreThreshold) {
-                    currentSearchResults.emplace_back(entry.indexEntry, entry.image, nodeID, distanceScore);
-                }
-            }
+               // if(distanceScore <= searchResultScoreThreshold) {
+              //      currentSearchResults.emplace_back(entry.indexEntry, entry.image, nodeID, distanceScore);
+              //  }
+            //}
         } else {
             // If the child is an intermediate node, enqueue it in the closed node list
             IndexPath childPath = path.append(child);
@@ -163,17 +163,6 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
         if(currentSearchResults.size() > resultCount) {
             currentSearchResults.erase(currentSearchResults.begin() + resultCount, currentSearchResults.end());
         }
-
-        /*std::cout << "Search results: ";
-        for(int i = 0; i < currentSearchResults.size(); i++) {
-            std::cout << currentSearchResults.at(i).distanceScore << ", ";
-        }
-        std::cout << std::endl;
-        std::cout << "Closed nodes: ";
-        for(int i = 0; i < debug_closedNodeQueue.size(); i++) {
-            std::cout << debug_closedNodeQueue.at(i).minDistanceScore << "|" << debug_closedNodeQueue.at(i).nodeID << ", ";
-        }
-        std::cout << std::endl;*/
     }
 
     std::cout << "Query finished, " << computeMinDistanceThreshold(currentSearchResults) << " vs " << closedNodeQueue.top().minDistanceScore << std::endl;

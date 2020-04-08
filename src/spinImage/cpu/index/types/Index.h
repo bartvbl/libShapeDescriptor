@@ -5,7 +5,6 @@
 #include <vector>
 #include <map>
 #include <spinImage/libraryBuildSettings.h>
-#include "NodeBlock.h"
 #include <experimental/filesystem>
 
 // Whole index section is built around images of size 64x64!

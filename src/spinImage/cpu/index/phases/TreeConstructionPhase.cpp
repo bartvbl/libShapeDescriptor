@@ -47,6 +47,7 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
         size_t totalUncompressedBytes = 0;
 
         std::mutex streamLock;
+        std::mutex setLock;
 
         unsigned int blockCount = fileEntryCount % imagesPerBuffer == 0 ?
                                   (fileEntryCount / imagesPerBuffer) :
@@ -97,9 +98,11 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
             unsigned int bufferImageCount = uncompressedBuffer.pos / sizeof(FileEntry);
 
             // Copy images into set
+            setLock.lock();
             for(int i = 0; i < bufferImageCount; i++) {
                 currentLayerContents.insert(uBuffer[i].image);
             }
+            setLock.unlock();
 
             if(patternSize > 1) {
                 // Attempt to locate images in previous layer
@@ -136,6 +139,7 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
         if(patternSize > 1) {
             size_t nodesWithParentCount = currentLayerContents.size() - totalLooseNodeCount.at(patternSize-1);
             std::cout << "(" << patternSize << ", " << nodesWithParentCount << ", " << totalLooseNodeCount.at(patternSize-1) << "), " << std::flush;
+
 
             previousLayerContents.clear();
         }

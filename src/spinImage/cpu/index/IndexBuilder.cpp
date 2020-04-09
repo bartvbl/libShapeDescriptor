@@ -187,7 +187,7 @@ Index SpinImage::index::build(
 
     size_t endIndex = fileEndIndex == fileStartIndex ? filesInDirectory.size() : fileEndIndex;
 
-    //computePatternStatisticsFile(quicciImageDumpDirectory, indexDumpDirectory, cacheImageLimit, fileStartIndex, endIndex);
+    computePatternStatisticsFile(quicciImageDumpDirectory, indexDumpDirectory, cacheImageLimit, fileStartIndex, endIndex);
     constructIndexTree(quicciImageDumpDirectory, indexDumpDirectory, cacheImageLimit, fileStartIndex, fileEndIndex);
 
     dumpStatisticsFile(fileStatistics, constructionSettings, statisticsFileDumpLocation);

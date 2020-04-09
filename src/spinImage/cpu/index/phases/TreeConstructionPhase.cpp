@@ -138,7 +138,7 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
         
         if(patternSize > 1) {
             size_t nodesWithParentCount = currentLayerContents.size() - totalLooseNodeCount.at(patternSize-1);
-            std::cout << "(" << patternSize << ", " << nodesWithParentCount << ", " << totalLooseNodeCount.at(patternSize-1) << "), " << std::flush;
+            std::cout << "(" << patternSize << ", " << nodesWithParentCount << ", " << currentLayerContents.size() << ", " << totalLooseNodeCount.at(patternSize-1) << "), " << std::flush;
 
 
             previousLayerContents.clear();

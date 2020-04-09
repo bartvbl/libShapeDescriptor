@@ -1,4 +1,19 @@
+#include <iostream>
 #include "Pattern.h"
+
+inline unsigned int computeBitMask(const unsigned int col) {
+    return 0x1U << (31U - (col % 32));
+}
+
+inline unsigned int computeChunkIndex(const unsigned int row, const unsigned int col) {
+    return 2 * row + (col / 32);
+}
+
+inline unsigned int pixelAt(const QuiccImage &image, const unsigned int row, const unsigned int col) {
+    unsigned int chunkIndex = computeChunkIndex(row, col);
+    unsigned int bitIndex = col % 32;
+    return (unsigned int) ((image.at(chunkIndex) >> (31U - bitIndex)) & 0x1U);
+}
 
 bool SpinImage::index::pattern::findNext(
         QuiccImage &image, QuiccImage &foundPattern,
@@ -8,8 +23,7 @@ bool SpinImage::index::pattern::findNext(
     QuiccImage floodFillImage;
     for (; row < 64; row++) {
         for (; col < 64; col++) {
-            unsigned int pixel = (unsigned int) ((image.at(2 * row + (col / 32)) >> (31U - col)) & 0x1U);
-
+            unsigned int pixel = pixelAt(image, row, col);
             if (pixel == 1) {
                 foundPatternSize = 0;
                 floodFillBuffer.clear();
@@ -20,36 +34,34 @@ bool SpinImage::index::pattern::findNext(
                 while (!floodFillBuffer.empty()) {
                     std::pair<unsigned short, unsigned short> pixelIndex = floodFillBuffer.at(floodFillBuffer.size() - 1);
                     floodFillBuffer.erase(floodFillBuffer.begin() + floodFillBuffer.size() - 1);
-                    unsigned int chunkIndex = 2 * pixelIndex.first + (pixelIndex.second / 32);
-                    unsigned int chunk = image.at(chunkIndex);
-                    unsigned int floodPixel = (unsigned int)
-                            ((chunk >> (31U - pixelIndex.second % 32)) & 0x1U);
+                    int floodFillRow = pixelIndex.first;
+                    int floodFillCol = pixelIndex.second;
+
+                    unsigned int floodPixel = pixelAt(image, floodFillRow, floodFillCol);
 
                     if (floodPixel == 1) {
                         foundPatternSize++;
                         // Add pixel to pattern image
-                        unsigned int bitEnablingMask = 0x1U << (31U - pixelIndex.second % 32);
+                        unsigned int bitEnablingMask = computeBitMask(floodFillCol);
+                        unsigned int chunkIndex = computeChunkIndex(floodFillRow, floodFillCol);
                         foundPattern.at(chunkIndex) |= bitEnablingMask;
                         // Disable pixel
                         unsigned int bitDisablingMask = ~bitEnablingMask;
-                        image.at(chunkIndex) = chunk & bitDisablingMask;
+                        image.at(chunkIndex) &= bitDisablingMask;
                         // Queue surrounding pixels
                         const int range = 3;
-                        for (int floodRow = std::max(int(pixelIndex.first) - range, 0);
-                             floodRow <= std::min(63, pixelIndex.first + range);
-                             floodRow++) {
-                            for (int floodCol = std::max(int(pixelIndex.second) - range, 0);
-                                 floodCol <= std::min(63, pixelIndex.second + range);
-                                 floodCol++) {
-                                unsigned int childChunkIndex = 2 * floodRow + (floodCol / 32);
-                                unsigned int childChunk = floodFillImage.at(childChunkIndex);
-                                unsigned int pixelWasAlreadyVisited = (unsigned int)
-                                        ((childChunk >> (31U - floodCol % 32)) & 0x1U);
+                        for (int neighbourRow = std::max(int(floodFillRow) - range, 0);
+                             neighbourRow <= std::min(spinImageWidthPixels - 1, floodFillRow + range);
+                             neighbourRow++) {
+                            for (int neighbourCol = std::max(int(floodFillCol) - range, 0);
+                                 neighbourCol <= std::min(spinImageWidthPixels - 1, floodFillCol + range);
+                                 neighbourCol++) {
+                                unsigned int pixelWasAlreadyVisited = pixelAt(floodFillImage, neighbourRow, neighbourCol);
                                 if(pixelWasAlreadyVisited == 0) {
                                     // Mark the pixel as visited
-                                    unsigned int childMarkMask = 0x1U << (31U - floodCol % 32);
-                                    floodFillImage.at(childChunkIndex) |= childMarkMask;
-                                    floodFillBuffer.emplace_back(floodRow, floodCol);
+                                    unsigned int childMarkMask = computeBitMask(neighbourCol);
+                                    floodFillImage.at(computeChunkIndex(neighbourRow, neighbourCol)) |= childMarkMask;
+                                    floodFillBuffer.emplace_back(neighbourRow, neighbourCol);
                                 }
                             }
                         }
@@ -60,7 +72,9 @@ bool SpinImage::index::pattern::findNext(
                 return true;
             }
         }
+        col = 0;
     }
+
     // No more patterns exist
     return false;
 }

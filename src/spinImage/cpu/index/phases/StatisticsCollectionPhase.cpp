@@ -12,6 +12,7 @@
 #include <fstream>
 #include <fast-lzma2.h>
 #include <spinImage/cpu/index/phases/types/FileEntry.h>
+#include <cassert>
 
 // First phase. Produces a file, one for each pattern length, with the following:
 // - A list of all unique patterns
@@ -94,13 +95,14 @@ void computePatternStatisticsFile(
                                         seenPatterns.at(patternSize - 1).find(patternImage);
                                 if(item == seenPatterns.at(patternSize - 1).end()) {
                                     // Make a note of the image, start usage count at 1
-                                    threadSeenPatterns.at(patternSize - 1).insert({patternImage, 1});
+                                    threadSeenPatterns.at(patternSize - 1)[patternImage] = 1;
                                 } else {
                                     // Increment usage count
                                     item->second++;
                                 }
                             }
 
+                            assert(patternSize > 0);
                             threadTotalSeenPatterns.at(patternSize - 1)++;
                         }
 

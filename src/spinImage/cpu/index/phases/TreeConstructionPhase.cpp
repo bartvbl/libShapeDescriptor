@@ -5,6 +5,7 @@
 #include <mutex>
 #include <iostream>
 #include <set>
+#include <spinImage/cpu/index/Pattern.h>
 #include "TreeConstructionPhase.h"
 
 void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirectory,

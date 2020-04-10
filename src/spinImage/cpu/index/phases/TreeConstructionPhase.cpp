@@ -123,7 +123,7 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
                                 bool parentExists = previousLayerContents.find(patternImage) != previousLayerContents.end();
                                 parentFound = parentExists;
                                 // Re-enable pixel
-                                patternImage.at(chunkIndex) |= ~bitEnableMask;
+                                patternImage.at(chunkIndex) |= bitEnableMask;
                             }
                         }
                     }

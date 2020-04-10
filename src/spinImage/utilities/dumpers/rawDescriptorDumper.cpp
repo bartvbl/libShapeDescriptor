@@ -1,7 +1,7 @@
 #include <spinImage/libraryBuildSettings.h>
 #include <sstream>
+#include <spinImage/utilities/compression/CompressedFileWriter.h>
 #include "rawDescriptorDumper.h"
-#include <spinImage/utilities/fileutils.h>
 
 void SpinImage::dump::raw::descriptors(
         const std::experimental::filesystem::path &outputDumpFile,

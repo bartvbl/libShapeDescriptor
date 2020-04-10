@@ -1,10 +1,11 @@
 #include "IndexIO.h"
 #include <fstream>
 #include <cassert>
-#include <spinImage/utilities/fileutils.h>
 #include <cstring>
 #include <iostream>
 #include <spinImage/cpu/types/QuiccImage.h>
+#include <spinImage/utilities/compression/CompressedFileWriter.h>
+#include <spinImage/utilities/compression/CompressedFileReader.h>
 
 Index SpinImage::index::io::readIndex(std::experimental::filesystem::path indexDirectory) {
     std::experimental::filesystem::path indexFilePath = indexDirectory / "index.dat";

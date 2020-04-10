@@ -1,10 +1,10 @@
 #include <arrrgh.hpp>
 #include <spinImage/cpu/index/types/Index.h>
-#include <spinImage/cpu/index/IndexIO.h>
-#include <spinImage/cpu/index/IndexQueryer.h>
 #include <lodepng.h>
 #include <fstream>
 #include <spinImage/utilities/fileutils.h>
+#include <spinImage/utilities/compression/CompressedFileWriter.h>
+#include <spinImage/utilities/compression/CompressedFileReader.h>
 
 int main(int argc, const char** argv) {
     arrrgh::parser parser("compressor", "Compress and decompress files stored in the library's archive format.");

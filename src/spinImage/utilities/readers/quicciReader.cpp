@@ -2,8 +2,7 @@
 #include "quicciReader.h"
 #include <exception>
 #include <ZipLib/ZipArchive.h>
-#include <ZipLib/ZipFile.h>
-#include <spinImage/utilities/fileutils.h>
+#include <spinImage/utilities/compression/CompressedFileReader.h>
 
 SpinImage::cpu::QUICCIImages readImageLZFile(const std::experimental::filesystem::path &path) {
     size_t bufferSize;

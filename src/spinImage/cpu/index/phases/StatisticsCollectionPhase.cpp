@@ -236,6 +236,8 @@ void computePatternStatisticsFile(
             dumpFileStream.seekp(sizeof(fileID) + sizeof(size_t));
             dumpFileStream.write(reinterpret_cast<const char *>(&totalCompressedSize), sizeof(size_t));
         }
+        
         malloc_trim(0);
+        std::cout << "Write complete, cleaning up.." << std::endl;
     }
 }

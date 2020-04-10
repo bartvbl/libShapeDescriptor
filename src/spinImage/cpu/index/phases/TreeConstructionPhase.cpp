@@ -5,6 +5,7 @@
 #include <mutex>
 #include <iostream>
 #include <set>
+#include <spinImage/cpu/index/Pattern.h>
 #include "TreeConstructionPhase.h"
 
 void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirectory,
@@ -112,17 +113,17 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
                     bool parentFound = false;
                     for(int row = 0; row < spinImageWidthPixels && !parentFound; row++) {
                         for(int col = 0; col < spinImageWidthPixels && !parentFound; col++) {
-                            unsigned int chunkIndex = 2 * row + (col / 32);
-                            unsigned int pixel = (unsigned int) ((patternImage.at(chunkIndex) >> (31U - col)) & 0x1U);
+                            unsigned int chunkIndex = SpinImage::index::pattern::computeChunkIndex(row, col);
+                            unsigned int pixel = SpinImage::index::pattern::pixelAt(patternImage, row, col);
                             if(pixel == 1) {
                                 // Disable pixel
-                                unsigned int bitDisableMask = ~(0x1U << (31U - col % 32));
-                                patternImage.at(chunkIndex) &= bitDisableMask;
+                                unsigned int bitEnableMask = SpinImage::index::pattern::computeBitMask(col);
+                                patternImage.at(chunkIndex) &= ~bitEnableMask;
                                 // Perform lookup
                                 bool parentExists = previousLayerContents.find(patternImage) != previousLayerContents.end();
                                 parentFound = parentExists;
-                                // Reset image
-                                patternImage = uBuffer[i].image;
+                                // Re-enable pixel
+                                patternImage.at(chunkIndex) |= ~bitEnableMask;
                             }
                         }
                     }

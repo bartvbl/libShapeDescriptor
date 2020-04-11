@@ -13,6 +13,7 @@
 #include <fast-lzma2.h>
 #include <spinImage/cpu/index/phases/types/FileEntry.h>
 #include <cassert>
+#include <spinImage/utilities/compression/FileCompressionStream.h>
 
 // First phase. Produces a file, one for each pattern length, with the following:
 // - A list of all unique patterns
@@ -186,16 +187,6 @@ void computePatternStatisticsFile(
             std::experimental::filesystem::create_directories(dumpFileLocation.parent_path());
             std::fstream dumpFileStream(dumpFileLocation, std::ios::binary | std::ios::out);
 
-            size_t totalCompressedSize = 0;
-
-            const unsigned int imagesPerBuffer = 8;
-            const size_t uncompressedBufferSize = imagesPerBuffer * sizeof(FileEntry);
-            const size_t compressedBufferSize = imagesPerBuffer * sizeof(FileEntry);
-            unsigned char uBuffer[uncompressedBufferSize];
-            unsigned char cBuffer[compressedBufferSize];
-            FL2_inBuffer uncompressedBuffer = {uBuffer, uncompressedBufferSize, uncompressedBufferSize};
-            FL2_outBuffer compressedBuffer = {cBuffer, compressedBufferSize, 0};
-
             // Write file header
             const char fileID[4] = "PCF";
             dumpFileStream.write(fileID, 4);
@@ -204,35 +195,22 @@ void computePatternStatisticsFile(
             // Allocates space for the total compressed size
             dumpFileStream.write(reinterpret_cast<const char *>(&patternCount), sizeof(size_t));
             // Write file contents
-            std::map<QuiccImage, size_t>::iterator it = seenPatterns.at(i).begin();
-            do {
-                if (uncompressedBuffer.pos == uncompressedBuffer.size) {
-                    uncompressedBuffer.size = 0;
-                    for(int entry = 0; entry < imagesPerBuffer; entry++) {
-                        if(it == seenPatterns.at(i).end()) {
-                            break;
-                        }
-                        reinterpret_cast<FileEntry*>(uBuffer)[entry] = {it->first, it->second};
-                        uncompressedBuffer.size += sizeof(FileEntry);
-                        it++;
+            SpinImage::utilities::FileCompressionStream<FileEntry, 8> outStream(&dumpFileStream);
+            for(std::map<QuiccImage, size_t>::iterator it = seenPatterns.at(i).begin(); it != seenPatterns.at(i).end();) {
+                std::array<FileEntry, 8> buffer;
+                int j = 0;
+                for(j = 0; j < 8; j++) {
+                    buffer[j] = {it->first, it->second};
+                    it++;
+                    if(it == seenPatterns.at(j).end()) {
+                        break;
                     }
-                    uncompressedBuffer.pos = 0;
                 }
-                FL2_compressStream(compressionStream, &compressedBuffer, &uncompressedBuffer);
+                outStream.write(buffer, j + 1);
+            }
 
-                dumpFileStream.write((char*) compressedBuffer.dst, compressedBuffer.pos);
-                totalCompressedSize += compressedBuffer.pos;
-                compressedBuffer.pos = 0;
-            } while (uncompressedBuffer.size == uncompressedBufferSize);
-            // Write dictionary / metadata
-            unsigned int status;
-            do {
-                status = FL2_endStream(compressionStream, &compressedBuffer);
-                dumpFileStream.write((char*) compressedBuffer.dst, compressedBuffer.pos);
-                totalCompressedSize += compressedBuffer.pos;
-                compressedBuffer.pos = 0;
-            } while (status);
-            FL2_freeCStream(compressionStream);
+            outStream.close();
+            size_t totalCompressedSize = outStream.getTotalWrittenCompressedBytes();
             dumpFileStream.seekp(sizeof(fileID) + sizeof(size_t));
             dumpFileStream.write(reinterpret_cast<const char *>(&totalCompressedSize), sizeof(size_t));
         }

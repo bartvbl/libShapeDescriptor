@@ -6,6 +6,7 @@
 #include <iostream>
 #include <set>
 #include <spinImage/cpu/index/Pattern.h>
+#include <spinImage/utilities/compression/FileDecompressionStream.h>
 #include "TreeConstructionPhase.h"
 
 void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirectory,
@@ -19,7 +20,6 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
     std::set<QuiccImage> currentLayerContents;
     std::set<QuiccImage> previousLayerContents;
     for(int patternSize = 1; patternSize <= 4096; patternSize++) {
-
         FL2_DStream* decompressionStream = FL2_createDStream();
         FL2_initDStream(decompressionStream);
 
@@ -40,68 +40,23 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
         size_t compressedFileEntryListSize;
         patternFileStream.read(reinterpret_cast<char *>(&compressedFileEntryListSize), sizeof(size_t));
 
-        const unsigned int imagesPerBuffer = 8;
-        const size_t bufferSize = imagesPerBuffer * sizeof(FileEntry);
-        unsigned char cBuffer[bufferSize];
-        FL2_inBuffer compressedBuffer = {cBuffer, bufferSize, bufferSize};
-        size_t totalReadCompressedBytes = 0;
-        size_t totalUncompressedBytes = 0;
-
         std::mutex streamLock;
         std::mutex setLock;
 
-        unsigned int blockCount = fileEntryCount % imagesPerBuffer == 0 ?
-                                  (fileEntryCount / imagesPerBuffer) :
-                                  (fileEntryCount / imagesPerBuffer) + 1;
+        SpinImage::utilities::FileDecompressionStream<FileEntry, 8> inStream(&patternFileStream,
+                compressedFileEntryListSize, fileEntryCount);
 
-        unsigned int blockIndex = 0;
-
-        #pragma omp parallel for
-        for(unsigned int blockIterationIndex = 0; blockIterationIndex < blockCount; blockIterationIndex++) {
+        //#pragma omp parallel for
+        while(!inStream.isDepleted()) {
             streamLock.lock();
-            unsigned int acquiredBlockIndex = 0;
-
-            FileEntry uBuffer[imagesPerBuffer];
-            FL2_outBuffer uncompressedBuffer = {uBuffer, imagesPerBuffer * sizeof(FileEntry), 0};
-            unsigned int decompressedBytesThisIteration = 0;
-
-            // Keep going until input buffer is full, or no more data is available
-            while(uncompressedBuffer.pos < bufferSize && totalUncompressedBytes < fileEntryCount * sizeof(FileEntry)) {
-                // Refill the compressed buffer
-                if (compressedBuffer.pos == compressedBuffer.size) {
-                    size_t numberOfBytesToRead =
-                            std::min<size_t>(
-                                    (compressedFileEntryListSize * sizeof(FileEntry)) - totalReadCompressedBytes,
-                                    bufferSize);
-                    compressedBuffer.size = numberOfBytesToRead;
-                    patternFileStream.read((char*) cBuffer, numberOfBytesToRead);
-                    compressedBuffer.pos = 0;
-
-                    totalReadCompressedBytes += numberOfBytesToRead;;
-                }
-                FL2_decompressStream(decompressionStream, &uncompressedBuffer, &compressedBuffer);
-                decompressedBytesThisIteration = uncompressedBuffer.pos - decompressedBytesThisIteration;
-                totalUncompressedBytes += decompressedBytesThisIteration;
-            }
-
-            acquiredBlockIndex = blockIndex;
-            blockIndex++;
-
+            std::array<FileEntry, 8> uncompressedBuffer;
+            unsigned int bufferImageCount = inStream.read(uncompressedBuffer);
             streamLock.unlock();
-
-            // Ensure uncompressed buffer is as full as it can be
-            assert(uncompressedBuffer.pos == imagesPerBuffer * sizeof(FileEntry)
-               || (acquiredBlockIndex + 1 == blockCount
-                   && uncompressedBuffer.pos == ((fileEntryCount % imagesPerBuffer) * sizeof(FileEntry))));
-
-            // Ensure contents of uncompressed buffer contain complete images
-            assert(uncompressedBuffer.pos % sizeof(FileEntry) == 0);
-            unsigned int bufferImageCount = uncompressedBuffer.pos / sizeof(FileEntry);
 
             // Copy images into set
             setLock.lock();
             for(int i = 0; i < bufferImageCount; i++) {
-                currentLayerContents.insert(uBuffer[i].image);
+                currentLayerContents.insert(uncompressedBuffer.at(i).image);
             }
             setLock.unlock();
 
@@ -109,7 +64,7 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
                 // Attempt to locate images in previous layer
                 // Can only be done if said previous layer exists
                 for(int i = 0; i < bufferImageCount; i++) {
-                    QuiccImage patternImage = uBuffer[i].image;
+                    QuiccImage patternImage = uncompressedBuffer.at(i).image;
                     bool parentFound = false;
                     for(int row = 0; row < spinImageWidthPixels && !parentFound; row++) {
                         for(int col = 0; col < spinImageWidthPixels && !parentFound; col++) {
@@ -134,13 +89,10 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
                 }
             }
         }
-
-        FL2_freeDStream(decompressionStream);
         
         if(patternSize > 1) {
             size_t nodesWithParentCount = currentLayerContents.size() - totalLooseNodeCount.at(patternSize-1);
             std::cout << "(" << patternSize << ", " << nodesWithParentCount << ", " << currentLayerContents.size() << ", " << totalLooseNodeCount.at(patternSize-1) << "), " << std::flush;
-
 
             previousLayerContents.clear();
         }

@@ -14,9 +14,9 @@ namespace SpinImage {
                 return 2 * row + (col / 32);
             }
 
-            inline unsigned int pixelAt(const QuiccImage &image, const unsigned int row, const unsigned int col) {
-                unsigned int chunkIndex = computeChunkIndex(row, col);
-                unsigned int bitIndex = col % 32;
+            inline unsigned int pixelAt(const QuiccImage &image, const unsigned int &row, const unsigned int &col) {
+                const unsigned int chunkIndex = computeChunkIndex(row, col);
+                const unsigned int bitIndex = col % 32;
                 return (unsigned int) ((image.at(chunkIndex) >> (31U - bitIndex)) & 0x1U);
             }
 

@@ -102,6 +102,7 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
         for(int i = 0; i < 4096; i++) {
             histogramFile << parentLevelCountHistogram.at(i) << ", ";
         }
+        histogramFile << std::endl;
         csvFileLock.unlock();
         std::cout << patternSize << " complete" << std::endl;
     }

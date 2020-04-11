@@ -51,6 +51,8 @@ const unsigned int NODES_PER_BLOCK = 4097;
 const unsigned int NODE_SPLIT_THRESHOLD = 256;
 
 
+const unsigned int LZMA2_COMPRESSION_LEVEL = 9;
+
 
 
 #include <spinImage/common/buildSettings/derivedBuildSettings.h>

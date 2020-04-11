@@ -7,98 +7,104 @@
 #include <set>
 #include <spinImage/cpu/index/Pattern.h>
 #include <spinImage/utilities/compression/FileDecompressionStream.h>
+#include <omp.h>
+#include <bitset>
 #include "TreeConstructionPhase.h"
+
+std::fstream openStatisticsFile(const std::experimental::filesystem::path &indexDumpDirectory, int patternSize) {
+    std::experimental::filesystem::path patternStatisticsDirectory(indexDumpDirectory / "patternStats");
+    std::experimental::filesystem::path dumpFileLocation =
+            patternStatisticsDirectory / ("pattern_stats_" + std::to_string(patternSize) + ".dat");
+
+    return std::fstream(dumpFileLocation, std::ios::binary | std::ios::in);
+}
+
+// Need to open the fstream elsewhere, because it would close the file when going out of scope
+SpinImage::utilities::FileDecompressionStream<FileEntry, 8> openDecompressionStream(std::fstream* inputStream) {
+    // Sanity check: make sure the file ID bytes are correct
+    char fileHeader[4];
+    inputStream->read(fileHeader, 4);
+    assert(std::string(fileHeader) == "PCF");
+
+    // Buffer sizes
+    size_t fileEntryCount;
+    inputStream->read(reinterpret_cast<char *>(&fileEntryCount), sizeof(size_t));
+    size_t compressedFileEntryListSize;
+    inputStream->read(reinterpret_cast<char *>(&compressedFileEntryListSize), sizeof(size_t));
+
+    return SpinImage::utilities::FileDecompressionStream<FileEntry, 8>(inputStream, compressedFileEntryListSize, fileEntryCount);
+}
+
+inline bool isParent(const QuiccImage &parent, const QuiccImage &child, const unsigned int limit) {
+    unsigned int differentPixelCount = 0;
+    for(int i = 0; i < parent.size(); i++) {
+        differentPixelCount += std::bitset<32>(parent.at(i) ^ child.at(i)).count();
+        if(differentPixelCount > limit) {
+            return false;
+        }
+    }
+    return true;
+}
 
 void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirectory,
                         std::experimental::filesystem::path indexDumpDirectory,
                         size_t cachedPatternLimit,
                         size_t fileStartIndex, size_t fileEndIndex) {
+    std::fstream histogramFile(indexDumpDirectory / "parents.csv", std::ios::out);
+    std::mutex csvFileLock;
 
-    std::array<size_t, 4096> totalLooseNodeCount;
-    std::fill(totalLooseNodeCount.begin(), totalLooseNodeCount.end(), 0);
+    #pragma omp parallel for schedule(dynamic)
+    for(int patternSize = 2; patternSize <= 4096; patternSize++) {
+        size_t imageBufferLength = cachedPatternLimit / omp_get_num_threads();
+        std::set<QuiccImage> imageBuffer;
 
-    std::set<QuiccImage> currentLayerContents;
-    std::set<QuiccImage> previousLayerContents;
-    for(int patternSize = 1; patternSize <= 4096; patternSize++) {
-        FL2_DStream* decompressionStream = FL2_createDStream();
-        FL2_initDStream(decompressionStream);
+        std::array<size_t, 4096> parentLevelCountHistogram;
+        std::fill(parentLevelCountHistogram.begin(), parentLevelCountHistogram.end(), 0);
 
-        std::experimental::filesystem::path patternStatisticsDirectory(indexDumpDirectory / "patternStats");
-        std::experimental::filesystem::path dumpFileLocation =
-                patternStatisticsDirectory / ("pattern_stats_" + std::to_string(patternSize) + ".dat");
+        std::fstream patternFileStream = openStatisticsFile(indexDumpDirectory, patternSize);
+        SpinImage::utilities::FileDecompressionStream<FileEntry, 8> inStream = openDecompressionStream(&patternFileStream);
 
-        std::fstream patternFileStream(dumpFileLocation, std::ios::binary | std::ios::in);
-
-        // Sanity check: make sure the file ID bytes are correct
-        char fileHeader[4];
-        patternFileStream.read(fileHeader, 4);
-        assert(std::string(fileHeader) == "PCF");
-
-        // Buffer sizes
-        size_t fileEntryCount;
-        patternFileStream.read(reinterpret_cast<char *>(&fileEntryCount), sizeof(size_t));
-        size_t compressedFileEntryListSize;
-        patternFileStream.read(reinterpret_cast<char *>(&compressedFileEntryListSize), sizeof(size_t));
-
-        std::mutex streamLock;
-        std::mutex setLock;
-
-        SpinImage::utilities::FileDecompressionStream<FileEntry, 8> inStream(&patternFileStream,
-                compressedFileEntryListSize, fileEntryCount);
-
-        //#pragma omp parallel for
         while(!inStream.isDepleted()) {
-            streamLock.lock();
             std::array<FileEntry, 8> uncompressedBuffer;
-            unsigned int bufferImageCount = inStream.read(uncompressedBuffer);
-            streamLock.unlock();
 
-            // Copy images into set
-            setLock.lock();
-            for(int i = 0; i < bufferImageCount; i++) {
-                currentLayerContents.insert(uncompressedBuffer.at(i).image);
+            for(size_t block = 0; block < imageBufferLength / 8 && !inStream.isDepleted(); block++) {
+                unsigned int bufferImageCount = inStream.read(uncompressedBuffer);
+                for(unsigned int i = 0; i < bufferImageCount; i++) {
+                    imageBuffer.insert(uncompressedBuffer.at(i).image);
+                }
             }
-            setLock.unlock();
 
-            if(patternSize > 1) {
-                // Attempt to locate images in previous layer
-                // Can only be done if said previous layer exists
-                for(int i = 0; i < bufferImageCount; i++) {
-                    QuiccImage patternImage = uncompressedBuffer.at(i).image;
-                    bool parentFound = false;
-                    for(int row = 0; row < spinImageWidthPixels && !parentFound; row++) {
-                        for(int col = 0; col < spinImageWidthPixels && !parentFound; col++) {
-                            unsigned int chunkIndex = SpinImage::index::pattern::computeChunkIndex(row, col);
-                            unsigned int pixel = SpinImage::index::pattern::pixelAt(patternImage, row, col);
-                            if(pixel == 1) {
-                                // Disable pixel
-                                unsigned int bitEnableMask = SpinImage::index::pattern::computeBitMask(col);
-                                patternImage.at(chunkIndex) &= ~bitEnableMask;
-                                // Perform lookup
-                                bool parentExists = previousLayerContents.find(patternImage) != previousLayerContents.end();
-                                parentFound = parentExists;
-                                // Re-enable pixel
-                                patternImage.at(chunkIndex) |= bitEnableMask;
+            // Attempt to locate images in previous layer
+            // Can only be done if said previous layer exists
+            for(size_t parentPatternSize = patternSize - 1; parentPatternSize >= 1 && !imageBuffer.empty(); parentPatternSize--) {
+                std::fstream parentPatternFile = openStatisticsFile(indexDumpDirectory, parentPatternSize);
+                SpinImage::utilities::FileDecompressionStream<FileEntry, 8> parentStream = openDecompressionStream(&parentPatternFile);
+                while(!parentStream.isDepleted()) {
+                    std::array<FileEntry, 8> parentBuffer;
+                    unsigned int parentCount = parentStream.read(parentBuffer);
+                    for(int i = 0; i < parentCount; i++) {
+                        std::set<QuiccImage>::iterator it = imageBuffer.begin();
+
+                        while(it != imageBuffer.end()) {
+                            if(isParent(*it, parentBuffer.at(i).image, patternSize - parentPatternSize)) {
+                                parentLevelCountHistogram.at(parentPatternSize - 1)++;
+                                it = imageBuffer.erase(it);
+                            } else {
+                                it++;
                             }
                         }
-                    }
-                    if(!parentFound) {
-                        #pragma omp atomic
-                        totalLooseNodeCount.at(patternSize-1)++;
                     }
                 }
             }
         }
-        
-        if(patternSize > 1) {
-            size_t nodesWithParentCount = currentLayerContents.size() - totalLooseNodeCount.at(patternSize-1);
-            std::cout << "(" << patternSize << ", " << nodesWithParentCount << ", " << currentLayerContents.size() << ", " << totalLooseNodeCount.at(patternSize-1) << "), " << std::flush;
-
-            previousLayerContents.clear();
+        csvFileLock.lock();
+        histogramFile << patternSize << ", ";
+        for(int i = 0; i < 4096; i++) {
+            histogramFile << parentLevelCountHistogram.at(i) << ", ";
         }
-        previousLayerContents.swap(currentLayerContents);
+        csvFileLock.unlock();
+        std::cout << patternSize << " complete" << std::endl;
     }
-
-
-
 }
+
+

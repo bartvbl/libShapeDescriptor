@@ -69,7 +69,7 @@ namespace SpinImage {
                 totalReturnedDecompressedBytes += uncompressedBuffer.pos;
 
                 // Ensure uncompressed buffer is either full, or contains the last remainder of the decompressed data
-                assert(uncompressedBuffer.pos == totalDecompressedSize
+                assert(uncompressedBuffer.pos == internalBufferSize
                        || totalReturnedDecompressedBytes == totalDecompressedSize);
 
                 // Ensure contents of uncompressed buffer contain complete data structures (sanity check)

@@ -77,24 +77,27 @@ void constructIndexTree(std::experimental::filesystem::path quicciImageDumpDirec
             // Attempt to locate images in previous layer
             // Can only be done if said previous layer exists
             for(size_t parentPatternSize = patternSize - 1; parentPatternSize >= 1 && !imageBuffer.empty(); parentPatternSize--) {
+                std::cout << "Pattern size " + std::to_string(patternSize) + " started analysing " + std::to_string(parentPatternSize) + " with " + std::to_string(imageBuffer.size()) + " patterns remaining. Stream depleted: " + std::to_string(inStream.isDepleted()) + " \n";
                 std::fstream parentPatternFile = openStatisticsFile(indexDumpDirectory, parentPatternSize);
                 SpinImage::utilities::FileDecompressionStream<FileEntry, 8> parentStream = openDecompressionStream(&parentPatternFile);
                 while(!parentStream.isDepleted()) {
                     std::array<FileEntry, 8> parentBuffer;
                     unsigned int parentCount = parentStream.read(parentBuffer);
-                    for(int i = 0; i < parentCount; i++) {
-                        std::set<QuiccImage>::iterator it = imageBuffer.begin();
 
-                        while(it != imageBuffer.end()) {
+                    std::set<QuiccImage>::iterator it = imageBuffer.begin();
+
+                    while(it != imageBuffer.end()) {
+                        for(int i = 0; i < parentCount; i++) {
                             if(isParent(*it, parentBuffer.at(i).image, patternSize - parentPatternSize)) {
                                 parentLevelCountHistogram.at(parentPatternSize - 1)++;
                                 it = imageBuffer.erase(it);
-                            } else {
-                                it++;
+                                break;
                             }
                         }
+                        it++;
                     }
                 }
+                std::cout << "Pattern size " + std::to_string(patternSize) + " finished analysing " + std::to_string(parentPatternSize) + " with " + std::to_string(imageBuffer.size()) + " patterns remaining.\n";
             }
         }
         csvFileLock.lock();

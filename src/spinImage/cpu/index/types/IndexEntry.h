@@ -11,10 +11,13 @@ struct IndexEntry {
     // Within the object, this is the image index that this bucket entry refers to.
     IndexImageID imageIndex;
 
-    IndexEntry(IndexFileID fileIndex, IndexImageID imageIndex) :
+    unsigned short remainingPixelCount;
+
+    IndexEntry(IndexFileID fileIndex, IndexImageID imageIndex, unsigned short remainingPixels) :
         fileIndex(fileIndex),
-        imageIndex(imageIndex) {}
+        imageIndex(imageIndex),
+        remainingPixelCount(remainingPixels) {}
 
     // Default constructor to allow std::vector resizing
-    IndexEntry() : fileIndex(0), imageIndex(0) {}
+    IndexEntry() : fileIndex(0), imageIndex(0), remainingPixelCount(0) {}
 };

@@ -84,7 +84,7 @@ Index SpinImage::index::build(
 
     size_t endIndex = fileEndIndex == fileStartIndex ? filesInDirectory.size() : fileEndIndex;
 
-    buildSimpleListIndex(quicciImageDumpDirectory, indexDumpDirectory, cacheImageLimit, fileStartIndex, endIndex);
+    buildSimpleListIndex(quicciImageDumpDirectory, indexDumpDirectory, cacheNodeLimit, fileStartIndex, endIndex);
 
     dumpStatisticsFile(constructionSettings, statisticsFileDumpLocation);
 

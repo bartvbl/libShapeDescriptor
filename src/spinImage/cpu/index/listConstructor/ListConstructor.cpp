@@ -14,6 +14,22 @@
 
 const unsigned int writeBufferSize = 32;
 
+void printProgressBar(const SpinImage::cpu::QUICCIImages &images, int previousDashCount,
+                      IndexImageID imageIndex) {// Only update the progress bar when needed
+    int dashCount = int((float(imageIndex) / float(images.imageCount)) * 25.0f) + 1;
+    if (dashCount > previousDashCount) {
+        previousDashCount = dashCount;
+        std::stringstream progressBar;
+        progressBar << "\r[";
+
+        for (int i = 0; i < 25; i++) {
+            progressBar << ((i < dashCount) ? "=" : " ");
+        }
+        progressBar << "] " << imageIndex << "/" << images.imageCount << "\r";
+        std::cout << progressBar.str() << std::flush;
+    }
+}
+
 void buildSimpleListIndex(
         const std::experimental::filesystem::path &quicciImageDumpDirectory,
         std::experimental::filesystem::path &indexDumpDirectory,
@@ -24,8 +40,11 @@ void buildSimpleListIndex(
     std::vector<std::experimental::filesystem::path> filesToIndex = SpinImage::utilities::listDirectory(quicciImageDumpDirectory);
     std::cout << "\tFound " << filesToIndex.size() << " files." << std::endl;
 
-    for(int startIndex = 0; startIndex < spinImageWidthPixels * spinImageWidthPixels; startIndex += openFileLimit) {
-        int endIndex = std::min<int>(startIndex + openFileLimit, spinImageWidthPixels * spinImageWidthPixels);
+    std::array<size_t, spinImageWidthPixels * spinImageWidthPixels> totalPixelTally;
+    std::fill(totalPixelTally.begin(), totalPixelTally.end(), 0);
+
+    for(int pixelBatchStartIndex = 0; pixelBatchStartIndex < spinImageWidthPixels * spinImageWidthPixels; pixelBatchStartIndex += openFileLimit) {
+        int pixelBatchEndIndex = std::min<int>(pixelBatchStartIndex + openFileLimit, spinImageWidthPixels * spinImageWidthPixels - 1);
         std::vector<std::fstream *> outputStreams;
         std::vector<SpinImage::utilities::FileCompressionStream<IndexEntry, writeBufferSize>> compressionStreams;
         outputStreams.reserve(spinImageWidthPixels * spinImageWidthPixels);
@@ -35,92 +54,133 @@ void buildSimpleListIndex(
         std::experimental::filesystem::create_directories(listDirectory);
 
         // Open file streams
-        for (int i = startIndex; i < endIndex; i++) {
-            std::cout << "\rOpening file streams.. " << i+1 << "/" << endIndex << std::flush;
-            std::string fileName = "list_" + std::to_string(i) + ".dat";
+        for (int pixelIndex = pixelBatchStartIndex; pixelIndex < pixelBatchEndIndex; pixelIndex++) {
+            std::cout << "\rOpening file streams.. " << pixelIndex + 1 << "/" << pixelBatchEndIndex << std::flush;
+            std::string fileName = "list_" + std::to_string(pixelIndex) + ".dat";
             std::experimental::filesystem::path outputFile = listDirectory / fileName;
             outputStreams.push_back(new std::fstream(outputFile, std::ios::out | std::ios::binary));
-            // Ensure file opened successfully
-            assert(outputStreams.at(i - startIndex)->is_open());
-        }
-        std::cout << std::endl;
+            int outputStreamIndex = pixelIndex - pixelBatchStartIndex;
 
-        for (int i = startIndex; i < endIndex; i++) {
-            std::cout << "\rInitialising compression streams.. " << i+1 << "/" << endIndex << std::flush;
-            compressionStreams.emplace_back(outputStreams.at(i - startIndex));
+            // Ensure file opened successfully
+            assert(outputStreams.at(outputStreamIndex)->is_open());
+
+            // Write file headers
+            const char* headerID = "PXLST";
+            outputStreams.at(outputStreamIndex)->write(headerID, 5);
+            // Dummy values for compressed buffer size and total reference count
+            // Space is allocated for them here, and will be written at the end
+            const size_t dummyValue = 0xCDCDCDCDCDCDCDCD;
+            outputStreams.at(outputStreamIndex)->write(reinterpret_cast<const char *>(&dummyValue), 8);
+            outputStreams.at(outputStreamIndex)->write(reinterpret_cast<const char *>(&dummyValue), 8);
+
+            // Wrapping opened fstream in a compression stream
+            compressionStreams.emplace_back(outputStreams.at(outputStreamIndex));
         }
         std::cout << std::endl;
 
         // Cannot be parallel with a simple OpenMP pragma; files MUST be processed in order
+        // Also, images MUST be inserted into output files in order
         for (unsigned int fileIndex = fileStartIndex; fileIndex < fileEndIndex; fileIndex++) {
+
+            // Reading image dump file
             std::experimental::filesystem::path path = filesToIndex.at(fileIndex);
             const std::string archivePath = path.string();
             SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
+
             double totalImageDurationMilliseconds = 0;
+            std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+            int previousDashCount = -1;
+
+            #pragma omp parallel
             {
-                std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-                int previousDashCount = -1;
-                #pragma omp parallel
-                {
-                    //std::unique_ptr<std::array<std::array<IndexEntry, writeBufferSize>, spinImageWidthPixels * spinImageWidthPixels>> buffers(new std::array<std::array<IndexEntry, writeBufferSize>, spinImageWidthPixels * spinImageWidthPixels>);
-                    //std::array<unsigned int, spinImageWidthPixels * spinImageWidthPixels> bufferIndices;
-                    unsigned int pixelsPerThread = (spinImageWidthPixels * spinImageWidthPixels) / omp_get_num_threads();
-                    unsigned int startPixelIndex = omp_get_thread_num() * pixelsPerThread;
-                    unsigned int endPixelIndex = omp_get_thread_num() < omp_get_num_threads() - 1 ?
-                                                 (omp_get_thread_num() + 1) * pixelsPerThread
-                                                 : spinImageWidthPixels * spinImageWidthPixels;
-                    for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
-                        // Only update the progress bar when needed
-                        int dashCount = int((float(imageIndex) / float(images.imageCount)) * 25.0f) + 1;
-                        if (dashCount > previousDashCount) {
-                            previousDashCount = dashCount;
-                            std::stringstream progressBar;
-                            progressBar << "\r[";
+                // Compute thread's job allocation
+                unsigned int pixelsPerThread = std::max(
+                        (pixelBatchEndIndex - pixelBatchStartIndex) / omp_get_num_threads(), 1);
+                unsigned int threadStartPixelIndex = pixelBatchStartIndex + std::min<unsigned int>(
+                        omp_get_thread_num() * pixelsPerThread, pixelBatchEndIndex);
+                unsigned int threadEndPixelIndex = omp_get_thread_num() + 1 == omp_get_num_threads() ?
+                                                   pixelBatchEndIndex
+                                                   : pixelBatchStartIndex + std::min<unsigned int>(
+                                                           (omp_get_thread_num() + 1) * pixelsPerThread,
+                                                           pixelBatchEndIndex);
+                unsigned int threadPixelCount = threadEndPixelIndex - threadStartPixelIndex;
 
-                            for (int i = 0; i < 25; i++) {
-                                progressBar << ((i < dashCount) ? "=" : " ");
-                            }
-                            progressBar << "] " << imageIndex << "/" << images.imageCount << "\r";
-                            std::cout << progressBar.str() << std::flush;
-                        }
-                        std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
-                        QuiccImage combinedImage = combineQuiccImages(
-                                images.horizontallyIncreasingImages[imageIndex],
-                                images.horizontallyDecreasingImages[imageIndex]);
+                assert(threadEndPixelIndex >= threadStartPixelIndex);
+                assert(threadStartPixelIndex >= pixelBatchStartIndex);
+                assert(threadEndPixelIndex <= pixelBatchEndIndex);
 
-                        unsigned short bitCount = 0;
-                        for (unsigned int i : combinedImage) {
-                            bitCount += std::bitset<32>(i).size();
-                        }
+                // Allocate buffers
+                std::vector<std::array<IndexEntry, writeBufferSize>> threadCompressionBuffers;
+                std::vector<unsigned int> threadCompressionBufferLengths;
 
-                        IndexEntry entry = {fileIndex, imageIndex, bitCount};
+                threadCompressionBuffers.resize(threadPixelCount);
+                threadCompressionBufferLengths.resize(threadPixelCount);
+                std::fill(threadCompressionBufferLengths.begin(), threadCompressionBufferLengths.end(), 0);
 
-                        std::array<IndexEntry, writeBufferSize> writeBuffer;
+                // For each image, register pixels in dump file
+                for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
+                    printProgressBar(images, previousDashCount, imageIndex);
+                    std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
 
-                        for(unsigned int pixelIndex = startPixelIndex; pixelIndex < endPixelIndex; pixelIndex++) {
-                            unsigned int pixel = SpinImage::index::pattern::pixelAt(combinedImage, pixelIndex);
-                            if (pixel == 1 && startIndex <= pixelIndex && pixelIndex < endIndex) {
-                                writeBuffer.at(0) = entry;
-                                compressionStreams.at(pixelIndex - startIndex).write(writeBuffer, 1);
-                            }
-                        }
+                    QuiccImage combinedImage = combineQuiccImages(
+                            images.horizontallyIncreasingImages[imageIndex],
+                            images.horizontallyDecreasingImages[imageIndex]);
 
-                        std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
-                        #pragma omp atomic
-                        totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                imageEndTime - imageStartTime).count() / 1000000.0;
+                    // Count total number of bits in image
+                    // Needed during querying to sort search results
+                    unsigned short bitCount = 0;
+                    for (unsigned int i : combinedImage) {
+                        bitCount += std::bitset<32>(i).size();
                     }
+
+                    IndexEntry entry = {fileIndex, imageIndex, bitCount};
+
+                    // Iterate over pixels
+                    for(unsigned int pixelIndex = threadStartPixelIndex; pixelIndex < threadEndPixelIndex; pixelIndex++) {
+                        unsigned int pixel = SpinImage::index::pattern::pixelAt(combinedImage, pixelIndex);
+                        if (pixel == 1) {
+                            unsigned int bufferIndex = pixelIndex - threadStartPixelIndex;
+                            unsigned int currentBufferLength = threadCompressionBufferLengths.at(bufferIndex);
+                            threadCompressionBuffers.at(bufferIndex).at(currentBufferLength) = entry;
+                            threadCompressionBufferLengths.at(bufferIndex)++;
+                            currentBufferLength++;
+
+                            // Only a single thread touches this at any time, thus no guard is needed
+                            totalPixelTally.at(pixelIndex)++;
+
+                            // Buffer is full, write it to disk
+                            if(currentBufferLength == writeBufferSize) {
+                                compressionStreams.at(bufferIndex).write(
+                                        threadCompressionBuffers.at(bufferIndex), writeBufferSize);
+                                threadCompressionBufferLengths.at(bufferIndex) = 0;
+                            }
+                        }
+                    }
+
+                    std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
+                    #pragma omp atomic
+                    totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                            imageEndTime - imageStartTime).count() / 1000000.0;
                 }
 
-                std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
-                double durationMilliseconds =
-                        std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
+                // Batch finished. Flush buffers.
+                for(int buffer = 0; buffer < threadCompressionBuffers.size(); buffer++) {
+                    unsigned int bufferEntryCount = threadCompressionBufferLengths.at(buffer);
+                    if(bufferEntryCount != 0) {
+                        compressionStreams.at(buffer).write(threadCompressionBuffers.at(buffer), bufferEntryCount);
+                    }
+                }
+            }
 
-                std::cout << "Added file " << (fileIndex + 1) << "/" << fileEndIndex
-                          << ": " << archivePath
-                          << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
-                          << ", Image count: " << images.imageCount << std::endl;
-            };
+            std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
+            double durationMilliseconds =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
+
+            std::cout << "Added file " << (fileIndex + 1) << "/" << fileEndIndex
+                      << ": " << archivePath
+                      << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
+                      << ", Image count: " << images.imageCount << std::endl;
+
 
             // Necessity to prevent libc from hogging all system memory
             malloc_trim(0);
@@ -130,13 +190,24 @@ void buildSimpleListIndex(
         }
 
         #pragma omp parallel for schedule(dynamic)
-        for (int i = 0; i < compressionStreams.size(); i++) {
-            std::cout << "\rFinalising compression streams.. " + std::to_string(startIndex + i + 1) + "/" +
-                         std::to_string(spinImageWidthPixels * spinImageWidthPixels) << std::flush;
-            compressionStreams.at(i).close();
+        for (int streamIndex = 0; streamIndex < compressionStreams.size(); streamIndex++) {
+            int pixelIndex = pixelBatchStartIndex + streamIndex + 1;
+            std::cout << "\rFinalising compression streams.. " +
+                    std::to_string(pixelBatchStartIndex + streamIndex + 1) + "/" +
+                    std::to_string(spinImageWidthPixels * spinImageWidthPixels) << std::flush;
+            compressionStreams.at(streamIndex).close();
             malloc_trim(0);
-            outputStreams.at(i)->close();
-            delete outputStreams.at(i);
+
+            // Write header
+            outputStreams.at(streamIndex)->seekp(5);
+            outputStreams.at(streamIndex)->write(
+                    reinterpret_cast<const char *>(&totalPixelTally.at(pixelIndex)), sizeof(size_t));
+            size_t totalCompressedFileSize = compressionStreams.at(streamIndex).getTotalWrittenCompressedBytes();
+            outputStreams.at(streamIndex)->write(
+                    reinterpret_cast<const char *>(&totalCompressedFileSize), sizeof(size_t));
+
+            outputStreams.at(streamIndex)->close();
+            delete outputStreams.at(streamIndex);
         }
         std::cout << std::endl;
     }

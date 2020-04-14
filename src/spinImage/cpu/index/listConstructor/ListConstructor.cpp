@@ -1,16 +1,15 @@
 #include <spinImage/libraryBuildSettings.h>
-#include <fstream>
 #include <iostream>
 #include <spinImage/utilities/compression/FileCompressionStream.h>
 #include <spinImage/cpu/index/types/IndexEntry.h>
 #include <spinImage/utilities/fileutils.h>
-#include <spinImage/cpu/index/IndexIO.h>
 #include <malloc.h>
 #include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/utilities/readers/quicciReader.h>
 #include <bitset>
 #include <mutex>
 #include <spinImage/cpu/index/Pattern.h>
+#include <omp.h>
 #include "ListConstructor.h"
 
 const unsigned int writeBufferSize = 32;
@@ -29,7 +28,6 @@ void buildSimpleListIndex(
         int endIndex = std::min<int>(startIndex + openFileLimit, spinImageWidthPixels * spinImageWidthPixels);
         std::vector<std::fstream *> outputStreams;
         std::vector<SpinImage::utilities::FileCompressionStream<IndexEntry, writeBufferSize>> compressionStreams;
-        std::array<std::mutex, spinImageWidthPixels * spinImageWidthPixels> pixelLocks;
         outputStreams.reserve(spinImageWidthPixels * spinImageWidthPixels);
         compressionStreams.reserve(spinImageWidthPixels * spinImageWidthPixels);
 
@@ -53,24 +51,25 @@ void buildSimpleListIndex(
             compressionStreams.emplace_back(outputStreams.at(i - startIndex));
         }
 
-        #pragma omp parallel for schedule(dynamic)
+        // Cannot be parallel with a simple OpenMP pragma; files MUST be processed in order
         for (unsigned int fileIndex = fileStartIndex; fileIndex < fileEndIndex; fileIndex++) {
             std::experimental::filesystem::path path = filesToIndex.at(fileIndex);
             const std::string archivePath = path.string();
-            std::cout << "Reading file: " << archivePath << std::endl;
+            std::cout << "\tReading file: " << archivePath << std::endl;
             SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
-            std::cout << "Read file: " << archivePath << std::endl;
             double totalImageDurationMilliseconds = 0;
-            #pragma omp critical
             {
                 std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-                int previousDashCount = 0;
+                int previousDashCount = -1;
                 #pragma omp parallel
                 {
                     //std::unique_ptr<std::array<std::array<IndexEntry, writeBufferSize>, spinImageWidthPixels * spinImageWidthPixels>> buffers(new std::array<std::array<IndexEntry, writeBufferSize>, spinImageWidthPixels * spinImageWidthPixels>);
                     //std::array<unsigned int, spinImageWidthPixels * spinImageWidthPixels> bufferIndices;
-
-                    #pragma omp for schedule(dynamic)
+                    unsigned int pixelsPerThread = (spinImageWidthPixels * spinImageWidthPixels) / omp_get_num_threads();
+                    unsigned int startPixelIndex = omp_get_thread_num() * pixelsPerThread;
+                    unsigned int endPixelIndex = omp_get_thread_num() < omp_get_num_threads() - 1 ?
+                                                 (omp_get_thread_num() + 1) * pixelsPerThread
+                                                 : spinImageWidthPixels * spinImageWidthPixels;
                     for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
                         // Only update the progress bar when needed
                         int dashCount = int((float(imageIndex) / float(images.imageCount)) * 25.0f) + 1;
@@ -99,16 +98,11 @@ void buildSimpleListIndex(
 
                         std::array<IndexEntry, writeBufferSize> writeBuffer;
 
-                        for (unsigned int row = 0; row < spinImageWidthPixels; row++) {
-                            for (unsigned int col = 0; col < spinImageWidthPixels; col++) {
-                                unsigned int pixel = SpinImage::index::pattern::pixelAt(combinedImage, row, col);
-                                unsigned int pixelIndex = row * spinImageWidthPixels + col;
-                                if (pixel == 1 && startIndex <= pixelIndex && pixelIndex < endIndex) {
-                                    pixelLocks.at(pixelIndex - startIndex).lock();
-                                    writeBuffer.at(0) = entry;
-                                    compressionStreams.at(pixelIndex - startIndex).write(writeBuffer, 1);
-                                    pixelLocks.at(pixelIndex - startIndex).unlock();
-                                }
+                        for(unsigned int pixelIndex = startPixelIndex; pixelIndex < endPixelIndex; pixelIndex++) {
+                            unsigned int pixel = SpinImage::index::pattern::pixelAt(combinedImage, pixelIndex);
+                            if (pixel == 1 && startIndex <= pixelIndex && pixelIndex < endIndex) {
+                                writeBuffer.at(0) = entry;
+                                compressionStreams.at(pixelIndex - startIndex).write(writeBuffer, 1);
                             }
                         }
 

@@ -35,27 +35,26 @@ void buildSimpleListIndex(
         std::experimental::filesystem::create_directories(listDirectory);
 
         // Open file streams
-        std::cout << "Opening file streams.." << std::endl;
         for (int i = startIndex; i < endIndex; i++) {
-            std::cout << i << std::endl;
+            std::cout << "\rOpening file streams.. " << i+1 << "/" << endIndex << std::flush;
             std::string fileName = "list_" + std::to_string(i) + ".dat";
             std::experimental::filesystem::path outputFile = listDirectory / fileName;
             outputStreams.push_back(new std::fstream(outputFile, std::ios::out | std::ios::binary));
             // Ensure file opened successfully
             assert(outputStreams.at(i - startIndex)->is_open());
         }
+        std::cout << std::endl;
 
-        std::cout << "Initialising compression streams.." << std::endl;
         for (int i = startIndex; i < endIndex; i++) {
-            std::cout << i << std::endl;
+            std::cout << "\rInitialising compression streams.. " << i+1 << "/" << endIndex << std::flush;
             compressionStreams.emplace_back(outputStreams.at(i - startIndex));
         }
+        std::cout << std::endl;
 
         // Cannot be parallel with a simple OpenMP pragma; files MUST be processed in order
         for (unsigned int fileIndex = fileStartIndex; fileIndex < fileEndIndex; fileIndex++) {
             std::experimental::filesystem::path path = filesToIndex.at(fileIndex);
             const std::string archivePath = path.string();
-            std::cout << "\tReading file: " << archivePath << std::endl;
             SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
             double totalImageDurationMilliseconds = 0;
             {
@@ -130,16 +129,16 @@ void buildSimpleListIndex(
             delete[] images.horizontallyDecreasingImages;
         }
 
-        std::cout << "Finalising compression streams.." << std::endl;
         #pragma omp parallel for schedule(dynamic)
         for (int i = 0; i < compressionStreams.size(); i++) {
-            std::cout << "\r\t" + std::to_string(startIndex + i + 1) + "/" +
+            std::cout << "\rFinalising compression streams.. " + std::to_string(startIndex + i + 1) + "/" +
                          std::to_string(spinImageWidthPixels * spinImageWidthPixels) << std::flush;
             compressionStreams.at(i).close();
             malloc_trim(0);
             outputStreams.at(i)->close();
             delete outputStreams.at(i);
         }
+        std::cout << std::endl;
     }
 
     // Final construction of the index

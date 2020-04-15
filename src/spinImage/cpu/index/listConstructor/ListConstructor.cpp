@@ -139,10 +139,10 @@ void buildSimpleListIndex(
                     for(unsigned int pixelIndex = threadStartPixelIndex; pixelIndex < threadEndPixelIndex; pixelIndex++) {
                         unsigned int pixel = SpinImage::index::pattern::pixelAt(combinedImage, pixelIndex);
                         if (pixel == 1) {
-                            unsigned int bufferIndex = pixelIndex - threadStartPixelIndex;
-                            unsigned int currentBufferLength = threadCompressionBufferLengths.at(bufferIndex);
-                            threadCompressionBuffers.at(bufferIndex).at(currentBufferLength) = entry;
-                            threadCompressionBufferLengths.at(bufferIndex)++;
+                            unsigned int threadBufferIndex = pixelIndex - threadStartPixelIndex;
+                            unsigned int currentBufferLength = threadCompressionBufferLengths.at(threadBufferIndex);
+                            threadCompressionBuffers.at(threadBufferIndex).at(currentBufferLength) = entry;
+                            threadCompressionBufferLengths.at(threadBufferIndex)++;
                             currentBufferLength++;
 
                             // Only a single thread touches this at any time, thus no guard is needed
@@ -150,9 +150,10 @@ void buildSimpleListIndex(
 
                             // Buffer is full, write it to disk
                             if(currentBufferLength == writeBufferSize) {
-                                compressionStreams.at(bufferIndex).write(
-                                        threadCompressionBuffers.at(bufferIndex), writeBufferSize);
-                                threadCompressionBufferLengths.at(bufferIndex) = 0;
+                                unsigned int batchBufferIndex = pixelIndex - pixelBatchStartIndex;
+                                compressionStreams.at(batchBufferIndex).write(
+                                        threadCompressionBuffers.at(threadBufferIndex), writeBufferSize);
+                                threadCompressionBufferLengths.at(threadBufferIndex) = 0;
                             }
                         }
                     }
@@ -164,10 +165,14 @@ void buildSimpleListIndex(
                 }
 
                 // Batch finished. Flush buffers.
-                for(int buffer = 0; buffer < threadCompressionBuffers.size(); buffer++) {
-                    unsigned int bufferEntryCount = threadCompressionBufferLengths.at(buffer);
+                for(unsigned int pixelIndex = threadStartPixelIndex; pixelIndex < threadEndPixelIndex; pixelIndex++) {
+                    unsigned int threadBufferIndex = pixelIndex - threadStartPixelIndex;
+                    unsigned int batchBufferIndex = pixelIndex - pixelBatchStartIndex;
+                    unsigned int bufferEntryCount = threadCompressionBufferLengths.at(threadBufferIndex);
+
                     if(bufferEntryCount != 0) {
-                        compressionStreams.at(buffer).write(threadCompressionBuffers.at(buffer), bufferEntryCount);
+                        compressionStreams.at(batchBufferIndex).write(
+                                threadCompressionBuffers.at(threadBufferIndex), bufferEntryCount);
                     }
                 }
             }

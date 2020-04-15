@@ -53,8 +53,6 @@ void buildSimpleListIndex(
         int pixelBatchEndIndex = std::min<int>(pixelBatchStartIndex + openFileLimit, spinImageWidthPixels * spinImageWidthPixels - 1);
         std::vector<std::fstream *> outputStreams;
         std::vector<SpinImage::utilities::FileCompressionStream<IndexEntry, writeBufferSize>> compressionStreams;
-        outputStreams.reserve(spinImageWidthPixels * spinImageWidthPixels);
-        compressionStreams.reserve(spinImageWidthPixels * spinImageWidthPixels);
 
         std::experimental::filesystem::path listDirectory = indexDumpDirectory / "lists";
         std::experimental::filesystem::create_directories(listDirectory);
@@ -81,6 +79,7 @@ void buildSimpleListIndex(
 
             // Wrapping opened fstream in a compression stream
             compressionStreams.emplace_back(outputStreams.at(outputStreamIndex));
+            compressionStreams.at(outputStreamIndex).open();
         }
         std::cout << std::endl;
 
@@ -216,12 +215,11 @@ void buildSimpleListIndex(
 
         #pragma omp parallel for schedule(dynamic)
         for (int streamIndex = 0; streamIndex < compressionStreams.size(); streamIndex++) {
-            int pixelIndex = pixelBatchStartIndex + streamIndex + 1;
+            int pixelIndex = pixelBatchStartIndex + streamIndex;
             std::cout << "\rFinalising compression streams.. " +
                     std::to_string(pixelBatchStartIndex + streamIndex + 1) + "/" +
                     std::to_string(spinImageWidthPixels * spinImageWidthPixels) << std::flush;
             compressionStreams.at(streamIndex).close();
-            malloc_trim(0);
 
             // Write header
             outputStreams.at(streamIndex)->seekp(5);
@@ -233,7 +231,9 @@ void buildSimpleListIndex(
 
             outputStreams.at(streamIndex)->close();
             delete outputStreams.at(streamIndex);
+            malloc_trim(0);
         }
+
         std::cout << std::endl;
     }
 

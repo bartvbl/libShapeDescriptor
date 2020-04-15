@@ -19,13 +19,12 @@ namespace SpinImage {
             unsigned char cBuffer[internalBufferSize];
         public:
             FileCompressionStream(std::fstream* stream) {
-                compressionStream = FL2_createCStream();
                 fileStream = stream;
-                FL2_initCStream(compressionStream, 9);
             }
 
-            ~FileCompressionStream() {
-                FL2_freeCStream(compressionStream);
+            void open() {
+                compressionStream = FL2_createCStream();
+                FL2_initCStream(compressionStream, 9);
             }
 
             void close() {
@@ -39,6 +38,8 @@ namespace SpinImage {
                     totalCompressedSize += compressedBuffer.pos;
                     compressedBuffer.pos = 0;
                 } while (status);
+
+                FL2_freeCStream(compressionStream);
             }
 
             size_t getTotalWrittenCompressedBytes() {

@@ -10,6 +10,7 @@
 #include <mutex>
 #include <spinImage/cpu/index/Pattern.h>
 #include <omp.h>
+#include <condition_variable>
 #include "ListConstructor.h"
 
 const unsigned int writeBufferSize = 32;
@@ -39,6 +40,11 @@ void buildSimpleListIndex(
     std::cout << "Listing files.." << std::endl;
     std::vector<std::experimental::filesystem::path> filesToIndex = SpinImage::utilities::listDirectory(quicciImageDumpDirectory);
     std::cout << "\tFound " << filesToIndex.size() << " files." << std::endl;
+
+    omp_set_nested(1);
+
+    std::mutex loadQueueLock;
+    std::condition_variable loadQueueConditionVariable;
 
     std::array<size_t, spinImageWidthPixels * spinImageWidthPixels> totalPixelTally;
     std::fill(totalPixelTally.begin(), totalPixelTally.end(), 0);
@@ -78,8 +84,11 @@ void buildSimpleListIndex(
         }
         std::cout << std::endl;
 
-        // Cannot be parallel with a simple OpenMP pragma; files MUST be processed in order
+        unsigned int nextFileIndex = fileStartIndex;
+
+        // Cannot be parallel with a simple OpenMP pragma alone; files MUST be processed in order
         // Also, images MUST be inserted into output files in order
+        #pragma omp parallel for schedule(dynamic)
         for (unsigned int fileIndex = fileStartIndex; fileIndex < fileEndIndex; fileIndex++) {
 
             // Reading image dump file
@@ -90,6 +99,12 @@ void buildSimpleListIndex(
             double totalImageDurationMilliseconds = 0;
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
             int previousDashCount = -1;
+
+            while(nextFileIndex != fileIndex) {
+                std::unique_lock<std::mutex> queueLock(loadQueueLock);
+                loadQueueConditionVariable.wait_until(queueLock,
+                        std::chrono::steady_clock::now() + std::chrono::milliseconds (10));
+            }
 
             #pragma omp parallel
             {
@@ -186,6 +201,11 @@ void buildSimpleListIndex(
                       << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
                       << ", Image count: " << images.imageCount << std::endl;
 
+            // Let net thread in. Must be done after the file has been processed
+            nextFileIndex++;
+
+            // Wake up other threads
+            loadQueueConditionVariable.notify_all();
 
             // Necessity to prevent libc from hogging all system memory
             malloc_trim(0);

@@ -14,9 +14,9 @@
 
 const unsigned int writeBufferSize = 32;
 
-void printProgressBar(const SpinImage::cpu::QUICCIImages &images, int previousDashCount,
-                      IndexImageID imageIndex) {// Only update the progress bar when needed
-    int dashCount = int((float(imageIndex) / float(images.imageCount)) * 25.0f) + 1;
+void printProgressBar(const unsigned int imageCount, int &previousDashCount, IndexImageID imageIndex) {
+    // Only update the progress bar when needed
+    int dashCount = int((float(imageIndex) / float(imageCount)) * 25.0f) + 1;
     if (dashCount > previousDashCount) {
         previousDashCount = dashCount;
         std::stringstream progressBar;
@@ -25,7 +25,7 @@ void printProgressBar(const SpinImage::cpu::QUICCIImages &images, int previousDa
         for (int i = 0; i < 25; i++) {
             progressBar << ((i < dashCount) ? "=" : " ");
         }
-        progressBar << "] " << imageIndex << "/" << images.imageCount << "\r";
+        progressBar << "] " << imageIndex << "/" << imageCount << "\r";
         std::cout << progressBar.str() << std::flush;
     }
 }
@@ -119,7 +119,7 @@ void buildSimpleListIndex(
 
                 // For each image, register pixels in dump file
                 for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
-                    printProgressBar(images, previousDashCount, imageIndex);
+                    printProgressBar(images.imageCount, previousDashCount, imageIndex);
                     std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
 
                     QuiccImage combinedImage = combineQuiccImages(

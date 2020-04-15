@@ -2,8 +2,6 @@
 #include "IndexQueryer.h"
 #include <spinImage/cpu/index/types/BitCountMipmapStack.h>
 #include <algorithm>
-#include <climits>
-#include <cfloat>
 #include <spinImage/cpu/index/types/IndexPath.h>
 #include <set>
 

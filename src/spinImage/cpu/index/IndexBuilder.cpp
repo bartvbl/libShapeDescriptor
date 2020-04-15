@@ -50,7 +50,7 @@ void dumpStatisticsFile(
     outFile.close();
 }
 
-Index SpinImage::index::build(
+void SpinImage::index::build(
         std::experimental::filesystem::path quicciImageDumpDirectory,
         std::experimental::filesystem::path indexDumpDirectory,
         size_t cacheNodeLimit,
@@ -84,18 +84,10 @@ Index SpinImage::index::build(
 
     size_t endIndex = fileEndIndex == fileStartIndex ? filesInDirectory.size() : fileEndIndex;
 
-    buildSimpleListIndex(quicciImageDumpDirectory, indexDumpDirectory, cacheNodeLimit, fileStartIndex, endIndex);
+    // Phase 1:
+    buildInitialPixelLists(quicciImageDumpDirectory, indexDumpDirectory, cacheNodeLimit, fileStartIndex, endIndex);
 
     dumpStatisticsFile(constructionSettings, statisticsFileDumpLocation);
-
-    // Final construction of the index
-    Index index(indexDirectory, indexedFiles);
-
-    // Write the root node to disk
-    std::cout << "Writing core index files.." << std::endl;
-    SpinImage::index::io::writeIndex(index, indexDirectory);
-
-    return index;
 }
 
 

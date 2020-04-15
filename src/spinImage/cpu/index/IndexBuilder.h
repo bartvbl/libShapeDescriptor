@@ -5,7 +5,7 @@
 
 namespace SpinImage {
     namespace index {
-        Index build(
+        void build(
                 std::experimental::filesystem::path quicciImageDumpDirectory,
                 std::experimental::filesystem::path indexDumpDirectory,
                 size_t cacheNodeLimit,

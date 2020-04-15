@@ -2,7 +2,7 @@
 
 #include <experimental/filesystem>
 
-void buildSimpleListIndex(
+void buildInitialPixelLists(
         const std::experimental::filesystem::path &quicciImageDumpDirectory,
         std::experimental::filesystem::path &indexDumpDirectory,
         size_t openFileLimit,

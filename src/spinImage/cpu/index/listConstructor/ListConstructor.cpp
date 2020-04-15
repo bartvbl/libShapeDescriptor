@@ -11,6 +11,7 @@
 #include <spinImage/cpu/index/Pattern.h>
 #include <omp.h>
 #include <condition_variable>
+#include <spinImage/cpu/index/IndexIO.h>
 #include "ListConstructor.h"
 
 const unsigned int writeBufferSize = 32;
@@ -31,7 +32,7 @@ void printProgressBar(const unsigned int imageCount, int &previousDashCount, Ind
     }
 }
 
-void buildSimpleListIndex(
+void buildInitialPixelLists(
         const std::experimental::filesystem::path &quicciImageDumpDirectory,
         std::experimental::filesystem::path &indexDumpDirectory,
         size_t openFileLimit,
@@ -238,9 +239,9 @@ void buildSimpleListIndex(
     }
 
     // Final construction of the index
-    //Index index(indexDumpDirectory, &filesToIndex);
+    Index index(indexDumpDirectory, &filesToIndex);
 
     // Write the root node to disk
     std::cout << "Writing core index file.." << std::endl;
-    //SpinImage::index::io::writeIndex(index, indexDumpDirectory);
+    SpinImage::index::io::writeIndex(index, indexDumpDirectory);
 }

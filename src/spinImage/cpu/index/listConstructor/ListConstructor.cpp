@@ -71,6 +71,22 @@ struct OutputBuffer {
     }
 };
 
+void printProgressBar(const unsigned int imageCount, int &previousDashCount, IndexImageID imageIndex) {
+    // Only update the progress bar when needed
+    int dashCount = int((float(imageIndex) / float(imageCount)) * 25.0f) + 1;
+    if (dashCount > previousDashCount) {
+        previousDashCount = dashCount;
+        std::stringstream progressBar;
+        progressBar << "\r[";
+
+        for (int i = 0; i < 25; i++) {
+            progressBar << ((i < dashCount) ? "=" : " ");
+        }
+        progressBar << "] " << imageIndex << "/" << imageCount << "\r";
+        std::cout << progressBar.str() << std::flush;
+    }
+}
+
 void buildInitialPixelLists(
         const std::experimental::filesystem::path &quicciImageDumpDirectory,
         std::experimental::filesystem::path &indexDumpDirectory,
@@ -123,61 +139,79 @@ void buildInitialPixelLists(
 
         // Cannot be parallel with a simple OpenMP pragma alone; files MUST be processed in order
         // Also, images MUST be inserted into output files in order
-        #pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic)
         for (unsigned int fileIndex = fileStartIndex; fileIndex < fileEndIndex; fileIndex++) {
 
             // Reading image dump file
             std::experimental::filesystem::path archivePath = filesToIndex.at(fileIndex);
             SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
 
+            double totalImageDurationMilliseconds = 0;
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+            int previousDashCount = -1;
 
-            for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
+#pragma omp critical
+            {
+                // For each image, register pixels in dump file
+#pragma omp parallel for schedule(dynamic)
+                for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
+                    printProgressBar(images.imageCount, previousDashCount, imageIndex);
+                    std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
 
-                QuiccImage combinedImage = combineQuiccImages(
-                        images.horizontallyIncreasingImages[imageIndex],
-                        images.horizontallyDecreasingImages[imageIndex]);
+                    QuiccImage combinedImage = combineQuiccImages(
+                            images.horizontallyIncreasingImages[imageIndex],
+                            images.horizontallyDecreasingImages[imageIndex]);
 
-                // Count total number of bits in image
-                // Needed during querying to sort search results
-                unsigned short bitCount = 0;
-                for (unsigned int i : combinedImage) {
-                    bitCount += std::bitset<32>(i).size();
-                }
+                    // Count total number of bits in image
+                    // Needed during querying to sort search results
+                    unsigned short bitCount = 0;
+                    for (unsigned int i : combinedImage) {
+                        bitCount += std::bitset<32>(i).size();
+                    }
 
-                IndexEntry entry = {fileIndex, imageIndex, bitCount};
+                    IndexEntry entry = {fileIndex, imageIndex, bitCount};
 
-                // Find and process set bit sequences
-                for (int col = startColumn; col < endColumn; col++) {
-                    unsigned int patternLength = 0;
-                    unsigned int patternStartRow = 0;
-                    bool previousPixelWasSet = false;
+                    // Find and process set bit sequences
+                    for (int col = startColumn; col < endColumn; col++) {
+                        unsigned int patternLength = 0;
+                        unsigned int patternStartRow = 0;
+                        bool previousPixelWasSet = false;
 
-                    for (int row = 0; row < spinImageWidthPixels; row++) {
-                        int pixel = SpinImage::index::pattern::pixelAt(combinedImage, row, col);
-                        if (pixel == 1) {
-                            if (previousPixelWasSet) {
-                                // Pattern turned out to be one pixel longer
-                                patternLength++;
-                            } else {
-                                // We found a new pattern
-                                patternStartRow = row;
-                                patternLength = 1;
+                        for (int row = 0; row < spinImageWidthPixels; row++) {
+                            int pixel = SpinImage::index::pattern::pixelAt(combinedImage, row, col);
+                            if (pixel == 1) {
+                                if (previousPixelWasSet) {
+                                    // Pattern turned out to be one pixel longer
+                                    patternLength++;
+                                } else {
+                                    // We found a new pattern
+                                    patternStartRow = row;
+                                    patternLength = 1;
+                                }
+                            } else if (previousPixelWasSet) {
+                                // Previous pixel was set, but this one is not
+                                // This is thus a pattern that ended here.
+                                outputBufferLocks.at(col).at(patternStartRow).lock();
+                                outputBuffers.at(col).at(patternStartRow).at(patternLength - 1).insert(entry);
+                                outputBufferLocks.at(col).at(patternStartRow).unlock();
+                                patternLength = 0;
+                                patternStartRow = 0;
                             }
-                        } else if (previousPixelWasSet) {
-                            // Previous pixel was set, but this one is not
-                            // This is thus a pattern that ended here.
-                            outputBuffers.at(col).at(patternStartRow).at(patternLength - 1).insert(entry);
-                            patternLength = 0;
-                            patternStartRow = 0;
+
+                            previousPixelWasSet = pixel == 1;
                         }
 
-                        previousPixelWasSet = pixel == 1;
+                        if (previousPixelWasSet) {
+                            outputBufferLocks.at(col).at(patternStartRow).lock();
+                            outputBuffers.at(col).at(patternStartRow).at(patternLength - 1).insert(entry);
+                            outputBufferLocks.at(col).at(patternStartRow).unlock();
+                        }
                     }
 
-                    if (previousPixelWasSet) {
-                        outputBuffers.at(col).at(patternStartRow).at(patternLength - 1).insert(entry);
-                    }
+                    std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
+#pragma omp atomic
+                    totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                            imageEndTime - imageStartTime).count() / 1000000.0;
                 }
             }
 
@@ -191,7 +225,7 @@ void buildInitialPixelLists(
                       << ", Image count: " << images.imageCount << std::endl;
 
             // Necessity to prevent libc from hogging all system memory
-            //malloc_trim(0);
+            malloc_trim(0);
 
             delete[] images.horizontallyIncreasingImages;
             delete[] images.horizontallyDecreasingImages;

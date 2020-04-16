@@ -135,7 +135,7 @@ void buildInitialPixelLists(
 
         // Cannot be parallel with a simple OpenMP pragma alone; files MUST be processed in order
         // Also, images MUST be inserted into output files in order
-#pragma omp parallel for schedule(dynamic)
+        #pragma omp parallel for schedule(dynamic)
         for (unsigned int fileIndex = fileStartIndex; fileIndex < fileEndIndex; fileIndex++) {
 
             // Reading image dump file
@@ -146,10 +146,10 @@ void buildInitialPixelLists(
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
             int previousDashCount = -1;
 
-#pragma omp critical
+            #pragma omp critical
             {
                 // For each image, register pixels in dump file
-#pragma omp parallel for
+                #pragma omp parallel for
                 for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
                     printProgressBar(images.imageCount, previousDashCount, imageIndex);
                     std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
@@ -205,7 +205,7 @@ void buildInitialPixelLists(
                     }
 
                     std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
-#pragma omp atomic
+                    #pragma omp atomic
                     totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(
                             imageEndTime - imageStartTime).count() / 1000000.0;
                 }
@@ -227,7 +227,7 @@ void buildInitialPixelLists(
             delete[] images.horizontallyDecreasingImages;
         }
 
-#pragma omp parallel for schedule(dynamic) collapse(2)
+        #pragma omp parallel for schedule(dynamic) collapse(2)
         for (int col = startColumn; col < endColumn; col++) {
             for (int row = 0; row < spinImageWidthPixels; row++) {
                 unsigned int possiblePatternLengthCount = spinImageWidthPixels - row;

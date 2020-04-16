@@ -43,12 +43,6 @@ float computeWeightedHammingDistance(const QuiccImage &needle, const BitCountMip
     return score;
 }
 
-const float computeMinDistanceThreshold(std::vector<SearchResultEntry> &currentSearchResults) {
-    return currentSearchResults.empty() ?
-               std::numeric_limits<float>::max()
-               : currentSearchResults.at(currentSearchResults.size() - 1).distanceScore;
-}
-
 std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index, const QuiccImage &queryImage, unsigned int resultCount) {
     BitCountMipmapStack queryImageBitCountMipmapStack(queryImage);
 

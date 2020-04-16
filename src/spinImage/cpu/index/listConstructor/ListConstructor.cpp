@@ -227,18 +227,13 @@ void buildInitialPixelLists(
             delete[] images.horizontallyDecreasingImages;
         }
 
-        #pragma omp parallel for schedule(dynamic) collapse(2)
+        #pragma omp parallel for schedule(dynamic)
         for (int col = startColumn; col < endColumn; col++) {
+            std::cout << "\rClosing file streams.. "
+                         "column " + std::to_string(col) + "/" + std::to_string(endColumn) + "\n";
             for (int row = 0; row < spinImageWidthPixels; row++) {
                 unsigned int possiblePatternLengthCount = spinImageWidthPixels - row;
                 for (int patternLength = 0; patternLength < possiblePatternLengthCount; patternLength++) {
-                    std::cout << "\rClosing file streams.. "
-                                 "column " + std::to_string(col) + "/64, "
-                                                                   "row " + std::to_string(row) + "/64, "
-                                                                                                  "pattern length " +
-                                 std::to_string(patternLength) + "/" +
-                                 std::to_string(possiblePatternLengthCount) + "     " << std::flush;
-
                     // Flush output buffers and close file stream
                     outputBuffers.at(col).at(row).at(patternLength).close();
                 }

@@ -20,6 +20,12 @@ namespace SpinImage {
                 return (unsigned int) ((image.at(chunkIndex) >> (31U - bitIndex)) & 0x1U);
             }
 
+            inline unsigned int pixelAt(const QuiccImage &image, const unsigned int &pixelIndex) {
+                const unsigned int chunkIndex = pixelIndex / 32;
+                const unsigned int bitIndex = pixelIndex % 32;
+                return (unsigned int) ((image.at(chunkIndex) >> (31U - bitIndex)) & 0x1U);
+            }
+
             inline bool findNext(
                     QuiccImage &image, QuiccImage &foundPattern,
                     unsigned int &foundPatternSize,

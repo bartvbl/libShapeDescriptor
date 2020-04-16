@@ -99,7 +99,7 @@ void buildInitialPixelLists(
     std::experimental::filesystem::create_directories(listDirectory);
 
     for(int startColumn = 0; startColumn < spinImageWidthPixels; startColumn += openFileLimit) {
-        int endColumn = startColumn + openFileLimit;
+        int endColumn = std::min<int>(startColumn + openFileLimit, spinImageWidthPixels * spinImageWidthPixels);
         // Open file streams
         for (int col = 0; col < spinImageWidthPixels; col++) {
             outputBuffers.emplace_back();
@@ -149,7 +149,7 @@ void buildInitialPixelLists(
             #pragma omp critical
             {
                 // For each image, register pixels in dump file
-                #pragma omp parallel for
+                #pragma omp parallel for schedule(dynamic)
                 for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
                     printProgressBar(images.imageCount, previousDashCount, imageIndex);
                     std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();

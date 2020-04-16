@@ -21,6 +21,7 @@ struct OutputBuffer {
     std::array<IndexEntry, writeBufferSize> buffer;
     SpinImage::utilities::FileCompressionStream<IndexEntry, writeBufferSize> outStream;
     std::fstream* fileStream;
+    std::mutex* outStreamLock;
 
     explicit OutputBuffer(std::fstream* stream) : outStream(stream), fileStream(stream) {
         assert(fileStream->is_open());
@@ -36,6 +37,8 @@ struct OutputBuffer {
     }
 
     void insert(IndexEntry &entry) {
+        outStreamLock->lock();
+
         buffer.at(length) = entry;
         length++;
         totalWrittenEntryCount++;
@@ -44,10 +47,13 @@ struct OutputBuffer {
             outStream.write(buffer, length);
             length = 0;
         }
+
+        outStreamLock->unlock();
     }
 
     void open() {
         outStream.open();
+        outStreamLock = new std::mutex;
     }
 
     void close() {
@@ -61,6 +67,7 @@ struct OutputBuffer {
 
         fileStream->close();
         delete fileStream;
+        delete outStreamLock;
     }
 };
 
@@ -77,7 +84,6 @@ void buildInitialPixelLists(
     omp_set_nested(1);
 
     std::vector<std::vector<std::vector<OutputBuffer>>> outputBuffers;
-    std::array<std::array<std::mutex, spinImageWidthPixels>, spinImageWidthPixels> outputBufferLocks;
 
     std::experimental::filesystem::path listDirectory = indexDumpDirectory / "lists";
     std::experimental::filesystem::create_directories(listDirectory);
@@ -114,8 +120,6 @@ void buildInitialPixelLists(
             }
         }
         std::cout << std::endl;
-
-        unsigned int nextFileIndex = fileStartIndex;
 
         // Cannot be parallel with a simple OpenMP pragma alone; files MUST be processed in order
         // Also, images MUST be inserted into output files in order
@@ -163,9 +167,7 @@ void buildInitialPixelLists(
                         } else if (previousPixelWasSet) {
                             // Previous pixel was set, but this one is not
                             // This is thus a pattern that ended here.
-                            outputBufferLocks.at(col).at(patternStartRow).lock();
                             outputBuffers.at(col).at(patternStartRow).at(patternLength - 1).insert(entry);
-                            outputBufferLocks.at(col).at(patternStartRow).unlock();
                             patternLength = 0;
                             patternStartRow = 0;
                         }
@@ -174,9 +176,7 @@ void buildInitialPixelLists(
                     }
 
                     if (previousPixelWasSet) {
-                        outputBufferLocks.at(col).at(patternStartRow).lock();
                         outputBuffers.at(col).at(patternStartRow).at(patternLength - 1).insert(entry);
-                        outputBufferLocks.at(col).at(patternStartRow).unlock();
                     }
                 }
             }

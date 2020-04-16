@@ -99,7 +99,7 @@ void buildInitialPixelLists(
     std::experimental::filesystem::create_directories(listDirectory);
 
     for(int startColumn = 0; startColumn < spinImageWidthPixels; startColumn += openFileLimit) {
-        int endColumn = std::min<int>(startColumn + openFileLimit, spinImageWidthPixels * spinImageWidthPixels);
+        int endColumn = std::min<int>(startColumn + openFileLimit, spinImageWidthPixels);
         // Open file streams
         for (int col = 0; col < spinImageWidthPixels; col++) {
             outputBuffers.emplace_back();

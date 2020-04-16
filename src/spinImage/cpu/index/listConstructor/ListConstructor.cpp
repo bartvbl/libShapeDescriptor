@@ -10,11 +10,59 @@
 #include <mutex>
 #include <spinImage/cpu/index/Pattern.h>
 #include <omp.h>
-#include <condition_variable>
 #include <spinImage/cpu/index/IndexIO.h>
 #include "ListConstructor.h"
 
 const unsigned int writeBufferSize = 32;
+
+struct OutputBuffer {
+    size_t totalWrittenEntryCount = 0;
+    unsigned int length = 0;
+    std::array<IndexEntry, writeBufferSize> buffer;
+    SpinImage::utilities::FileCompressionStream<IndexEntry, writeBufferSize> outStream;
+    std::fstream* fileStream;
+
+    explicit OutputBuffer(std::fstream* stream) : outStream(stream), fileStream(stream) {
+        assert(fileStream->is_open());
+
+        // Write file headers
+        const char* headerID = "PXLST";
+        fileStream->write(headerID, 5);
+        // Dummy values for compressed buffer size and total reference count
+        // Space is allocated for them here, and will be written at the end
+        const size_t dummyValue = 0xCDCDCDCDCDCDCDCD;
+        fileStream->write(reinterpret_cast<const char *>(&dummyValue), 8);
+        fileStream->write(reinterpret_cast<const char *>(&dummyValue), 8);
+    }
+
+    void insert(IndexEntry &entry) {
+        buffer.at(length) = entry;
+        length++;
+        totalWrittenEntryCount++;
+
+        if(length == writeBufferSize) {
+            outStream.write(buffer, length);
+            length = 0;
+        }
+    }
+
+    void open() {
+        outStream.open();
+    }
+
+    void close() {
+        outStream.write(buffer, length);
+        outStream.close();
+
+        fileStream->seekp(5);
+        fileStream->write(reinterpret_cast<const char *>(&totalWrittenEntryCount), sizeof(size_t));
+        size_t totalCompressedFileSize = outStream.getTotalWrittenCompressedBytes();
+        fileStream->write(reinterpret_cast<const char *>(&totalCompressedFileSize), sizeof(size_t));
+
+        fileStream->close();
+        delete fileStream;
+    }
+};
 
 void printProgressBar(const unsigned int imageCount, int &previousDashCount, IndexImageID imageIndex) {
     // Only update the progress bar when needed
@@ -44,199 +92,153 @@ void buildInitialPixelLists(
 
     omp_set_nested(1);
 
-    std::mutex loadQueueLock;
-    std::condition_variable loadQueueConditionVariable;
+    std::vector<std::vector<std::vector<OutputBuffer>>> outputBuffers;
+    std::array<std::array<std::mutex, spinImageWidthPixels>, spinImageWidthPixels> outputBufferLocks;
 
-    std::array<size_t, spinImageWidthPixels * spinImageWidthPixels> totalPixelTally;
-    std::fill(totalPixelTally.begin(), totalPixelTally.end(), 0);
+    std::experimental::filesystem::path listDirectory = indexDumpDirectory / "lists";
+    std::experimental::filesystem::create_directories(listDirectory);
 
-    for(int pixelBatchStartIndex = 0; pixelBatchStartIndex < spinImageWidthPixels * spinImageWidthPixels; pixelBatchStartIndex += openFileLimit) {
-        int pixelBatchEndIndex = std::min<int>(pixelBatchStartIndex + openFileLimit, spinImageWidthPixels * spinImageWidthPixels - 1);
-        std::vector<std::fstream *> outputStreams;
-        std::vector<SpinImage::utilities::FileCompressionStream<IndexEntry, writeBufferSize>> compressionStreams;
+    // Open file streams
+    for(int col = 0; col < spinImageWidthPixels; col++) {
+        outputBuffers.emplace_back();
+        for(int row = 0; row < spinImageWidthPixels; row++) {
+            outputBuffers.at(col).emplace_back();
 
-        std::experimental::filesystem::path listDirectory = indexDumpDirectory / "lists";
-        std::experimental::filesystem::create_directories(listDirectory);
+            std::experimental::filesystem::path outputDirectory =
+                    listDirectory / std::to_string(col) / std::to_string(row);
+            std::experimental::filesystem::create_directories(outputDirectory);
 
-        // Open file streams
-        for (int pixelIndex = pixelBatchStartIndex; pixelIndex < pixelBatchEndIndex; pixelIndex++) {
-            std::cout << "\rOpening file streams.. " << pixelIndex + 1 << "/" << pixelBatchEndIndex << std::flush;
-            std::string fileName = "list_" + std::to_string(pixelIndex) + ".dat";
-            std::experimental::filesystem::path outputFile = listDirectory / fileName;
-            outputStreams.push_back(new std::fstream(outputFile, std::ios::out | std::ios::binary));
-            int outputStreamIndex = pixelIndex - pixelBatchStartIndex;
+            unsigned int possiblePatternLengthCount = spinImageWidthPixels - row;
 
-            // Ensure file opened successfully
-            assert(outputStreams.at(outputStreamIndex)->is_open());
+            for(int patternLength = 0; patternLength < possiblePatternLengthCount; patternLength++) {
+                std::cout << "\rOpening file streams.. column " << col << "/64, row " << row << "/64, pattern length " << patternLength << "/" << possiblePatternLengthCount << "     " << std::flush;
 
-            // Write file headers
-            const char* headerID = "PXLST";
-            outputStreams.at(outputStreamIndex)->write(headerID, 5);
-            // Dummy values for compressed buffer size and total reference count
-            // Space is allocated for them here, and will be written at the end
-            const size_t dummyValue = 0xCDCDCDCDCDCDCDCD;
-            outputStreams.at(outputStreamIndex)->write(reinterpret_cast<const char *>(&dummyValue), 8);
-            outputStreams.at(outputStreamIndex)->write(reinterpret_cast<const char *>(&dummyValue), 8);
-
-            // Wrapping opened fstream in a compression stream
-            compressionStreams.emplace_back(outputStreams.at(outputStreamIndex));
-            compressionStreams.at(outputStreamIndex).open();
-        }
-        std::cout << std::endl;
-
-        unsigned int nextFileIndex = fileStartIndex;
-
-        // Cannot be parallel with a simple OpenMP pragma alone; files MUST be processed in order
-        // Also, images MUST be inserted into output files in order
-        #pragma omp parallel for schedule(dynamic)
-        for (unsigned int fileIndex = fileStartIndex; fileIndex < fileEndIndex; fileIndex++) {
-
-            // Reading image dump file
-            std::experimental::filesystem::path path = filesToIndex.at(fileIndex);
-            const std::string archivePath = path.string();
-            SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
-
-            double totalImageDurationMilliseconds = 0;
-            std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-            int previousDashCount = -1;
-
-            while(nextFileIndex != fileIndex) {
-                std::unique_lock<std::mutex> queueLock(loadQueueLock);
-                loadQueueConditionVariable.wait_until(queueLock,
-                        std::chrono::steady_clock::now() + std::chrono::milliseconds (10));
+                std::string fileName = "list_" + std::to_string(patternLength) + ".dat";
+                std::experimental::filesystem::path outputFile = outputDirectory / fileName;
+                outputBuffers.at(col).at(row).emplace_back(
+                        new std::fstream(outputFile, std::ios::out | std::ios::binary));
+                outputBuffers.at(col).at(row).at(patternLength).open();
             }
-
-            #pragma omp parallel
-            {
-                // Compute thread's job allocation
-                unsigned int pixelsPerThread = std::max(
-                        (pixelBatchEndIndex - pixelBatchStartIndex) / omp_get_num_threads(), 1);
-                unsigned int threadStartPixelIndex = pixelBatchStartIndex + std::min<unsigned int>(
-                        omp_get_thread_num() * pixelsPerThread, pixelBatchEndIndex);
-                unsigned int threadEndPixelIndex = omp_get_thread_num() + 1 == omp_get_num_threads() ?
-                                                   pixelBatchEndIndex
-                                                   : pixelBatchStartIndex + std::min<unsigned int>(
-                                                           (omp_get_thread_num() + 1) * pixelsPerThread,
-                                                           pixelBatchEndIndex);
-                unsigned int threadPixelCount = threadEndPixelIndex - threadStartPixelIndex;
-
-                assert(threadEndPixelIndex >= threadStartPixelIndex);
-                assert(threadStartPixelIndex >= pixelBatchStartIndex);
-                assert(threadEndPixelIndex <= pixelBatchEndIndex);
-
-                // Allocate buffers
-                std::vector<std::array<IndexEntry, writeBufferSize>> threadCompressionBuffers;
-                std::vector<unsigned int> threadCompressionBufferLengths;
-
-                threadCompressionBuffers.resize(threadPixelCount);
-                threadCompressionBufferLengths.resize(threadPixelCount);
-                std::fill(threadCompressionBufferLengths.begin(), threadCompressionBufferLengths.end(), 0);
-
-                // For each image, register pixels in dump file
-                for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
-                    printProgressBar(images.imageCount, previousDashCount, imageIndex);
-                    std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
-
-                    QuiccImage combinedImage = combineQuiccImages(
-                            images.horizontallyIncreasingImages[imageIndex],
-                            images.horizontallyDecreasingImages[imageIndex]);
-
-                    // Count total number of bits in image
-                    // Needed during querying to sort search results
-                    unsigned short bitCount = 0;
-                    for (unsigned int i : combinedImage) {
-                        bitCount += std::bitset<32>(i).size();
-                    }
-
-                    IndexEntry entry = {fileIndex, imageIndex, bitCount};
-
-                    // Iterate over pixels
-                    for(unsigned int pixelIndex = threadStartPixelIndex; pixelIndex < threadEndPixelIndex; pixelIndex++) {
-                        unsigned int pixel = SpinImage::index::pattern::pixelAt(combinedImage, pixelIndex);
-                        if (pixel == 1) {
-                            unsigned int threadBufferIndex = pixelIndex - threadStartPixelIndex;
-                            unsigned int currentBufferLength = threadCompressionBufferLengths.at(threadBufferIndex);
-                            threadCompressionBuffers.at(threadBufferIndex).at(currentBufferLength) = entry;
-                            threadCompressionBufferLengths.at(threadBufferIndex)++;
-                            currentBufferLength++;
-
-                            // Only a single thread touches this at any time, thus no guard is needed
-                            totalPixelTally.at(pixelIndex)++;
-
-                            // Buffer is full, write it to disk
-                            if(currentBufferLength == writeBufferSize) {
-                                unsigned int batchBufferIndex = pixelIndex - pixelBatchStartIndex;
-                                compressionStreams.at(batchBufferIndex).write(
-                                        threadCompressionBuffers.at(threadBufferIndex), writeBufferSize);
-                                threadCompressionBufferLengths.at(threadBufferIndex) = 0;
-                            }
-                        }
-                    }
-
-                    std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
-                    #pragma omp atomic
-                    totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(
-                            imageEndTime - imageStartTime).count() / 1000000.0;
-                }
-
-                // Batch finished. Flush buffers.
-                for(unsigned int pixelIndex = threadStartPixelIndex; pixelIndex < threadEndPixelIndex; pixelIndex++) {
-                    unsigned int threadBufferIndex = pixelIndex - threadStartPixelIndex;
-                    unsigned int batchBufferIndex = pixelIndex - pixelBatchStartIndex;
-                    unsigned int bufferEntryCount = threadCompressionBufferLengths.at(threadBufferIndex);
-
-                    if(bufferEntryCount != 0) {
-                        compressionStreams.at(batchBufferIndex).write(
-                                threadCompressionBuffers.at(threadBufferIndex), bufferEntryCount);
-                    }
-                }
-            }
-
-            std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
-            double durationMilliseconds =
-                    std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
-
-            std::cout << "Added file " << (fileIndex + 1) << "/" << fileEndIndex
-                      << ": " << archivePath
-                      << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
-                      << ", Image count: " << images.imageCount << std::endl;
-
-            // Let net thread in. Must be done after the file has been processed
-            nextFileIndex++;
-
-            // Wake up other threads
-            loadQueueConditionVariable.notify_all();
-
-            // Necessity to prevent libc from hogging all system memory
-            malloc_trim(0);
-
-            delete[] images.horizontallyIncreasingImages;
-            delete[] images.horizontallyDecreasingImages;
         }
-
-        #pragma omp parallel for schedule(dynamic)
-        for (int streamIndex = 0; streamIndex < compressionStreams.size(); streamIndex++) {
-            int pixelIndex = pixelBatchStartIndex + streamIndex;
-            std::cout << "\rFinalising compression streams.. " +
-                    std::to_string(pixelBatchStartIndex + streamIndex + 1) + "/" +
-                    std::to_string(spinImageWidthPixels * spinImageWidthPixels) << std::flush;
-            compressionStreams.at(streamIndex).close();
-
-            // Write header
-            outputStreams.at(streamIndex)->seekp(5);
-            outputStreams.at(streamIndex)->write(
-                    reinterpret_cast<const char *>(&totalPixelTally.at(pixelIndex)), sizeof(size_t));
-            size_t totalCompressedFileSize = compressionStreams.at(streamIndex).getTotalWrittenCompressedBytes();
-            outputStreams.at(streamIndex)->write(
-                    reinterpret_cast<const char *>(&totalCompressedFileSize), sizeof(size_t));
-
-            outputStreams.at(streamIndex)->close();
-            delete outputStreams.at(streamIndex);
-            malloc_trim(0);
-        }
-
-        std::cout << std::endl;
     }
+    std::cout << std::endl;
+
+    unsigned int nextFileIndex = fileStartIndex;
+
+    // Cannot be parallel with a simple OpenMP pragma alone; files MUST be processed in order
+    // Also, images MUST be inserted into output files in order
+    #pragma omp parallel for schedule(dynamic)
+    for (unsigned int fileIndex = fileStartIndex; fileIndex < fileEndIndex; fileIndex++) {
+
+        // Reading image dump file
+        std::experimental::filesystem::path archivePath = filesToIndex.at(fileIndex);
+        SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
+
+        double totalImageDurationMilliseconds = 0;
+        std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+        int previousDashCount = -1;
+
+        #pragma omp critical
+        {
+            // For each image, register pixels in dump file
+            #pragma omp parallel for
+            for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
+                printProgressBar(images.imageCount, previousDashCount, imageIndex);
+                std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
+
+                QuiccImage combinedImage = combineQuiccImages(
+                        images.horizontallyIncreasingImages[imageIndex],
+                        images.horizontallyDecreasingImages[imageIndex]);
+
+                // Count total number of bits in image
+                // Needed during querying to sort search results
+                unsigned short bitCount = 0;
+                for (unsigned int i : combinedImage) {
+                    bitCount += std::bitset<32>(i).size();
+                }
+
+                IndexEntry entry = {fileIndex, imageIndex, bitCount};
+
+                // Find and process set bit sequences
+                for(int col = 0; col < spinImageWidthPixels; col++) {
+                    unsigned int patternLength = 0;
+                    unsigned int patternStartRow = 0;
+                    bool previousPixelWasSet = false;
+
+                    for(int row = 0; row < spinImageWidthPixels; row++) {
+                        int pixel = SpinImage::index::pattern::pixelAt(combinedImage, row, col);
+                        if(pixel == 1) {
+                            if(previousPixelWasSet) {
+                                // Pattern turned out to be one pixel longer
+                                patternLength++;
+                            } else {
+                                // We found a new pattern
+                                patternStartRow = row;
+                                patternLength = 1;
+                            }
+                        } else if(previousPixelWasSet) {
+                            // Previous pixel was set, but this one is not
+                            // This is thus a pattern that ended here.
+                            outputBufferLocks.at(col).at(patternStartRow).lock();
+                            outputBuffers.at(col).at(patternStartRow).at(patternLength - 1).insert(entry);
+                            outputBufferLocks.at(col).at(patternStartRow).unlock();
+                            patternLength = 0;
+                            patternStartRow = 0;
+                        }
+
+                        previousPixelWasSet = pixel == 1;
+                    }
+
+                    if(previousPixelWasSet) {
+                        outputBufferLocks.at(col).at(patternStartRow).lock();
+                        outputBuffers.at(col).at(patternStartRow).at(patternLength - 1).insert(entry);
+                        outputBufferLocks.at(col).at(patternStartRow).unlock();
+                    }
+                }
+
+                std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
+                #pragma omp atomic
+                totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        imageEndTime - imageStartTime).count() / 1000000.0;
+            }
+        }
+
+        std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
+        double durationMilliseconds =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() / 1000000.0;
+
+        std::cout << "Added file " << (fileIndex + 1) << "/" << fileEndIndex
+                  << ": " << archivePath
+                  << ", Duration: " << (durationMilliseconds / 1000.0) << "s"
+                  << ", Image count: " << images.imageCount << std::endl;
+
+        // Necessity to prevent libc from hogging all system memory
+        malloc_trim(0);
+
+        delete[] images.horizontallyIncreasingImages;
+        delete[] images.horizontallyDecreasingImages;
+    }
+
+    #pragma omp parallel for schedule(dynamic) collapse(2)
+    for(int col = 0; col < spinImageWidthPixels; col++) {
+        for (int row = 0; row < spinImageWidthPixels; row++) {
+            unsigned int possiblePatternLengthCount = spinImageWidthPixels - row;
+            for (int patternLength = 0; patternLength < possiblePatternLengthCount; patternLength++) {
+                std::cout << "\rClosing file streams.. "
+                             "column " + std::to_string(col) + "/64, "
+                             "row " + std::to_string(row) + "/64, "
+                             "pattern length " + std::to_string(patternLength) + "/" +
+                                  std::to_string(possiblePatternLengthCount) + "     " << std::flush;
+
+                // Flush output buffers and close file stream
+                outputBuffers.at(col).at(row).at(patternLength).close();
+            }
+
+            // Trim memory
+            malloc_trim(0);
+        }
+    }
+    std::cout << std::endl;
 
     // Final construction of the index
     Index index(indexDumpDirectory, &filesToIndex);

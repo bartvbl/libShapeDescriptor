@@ -149,7 +149,7 @@ void buildInitialPixelLists(
             #pragma omp critical
             {
                 // For each image, register pixels in dump file
-                #pragma omp parallel for
+                #pragma omp parallel for schedule(dynamic)
                 for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
                     printProgressBar(images.imageCount, previousDashCount, imageIndex);
                     std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();

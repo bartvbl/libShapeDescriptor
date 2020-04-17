@@ -237,7 +237,7 @@ void buildInitialPixelLists(
                     }
 
                     // Trim memory
-                    //malloc_trim(0);
+                    malloc_trim(0);
                 }
             }
             std::cout << std::endl;

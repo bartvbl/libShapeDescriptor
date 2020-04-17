@@ -165,7 +165,7 @@ void buildInitialPixelLists(
                     // Needed during querying to sort search results
                     unsigned short bitCount = 0;
                     for (unsigned int i : combinedImage) {
-                        bitCount += std::bitset<32>(i).size();
+                        bitCount += std::bitset<32>(i).count();
                     }
 
                     IndexEntry entry = {fileIndex, imageIndex, bitCount};

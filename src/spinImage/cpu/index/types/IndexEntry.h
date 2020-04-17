@@ -22,19 +22,20 @@ struct IndexEntry {
 
     // Default constructor to allow std::vector resizing
     IndexEntry() : fileIndex(0), imageIndex(0), remainingPixelCount(0) {}
+
+    bool operator< (const IndexEntry& rhs) {
+        if(remainingPixelCount != rhs.remainingPixelCount) {
+            return remainingPixelCount < rhs.remainingPixelCount;
+        }
+
+        if(fileIndex != rhs.fileIndex) {
+            return fileIndex < rhs.fileIndex;
+        }
+
+        if(imageIndex != rhs.imageIndex) {
+            return imageIndex < rhs.imageIndex;
+        }
+        return false;
+    }
 };
 
-bool indexEntryComparator(const IndexEntry& lhs, const IndexEntry& rhs) {
-    if(lhs.remainingPixelCount != rhs.remainingPixelCount) {
-        return lhs.remainingPixelCount < rhs.remainingPixelCount;
-    }
-
-    if(lhs.fileIndex != rhs.fileIndex) {
-        return lhs.fileIndex < rhs.fileIndex;
-    }
-
-    if(lhs.imageIndex != rhs.imageIndex) {
-        return lhs.imageIndex < rhs.imageIndex;
-    }
-    return false;
-}

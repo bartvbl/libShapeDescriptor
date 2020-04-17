@@ -139,21 +139,20 @@ void buildInitialPixelLists(
 
         // Cannot be parallel with a simple OpenMP pragma alone; files MUST be processed in order
         // Also, images MUST be inserted into output files in order
-#pragma omp parallel for schedule(dynamic)
+        #pragma omp parallel for schedule(dynamic)
         for (unsigned int fileIndex = fileStartIndex; fileIndex < fileEndIndex; fileIndex++) {
 
             // Reading image dump file
             std::experimental::filesystem::path archivePath = filesToIndex.at(fileIndex);
             SpinImage::cpu::QUICCIImages images = SpinImage::read::QUICCImagesFromDumpFile(archivePath);
 
-            double totalImageDurationMilliseconds = 0;
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
             int previousDashCount = -1;
 
-#pragma omp critical
+            #pragma omp critical
             {
                 // For each image, register pixels in dump file
-#pragma omp parallel for schedule(dynamic)
+                #pragma omp parallel for schedule(dynamic)
                 for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
                     printProgressBar(images.imageCount, previousDashCount, imageIndex);
                     std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
@@ -191,9 +190,7 @@ void buildInitialPixelLists(
                             } else if (previousPixelWasSet) {
                                 // Previous pixel was set, but this one is not
                                 // This is thus a pattern that ended here.
-                                outputBufferLocks.at(col).at(patternStartRow).lock();
                                 outputBuffers.at(col).at(patternStartRow).at(patternLength - 1).insert(entry);
-                                outputBufferLocks.at(col).at(patternStartRow).unlock();
                                 patternLength = 0;
                                 patternStartRow = 0;
                             }
@@ -202,16 +199,9 @@ void buildInitialPixelLists(
                         }
 
                         if (previousPixelWasSet) {
-                            outputBufferLocks.at(col).at(patternStartRow).lock();
                             outputBuffers.at(col).at(patternStartRow).at(patternLength - 1).insert(entry);
-                            outputBufferLocks.at(col).at(patternStartRow).unlock();
                         }
                     }
-
-                    std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
-#pragma omp atomic
-                    totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(
-                            imageEndTime - imageStartTime).count() / 1000000.0;
                 }
             }
 
@@ -225,7 +215,7 @@ void buildInitialPixelLists(
                       << ", Image count: " << images.imageCount << std::endl;
 
             // Necessity to prevent libc from hogging all system memory
-            malloc_trim(0);
+            //malloc_trim(0);
 
             delete[] images.horizontallyIncreasingImages;
             delete[] images.horizontallyDecreasingImages;

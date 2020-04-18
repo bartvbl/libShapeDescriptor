@@ -1,13 +1,13 @@
 #pragma once
 
 #include <spinImage/cpu/index/types/Index.h>
-#include <spinImage/cpu/index/types/IndexEntry.h>
+#include <spinImage/cpu/index/types/WeightedIndexEntry.h>
 #include <spinImage/cpu/types/QuiccImage.h>
 
 namespace SpinImage {
     namespace index {
         struct QueryResult {
-            IndexEntry entry;
+            WeightedIndexEntry entry;
             QuiccImage image;
         };
 

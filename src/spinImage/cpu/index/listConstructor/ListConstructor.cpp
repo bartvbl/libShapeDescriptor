@@ -1,7 +1,7 @@
 #include <spinImage/libraryBuildSettings.h>
 #include <iostream>
 #include <spinImage/utilities/compression/FileCompressionStream.h>
-#include <spinImage/cpu/index/types/IndexEntry.h>
+#include <spinImage/cpu/index/types/WeightedIndexEntry.h>
 #include <spinImage/utilities/fileutils.h>
 #include <malloc.h>
 #include <spinImage/cpu/types/QUICCIImages.h>
@@ -18,8 +18,8 @@ const unsigned int writeBufferSize = 32;
 struct OutputBuffer {
     size_t totalWrittenEntryCount = 0;
     unsigned int length = 0;
-    std::array<IndexEntry, writeBufferSize> buffer;
-    SpinImage::utilities::FileCompressionStream<IndexEntry, writeBufferSize> outStream;
+    std::array<WeightedIndexEntry, writeBufferSize> buffer;
+    SpinImage::utilities::FileCompressionStream<WeightedIndexEntry, writeBufferSize> outStream;
     std::fstream* fileStream;
     std::mutex* outStreamLock;
 
@@ -36,7 +36,7 @@ struct OutputBuffer {
         fileStream->write(reinterpret_cast<const char *>(&dummyValue), 8);
     }
 
-    void insert(IndexEntry &entry) {
+    void insert(WeightedIndexEntry &entry) {
         outStreamLock->lock();
 
         buffer.at(length) = entry;
@@ -165,10 +165,10 @@ void buildInitialPixelLists(
                     // Needed during querying to sort search results
                     unsigned short bitCount = 0;
                     for (unsigned int i : combinedImage) {
-                        bitCount += std::bitset<32>(i).size();
+                        bitCount += std::bitset<32>(i).count();
                     }
 
-                    IndexEntry entry = {fileIndex, imageIndex, bitCount};
+                    WeightedIndexEntry entry = {fileIndex, imageIndex, bitCount};
 
                     // Find and process set bit sequences
                     for (int col = startColumn; col < endColumn; col++) {

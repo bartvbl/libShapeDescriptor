@@ -10,6 +10,7 @@
 #include <fast-lzma2.h>
 #include <omp.h>
 #include <spinImage/cpu/index/listConstructor/ListConstructor.h>
+#include <spinImage/cpu/index/listConstructor/ListSorter.h>
 
 template<class Key, class T, class Ignore, class Allocator,
         class Hash = std::hash<Key>, class KeyEqual = std::equal_to<Key>,
@@ -85,7 +86,8 @@ void SpinImage::index::build(
     size_t endIndex = fileEndIndex == fileStartIndex ? filesInDirectory.size() : fileEndIndex;
 
     // Phase 1:
-    buildInitialPixelLists(quicciImageDumpDirectory, indexDumpDirectory, cacheNodeLimit, fileStartIndex, endIndex);
+    //buildInitialPixelLists(quicciImageDumpDirectory, indexDumpDirectory, cacheNodeLimit, fileStartIndex, endIndex);
+    sortListFiles(indexDumpDirectory);
 
     dumpStatisticsFile(constructionSettings, statisticsFileDumpLocation);
 }

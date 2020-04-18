@@ -1,21 +1,44 @@
 #include <queue>
 #include "IndexQueryer.h"
+#include "Pattern.h"
 #include <spinImage/cpu/index/types/BitCountMipmapStack.h>
 #include <algorithm>
-#include <spinImage/cpu/index/types/IndexPath.h>
 #include <set>
+#include <unordered_map>
+#include <spinImage/cpu/index/types/IndexEntry.h>
 
-struct SearchResultEntry {
-    SearchResultEntry(IndexEntry entry, const QuiccImage &imageEntry, std::string debug_nodeID, float minDistance)
-        : reference(entry), debug_indexPath(debug_nodeID), distanceScore(minDistance) {}
+struct Pattern {
+    unsigned int row;
+    unsigned int col;
+    unsigned int length;
+};
 
-    IndexEntry reference;
-    std::string debug_indexPath;
-    float distanceScore;
+struct ImageReference {
+    unsigned short matchingPixelCount;
+    IndexEntry entry;
+};
 
-    bool operator< (const SearchResultEntry &right) const {
-        return distanceScore < right.distanceScore;
+struct IndexEntryListBuffer {
+    //const float scorePenalty;
+    std::array<IndexEntry, 32> entryBuffer;
+    unsigned int entryBufferLength = 0;
+    unsigned int entryBufferPointer = 0;
+
+    /*IndexEntryListBuffer(Pattern pattern, std::experimental::filesystem::path indexRootDirectory) {
+
+    }*/
+
+    IndexEntry top() {
+
     }
+
+    void advance() {
+
+    }
+
+
+
+
 };
 
 float computeWeightedHammingDistance(const QuiccImage &needle, const BitCountMipmapStack &needleMipmapStack, const QuiccImage &haystack) {
@@ -44,12 +67,69 @@ float computeWeightedHammingDistance(const QuiccImage &needle, const BitCountMip
 }
 
 std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index, const QuiccImage &queryImage, unsigned int resultCount) {
-    BitCountMipmapStack queryImageBitCountMipmapStack(queryImage);
+    std::vector<Pattern> queryPatterns;
 
-    std::set<SearchResultEntry> currentSearchResults;
+    for (unsigned int col = 0; col < spinImageWidthPixels; col++) {
+        unsigned int patternLength = 0;
+        unsigned int patternStartRow = 0;
+        bool previousPixelWasSet = false;
 
-    // Root node path is not referenced, so can be left uninitialised
-    IndexPath rootNodePath;
+        for (unsigned int row = 0; row < spinImageWidthPixels; row++) {
+            int pixel = SpinImage::index::pattern::pixelAt(queryImage, row, col);
+            if (pixel == 1) {
+                if (previousPixelWasSet) {
+                    // Pattern turned out to be one pixel longer
+                    patternLength++;
+                } else {
+                    // We found a new pattern
+                    patternStartRow = row;
+                    patternLength = 1;
+                }
+            } else if (previousPixelWasSet) {
+                // Previous pixel was set, but this one is not
+                // This is thus a pattern that ended here.
+                queryPatterns.push_back({patternStartRow, col, patternLength});
+                patternLength = 0;
+                patternStartRow = 0;
+            }
+
+            previousPixelWasSet = pixel == 1;
+        }
+
+        if (previousPixelWasSet) {
+            queryPatterns.push_back({patternStartRow, col, patternLength});
+        }
+    }
+
+    for(const Pattern &pattern : queryPatterns) {
+        std::cout << "Pattern: " << pattern.col << ", " << pattern.row << ", length " << pattern.length << std::endl;
+    }
+
+    //std::vector<
+
+#pragma omp parallel
+    {
+        //std::vector<
+        for(int totalImagePixelCount = 1; totalImagePixelCount < spinImageWidthPixels * spinImageWidthPixels; totalImagePixelCount++) {
+            //unsigned int
+
+            // Step 1: Read chunks
+            /*#pragma omp for
+            for(IndexEntryListBuffer &patternBuffer : patternBuffers) {
+
+            }*/
+
+            // Step 2: Compute total number of entries
+
+            // Step 3: Copy entries into single list
+
+            // Step 4: Sort list
+
+            // Step 5: Merge images together into one entry
+
+
+        }
+    };
 
     std::cout << "Query finished" << std::endl;
 

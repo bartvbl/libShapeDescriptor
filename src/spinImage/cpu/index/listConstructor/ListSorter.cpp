@@ -112,7 +112,7 @@ void sortListFiles(std::experimental::filesystem::path &indexDumpDirectory) {
                     }
                     assert(headerBufferPointer - headerBuffer == decompressedHeaderBufferSize);
 
-                    size_t compressedHeaderSize = FL2_compress(
+                    unsigned short compressedHeaderSize = FL2_compress(
                         compressedHeaderBuffer, compressedHeaderBufferSize,
                         headerBuffer, decompressedHeaderBufferSize,
                         LZMA2_COMPRESSION_LEVEL);
@@ -121,7 +121,7 @@ void sortListFiles(std::experimental::filesystem::path &indexDumpDirectory) {
                     outStream.write(headerID, 5);
                     outStream.write(reinterpret_cast<const char *>(&indexEntryCount), sizeof(size_t));
                     outStream.write(reinterpret_cast<const char *>(&totalUniquePixelCount), sizeof(unsigned short));
-                    outStream.write(reinterpret_cast<const char *>(&compressedHeaderSize), sizeof(size_t));
+                    outStream.write(reinterpret_cast<const char *>(&compressedHeaderSize), sizeof(unsigned short));
                     outStream.write(reinterpret_cast<const char *>(&compressedFileSize), sizeof(size_t));
                     outStream.write(compressedHeaderBuffer, compressedHeaderSize);
                     outStream.write(compressedOutputBuffer, compressedFileSize);

@@ -104,9 +104,13 @@ void sortListFiles(std::experimental::filesystem::path &indexDumpDirectory) {
                     char* compressedHeaderBuffer = new char[compressedHeaderBufferSize];
 
                     char* headerBufferPointer = headerBuffer;
-                    size_t totalImagePixelCountSize = totalUniquePixelCount * sizeof(unsigned short);
-                    std::copy(totalImagePixelCounts.begin(), totalImagePixelCounts.end(), headerBuffer);
-                    std::copy(pixelCountOccurrenceCounts.begin(), pixelCountOccurrenceCounts.end(), headerBuffer + totalImagePixelCountSize);
+                    for(int i = 0; i < totalUniquePixelCount; i++) {
+                        *headerBufferPointer = totalImagePixelCounts.at(i);
+                        headerBufferPointer += sizeof(unsigned short);
+                        *headerBufferPointer = pixelCountOccurrenceCounts.at(i);
+                        headerBufferPointer += sizeof(unsigned int);
+                    }
+                    assert(headerBufferPointer - headerBuffer == decompressedHeaderBufferSize);
 
                     unsigned short compressedHeaderSize = FL2_compress(
                         compressedHeaderBuffer, compressedHeaderBufferSize,

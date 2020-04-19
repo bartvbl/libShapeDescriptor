@@ -6,45 +6,91 @@
 #include <set>
 #include <unordered_map>
 #include <spinImage/cpu/index/types/IndexEntry.h>
+#include <fstream>
+#include <fast-lzma2.h>
 
-struct Pattern {
+struct QueryPattern {
     unsigned int row;
     unsigned int col;
     unsigned int length;
 };
 
+struct HaystackPattern {
+    unsigned int row;
+    unsigned int col;
+    unsigned int length;
+    unsigned int overlapScore;
+};
+
+
+
 struct ImageReference {
-    unsigned short matchingPixelCount;
+    unsigned short matchingPixelCount = 0;
+    unsigned short totalImagePixelCount = 0;
     IndexEntry entry;
 };
 
+struct SearchResultImageReference {
+    float distanceScore = 0;
+    IndexEntry entry;
+};
+
+// We're interpreting raw bytes as this struct.
+// Need to disable padding bytes for that to work
+#pragma pack(push, 1)
+struct ListHeaderEntry {
+    unsigned short pixelCount;
+    unsigned int imageReferenceCount;
+};
+#pragma pack(pop)
+
 struct IndexEntryListBuffer {
-    //const float scorePenalty;
+    std::array<unsigned int, spinImageWidthPixels * spinImageWidthPixels> startIndices;
     std::array<IndexEntry, 32> entryBuffer;
     unsigned int entryBufferLength = 0;
     unsigned int entryBufferPointer = 0;
+    HaystackPattern pattern;
 
-    /*IndexEntryListBuffer(Pattern pattern, std::experimental::filesystem::path indexRootDirectory) {
+    void initialise(HaystackPattern haystackPattern, const std::experimental::filesystem::path &indexRootDirectory) {
+        std::experimental::filesystem::path patternListFile = indexRootDirectory / "sorted_lists" / std::to_string(pattern.col) / std::to_string(pattern.row) / ("list_" + std::to_string(pattern.length) + ".dat");
+        std::fstream listStream(patternListFile, std::ios::in | std::ios::binary);
 
-    }*/
+        pattern = haystackPattern;
 
-    IndexEntry top() {
+        char headerID[6] = {0, 0, 0, 0, 0, 0};
+        listStream.read(headerID, 5);
+        assert(std::string(headerID) == "PXLST");
 
+        size_t indexEntryCount = 0xCDCDCDCDCDCDCDCD;
+        unsigned short uniquePixelCountOccurrences = 0xCDCD;
+        unsigned short compressedHeaderSize = 0xCDCD;
+        size_t compressedBufferSize = 0xCDCDCDCDCDCDCDCD;
+
+        listStream.read(reinterpret_cast<char *>(&indexEntryCount), sizeof(size_t));
+        listStream.read(reinterpret_cast<char *>(&uniquePixelCountOccurrences), sizeof(unsigned short));
+        listStream.read(reinterpret_cast<char *>(&compressedHeaderSize), sizeof(unsigned short));
+        listStream.read(reinterpret_cast<char *>(&compressedBufferSize), sizeof(size_t));
+
+        ListHeaderEntry* decompressedHeader = new ListHeaderEntry[uniquePixelCountOccurrences];
+        char* compressedHeader = new char[compressedHeaderSize];
+        listStream.read(compressedHeader, compressedHeaderSize);
+
+        FL2_decompress(
+                decompressedHeader, uniquePixelCountOccurrences * sizeof(ListHeaderEntry),
+                compressedHeader, compressedHeaderSize);
+
+        delete[] compressedHeader;
+
+
+
+        delete[] decompressedHeader;
+
+        listStream.close();
     }
-
-    void advance() {
-
-    }
-
-
-
-
 };
 
-float computeWeightedHammingDistance(const QuiccImage &needle, const BitCountMipmapStack &needleMipmapStack, const QuiccImage &haystack) {
+std::pair<float, float> computePixelWeights(unsigned int queryImageSetBitCount) {
     const unsigned int bitsPerImage = spinImageWidthPixels * spinImageWidthPixels;
-    unsigned int queryImageSetBitCount = needleMipmapStack.level1[0] + needleMipmapStack.level1[1]
-            + needleMipmapStack.level1[2] + needleMipmapStack.level1[3];
     unsigned int queryImageUnsetBitCount = bitsPerImage - queryImageSetBitCount;
 
     // If any count is 0, bump it up to 1
@@ -55,20 +101,11 @@ float computeWeightedHammingDistance(const QuiccImage &needle, const BitCountMip
     float missedSetBitPenalty = float(bitsPerImage) / float(queryImageSetBitCount);
     float missedUnsetBitPenalty = float(bitsPerImage) / float(queryImageUnsetBitCount);
 
-    // Wherever pixels don't match, we apply a penalty for each of them
-    float score = 0;
-    for(int i = 0; i < needle.size(); i++) {
-        unsigned int wrongSetBitCount = std::bitset<32>((needle[i] ^ haystack[i]) & needle[i]).count();
-        unsigned int wrongUnsetBitCount = std::bitset<32>((~needle[i] ^ ~haystack[i]) & ~needle[i]).count();
-        score += float(wrongSetBitCount) * missedSetBitPenalty + float(wrongUnsetBitCount) * missedUnsetBitPenalty;
-    }
-
-    return score;
+    return {missedSetBitPenalty, missedUnsetBitPenalty};
 }
 
-std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index, const QuiccImage &queryImage, unsigned int resultCount) {
-    std::vector<Pattern> queryPatterns;
-
+void findQueryPatterns(const QuiccImage &queryImage, std::array<std::vector<QueryPattern>, spinImageWidthPixels> &queryPatterns, unsigned int* totalPixelCount) {
+    *totalPixelCount = 0;
     for (unsigned int col = 0; col < spinImageWidthPixels; col++) {
         unsigned int patternLength = 0;
         unsigned int patternStartRow = 0;
@@ -88,7 +125,8 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
             } else if (previousPixelWasSet) {
                 // Previous pixel was set, but this one is not
                 // This is thus a pattern that ended here.
-                queryPatterns.push_back({patternStartRow, col, patternLength});
+                queryPatterns.at(col).push_back({patternStartRow, col, patternLength});
+                *totalPixelCount += patternLength;
                 patternLength = 0;
                 patternStartRow = 0;
             }
@@ -97,39 +135,80 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
         }
 
         if (previousPixelWasSet) {
-            queryPatterns.push_back({patternStartRow, col, patternLength});
+            queryPatterns.at(col).push_back({patternStartRow, col, patternLength});
+            *totalPixelCount += patternLength;
         }
     }
+}
 
-    for(const Pattern &pattern : queryPatterns) {
-        std::cout << "Pattern: " << pattern.col << ", " << pattern.row << ", length " << pattern.length << std::endl;
+void findHaystackPatterns(std::array<std::vector<QueryPattern>, spinImageWidthPixels> &queryPatterns, std::vector<HaystackPattern> &haystackPatterns) {
+    for (unsigned int col = 0; col < spinImageWidthPixels; col++) {
+        for (unsigned int row = 0; row < spinImageWidthPixels; row++) {
+            unsigned int maxPatternLength = spinImageWidthPixels - row;
+            for(unsigned int patternLength = 0; patternLength < maxPatternLength; patternLength++) {
+                unsigned int overlapScore = 0;
+                unsigned int totalQueryLength = 0;
+
+                for(unsigned int queryPatternIndex = 0; queryPatternIndex < queryPatterns.at(col).size(); queryPatternIndex++) {
+                    QueryPattern queryPattern = queryPatterns.at(col).at(queryPatternIndex);
+                    unsigned int queryStartIndex = queryPattern.row;
+                    unsigned int queryEndIndex = queryPattern.row + queryPattern.length - 1;
+                    unsigned int haystackStartIndex = row;
+                    unsigned int haystackEndIndex = row + patternLength - 1;
+                    totalQueryLength += queryPattern.length;
+
+                    // No overlap
+                    if(queryEndIndex < haystackStartIndex || queryStartIndex > haystackEndIndex) {
+                        continue;
+                    }
+
+                    unsigned int overlapStart = std::max(queryStartIndex, haystackStartIndex);
+                    unsigned int overlapEnd = std::min(queryEndIndex, haystackEndIndex);
+
+                    overlapScore += overlapEnd - overlapStart + 1;
+                }
+
+                if(overlapScore != 0
+                /* IN CASE OF EMERGENCY UNCOMMENT THIS && overlapScore == totalQueryLength*/) {
+                    haystackPatterns.push_back({row, col, patternLength, overlapScore});
+                }
+            }
+        }
     }
+}
 
-    //std::vector<
+std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index, const QuiccImage &queryImage, unsigned int resultCount) {
+    std::array<std::vector<QueryPattern>, spinImageWidthPixels> queryPatterns;
+    std::vector<HaystackPattern> haystackPatterns;
+
+    unsigned int queryPixelCount = 0;
+    findQueryPatterns(queryImage, queryPatterns, &queryPixelCount);
+    findHaystackPatterns(queryPatterns, haystackPatterns);
+    std::cout << haystackPatterns.size() << " haystack patterns" << std::endl;
+
+    std::vector<IndexEntryListBuffer> patternBuffers;
+    patternBuffers.resize(haystackPatterns.size());
+
+    std::pair<float, float> combinedPixelWeights = computePixelWeights(queryPixelCount);
+    float missingSetPixelPenalty = combinedPixelWeights.first;
+    float missingUnsetPixelPenalty = combinedPixelWeights.second;
+    std::cout << "Pixel weights: " << missingSetPixelPenalty << "/missing set, " << missingUnsetPixelPenalty << "/missing unset" << std::endl;
+
+    std::set<SearchResultImageReference> results;
 
 #pragma omp parallel
     {
-        //std::vector<
+        #pragma omp for
+        for(unsigned int haystackPatternIndex = 0; haystackPatternIndex < haystackPatterns.size(); haystackPatternIndex++) {
+            patternBuffers.at(haystackPatternIndex).initialise(haystackPatterns.at(haystackPatternIndex), index.indexDirectory);
+        }
+
         for(int totalImagePixelCount = 1; totalImagePixelCount < spinImageWidthPixels * spinImageWidthPixels; totalImagePixelCount++) {
-            //unsigned int
 
-            // Step 1: Read chunks
-            /*#pragma omp for
-            for(IndexEntryListBuffer &patternBuffer : patternBuffers) {
-
-            }*/
-
-            // Step 2: Compute total number of entries
-
-            // Step 3: Copy entries into single list
-
-            // Step 4: Sort list
-
-            // Step 5: Merge images together into one entry
 
 
         }
-    };
+    }
 
     std::cout << "Query finished" << std::endl;
 
@@ -147,3 +226,4 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
 
     return queryResults;
 }
+

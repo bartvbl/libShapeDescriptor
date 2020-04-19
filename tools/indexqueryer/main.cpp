@@ -83,9 +83,9 @@ int main(int argc, const char** argv) {
     std::fill(imageBuffer.horizontallyIncreasingImages, imageBuffer.horizontallyIncreasingImages + resultCount, blankImage);
     std::fill(imageBuffer.horizontallyDecreasingImages, imageBuffer.horizontallyDecreasingImages + resultCount, blankImage);
 
-    for(int searchResult = 0; searchResult < resultCount; searchResult++) {
+    /*for(int searchResult = 0; searchResult < resultCount; searchResult++) {
         imageBuffer.horizontallyIncreasingImages[searchResult] = searchResults.at(searchResult).image;
     }
 
-    SpinImage::dump::descriptors(imageBuffer, "searchResults.png", 50);
+    SpinImage::dump::descriptors(imageBuffer, "searchResults.png", 50);*/
 }

@@ -20,7 +20,7 @@ struct IndexEntry {
     // Default constructor to allow std::vector resizing
     IndexEntry() : fileIndex(0), imageIndex(0) {}
 
-    bool operator< (const IndexEntry& rhs) {
+    bool operator< (const IndexEntry& rhs) const {
         if(fileIndex != rhs.fileIndex) {
             return fileIndex < rhs.fileIndex;
         }
@@ -30,6 +30,10 @@ struct IndexEntry {
         }
 
         return false;
+    }
+
+    bool operator==(const IndexEntry& other) const {
+        return fileIndex == other.fileIndex && imageIndex == other.imageIndex;
     }
 };
 

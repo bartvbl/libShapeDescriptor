@@ -6,6 +6,7 @@
 #include <fast-lzma2.h>
 #include <algorithm>
 #include <spinImage/cpu/index/types/IndexEntry.h>
+#include <spinImage/cpu/index/types/ListHeaderEntry.h>
 #include "ListSorter.h"
 
 void sortListFiles(std::experimental::filesystem::path &indexDumpDirectory) {
@@ -63,10 +64,8 @@ void sortListFiles(std::experimental::filesystem::path &indexDumpDirectory) {
 
                     std::vector<IndexEntry> sortedIndexEntryList;
                     sortedIndexEntryList.reserve(decompressedBuffer.size());
-                    std::vector<unsigned short> totalImagePixelCounts;
-                    totalImagePixelCounts.reserve(spinImageWidthPixels * spinImageWidthPixels);
-                    std::vector<unsigned int> pixelCountOccurrenceCounts;
-                    pixelCountOccurrenceCounts.reserve(spinImageWidthPixels * spinImageWidthPixels);
+                    std::vector<ListHeaderEntry> listHeader;
+                    listHeader.reserve(spinImageWidthPixels * spinImageWidthPixels);
 
                     // Shrinking the buffer by filtering out the total image pixel count
                     // Instead storing the information in a file header
@@ -75,8 +74,7 @@ void sortListFiles(std::experimental::filesystem::path &indexDumpDirectory) {
                     for(const auto &entry : decompressedBuffer) {
                         if(entry.remainingPixelCount != currentTotalPixelCount) {
                             if(currentImageTally > 0) {
-                                totalImagePixelCounts.push_back(currentTotalPixelCount);
-                                pixelCountOccurrenceCounts.push_back(currentImageTally);
+                                listHeader.push_back({(unsigned short) currentTotalPixelCount, currentImageTally});
                             }
                             currentTotalPixelCount = entry.remainingPixelCount;
                             currentImageTally = 0;
@@ -85,8 +83,7 @@ void sortListFiles(std::experimental::filesystem::path &indexDumpDirectory) {
                         sortedIndexEntryList.emplace_back(entry.fileIndex, entry.imageIndex);
                     }
                     if(currentImageTally > 0) {
-                        totalImagePixelCounts.push_back(currentTotalPixelCount);
-                        pixelCountOccurrenceCounts.push_back(currentImageTally);
+                        listHeader.push_back({(unsigned short) currentTotalPixelCount, currentImageTally});
                     }
 
                     size_t outputBufferSize = FL2_compressBound(indexEntryCount * sizeof(IndexEntry));
@@ -97,24 +94,14 @@ void sortListFiles(std::experimental::filesystem::path &indexDumpDirectory) {
                             (void *) sortedIndexEntryList.data(), indexEntryCount * sizeof(IndexEntry),
                             LZMA2_COMPRESSION_LEVEL);
 
-                    unsigned short totalUniquePixelCount = totalImagePixelCounts.size();
-                    size_t decompressedHeaderBufferSize = totalUniquePixelCount * (sizeof(unsigned int) + sizeof(unsigned short));
+                    unsigned short totalUniquePixelCount = listHeader.size();
+                    size_t decompressedHeaderBufferSize = totalUniquePixelCount * sizeof(ListHeaderEntry);
                     size_t compressedHeaderBufferSize = FL2_compressBound(decompressedHeaderBufferSize);
-                    char* headerBuffer = new char[decompressedHeaderBufferSize];
                     char* compressedHeaderBuffer = new char[compressedHeaderBufferSize];
-
-                    char* headerBufferPointer = headerBuffer;
-                    for(int i = 0; i < totalUniquePixelCount; i++) {
-                        *headerBufferPointer = totalImagePixelCounts.at(i);
-                        headerBufferPointer += sizeof(unsigned short);
-                        *headerBufferPointer = pixelCountOccurrenceCounts.at(i);
-                        headerBufferPointer += sizeof(unsigned int);
-                    }
-                    assert(headerBufferPointer - headerBuffer == decompressedHeaderBufferSize);
 
                     unsigned short compressedHeaderSize = FL2_compress(
                         compressedHeaderBuffer, compressedHeaderBufferSize,
-                        headerBuffer, decompressedHeaderBufferSize,
+                        listHeader.data(), decompressedHeaderBufferSize,
                         LZMA2_COMPRESSION_LEVEL);
 
                     std::fstream outStream(sortedListFile, std::ios::binary | std::ios::out);
@@ -128,7 +115,6 @@ void sortListFiles(std::experimental::filesystem::path &indexDumpDirectory) {
                     outStream.close();
 
                     delete[] compressedOutputBuffer;
-                    delete[] headerBuffer;
                     delete[] compressedHeaderBuffer;
                 }
             }

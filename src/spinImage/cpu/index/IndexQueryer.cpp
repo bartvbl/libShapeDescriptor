@@ -6,8 +6,12 @@
 #include <set>
 #include <unordered_map>
 #include <spinImage/cpu/index/types/IndexEntry.h>
+#include <spinImage/cpu/types/BoolArray.h>
 #include <fstream>
+#include <chrono>
+#include <thread>
 #include <fast-lzma2.h>
+#include <spinImage/cpu/index/types/ListHeaderEntry.h>
 
 struct QueryPattern {
     unsigned int row;
@@ -22,70 +26,117 @@ struct HaystackPattern {
     unsigned int overlapScore;
 };
 
-
-
-struct ImageReference {
+struct ReferenceMetadata {
     unsigned short matchingPixelCount = 0;
     unsigned short totalImagePixelCount = 0;
+};
+
+struct ImageReference {
+    union multipurpose {
+        ReferenceMetadata asMetadata;
+        float asDistanceScore = 0;
+
+        multipurpose() {}
+    } multipurpose;
     IndexEntry entry;
 };
+
+bool sortByImageIndexComparator(const ImageReference& lhs, const ImageReference& rhs) {
+    if(lhs.multipurpose.asMetadata.totalImagePixelCount != rhs.multipurpose.asMetadata.totalImagePixelCount) {
+        return lhs.multipurpose.asMetadata.totalImagePixelCount < rhs.multipurpose.asMetadata.totalImagePixelCount;
+    }
+
+    return lhs.entry < rhs.entry;
+}
+
+bool sortByDistanceScoreComparator (const ImageReference& lhs, const ImageReference& rhs) {
+    return lhs.multipurpose.asDistanceScore < rhs.multipurpose.asDistanceScore;
+}
 
 struct SearchResultImageReference {
     float distanceScore = 0;
     IndexEntry entry;
 };
 
-// We're interpreting raw bytes as this struct.
-// Need to disable padding bytes for that to work
-#pragma pack(push, 1)
-struct ListHeaderEntry {
-    unsigned short pixelCount;
-    unsigned int imageReferenceCount;
-};
-#pragma pack(pop)
-
 struct IndexEntryListBuffer {
-    std::array<unsigned int, spinImageWidthPixels * spinImageWidthPixels> startIndices;
-    std::array<IndexEntry, 32> entryBuffer;
-    unsigned int entryBufferLength = 0;
-    unsigned int entryBufferPointer = 0;
+    std::vector<ImageReference> sortedIndexEntryList;
     HaystackPattern pattern;
+    size_t copyBufferBaseIndex = 0;
 
     void initialise(HaystackPattern haystackPattern, const std::experimental::filesystem::path &indexRootDirectory) {
+        pattern = haystackPattern;
+
         std::experimental::filesystem::path patternListFile = indexRootDirectory / "sorted_lists" / std::to_string(pattern.col) / std::to_string(pattern.row) / ("list_" + std::to_string(pattern.length) + ".dat");
         std::fstream listStream(patternListFile, std::ios::in | std::ios::binary);
-
-        pattern = haystackPattern;
 
         char headerID[6] = {0, 0, 0, 0, 0, 0};
         listStream.read(headerID, 5);
         assert(std::string(headerID) == "PXLST");
 
         size_t indexEntryCount = 0xCDCDCDCDCDCDCDCD;
-        unsigned short uniquePixelCountOccurrences = 0xCDCD;
+        unsigned short headerEntryCount = 0xCDCD;
         unsigned short compressedHeaderSize = 0xCDCD;
         size_t compressedBufferSize = 0xCDCDCDCDCDCDCDCD;
 
         listStream.read(reinterpret_cast<char *>(&indexEntryCount), sizeof(size_t));
-        listStream.read(reinterpret_cast<char *>(&uniquePixelCountOccurrences), sizeof(unsigned short));
+        listStream.read(reinterpret_cast<char *>(&headerEntryCount), sizeof(unsigned short));
         listStream.read(reinterpret_cast<char *>(&compressedHeaderSize), sizeof(unsigned short));
         listStream.read(reinterpret_cast<char *>(&compressedBufferSize), sizeof(size_t));
 
-        ListHeaderEntry* decompressedHeader = new ListHeaderEntry[uniquePixelCountOccurrences];
-        char* compressedHeader = new char[compressedHeaderSize];
-        listStream.read(compressedHeader, compressedHeaderSize);
+        //std::cout << "Header: " + std::to_string(indexEntryCount) + ", " + std::to_string(headerEntryCount) + ", " + std::to_string(compressedHeaderSize) + ", " + std::to_string(compressedBufferSize) + " -> " + patternListFile.string() + "\n";
+
+        if(headerEntryCount == 0) {
+            // Nothing to be done if file is empty
+            listStream.close();
+            return;
+        }
+
+        // Read header
+
+        ListHeaderEntry* decompressedHeader = new ListHeaderEntry[headerEntryCount];
+        char* compressedBuffer = new char[std::max<size_t>(compressedHeaderSize, compressedBufferSize)];
+        listStream.read(compressedBuffer, compressedHeaderSize);
 
         FL2_decompress(
-                decompressedHeader, uniquePixelCountOccurrences * sizeof(ListHeaderEntry),
-                compressedHeader, compressedHeaderSize);
+                decompressedHeader, headerEntryCount * sizeof(ListHeaderEntry),
+                compressedBuffer, compressedHeaderSize);
 
-        delete[] compressedHeader;
+        // Read file contents
 
+        sortedIndexEntryList.resize(indexEntryCount);
 
+        std::vector<IndexEntry> indexEntryList;
+        indexEntryList.resize(indexEntryCount);
+
+        listStream.read(compressedBuffer, compressedBufferSize);
+        listStream.close();
+
+        FL2_decompress(
+                indexEntryList.data(), indexEntryCount * sizeof(IndexEntry),
+                compressedBuffer, compressedBufferSize);
+
+        delete[] compressedBuffer;
+
+        // Expand file contents
+
+        unsigned short currentPixelCount = 0;
+        unsigned short currentHeaderEntryIndex = 0;
+        unsigned int nextPixelCountIncrementIndex = decompressedHeader[0].imageReferenceCount;
+
+        for(unsigned int i = 0; i < indexEntryCount; i++) {
+            if(i >= nextPixelCountIncrementIndex) {
+                currentPixelCount = decompressedHeader[currentHeaderEntryIndex].pixelCount;
+                currentHeaderEntryIndex++;
+                nextPixelCountIncrementIndex += (currentHeaderEntryIndex == headerEntryCount ?
+                        spinImageWidthPixels * spinImageWidthPixels :
+                        decompressedHeader[currentHeaderEntryIndex].imageReferenceCount);
+            }
+            IndexEntry entry = indexEntryList.at(i);
+            sortedIndexEntryList.at(i).multipurpose.asMetadata = {(unsigned short) pattern.overlapScore, currentPixelCount};
+            sortedIndexEntryList.at(i).entry = entry;
+        }
 
         delete[] decompressedHeader;
-
-        listStream.close();
     }
 };
 
@@ -141,7 +192,7 @@ void findQueryPatterns(const QuiccImage &queryImage, std::array<std::vector<Quer
     }
 }
 
-void findHaystackPatterns(std::array<std::vector<QueryPattern>, spinImageWidthPixels> &queryPatterns, std::vector<HaystackPattern> &haystackPatterns) {
+void findHaystackPatterns(std::array<std::vector<QueryPattern>, spinImageWidthPixels> &queryPatterns, std::vector<HaystackPattern>* haystackPatterns) {
     for (unsigned int col = 0; col < spinImageWidthPixels; col++) {
         for (unsigned int row = 0; row < spinImageWidthPixels; row++) {
             unsigned int maxPatternLength = spinImageWidthPixels - row;
@@ -170,7 +221,7 @@ void findHaystackPatterns(std::array<std::vector<QueryPattern>, spinImageWidthPi
 
                 if(overlapScore != 0
                 /* IN CASE OF EMERGENCY UNCOMMENT THIS && overlapScore == totalQueryLength*/) {
-                    haystackPatterns.push_back({row, col, patternLength, overlapScore});
+                    haystackPatterns->push_back({row, col, patternLength, overlapScore});
                 }
             }
         }
@@ -178,51 +229,119 @@ void findHaystackPatterns(std::array<std::vector<QueryPattern>, spinImageWidthPi
 }
 
 std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index, const QuiccImage &queryImage, unsigned int resultCount) {
+    std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+
     std::array<std::vector<QueryPattern>, spinImageWidthPixels> queryPatterns;
     std::vector<HaystackPattern> haystackPatterns;
 
     unsigned int queryPixelCount = 0;
     findQueryPatterns(queryImage, queryPatterns, &queryPixelCount);
-    findHaystackPatterns(queryPatterns, haystackPatterns);
+    findHaystackPatterns(queryPatterns, &haystackPatterns);
     std::cout << haystackPatterns.size() << " haystack patterns" << std::endl;
-
-    std::vector<IndexEntryListBuffer> patternBuffers;
-    patternBuffers.resize(haystackPatterns.size());
 
     std::pair<float, float> combinedPixelWeights = computePixelWeights(queryPixelCount);
     float missingSetPixelPenalty = combinedPixelWeights.first;
     float missingUnsetPixelPenalty = combinedPixelWeights.second;
     std::cout << "Pixel weights: " << missingSetPixelPenalty << "/missing set, " << missingUnsetPixelPenalty << "/missing unset" << std::endl;
 
-    std::set<SearchResultImageReference> results;
+    // ----------------------------------------------------------
 
-#pragma omp parallel
-    {
-        #pragma omp for
+    std::cout << "Reading list files.. " << std::flush;
+    std::chrono::steady_clock::time_point listReadingStartTime = std::chrono::steady_clock::now();
+        std::vector<IndexEntryListBuffer> patternBuffers;
+        patternBuffers.resize(haystackPatterns.size());
+        #pragma omp parallel for schedule(dynamic)
         for(unsigned int haystackPatternIndex = 0; haystackPatternIndex < haystackPatterns.size(); haystackPatternIndex++) {
             patternBuffers.at(haystackPatternIndex).initialise(haystackPatterns.at(haystackPatternIndex), index.indexDirectory);
         }
+    std::chrono::steady_clock::time_point listReadingEndTime = std::chrono::steady_clock::now();
+    auto listReadingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(listReadingEndTime - listReadingStartTime);
+    std::cout << "duration: " << float(listReadingDuration.count()) / 1000.0f << " seconds" << std::endl;
 
-        for(int totalImagePixelCount = 1; totalImagePixelCount < spinImageWidthPixels * spinImageWidthPixels; totalImagePixelCount++) {
+    // ----------------------------------------------------------
 
-
-
-        }
+    std::cout << "Counting lists.." << std::endl;
+    size_t totalIndexEntryCount = 0;
+    for(unsigned int haystackPatternIndex = 0; haystackPatternIndex < haystackPatterns.size(); haystackPatternIndex++) {
+        patternBuffers.at(haystackPatternIndex).copyBufferBaseIndex = totalIndexEntryCount;
+        totalIndexEntryCount += patternBuffers.at(haystackPatternIndex).sortedIndexEntryList.size();
     }
 
-    std::cout << "Query finished" << std::endl;
+    // ----------------------------------------------------------
+
+    std::cout << "Copying buffers.. " << std::flush;
+    std::chrono::steady_clock::time_point bufferCopyStartTime = std::chrono::steady_clock::now();
+        std::vector<ImageReference> indexEntryList;
+        indexEntryList.resize(totalIndexEntryCount);
+        #pragma omp parallel for schedule(dynamic)
+        for(unsigned int haystackPatternIndex = 0; haystackPatternIndex < haystackPatterns.size(); haystackPatternIndex++) {
+            std::copy(patternBuffers.at(haystackPatternIndex).sortedIndexEntryList.begin(),
+                    patternBuffers.at(haystackPatternIndex).sortedIndexEntryList.end(),
+                    indexEntryList.begin() + patternBuffers.at(haystackPatternIndex).copyBufferBaseIndex);
+        }
+    std::chrono::steady_clock::time_point bufferCopyEndTime = std::chrono::steady_clock::now();
+    auto bufferCopyDuration = std::chrono::duration_cast<std::chrono::milliseconds>(bufferCopyEndTime - bufferCopyStartTime);
+    std::cout << "duration: " << float(bufferCopyDuration.count()) / 1000.0f << " seconds" << std::endl;
+
+    // ----------------------------------------------------------
+
+    // Sort by image reference
+    std::cout << "First sort.. " << std::flush;
+    std::chrono::steady_clock::time_point firstSortStartTime = std::chrono::steady_clock::now();
+        std::sort(indexEntryList.begin(), indexEntryList.end(), sortByImageIndexComparator);
+    std::chrono::steady_clock::time_point firstSortEndTime = std::chrono::steady_clock::now();
+    auto firstSortDuration = std::chrono::duration_cast<std::chrono::milliseconds>(firstSortEndTime - firstSortStartTime);
+    std::cout << "duration: " << float(firstSortDuration.count()) / 1000.0f << " seconds" << std::endl;
+
+    // ----------------------------------------------------------
+
+    std::cout << "Merging references.." << std::endl;
+    size_t targetMergeIndex = 0;
+    for(size_t sourceMergeIndex = 0; sourceMergeIndex < totalIndexEntryCount; sourceMergeIndex++) {
+        ImageReference mergedReference = indexEntryList.at(sourceMergeIndex);
+        // Merge next references until the end of the list or until the current reference index changes
+        while(sourceMergeIndex + 1 < totalIndexEntryCount &&
+            indexEntryList.at(sourceMergeIndex + 1).entry == mergedReference.entry) {
+            ImageReference nextReference = indexEntryList.at(sourceMergeIndex + 1);
+            mergedReference.multipurpose.asMetadata.matchingPixelCount += nextReference.multipurpose.asMetadata.matchingPixelCount;
+            sourceMergeIndex++;
+        }
+
+        unsigned int missingSetPixelCount = queryPixelCount - mergedReference.multipurpose.asMetadata.matchingPixelCount;
+        unsigned int missingUnsetPixelCount = mergedReference.multipurpose.asMetadata.totalImagePixelCount - mergedReference.multipurpose.asMetadata.matchingPixelCount;
+
+        float distanceScore =
+                float(missingSetPixelCount) * missingSetPixelPenalty +
+                float(missingUnsetPixelCount) * missingUnsetPixelPenalty;
+
+        mergedReference.multipurpose.asDistanceScore = distanceScore;
+
+        indexEntryList.at(targetMergeIndex) = mergedReference;
+        targetMergeIndex++;
+    }
+
+    // Throw away remainder
+    indexEntryList.resize(targetMergeIndex);
+
+    // Sort by distance score
+    std::cout << "Second sort.." << std::endl;
+    std::sort(indexEntryList.begin(), indexEntryList.end(), sortByDistanceScoreComparator);
+
+    std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    std::cout << std::endl << "Query complete. " << std::endl;
+    std::cout << "Total execution time: " << float(duration.count()) / 1000.0f << " seconds" << std::endl;
 
     std::vector<SpinImage::index::QueryResult> queryResults;
     queryResults.reserve(resultCount);
 
-    /*for(int i = 0; i < resultCount; i++) {
-        queryResults.push_back({currentSearchResults.at(i).reference, currentSearchResults.at(i).image});
-        std::cout << "Result " << i << ": "
-               "file " << currentSearchResults.at(i).reference.fileIndex <<
-               ", image " << currentSearchResults.at(i).reference.imageIndex <<
-               ", score " << currentSearchResults.at(i).distanceScore <<
-               ", path " << currentSearchResults.at(i).debug_indexPath << std::endl;
-    }*/
+    for(int i = 0; i < resultCount; i++) {
+        queryResults.push_back({indexEntryList.at(i).entry, indexEntryList.at(i).multipurpose.asDistanceScore});
+        std::cout << "Result " << i
+        << ": score " << indexEntryList.at(i).multipurpose.asDistanceScore
+        << ", file " << indexEntryList.at(i).entry.fileIndex
+        << ", image " << indexEntryList.at(i).entry.imageIndex << std::endl;
+    }
 
     return queryResults;
 }

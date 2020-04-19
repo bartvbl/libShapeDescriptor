@@ -62,6 +62,7 @@ struct IndexEntryListBuffer {
     std::vector<ImageReference> sortedIndexEntryList;
     HaystackPattern pattern;
     size_t copyBufferBaseIndex = 0;
+    size_t mergeBufferSize = 0;
 
     void initialise(HaystackPattern haystackPattern, const std::experimental::filesystem::path &indexRootDirectory) {
         pattern = haystackPattern;
@@ -263,8 +264,11 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
     std::cout << "Counting lists.." << std::endl;
     size_t totalIndexEntryCount = 0;
     for(unsigned int haystackPatternIndex = 0; haystackPatternIndex < haystackPatterns.size(); haystackPatternIndex++) {
+        size_t elementsInPatternList = patternBuffers.at(haystackPatternIndex).sortedIndexEntryList.size();
         patternBuffers.at(haystackPatternIndex).copyBufferBaseIndex = totalIndexEntryCount;
-        totalIndexEntryCount += patternBuffers.at(haystackPatternIndex).sortedIndexEntryList.size();
+        patternBuffers.at(haystackPatternIndex).mergeBufferSize = elementsInPatternList;
+        //std::cout << std::to_string(totalIndexEntryCount) + ", " + std::to_string(elementsInPatternList) + "\n";
+        totalIndexEntryCount += elementsInPatternList;
     }
 
     // ----------------------------------------------------------
@@ -288,7 +292,27 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
     // Sort by image reference
     std::cout << "First sort.. " << std::flush;
     std::chrono::steady_clock::time_point firstSortStartTime = std::chrono::steady_clock::now();
-        std::sort(indexEntryList.begin(), indexEntryList.end(), sortByImageIndexComparator);
+        for(unsigned int mergeDistance = 2; mergeDistance < 2 * patternBuffers.size(); mergeDistance *= 2) {
+            #pragma omp parallel for schedule(dynamic)
+            for(unsigned int haystackPatternIndex = 0; haystackPatternIndex < patternBuffers.size(); haystackPatternIndex += mergeDistance) {
+                unsigned int mergeListIndex = haystackPatternIndex + mergeDistance / 2;
+                if(mergeListIndex >= patternBuffers.size()) {
+                    continue;
+                }
+
+                size_t begin = patternBuffers.at(haystackPatternIndex).copyBufferBaseIndex;
+                size_t middle = begin + patternBuffers.at(haystackPatternIndex).mergeBufferSize;
+                size_t end = middle + patternBuffers.at(mergeListIndex).mergeBufferSize;
+
+                std::inplace_merge(
+                    indexEntryList.begin() + begin,
+                    indexEntryList.begin() + middle,
+                    indexEntryList.begin() + end,
+                    sortByImageIndexComparator);
+
+                patternBuffers.at(haystackPatternIndex).mergeBufferSize += patternBuffers.at(mergeListIndex).mergeBufferSize;
+            }
+        }
     std::chrono::steady_clock::time_point firstSortEndTime = std::chrono::steady_clock::now();
     auto firstSortDuration = std::chrono::duration_cast<std::chrono::milliseconds>(firstSortEndTime - firstSortStartTime);
     std::cout << "duration: " << float(firstSortDuration.count()) / 1000.0f << " seconds" << std::endl;

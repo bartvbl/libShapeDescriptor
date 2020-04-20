@@ -9,6 +9,7 @@
 #include <random>
 #include <spinImage/utilities/readers/quicciReader.h>
 #include <spinImage/cpu/index/types/BitCountMipmapStack.h>
+#include <spinImage/cpu/index/SequentialIndexQueryer.h>
 
 int main(int argc, const char** argv) {
     arrrgh::parser parser("benchmarkindex", "Compare the time for looking up a randomly selected image from a directory of QUICCI dump files relative to iterating over the entire index.");
@@ -70,12 +71,14 @@ int main(int argc, const char** argv) {
     std::cout << "Reading index metadata.." << std::endl;
     Index index = SpinImage::index::io::readIndex(indexDirectory.value());
 
-    const unsigned int resultCount = 500;
+    const unsigned int resultCount = 25;
 
     std::cout << "Querying index.." << std::endl;
     std::vector<SpinImage::index::QueryResult> searchResults = SpinImage::index::query(index, chosenQueryImage, resultCount);
 
     std::cout << "Querying dataset sequentially.." << std::endl;
+
+    std::vector<SpinImage::index::QueryResult> sequentialSearchResults = SpinImage::index::sequentialQuery(indexImageDirectory.value(), chosenQueryImage, resultCount, 0, 256);
 
     std::cout << "Dumping results.." << std::endl;
     SpinImage::cpu::QUICCIImages imageBuffer;
@@ -88,11 +91,11 @@ int main(int argc, const char** argv) {
     std::fill(imageBuffer.horizontallyIncreasingImages, imageBuffer.horizontallyIncreasingImages + resultCount, blankImage);
     std::fill(imageBuffer.horizontallyDecreasingImages, imageBuffer.horizontallyDecreasingImages + resultCount, blankImage);
 
-    for(int searchResult = 0; searchResult < resultCount; searchResult++) {
+    /*for(int searchResult = 0; searchResult < resultCount; searchResult++) {
         imageBuffer.horizontallyDecreasingImages[searchResult] = searchResults.at(searchResult).image;
     }
     imageBuffer.horizontallyIncreasingImages[0] = chosenQueryImage;
 
-    SpinImage::dump::descriptors(imageBuffer, "searchResults" + std::to_string(randomSeed) + ".png", 50);
+    SpinImage::dump::descriptors(imageBuffer, "searchResults" + std::to_string(randomSeed) + ".png", 50);*/
 
 }

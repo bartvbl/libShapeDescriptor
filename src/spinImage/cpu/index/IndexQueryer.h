@@ -9,6 +9,10 @@ namespace SpinImage {
         struct QueryResult {
             IndexEntry entry;
             float score;
+
+            bool operator<(const QueryResult &rhs) const {
+                return score < rhs.score;
+            }
         };
 
         std::vector<QueryResult> query(Index &index, const QuiccImage &queryImage, unsigned int resultCount);

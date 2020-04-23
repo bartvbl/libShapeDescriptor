@@ -120,17 +120,16 @@ struct IndexEntryListBuffer {
 
         // Expand file contents
 
-        unsigned short currentPixelCount = 0;
+        unsigned short currentPixelCount = decompressedHeader[0].pixelCount;
         unsigned short currentHeaderEntryIndex = 0;
         unsigned int nextPixelCountIncrementIndex = decompressedHeader[0].imageReferenceCount;
 
         for(unsigned int i = 0; i < indexEntryCount; i++) {
             if(i >= nextPixelCountIncrementIndex) {
-                currentPixelCount = decompressedHeader[currentHeaderEntryIndex].pixelCount;
                 currentHeaderEntryIndex++;
-                nextPixelCountIncrementIndex += (currentHeaderEntryIndex == headerEntryCount ?
-                        spinImageWidthPixels * spinImageWidthPixels :
-                        decompressedHeader[currentHeaderEntryIndex].imageReferenceCount);
+                assert(currentHeaderEntryIndex < headerEntryCount);
+                currentPixelCount = decompressedHeader[currentHeaderEntryIndex].pixelCount;
+                nextPixelCountIncrementIndex += decompressedHeader[currentHeaderEntryIndex].imageReferenceCount;
             }
             IndexEntry entry = indexEntryList.at(i);
             sortedIndexEntryList.at(i).multipurpose.asMetadata = {(unsigned short) pattern.overlapScore, currentPixelCount};

@@ -94,6 +94,7 @@ void sortListFiles(std::experimental::filesystem::path &indexDumpDirectory) {
                             (void *) sortedIndexEntryList.data(), indexEntryCount * sizeof(IndexEntry),
                             LZMA2_COMPRESSION_LEVEL);
 
+                    assert(listHeader.size() <= 4096);
                     unsigned short totalUniquePixelCount = listHeader.size();
                     size_t decompressedHeaderBufferSize = totalUniquePixelCount * sizeof(ListHeaderEntry);
                     size_t compressedHeaderBufferSize = FL2_compressBound(decompressedHeaderBufferSize);

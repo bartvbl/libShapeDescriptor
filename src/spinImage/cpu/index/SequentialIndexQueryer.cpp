@@ -98,5 +98,12 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::sequentialQuery(std
 
     std::vector<SpinImage::index::QueryResult> results(searchResults.begin(), searchResults.end());
 
+    for(int i = 0; i < resultCount; i++) {
+        std::cout << "Result " << i
+                  << ": score " << results.at(i).score
+                  << ", file " << results.at(i).entry.fileIndex
+                  << ", image " << results.at(i).entry.imageIndex << std::endl;
+    }
+
     return results;
 }

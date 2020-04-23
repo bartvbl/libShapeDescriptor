@@ -86,7 +86,7 @@ void SpinImage::index::build(
     size_t endIndex = fileEndIndex == fileStartIndex ? filesInDirectory.size() : fileEndIndex;
 
     // Phase 1:
-    //buildInitialPixelLists(quicciImageDumpDirectory, indexDumpDirectory, cacheNodeLimit, fileStartIndex, endIndex);
+    buildInitialPixelLists(quicciImageDumpDirectory, indexDumpDirectory, cacheNodeLimit, fileStartIndex, endIndex);
     sortListFiles(indexDumpDirectory);
 
     dumpStatisticsFile(constructionSettings, statisticsFileDumpLocation);

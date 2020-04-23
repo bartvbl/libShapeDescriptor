@@ -11,7 +11,11 @@ namespace SpinImage {
             float score;
 
             bool operator<(const QueryResult &rhs) const {
-                return score < rhs.score;
+                if(score != rhs.score) {
+                    return score < rhs.score;
+                }
+
+                return entry < rhs.entry;
             }
         };
 

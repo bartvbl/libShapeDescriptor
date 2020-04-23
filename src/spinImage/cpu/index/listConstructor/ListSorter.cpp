@@ -28,7 +28,7 @@ void sortListFiles(std::experimental::filesystem::path &indexDumpDirectory) {
 
                 unsigned int possiblePatternLengthCount = spinImageWidthPixels - row;
 
-                for (int patternLength = 0; patternLength < possiblePatternLengthCount; patternLength++) {
+                for (int patternLength = 1; patternLength <= possiblePatternLengthCount; patternLength++) {
                     std::string fileName = "list_" + std::to_string(patternLength) + ".dat";
                     std::experimental::filesystem::path unsortedListFile = unsortedListDirectory / fileName;
                     std::experimental::filesystem::path sortedListFile = sortedListDirectory / fileName;

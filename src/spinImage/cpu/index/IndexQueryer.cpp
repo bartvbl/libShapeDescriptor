@@ -196,7 +196,7 @@ void findHaystackPatterns(std::array<std::vector<QueryPattern>, spinImageWidthPi
     for (unsigned int col = 0; col < spinImageWidthPixels; col++) {
         for (unsigned int row = 0; row < spinImageWidthPixels; row++) {
             unsigned int maxPatternLength = spinImageWidthPixels - row;
-            for(unsigned int patternLength = 0; patternLength < maxPatternLength; patternLength++) {
+            for(unsigned int patternLength = 1; patternLength < maxPatternLength; patternLength++) {
                 unsigned int overlapScore = 0;
                 unsigned int totalQueryLength = 0;
 
@@ -320,12 +320,13 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
 
     std::cout << "Merging references.." << std::endl;
     size_t targetMergeIndex = 0;
-    for(size_t sourceMergeIndex = 0; sourceMergeIndex < totalIndexEntryCount; sourceMergeIndex++) {
+    for(size_t sourceMergeIndex = 0; sourceMergeIndex < totalIndexEntryCount;) {
         ImageReference mergedReference = indexEntryList.at(sourceMergeIndex);
+        sourceMergeIndex++;
         // Merge next references until the end of the list or until the current reference index changes
-        while(sourceMergeIndex + 1 < totalIndexEntryCount &&
-            indexEntryList.at(sourceMergeIndex + 1).entry == mergedReference.entry) {
-            ImageReference nextReference = indexEntryList.at(sourceMergeIndex + 1);
+        while(sourceMergeIndex < totalIndexEntryCount &&
+            indexEntryList.at(sourceMergeIndex).entry == mergedReference.entry) {
+            ImageReference nextReference = indexEntryList.at(sourceMergeIndex);
             mergedReference.multipurpose.asMetadata.matchingPixelCount += nextReference.multipurpose.asMetadata.matchingPixelCount;
             sourceMergeIndex++;
         }

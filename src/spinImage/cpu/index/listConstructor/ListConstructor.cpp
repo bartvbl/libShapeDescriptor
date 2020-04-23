@@ -127,7 +127,7 @@ void buildInitialPixelLists(
                               << "/64, pattern length " << patternLength << "/" << possiblePatternLengthCount << "     "
                               << std::flush;
 
-                    std::string fileName = "list_" + std::to_string(patternLength) + ".dat";
+                    std::string fileName = "list_" + std::to_string(patternLength + 1) + ".dat";
                     std::experimental::filesystem::path outputFile = outputDirectory / fileName;
                     outputBuffers.at(col).at(row).emplace_back(
                             new std::fstream(outputFile, std::ios::out | std::ios::binary));

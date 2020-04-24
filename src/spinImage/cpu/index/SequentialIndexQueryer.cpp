@@ -76,7 +76,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::sequentialQuery(std
                 if(distanceScore < currentScoreThreshold || searchResults.size() < resultCount) {
                     searchResultLock.lock();
                     IndexEntry entry = {fileIndex, imageIndex};
-                    searchResults.insert({entry, distanceScore});
+                    searchResults.insert({entry, distanceScore, combinedImage});
                     if(searchResults.size() > resultCount) {
                         // Remove worst search result
                         searchResults.erase(std::prev(searchResults.end()));

@@ -9,6 +9,7 @@ namespace SpinImage {
         struct QueryResult {
             IndexEntry entry;
             float score;
+            QuiccImage image;
 
             bool operator<(const QueryResult &rhs) const {
                 if(score != rhs.score) {

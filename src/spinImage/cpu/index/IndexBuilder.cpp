@@ -258,7 +258,7 @@ Index SpinImage::index::build(
                 #pragma omp atomic
                 totalImageDurationMilliseconds += std::chrono::duration_cast<std::chrono::nanoseconds>(imageEndTime - imageStartTime).count() / 1000000.0;
                 // Occasionally force frees memory such that memory does not accumulate too much over time
-                if(imageIndex % 25000 == 0) {
+                if(imageIndex % 500000 == 0) {
                     malloc_trim(0);
                 }
             }
@@ -286,7 +286,9 @@ Index SpinImage::index::build(
         };
 
         // Necessity to prevent libc from hogging all system memory
-        malloc_trim(0);
+        if(fileIndex % 50 == 49) {
+            malloc_trim(0);
+        }
 
         delete[] images.horizontallyIncreasingImages;
         delete[] images.horizontallyDecreasingImages;

@@ -79,24 +79,32 @@ IndexedFileStatistics gatherFileStatistics(
     unsigned long leafNodeCount = 0;
     unsigned long intermediateNodeCount = 0;
     unsigned long maximumImagesPerNode = 0;
-    for(CachedItem<std::string, NodeBlock> &block : cache->lruItemQueue) {
-        unsigned int entryCount = 0;
-        unsigned long nodeImageCount = 0;
-        for(int i = 0; i < NODES_PER_BLOCK; i++) {
-            const auto& entry = block.item->leafNodeContents.at(i);
-            entryCount += entry.capacity();
-            totalImageCount += entry.size();
-            nodeImageCount += entry.size();
-            maximumImageCount = std::max<unsigned long>(maximumImageCount, entry.size());
-            if(block.item->childNodeIsLeafNode[i]) {
-                leafNodeCount++;
-            } else {
-                intermediateNodeCount++;
+    #pragma omp parallel reduction(max:maximumImagesPerNode) reduction(+:leafNodeCount) reduction(+:intermediateNodeCount) reduction(+:totalCapacity) reduction(max:maximumImageCount)
+    #pragma omp single
+    {
+        for (CachedItem<std::string, NodeBlock> block : cache->lruItemQueue) {
+            #pragma omp task
+            {
+                unsigned int entryCount = 0;
+                unsigned long nodeImageCount = 0;
+                for (int i = 0; i < NODES_PER_BLOCK; i++) {
+                    const auto &entry = block.item->leafNodeContents.at(i);
+                    entryCount += entry.capacity();
+                    totalImageCount += entry.size();
+                    nodeImageCount += entry.size();
+                    maximumImageCount = std::max<unsigned long>(maximumImageCount, entry.size());
+                    if (block.item->childNodeIsLeafNode[i]) {
+                        leafNodeCount++;
+                    } else {
+                        intermediateNodeCount++;
+                    }
+                }
+                maximumImagesPerNode = std::max<unsigned long>(maximumImagesPerNode, nodeImageCount);
+                totalCapacity += entryCount;
             }
         }
-        maximumImagesPerNode = std::max<unsigned long>(maximumImagesPerNode, nodeImageCount);
-        totalCapacity += entryCount;
     }
+    #pragma omp taskwait
     std::cout << (double(totalImageCount*sizeof(NodeBlockEntry)) / double(1024*1024*1024)) << "GB/" << (double(totalCapacity*sizeof(NodeBlockEntry)) / double(1024*1024*1024)) << "GB (max " << maximumImageCount << ", max per node " << maximumImagesPerNode << ", average " << (double(totalCapacity) / double(leafNodeCount)) << ")" << std::endl;
 
     IndexedFileStatistics stats;

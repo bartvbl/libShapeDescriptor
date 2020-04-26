@@ -73,7 +73,7 @@ IndexedFileStatistics gatherFileStatistics(
         double totalExecutionTimeMilliseconds,
         size_t imageCount,
         const std::string &filePath) {
-    /*unsigned long totalCapacity = 0;
+    unsigned long totalCapacity = 0;
     unsigned long totalImageCount = 0;
     unsigned long maximumImageCount = 0;
     unsigned long leafNodeCount = 0;
@@ -97,7 +97,7 @@ IndexedFileStatistics gatherFileStatistics(
         maximumImagesPerNode = std::max<unsigned long>(maximumImagesPerNode, nodeImageCount);
         totalCapacity += entryCount;
     }
-    std::cout << (double(totalImageCount*sizeof(NodeBlockEntry)) / double(1024*1024*1024)) << "GB/" << (double(totalCapacity*sizeof(NodeBlockEntry)) / double(1024*1024*1024)) << "GB (max " << maximumImageCount << ", max per node " << maximumImagesPerNode << ", average " << (double(totalCapacity) / double(leafNodeCount)) << ")" << std::endl;*/
+    std::cout << (double(totalImageCount*sizeof(NodeBlockEntry)) / double(1024*1024*1024)) << "GB/" << (double(totalCapacity*sizeof(NodeBlockEntry)) / double(1024*1024*1024)) << "GB (max " << maximumImageCount << ", max per node " << maximumImagesPerNode << ", average " << (double(totalCapacity) / double(leafNodeCount)) << ")" << std::endl;
 
     IndexedFileStatistics stats;
     stats.filePath = filePath;
@@ -122,12 +122,12 @@ IndexedFileStatistics gatherFileStatistics(
     stats.totalWriteTimeMilliseconds = cache->nodeBlockStatistics.totalWriteTimeNanoseconds / 1000000.0;
     stats.totalSplitTimeMilliseconds = cache->nodeBlockStatistics.totalSplitTimeNanoseconds / 1000000.0;
 
-    /*stats.totalAllocatedImageCapacity = totalCapacity;
+    stats.totalAllocatedImageCapacity = totalCapacity;
     stats.totalCachedImageCount = totalImageCount;
     stats.cachedLeafNodeCount = leafNodeCount;
     stats.cachedIntermediateNodeCount = intermediateNodeCount;
     stats.maximumImagesPerNode = maximumImageCount;
-    stats.maximumImagesPerNodeBlock = maximumImagesPerNode;*/
+    stats.maximumImagesPerNodeBlock = maximumImagesPerNode;
 
     return stats;
 }

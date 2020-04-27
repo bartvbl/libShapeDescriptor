@@ -3,6 +3,7 @@
 #include "NodeBlockCache.h"
 #include <spinImage/cpu/index/types/BitCountMipmapStack.h>
 #include <algorithm>
+#include <fstream>
 
 struct UnvisitedNode {
     UnvisitedNode(IndexPath indexPath, std::string unvisitedNodeID, unsigned int minDistance, unsigned int nodeLevel)
@@ -86,7 +87,7 @@ void visitNode(
             computeMinDistanceThreshold(currentSearchResults);
 
 
-    std::cout << "\rVisiting node " << debug_visitedNodeCount << " -> " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes, " << searchResultScoreThreshold  << " vs " << closedNodeQueue.top().minDistanceScore << " - " << nodeID << std::flush;
+    //std::cout << "\rVisiting node " << debug_visitedNodeCount << " -> " << currentSearchResults.size() << " search results, " << closedNodeQueue.size() << " queued nodes, " << searchResultScoreThreshold  << " vs " << closedNodeQueue.top().minDistanceScore << " - " << nodeID << std::flush;
     for(int child = 0; child < NODES_PER_BLOCK; child++) {
         if(block->childNodeIsLeafNode[child]) {
             //std::cout << "Child " << child << " is leaf node!" << std::endl;
@@ -119,6 +120,8 @@ void visitNode(
 }
 
 std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index, const QuiccImage &queryImage, unsigned int resultCountLimit, unsigned int distanceLimit) {
+    std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+
     BitCountMipmapStack queryImageBitCountMipmapStack(queryImage);
 
     NodeBlockCache cache(100000, 2500000, index.indexDirectory, true);
@@ -132,6 +135,13 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
     IndexPath rootNodePath;
     closedNodeQueue.emplace(rootNodePath, "", 0, 0);
     debug_visitedNodeCount = 0;
+
+    std::array<double, spinImageWidthPixels * spinImageWidthPixels> executionTimesSeconds;
+    std::fill(executionTimesSeconds.begin(), executionTimesSeconds.end(), -1);
+
+    std::chrono::steady_clock::time_point queryStartTime = std::chrono::steady_clock::now();
+
+    std::cout << "Query in progress.." << std::endl;
 
     // Iteratively add additional nodes until there's no chance any additional node can improve the best distance score
     while(  !closedNodeQueue.empty() &&
@@ -152,6 +162,13 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
             currentSearchResults.erase(currentSearchResults.begin() + resultCountLimit, currentSearchResults.end());
         }
 
+        // Time measurement
+
+        std::chrono::steady_clock::time_point queryEndTime = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(queryEndTime - queryStartTime);
+        double timeUntilNow = double(duration.count()) / 1000000000.0;
+        executionTimesSeconds.at(closedNodeQueue.top().minDistanceScore) = timeUntilNow;
+
         /*std::cout << "Search results: ";
         for(int i = 0; i < currentSearchResults.size(); i++) {
             std::cout << currentSearchResults.at(i).distanceScore << ", ";
@@ -166,6 +183,11 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
 
     std::cout << "Query finished, " << computeMinDistanceThreshold(currentSearchResults) << " vs " << closedNodeQueue.top().minDistanceScore << std::endl;
 
+    std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    std::cout << std::endl << "Query complete. " << std::endl;
+    std::cout << "Total execution time: " << float(duration.count()) / 1000.0f << " seconds" << std::endl;
+
     std::vector<SpinImage::index::QueryResult> queryResults;
     queryResults.reserve(currentSearchResults.size());
 
@@ -177,6 +199,33 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
                ", score " << currentSearchResults.at(i).distanceScore <<
                ", path " << currentSearchResults.at(i).debug_indexPath << std::endl;
     }
+
+    time_t rawtime;
+    struct tm * timeinfo;
+    char buffer[80];
+
+    time (&rawtime);
+    timeinfo = localtime(&rawtime);
+
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H-%M-%S", timeinfo);
+
+    tm localTime;
+    std::chrono::system_clock::time_point t = std::chrono::system_clock::now();
+    time_t now = std::chrono::system_clock::to_time_t(t);
+    localtime_r(&now, &localTime);
+
+    const std::chrono::duration<double> tse = t.time_since_epoch();
+    std::chrono::seconds::rep milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(tse).count() % 1000;
+
+    std::string timeString = std::string(buffer) + "_" + std::to_string(milliseconds);
+
+    std::fstream timingFile("timings_" + timeString + ".txt", std::ios::out);
+    for(int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
+        if(executionTimesSeconds.at(i) != -1) {
+            timingFile << i << ": " << executionTimesSeconds.at(i) << std::endl;
+        }
+    }
+    timingFile.close();
 
     return queryResults;
 }

@@ -170,7 +170,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
     queryResults.reserve(currentSearchResults.size());
 
     for(int i = 0; i < currentSearchResults.size(); i++) {
-        queryResults.push_back({currentSearchResults.at(i).reference, currentSearchResults.at(i).image});
+        queryResults.push_back({currentSearchResults.at(i).reference, (float)currentSearchResults.at(i).distanceScore, currentSearchResults.at(i).image});
         std::cout << "Result " << i << ": "
                "file " << currentSearchResults.at(i).reference.fileIndex <<
                ", image " << currentSearchResults.at(i).reference.imageIndex <<

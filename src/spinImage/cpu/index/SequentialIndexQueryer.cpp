@@ -18,7 +18,7 @@ float computeWeightedHammingDistance(const QuiccImage &needle, const QuiccImage 
     return score;
 }
 
-std::vector<SpinImage::index::QueryResult> SpinImage::index::sequentialQuery(std::experimental::filesystem::path dumpDirectory, const QuiccImage &queryImage, unsigned int resultCount, unsigned int fileStartIndex, unsigned int fileEndIndex) {
+std::vector<SpinImage::index::QueryResult> SpinImage::index::sequentialQuery(std::experimental::filesystem::path dumpDirectory, const QuiccImage &queryImage, unsigned int resultCount, unsigned int fileStartIndex, unsigned int fileEndIndex, unsigned int threadCount, debug::QueryRunInfo* runInfo) {
     std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
     std::cout << "Listing files.." << std::endl;
@@ -28,11 +28,17 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::sequentialQuery(std
     omp_set_nested(1);
     std::mutex searchResultLock;
 
+    if(threadCount == 0) {
+        #pragma omp parallel
+        {
+            threadCount = omp_get_num_threads();
+        };
+    }
 
     std::set<SpinImage::index::QueryResult> searchResults;
     float currentScoreThreshold = std::numeric_limits<float>::max();
 
-    #pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for schedule(dynamic) num_threads(threadCount)
     for (unsigned int fileIndex = fileStartIndex; fileIndex < fileEndIndex; fileIndex++) {
 
         // Reading image dump file
@@ -73,11 +79,18 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::sequentialQuery(std
 
     std::vector<SpinImage::index::QueryResult> results(searchResults.begin(), searchResults.end());
 
-    for(int i = 0; i < resultCount; i++) {
+    /*for(int i = 0; i < resultCount; i++) {
         std::cout << "Result " << i
                   << ": score " << results.at(i).score
                   << ", file " << results.at(i).entry.fileIndex
                   << ", image " << results.at(i).entry.imageIndex << std::endl;
+    }*/
+
+    if(runInfo != nullptr) {
+        double queryTime = double(duration.count()) / 1000.0;
+        runInfo->totalQueryTime = queryTime;
+        runInfo->threadCount = threadCount;
+        std::fill(runInfo->distanceTimes.begin(), runInfo->distanceTimes.end(), queryTime);
     }
 
     return results;

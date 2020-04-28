@@ -20,8 +20,20 @@ namespace SpinImage {
             }
         };
 
+        namespace debug {
+            struct QueryRunInfo {
+                double totalQueryTime = -1;
+                unsigned int threadCount = 0;
+                std::array<double, spinImageWidthPixels * spinImageWidthPixels> distanceTimes;
+
+                QueryRunInfo() {
+                    std::fill(distanceTimes.begin(), distanceTimes.end(), -1);
+                }
+            };
+        }
+
         std::vector<QueryResult> query(Index &index, const QuiccImage &queryImage,
-                unsigned int resultCountLimit, unsigned int distanceLimit = std::numeric_limits<unsigned int>::max());
+                unsigned int resultCountLimit, debug::QueryRunInfo* runInfo = nullptr);
     }
 }
 

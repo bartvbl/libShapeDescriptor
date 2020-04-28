@@ -119,7 +119,7 @@ void visitNode(
     }
 }
 
-std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index, const QuiccImage &queryImage, unsigned int resultCountLimit, unsigned int distanceLimit) {
+std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index, const QuiccImage &queryImage, unsigned int resultCountLimit, debug::QueryRunInfo* runInfo) {
     std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
     BitCountMipmapStack queryImageBitCountMipmapStack(queryImage);
@@ -145,8 +145,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
 
     // Iteratively add additional nodes until there's no chance any additional node can improve the best distance score
     while(  !closedNodeQueue.empty() &&
-            computeMinDistanceThreshold(currentSearchResults) >= closedNodeQueue.top().minDistanceScore &&
-            closedNodeQueue.top().minDistanceScore <= distanceLimit) {
+            computeMinDistanceThreshold(currentSearchResults) >= closedNodeQueue.top().minDistanceScore) {
         UnvisitedNode nextBestUnvisitedNode = closedNodeQueue.top();
         closedNodeQueue.pop();
         const NodeBlock* block = cache.getNodeBlockByID(nextBestUnvisitedNode.nodeID);
@@ -191,41 +190,20 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::query(Index &index,
     std::vector<SpinImage::index::QueryResult> queryResults;
     queryResults.reserve(currentSearchResults.size());
 
-    for(int i = 0; i < currentSearchResults.size(); i++) {
+    /*for(int i = 0; i < currentSearchResults.size(); i++) {
         queryResults.push_back({currentSearchResults.at(i).reference, (float)currentSearchResults.at(i).distanceScore, currentSearchResults.at(i).image});
         std::cout << "Result " << i << ": "
                "file " << currentSearchResults.at(i).reference.fileIndex <<
                ", image " << currentSearchResults.at(i).reference.imageIndex <<
                ", score " << currentSearchResults.at(i).distanceScore <<
                ", path " << currentSearchResults.at(i).debug_indexPath << std::endl;
+    }*/
+
+    if(runInfo != nullptr) {
+        runInfo->totalQueryTime = double(duration.count()) / 1000.0;
+        runInfo->threadCount = 1;
+        runInfo->distanceTimes = executionTimesSeconds;
     }
-
-    time_t rawtime;
-    struct tm * timeinfo;
-    char buffer[80];
-
-    time (&rawtime);
-    timeinfo = localtime(&rawtime);
-
-    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H-%M-%S", timeinfo);
-
-    tm localTime;
-    std::chrono::system_clock::time_point t = std::chrono::system_clock::now();
-    time_t now = std::chrono::system_clock::to_time_t(t);
-    localtime_r(&now, &localTime);
-
-    const std::chrono::duration<double> tse = t.time_since_epoch();
-    std::chrono::seconds::rep milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(tse).count() % 1000;
-
-    std::string timeString = std::string(buffer) + "_" + std::to_string(milliseconds);
-
-    std::fstream timingFile("timings_" + timeString + ".txt", std::ios::out);
-    for(int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
-        if(executionTimesSeconds.at(i) != -1) {
-            timingFile << i << ": " << executionTimesSeconds.at(i) << std::endl;
-        }
-    }
-    timingFile.close();
 
     return queryResults;
 }

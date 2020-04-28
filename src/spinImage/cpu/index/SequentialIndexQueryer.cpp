@@ -6,6 +6,7 @@
 #include <set>
 #include <mutex>
 #include <iostream>
+#include <malloc.h>
 #include "SequentialIndexQueryer.h"
 
 float computeWeightedHammingDistance(const QuiccImage &needle, const QuiccImage &haystack) {
@@ -66,6 +67,13 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::sequentialQuery(std
                     }
                     searchResultLock.unlock();
                 }
+            }
+
+            delete images.horizontallyIncreasingImages;
+            delete images.horizontallyDecreasingImages;
+
+            if(fileIndex % 1000 == 0) {
+                malloc_trim(0);
             }
 
             std::cout << "\rProcessing of file " << fileIndex + 1 << "/" << fileEndIndex << " complete. Current best score: " << currentScoreThreshold << "            " << std::flush;

@@ -95,11 +95,11 @@ int main(int argc, const char** argv) {
 
     std::cout << "Querying dataset sequentially (1 thread).." << std::endl;
 
-    std::vector<SpinImage::index::QueryResult> sequentialSearchResults = SpinImage::index::sequentialQuery(indexImageDirectory.value(), chosenQueryImage, resultCount, 0, 256, 1, &sequentialSingleThreadedRunInfo);
+    std::vector<SpinImage::index::QueryResult> sequentialSearchResults = SpinImage::index::sequentialQuery(indexImageDirectory.value(), chosenQueryImage, resultCount, 0, 12500, 1, &sequentialSingleThreadedRunInfo);
 
     std::cout << "Querying dataset sequentially (lots of threads).." << std::endl;
 
-    std::vector<SpinImage::index::QueryResult> sequentialParallelSearchResults = SpinImage::index::sequentialQuery(indexImageDirectory.value(), chosenQueryImage, resultCount, 0, 256, 0, &sequentialParallelRunInfo);
+    std::vector<SpinImage::index::QueryResult> sequentialParallelSearchResults = SpinImage::index::sequentialQuery(indexImageDirectory.value(), chosenQueryImage, resultCount, 0, 12500, 0, &sequentialParallelRunInfo);
 
     std::cout << "Dumping results.." << std::endl;
     /*SpinImage::cpu::QUICCIImages imageBuffer;

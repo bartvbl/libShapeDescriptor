@@ -95,11 +95,11 @@ int main(int argc, const char** argv) {
 
     std::cout << "Querying dataset sequentially (1 thread).." << std::endl;
 
-    std::vector<SpinImage::index::QueryResult> sequentialSearchResults = SpinImage::index::sequentialQuery(indexImageDirectory.value(), chosenQueryImage, resultCount, 0, 12500, 1, &sequentialSingleThreadedRunInfo);
+    //std::vector<SpinImage::index::QueryResult> sequentialSearchResults = SpinImage::index::sequentialQuery(indexImageDirectory.value(), chosenQueryImage, resultCount, 0, 12500, 1, &sequentialSingleThreadedRunInfo);
 
     std::cout << "Querying dataset sequentially (lots of threads).." << std::endl;
 
-    std::vector<SpinImage::index::QueryResult> sequentialParallelSearchResults = SpinImage::index::sequentialQuery(indexImageDirectory.value(), chosenQueryImage, resultCount, 0, 12500, 0, &sequentialParallelRunInfo);
+    //std::vector<SpinImage::index::QueryResult> sequentialParallelSearchResults = SpinImage::index::sequentialQuery(indexImageDirectory.value(), chosenQueryImage, resultCount, 0, 12500, 0, &sequentialParallelRunInfo);
 
     std::cout << "Dumping results.." << std::endl;
     /*SpinImage::cpu::QUICCIImages imageBuffer;
@@ -141,7 +141,7 @@ int main(int argc, const char** argv) {
     outJson["indexedQueryResults"]["threadCount"] = indexedRunInfo.threadCount;
     outJson["indexedQueryResults"]["distanceTimes"] = indexedRunInfo.distanceTimes;
 
-    outJson["sequentialSerialResults"] = {};
+    /*outJson["sequentialSerialResults"] = {};
     outJson["sequentialSerialResults"]["queryTime"] = sequentialSingleThreadedRunInfo.totalQueryTime;
     outJson["sequentialSerialResults"]["threadCount"] = sequentialSingleThreadedRunInfo.threadCount;
     outJson["sequentialSerialResults"]["distanceTimes"] = sequentialSingleThreadedRunInfo.distanceTimes;
@@ -149,7 +149,7 @@ int main(int argc, const char** argv) {
     outJson["sequentialParallelResults"] = {};
     outJson["sequentialParallelResults"]["queryTime"] = sequentialParallelRunInfo.totalQueryTime;
     outJson["sequentialParallelResults"]["threadCount"] = sequentialParallelRunInfo.threadCount;
-    outJson["sequentialParallelResults"]["distanceTimes"] = sequentialParallelRunInfo.distanceTimes;
+    outJson["sequentialParallelResults"]["distanceTimes"] = sequentialParallelRunInfo.distanceTimes;*/
 
     std::ofstream outFile(jsonPath);
     outFile << outJson.dump(4);

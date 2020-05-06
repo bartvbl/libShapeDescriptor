@@ -91,7 +91,7 @@ int main(int argc, const char** argv) {
     const unsigned int resultCount = 750;
 
     std::cout << "Querying index.." << std::endl;
-    std::vector<SpinImage::index::QueryResult> searchResults = SpinImage::index::query(index, chosenQueryImage, resultCount, &indexedRunInfo);
+    //std::vector<SpinImage::index::QueryResult> searchResults = SpinImage::index::query(index, chosenQueryImage, resultCount, &indexedRunInfo);
 
     std::cout << "Querying dataset sequentially (1 thread).." << std::endl;
 
@@ -99,30 +99,30 @@ int main(int argc, const char** argv) {
 
     std::cout << "Querying dataset sequentially (lots of threads).." << std::endl;
 
-    //std::vector<SpinImage::index::QueryResult> sequentialParallelSearchResults = SpinImage::index::sequentialQuery(indexImageDirectory.value(), chosenQueryImage, resultCount, 0, 12500, 0, &sequentialParallelRunInfo);
+    std::vector<SpinImage::index::QueryResult> sequentialParallelSearchResults = SpinImage::index::sequentialQuery(indexImageDirectory.value(), chosenQueryImage, resultCount, 0, 1250, 0, &sequentialParallelRunInfo);
 
     std::cout << "Dumping results.." << std::endl;
-    /*SpinImage::cpu::QUICCIImages imageBuffer;
-    imageBuffer.horizontallyIncreasingImages = new QuiccImage[std::max<unsigned int>(searchResults.size(), 1)];
-    imageBuffer.horizontallyDecreasingImages = new QuiccImage[std::max<unsigned int>(searchResults.size(), 1)];
-    imageBuffer.imageCount = std::max<unsigned int>(searchResults.size(), 1);
+    SpinImage::cpu::QUICCIImages imageBuffer;
+    imageBuffer.horizontallyIncreasingImages = new QuiccImage[std::max<unsigned int>(sequentialParallelSearchResults.size(), 1)];
+    imageBuffer.horizontallyDecreasingImages = new QuiccImage[std::max<unsigned int>(sequentialParallelSearchResults.size(), 1)];
+    imageBuffer.imageCount = std::max<unsigned int>(sequentialParallelSearchResults.size(), 1);
 
     QuiccImage blankImage;
     std::fill(blankImage.begin(), blankImage.end(), 0);
     std::fill(imageBuffer.horizontallyIncreasingImages,
-              imageBuffer.horizontallyIncreasingImages + std::max<unsigned int>(searchResults.size(), 1),
+              imageBuffer.horizontallyIncreasingImages + std::max<unsigned int>(sequentialParallelSearchResults.size(), 1),
               blankImage);
     std::fill(imageBuffer.horizontallyDecreasingImages,
-              imageBuffer.horizontallyDecreasingImages + std::max<unsigned int>(searchResults.size(), 1),
+              imageBuffer.horizontallyDecreasingImages + std::max<unsigned int>(sequentialParallelSearchResults.size(), 1),
               blankImage);
 
-    for(int searchResult = 0; searchResult < searchResults.size(); searchResult++) {
-        imageBuffer.horizontallyDecreasingImages[searchResult] = searchResults.at(searchResult).image;
+    for(int searchResult = 0; searchResult < sequentialParallelSearchResults.size(); searchResult++) {
+        imageBuffer.horizontallyDecreasingImages[searchResult] = sequentialParallelSearchResults.at(searchResult).image;
     }
     imageBuffer.horizontallyIncreasingImages[0] = chosenQueryImage;
 
-    SpinImage::dump::descriptors(imageBuffer, "searchResults" + std::to_string(randomSeed) + ".png", 50);
-*/
+    SpinImage::dump::descriptors(imageBuffer, "searchResults_weighted_" + std::to_string(randomSeed) + ".png", 10);
+
 
     std::string jsonPath = "queryTimes_" + std::to_string(randomSeed) + ".json";
     json outJson;
@@ -151,7 +151,7 @@ int main(int argc, const char** argv) {
     outJson["sequentialParallelResults"]["threadCount"] = sequentialParallelRunInfo.threadCount;
     outJson["sequentialParallelResults"]["distanceTimes"] = sequentialParallelRunInfo.distanceTimes;*/
 
-    std::ofstream outFile(jsonPath);
-    outFile << outJson.dump(4);
-    outFile.close();
+    //std::ofstream outFile(jsonPath);
+    //outFile << outJson.dump(4);
+    //outFile.close();
 }

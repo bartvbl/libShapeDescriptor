@@ -9,7 +9,39 @@
 #include <malloc.h>
 #include "SequentialIndexQueryer.h"
 
-float computeWeightedHammingDistance(const QuiccImage &needle, const QuiccImage &haystack) {
+std::pair<float, float> computedWeightedHammingWeights(const QuiccImage &needle) {
+    unsigned int queryImageSetBitCount = 0;
+    for(unsigned int chunk : needle) {
+        queryImageSetBitCount += std::bitset<32>(chunk).count();
+    }
+
+    const unsigned int bitsPerImage = spinImageWidthPixels * spinImageWidthPixels;
+    unsigned int queryImageUnsetBitCount = bitsPerImage - queryImageSetBitCount;
+
+    // If any count is 0, bump it up to 1
+    queryImageSetBitCount = std::max<unsigned int>(queryImageSetBitCount, 1);
+    queryImageUnsetBitCount = std::max<unsigned int>(queryImageUnsetBitCount, 1);
+
+    // The fewer bits exist of a specific pixel type, the greater the penalty for not containing it
+    float missedSetBitPenalty = float(bitsPerImage) / float(queryImageSetBitCount);
+    float missedUnsetBitPenalty = float(bitsPerImage) / float(queryImageUnsetBitCount);
+
+    return {missedSetBitPenalty, missedUnsetBitPenalty};
+}
+
+float computeWeightedHammingDistance(const QuiccImage &needle, const QuiccImage &haystack, float missedSetBitPenalty, float missedUnsetBitPenalty) {
+    // Wherever pixels don't match, we apply a penalty for each of them
+    float score = 0;
+    for(int i = 0; i < needle.size(); i++) {
+        unsigned int wrongSetBitCount = std::bitset<32>((needle[i] ^ haystack[i]) & needle[i]).count();
+        unsigned int wrongUnsetBitCount = std::bitset<32>((~needle[i] ^ ~haystack[i]) & ~needle[i]).count();
+        score += float(wrongSetBitCount) * missedSetBitPenalty + float(wrongUnsetBitCount) * missedUnsetBitPenalty;
+    }
+
+    return score;
+}
+
+float computeHammingDistance(const QuiccImage &needle, const QuiccImage &haystack) {
     // Wherever pixels don't match, we apply a penalty for each of them
     float score = 0;
     for(int i = 0; i < needle.size(); i++) {
@@ -20,6 +52,8 @@ float computeWeightedHammingDistance(const QuiccImage &needle, const QuiccImage 
 }
 
 std::vector<SpinImage::index::QueryResult> SpinImage::index::sequentialQuery(std::experimental::filesystem::path dumpDirectory, const QuiccImage &queryImage, unsigned int resultCount, unsigned int fileStartIndex, unsigned int fileEndIndex, unsigned int threadCount, debug::QueryRunInfo* runInfo) {
+    std::pair<float, float> hammingWeights = computedWeightedHammingWeights(queryImage);
+
     std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
     std::cout << "Listing files.." << std::endl;
@@ -54,7 +88,8 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::sequentialQuery(std
                 QuiccImage combinedImage = combineQuiccImages(
                         images.horizontallyIncreasingImages[imageIndex],
                         images.horizontallyDecreasingImages[imageIndex]);
-                float distanceScore = computeWeightedHammingDistance(queryImage, combinedImage);
+                float distanceScore = computeWeightedHammingDistance(queryImage, combinedImage, hammingWeights.first, hammingWeights.second);
+                //float distanceScore = computeHammingDistance(queryImage, combinedImage);
                 if(distanceScore < currentScoreThreshold || searchResults.size() < resultCount) {
                     searchResultLock.lock();
                     IndexEntry entry = {fileIndex, imageIndex};

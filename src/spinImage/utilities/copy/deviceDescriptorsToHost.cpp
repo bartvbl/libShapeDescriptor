@@ -35,17 +35,12 @@ SpinImage::cpu::QUICCIImages SpinImage::copy::QUICCIDescriptorsToHost(SpinImage:
     size_t descriptorBufferSize = descriptorBufferLength * sizeof(QuiccImage);
 
     SpinImage::cpu::QUICCIImages host_descriptors;
-    host_descriptors.horizontallyIncreasingImages = new QuiccImage[descriptorBufferLength];
-    host_descriptors.horizontallyDecreasingImages = new QuiccImage[descriptorBufferLength];
+    host_descriptors.images = new QuiccImage[descriptorBufferLength];
     host_descriptors.imageCount = device_descriptors.imageCount;
 
     checkCudaErrors(cudaMemcpy(
-            host_descriptors.horizontallyIncreasingImages,
-            device_descriptors.horizontallyIncreasingImages,
-            descriptorBufferSize, cudaMemcpyDeviceToHost));
-    checkCudaErrors(cudaMemcpy(
-            host_descriptors.horizontallyDecreasingImages,
-            device_descriptors.horizontallyDecreasingImages,
+            host_descriptors.images,
+            device_descriptors.images,
             descriptorBufferSize, cudaMemcpyDeviceToHost));
 
     return host_descriptors;

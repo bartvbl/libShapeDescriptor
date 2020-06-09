@@ -111,7 +111,8 @@ int main(int argc, const char** argv) {
 
         SpinImage::dump::descriptors(host_images, outputFile.value(), imagesPerRow.value());
 
-        cudaFree(images.horizontallyIncreasingImages);
+        cudaFree(images.images);
+        delete[] host_images.images;
     } else {
         std::cerr << "Unrecognised image type: " << generationMode.value() << std::endl;
         std::cerr << "Should be either 'si', 'rici', or 'quicci'." << std::endl;

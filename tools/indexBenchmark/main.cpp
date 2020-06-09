@@ -79,9 +79,7 @@ int main(int argc, const char** argv) {
     SpinImage::cpu::QUICCIImages queryImages = SpinImage::read::QUICCImagesFromDumpFile(chosenQueryFilePath);
     std::uniform_int_distribution<size_t> queryImageDistribution(0, queryImages.imageCount);
     size_t chosenQueryImageIndex = queryImageDistribution(generator);
-    QuiccImage chosenQueryImage = combineQuiccImages(
-            queryImages.horizontallyIncreasingImages[chosenQueryImageIndex],
-            queryImages.horizontallyDecreasingImages[chosenQueryImageIndex]);
+    QuiccImage chosenQueryImage = queryImages.images[chosenQueryImageIndex];
     BitCountMipmapStack(chosenQueryImage).print();
     std::cout << "\tChose image " << chosenQueryImageIndex << "/" << queryImages.imageCount << " from selected image file." << std::endl;
 
@@ -103,23 +101,18 @@ int main(int argc, const char** argv) {
 
     std::cout << "Dumping results.." << std::endl;
     SpinImage::cpu::QUICCIImages imageBuffer;
-    imageBuffer.horizontallyIncreasingImages = new QuiccImage[std::max<unsigned int>(sequentialParallelSearchResults.size(), 1)];
-    imageBuffer.horizontallyDecreasingImages = new QuiccImage[std::max<unsigned int>(sequentialParallelSearchResults.size(), 1)];
+    imageBuffer.images = new QuiccImage[std::max<unsigned int>(sequentialParallelSearchResults.size(), 1)];
     imageBuffer.imageCount = std::max<unsigned int>(sequentialParallelSearchResults.size(), 1);
 
     QuiccImage blankImage;
     std::fill(blankImage.begin(), blankImage.end(), 0);
-    std::fill(imageBuffer.horizontallyIncreasingImages,
-              imageBuffer.horizontallyIncreasingImages + std::max<unsigned int>(sequentialParallelSearchResults.size(), 1),
-              blankImage);
-    std::fill(imageBuffer.horizontallyDecreasingImages,
-              imageBuffer.horizontallyDecreasingImages + std::max<unsigned int>(sequentialParallelSearchResults.size(), 1),
+    std::fill(imageBuffer.images, imageBuffer.images + std::max<unsigned int>(sequentialParallelSearchResults.size(), 1),
               blankImage);
 
     for(int searchResult = 0; searchResult < sequentialParallelSearchResults.size(); searchResult++) {
-        imageBuffer.horizontallyDecreasingImages[searchResult] = sequentialParallelSearchResults.at(searchResult).image;
+        imageBuffer.images[searchResult] = sequentialParallelSearchResults.at(searchResult).image;
     }
-    imageBuffer.horizontallyIncreasingImages[0] = chosenQueryImage;
+    //imageBuffer.images[0] = chosenQueryImage;
 
     SpinImage::dump::descriptors(imageBuffer, "searchResults_weighted_" + std::to_string(randomSeed) + ".png", 10);
 

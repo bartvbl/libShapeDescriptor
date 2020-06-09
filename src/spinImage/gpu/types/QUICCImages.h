@@ -5,8 +5,7 @@
 namespace SpinImage {
     namespace gpu {
         struct QUICCIImages {
-            unsigned int* horizontallyIncreasingImages;
-            unsigned int* horizontallyDecreasingImages;
+            unsigned int* images;
             size_t imageCount;
         };
     }

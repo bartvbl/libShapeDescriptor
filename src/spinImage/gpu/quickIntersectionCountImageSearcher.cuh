@@ -12,12 +12,6 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        array<QUICCISearchResults> findQUICCImagesInHaystack(
-                SpinImage::gpu::QUICCIImages device_needleDescriptors,
-                size_t needleImageCount,
-                SpinImage::gpu::QUICCIImages device_haystackDescriptors,
-                size_t haystackImageCount);
-
         array<unsigned int> computeQUICCImageSearchResultRanks(
                 SpinImage::gpu::QUICCIImages device_needleDescriptors,
                 size_t needleImageCount,

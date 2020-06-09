@@ -18,10 +18,8 @@ void SpinImage::dump::raw::descriptors(
     outFileBuffer[4] = 0;
     *reinterpret_cast<size_t*>(outFileBuffer + 5) = images.imageCount;
     *reinterpret_cast<unsigned int*>(outFileBuffer + 5 + sizeof(size_t)) = imageWidthPixels;
-    std::copy(images.horizontallyIncreasingImages, images.horizontallyIncreasingImages + images.imageCount,
+    std::copy(images.images, images.images + images.imageCount,
             reinterpret_cast<QuiccImage*>(outFileBuffer + 5 + sizeof(size_t) + sizeof(unsigned int)));
-    std::copy(images.horizontallyDecreasingImages, images.horizontallyDecreasingImages + images.imageCount,
-            reinterpret_cast<QuiccImage*>(outFileBuffer + 5 + sizeof(size_t) + sizeof(unsigned int) + imageBlockSize));
 
     SpinImage::utilities::writeCompressedFile(outFileBuffer, outFileBufferSize, outputDumpFile);
     

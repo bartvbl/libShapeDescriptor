@@ -382,16 +382,13 @@ __device__ void writeQUICCImage(
 
             int imageDelta = int(currentNeedlePixelValue) - int(previousNeedlePixelValue);
 
-            bool isDeltaIncreasing = imageDelta > 0;
-            bool isDeltaDecreasing = imageDelta < 0;
+            bool didIntersectionCountsChange = imageDelta != 0;
 
-            unsigned int increasingCompressed = __brev(__ballot_sync(0xFFFFFFFF, isDeltaIncreasing));
-            unsigned int decreasingCompressed = __brev(__ballot_sync(0xFFFFFFFF, isDeltaDecreasing));
+            unsigned int changeOccurredCombined = __brev(__ballot_sync(0xFFFFFFFF, didIntersectionCountsChange));
 
             if(laneIndex == 0) {
                 size_t chunkIndex = (blockIdx.x * unsignedIntegersPerImage) + (row * (spinImageWidthPixels / 32)) + (pixel / 32);
-                descriptorArray[chunkIndex] = increasingCompressed;
-                (descriptorArray + gridDim.x * unsignedIntegersPerImage)[chunkIndex] = decreasingCompressed;
+                descriptorArray[chunkIndex] = changeOccurredCombined;
             }
 
             // This only matters for thread 31, so no need to broadcast it using a shuffle instruction
@@ -600,14 +597,10 @@ SpinImage::gpu::QUICCIImages SpinImage::gpu::generateQUICCImages(
     size_t imageSequenceSize = imageCount * unsignedIntegersPerImage * sizeof(unsigned int);
 
     unsigned int* device_descriptors;
-    checkCudaErrors(cudaMalloc(&device_descriptors, 2 * imageSequenceSize));
-
-    unsigned int* device_horizontallyIncreasingImages = device_descriptors;
-    unsigned int* device_horizontallyDecreasingImages = device_descriptors + imageCount * unsignedIntegersPerImage;
+    checkCudaErrors(cudaMalloc(&device_descriptors, imageSequenceSize));
 
     SpinImage::gpu::QUICCIImages descriptors;
-    descriptors.horizontallyIncreasingImages = device_horizontallyIncreasingImages;
-    descriptors.horizontallyDecreasingImages = device_horizontallyDecreasingImages;
+    descriptors.images = device_descriptors;
     descriptors.imageCount = imageCount;
 
     // -- Descriptor Generation --

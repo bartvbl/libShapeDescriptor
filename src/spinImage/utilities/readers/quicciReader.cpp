@@ -27,18 +27,12 @@ SpinImage::cpu::QUICCIImages readImageLZFile(const std::experimental::filesystem
 
     SpinImage::cpu::QUICCIImages images;
     images.imageCount = imageCount;
-    images.horizontallyIncreasingImages = new QuiccImage[imageCount];
-    images.horizontallyDecreasingImages = new QuiccImage[imageCount];
+    images.images = new QuiccImage[imageCount];
 
-    const QuiccImage* horizontallyIncreasingBasePointer
+    const QuiccImage* imagesBasePointer
         = reinterpret_cast<const QuiccImage*>(inputBuffer + 4 + sizeof(size_t) + sizeof(unsigned int));
-    const QuiccImage* horizontallyDecreasingBasePointer
-        = reinterpret_cast<const QuiccImage*>(inputBuffer + 4 + sizeof(size_t) + sizeof(unsigned int) + imageCount * sizeof(QuiccImage));
 
-    std::copy(horizontallyIncreasingBasePointer, horizontallyIncreasingBasePointer + imageCount,
-            images.horizontallyIncreasingImages);
-    std::copy(horizontallyDecreasingBasePointer, horizontallyDecreasingBasePointer + imageCount,
-            images.horizontallyDecreasingImages);
+    std::copy(imagesBasePointer, imagesBasePointer + imageCount, images.images);
 
     delete[] inputBuffer;
     return images;

@@ -159,7 +159,7 @@ void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, 
 	size_t rowRemainder = hostDescriptors.imageCount % imagesPerRow;
 	size_t fillerImageCount = (rowRemainder == 0) ? imagesPerRow : (imagesPerRow - rowRemainder);
 
-	size_t totalImageCount = (2 * hostDescriptors.imageCount) + fillerImageCount;
+	size_t totalImageCount = hostDescriptors.imageCount + fillerImageCount;
 
 	const size_t pixelsPerImage = spinImageWidthPixels * spinImageWidthPixels;
 
@@ -173,11 +173,9 @@ void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, 
 
 	size_t pixelIndex = 0;
 
-
-
 	for(unsigned int imageIndex = 0; imageIndex < hostDescriptors.imageCount; imageIndex++) {
 	    for(unsigned int chunkIndex = 0; chunkIndex < UINTS_PER_QUICCI; chunkIndex++) {
-            unsigned int chunk = hostDescriptors.horizontallyIncreasingImages[imageIndex][chunkIndex];
+            unsigned int chunk = hostDescriptors.images[imageIndex][chunkIndex];
             std::bitset<32> entryBits(chunk);
             for(char bit = 0; bit < 32; bit++) {
                 decompressedDesciptors.content[pixelIndex] = unsigned(int(entryBits[31 - bit]) * 255);
@@ -190,17 +188,6 @@ void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, 
 		decompressedDesciptors.content[pixelIndex] = UINT32_MAX;
 		pixelIndex++;
 	}
-
-    for(unsigned int imageIndex = 0; imageIndex < hostDescriptors.imageCount; imageIndex++) {
-        for (unsigned int chunkIndex = 0; chunkIndex < UINTS_PER_QUICCI; chunkIndex++) {
-            unsigned int chunk = hostDescriptors.horizontallyDecreasingImages[imageIndex][chunkIndex];
-            std::bitset<32> entryBits(chunk);
-            for (char bit = 0; bit < 32; bit++) {
-                decompressedDesciptors.content[pixelIndex] = unsigned(int(entryBits[31 - bit]) * 255);
-                pixelIndex++;
-            }
-        }
-    }
 
     performSpinDump<unsigned int>(decompressedDesciptors, imageDestinationFile, false, imagesPerRow);
 

@@ -258,9 +258,7 @@ Index SpinImage::index::build(
                     std::cout << progressBar.str() << std::flush;
                 }
                 std::chrono::steady_clock::time_point imageStartTime = std::chrono::steady_clock::now();
-                QuiccImage combined = combineQuiccImages(
-                        images.horizontallyIncreasingImages[imageIndex],
-                        images.horizontallyDecreasingImages[imageIndex]);
+                QuiccImage combined = images.images[imageIndex];
                 IndexEntry entry = {fileIndex, imageIndex};
                 cache.insertImage(combined, entry);
                 std::chrono::steady_clock::time_point imageEndTime = std::chrono::steady_clock::now();
@@ -299,8 +297,7 @@ Index SpinImage::index::build(
             malloc_trim(0);
         }
 
-        delete[] images.horizontallyIncreasingImages;
-        delete[] images.horizontallyDecreasingImages;
+        delete[] images.images;
     }
 
     // Ensuring all changes are written to disk

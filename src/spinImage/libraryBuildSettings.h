@@ -50,7 +50,11 @@ typedef unsigned int IndexImageID;
 const unsigned int NODES_PER_BLOCK = 4097;
 const unsigned int NODE_SPLIT_THRESHOLD = 256;
 
-
+// Select distance function to use for comparing QUICCI images
+// (uncomment one of three)
+//#define QUICCI_DISTANCE_FUNCTION CLUTTER_RESISTANT_DISTANCE
+//#define QUICCI_DISTANCE_FUNCTION HAMMING_DISTANCE
+#define QUICCI_DISTANCE_FUNCTION WEIGHTED_HAMMING_DISTANCE
 
 
 #include <spinImage/common/buildSettings/derivedBuildSettings.h>

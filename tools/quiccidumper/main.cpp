@@ -68,7 +68,7 @@ int main(int argc, const char** argv) {
 
     SpinImage::gpu::freeMesh(deviceMesh);
     cudaFree(uniqueVertices.content);
-    cudaFree(images.horizontallyIncreasingImages);
+    cudaFree(images.images);
 
 }
 

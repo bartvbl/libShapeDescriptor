@@ -85,9 +85,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::sequentialQuery(std
             // For each image, register pixels in dump file
             #pragma omp parallel for schedule(dynamic)
             for (IndexImageID imageIndex = 0; imageIndex < images.imageCount; imageIndex++) {
-                QuiccImage combinedImage = combineQuiccImages(
-                        images.horizontallyIncreasingImages[imageIndex],
-                        images.horizontallyDecreasingImages[imageIndex]);
+                QuiccImage combinedImage = images.images[imageIndex];
                 float distanceScore = computeWeightedHammingDistance(queryImage, combinedImage, hammingWeights.first, hammingWeights.second);
                 //float distanceScore = computeHammingDistance(queryImage, combinedImage);
                 if(distanceScore < currentScoreThreshold || searchResults.size() < resultCount) {
@@ -104,8 +102,7 @@ std::vector<SpinImage::index::QueryResult> SpinImage::index::sequentialQuery(std
                 }
             }
 
-            delete images.horizontallyIncreasingImages;
-            delete images.horizontallyDecreasingImages;
+            delete images.images;
 
             if(fileIndex % 1000 == 0) {
                 malloc_trim(0);

@@ -74,21 +74,15 @@ int main(int argc, const char** argv) {
 
     std::cout << "Dumping results.." << std::endl;
     SpinImage::cpu::QUICCIImages imageBuffer;
-    imageBuffer.horizontallyIncreasingImages = new QuiccImage[std::max<unsigned int>(searchResults.size(), 1)];
-    imageBuffer.horizontallyDecreasingImages = new QuiccImage[std::max<unsigned int>(searchResults.size(), 1)];
+    imageBuffer.images = new QuiccImage[std::max<unsigned int>(searchResults.size(), 1)];
     imageBuffer.imageCount = std::max<unsigned int>(searchResults.size(), 1);
 
     QuiccImage blankImage;
     std::fill(blankImage.begin(), blankImage.end(), 0);
-    std::fill(imageBuffer.horizontallyIncreasingImages,
-              imageBuffer.horizontallyIncreasingImages + std::max<unsigned int>(searchResults.size(), 1),
-                  blankImage);
-    std::fill(imageBuffer.horizontallyDecreasingImages,
-              imageBuffer.horizontallyDecreasingImages + std::max<unsigned int>(searchResults.size(), 1),
-                  blankImage);
+    std::fill(imageBuffer.images, imageBuffer.images + std::max<unsigned int>(searchResults.size(), 1), blankImage);
 
     for(int searchResult = 0; searchResult < searchResults.size(); searchResult++) {
-        imageBuffer.horizontallyIncreasingImages[searchResult] = searchResults.at(searchResult).image;
+        imageBuffer.images[searchResult] = searchResults.at(searchResult).image;
     }
 
     SpinImage::dump::descriptors(imageBuffer, "searchResults.png", 50);

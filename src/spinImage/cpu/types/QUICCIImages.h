@@ -8,8 +8,7 @@
 namespace SpinImage {
     namespace cpu {
         struct QUICCIImages {
-            QuiccImage* horizontallyIncreasingImages;
-            QuiccImage* horizontallyDecreasingImages;
+            QuiccImage* images;
             size_t imageCount;
         };
     }

@@ -3,6 +3,7 @@
 #include <vector>
 #include <nvidia/helper_cuda.h>
 #include <cassert>
+#include <spinImage/utilities/copy/deviceMeshToHost.h>
 
 __host__ __device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInBytes) {
     return (sizeInBytes + 127u) & ~((size_t) 127);
@@ -86,6 +87,10 @@ SpinImage::array<signed long long> SpinImage::utilities::computeUniqueIndexMappi
     bool* temp_duplicateVertices = new bool[sceneVertexCount];
     checkCudaErrors(cudaMemcpy(temp_duplicateVertices, device_duplicateVertices, boxScene.vertexCount * sizeof(bool), cudaMemcpyDeviceToHost));
 
+    std::fstream tempOutFile("DEBUG_duplicates_" + std::to_string(boxScene.vertexCount) + ".txt", std::ios::out);
+
+    SpinImage::cpu::Mesh temp_host_boxScene = SpinImage::copy::deviceMeshToHost(boxScene);
+
     size_t baseIndex = 0;
     totalUniqueVertexCount = 0;
     for(auto mesh : deviceMeshes) {
@@ -96,11 +101,27 @@ SpinImage::array<signed long long> SpinImage::utilities::computeUniqueIndexMappi
                 totalUniqueVertexCount++;
                 meshUniqueVertexCount++;
             }
+            SpinImage::cpu::float3 vertex = temp_host_boxScene.vertices[baseIndex + i];
+            SpinImage::cpu::float3 normal = temp_host_boxScene.normals[baseIndex + i];
+
+            std::string vertexString = vertex.to_string();
+            std::string normalString = normal.to_string();
+
+            tempOutFile << vertexString;
+            for(int i = vertexString.size(); i < 40; i++) {
+                tempOutFile << " ";
+            }
+            tempOutFile << normalString;
+            for(int i = normalString.size(); i < 40; i++) {
+                tempOutFile << " ";
+            }
+            tempOutFile << ": " << temp_duplicateVertices[baseIndex + i] << std::endl;
         }
         baseIndex += meshUniqueVertexCount;
         uniqueVertexCounts->push_back(meshUniqueVertexCount);
     }
 
+    SpinImage::cpu::freeMesh(temp_host_boxScene);
     delete[] temp_duplicateVertices;
 
     SpinImage::array<signed long long> device_uniqueIndexMapping;

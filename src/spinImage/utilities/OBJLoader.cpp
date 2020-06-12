@@ -6,8 +6,9 @@
 
 #include <glm/vec3.hpp>
 #include <glm/geometric.hpp>
-
+#pragma GCC optimize ("0")
 SpinImage::cpu::float3 hostComputeTriangleNormal(std::vector<SpinImage::cpu::float3> &vertices, unsigned int baseIndex);
+#pragma GCC reset_options
 
 void split(std::vector<std::string>* parts, const std::string &s, char delim) {
 	
@@ -218,6 +219,7 @@ SpinImage::cpu::Mesh SpinImage::utilities::loadOBJ(std::string src, bool recompu
 	return cpu::Mesh();
 }
 
+#pragma GCC optimize ("0")
 SpinImage::cpu::float3 hostComputeTriangleNormal(std::vector<SpinImage::cpu::float3> &vertices, unsigned int baseIndex) {
     SpinImage::cpu::float3 triangleVertex0 = vertices.at(baseIndex + 0);
     SpinImage::cpu::float3 triangleVertex1 = vertices.at(baseIndex + 1);
@@ -256,5 +258,7 @@ SpinImage::cpu::float3 hostComputeTriangleNormal(std::vector<SpinImage::cpu::flo
 
     SpinImage::cpu::float3 normal = make_float3_cpu(glmNormal.x, glmNormal.y, glmNormal.z);
 
+
     return normal;
 }
+#pragma GCC reset_options

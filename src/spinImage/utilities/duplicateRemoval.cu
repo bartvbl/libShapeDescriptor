@@ -87,13 +87,14 @@ SpinImage::array<signed long long> SpinImage::utilities::computeUniqueIndexMappi
     bool* temp_duplicateVertices = new bool[sceneVertexCount];
     checkCudaErrors(cudaMemcpy(temp_duplicateVertices, device_duplicateVertices, boxScene.vertexCount * sizeof(bool), cudaMemcpyDeviceToHost));
 
-    std::fstream tempOutFile("DEBUG_duplicates_" + std::to_string(boxScene.vertexCount) + ".txt", std::ios::out);
+    //std::fstream tempOutFile("DEBUG_duplicates_" + std::to_string(boxScene.vertexCount) + ".txt", std::ios::out);
 
     SpinImage::cpu::Mesh temp_host_boxScene = SpinImage::copy::deviceMeshToHost(boxScene);
 
     size_t baseIndex = 0;
     totalUniqueVertexCount = 0;
     for(auto mesh : deviceMeshes) {
+        //tempOutFile << "=== MESH " << mesh.vertexCount << " ===" << std::endl << std::endl;
         size_t meshUniqueVertexCount = 0;
         for(size_t i = 0; i < mesh.vertexCount; i++) {
             // Check if the vertex is unique
@@ -107,7 +108,7 @@ SpinImage::array<signed long long> SpinImage::utilities::computeUniqueIndexMappi
             std::string vertexString = vertex.to_string();
             std::string normalString = normal.to_string();
 
-            tempOutFile << vertexString;
+            /*tempOutFile << vertexString;
             for(int i = vertexString.size(); i < 40; i++) {
                 tempOutFile << " ";
             }
@@ -115,7 +116,7 @@ SpinImage::array<signed long long> SpinImage::utilities::computeUniqueIndexMappi
             for(int i = normalString.size(); i < 40; i++) {
                 tempOutFile << " ";
             }
-            tempOutFile << ": " << temp_duplicateVertices[baseIndex + i] << std::endl;
+            tempOutFile << ": " << temp_duplicateVertices[baseIndex + i] << std::endl;*/
         }
         baseIndex += meshUniqueVertexCount;
         uniqueVertexCounts->push_back(meshUniqueVertexCount);

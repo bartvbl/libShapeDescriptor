@@ -16,6 +16,12 @@ endif()
 
 set(CUDA_NVCC_FLAGS -arch=sm_61 -gencode arch=compute_61,code=\"sm_61,compute_61\" -Xptxas -O3,-v -lcurand -lineinfo -lcudart -std=c++14)
 
+find_package (Eigen3 3.3.4 REQUIRED NO_MODULE)
+
+# Custom build of PCL, because FOR WHATEVER REASON the APT packages don't include the GPU submodule. Why? Not a clue.
+set(PCL_ROOT /usr/local/include/pcl-1.11)
+find_package(PCL 1.11 REQUIRED COMPONENTS common io gpu_features)
+
 add_subdirectory(lib/ziplib ${CMAKE_CURRENT_BINARY_DIR}/ziplib)
 
 add_subdirectory(lib/fast-lzma2 ${CMAKE_CURRENT_BINARY_DIR}/fast-lzma2)
@@ -29,8 +35,15 @@ include_directories (
         lib/arrrgh/
         lib/json/
         lib/fast-lzma2/src/
+        lib/
+        ${EIGEN_INCLUDE_DIRS}
+        ${PCL_INCLUDE_DIRS}
         ${CUDA_INCLUDE_DIRS}
 )
+
+link_directories(${PCL_LIBRARY_DIRS})
+
+add_definitions(${PCL_DEFINITIONS})
 
 file (GLOB_RECURSE LIBRARY_HEADERS             src/*.hpp
                                                src/*.h
@@ -55,13 +68,13 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
         POSITION_INDEPENDENT_CODE ON
         CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-target_link_libraries(${PROJECT_NAME} stdc++fs ziplib fast-lzma2)
+target_link_libraries(${PROJECT_NAME} stdc++fs ziplib fast-lzma2 ${PCL_LIBRARIES} Eigen3::Eigen)
 
 target_include_directories(${PROJECT_NAME} PUBLIC src/)
 
 add_subdirectory(lib/Catch2)
 add_executable(runTests ${TEST_SOURCES})
-target_link_libraries(runTests SpinImage Catch2::Catch2 cudadevrt)
+target_link_libraries(runTests SpinImage Catch2::Catch2 cudadevrt ${PCL_LIBRARIES} Eigen3::Eigen)
 
 add_executable(imagerenderer ${RENDER_TOOL_SOURCES})
 target_link_libraries(imagerenderer SpinImage cudadevrt)

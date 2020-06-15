@@ -5,6 +5,7 @@
 #include <cuda_runtime.h>
 #include <spinImage/gpu/types/PointCloud.h>
 #include <spinImage/utilities/meshSampler.cuh>
+#include <chrono>
 
 __global__ void reformatVertexBuffer(SpinImage::gpu::DeviceVertexList inputList, pcl::gpu::Feature::PointType* output, size_t count) {
     size_t index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -49,6 +50,8 @@ SpinImage::gpu::FPFHHistograms SpinImage::gpu::generateFPFHHistograms(
         size_t randomSamplingSeed,
         SpinImage::debug::FPFHRunInfo* runInfo)
 {
+    auto totalExecutionTimeStart = std::chrono::steady_clock::now();
+
     gpu::PointCloud pointCloud = SpinImage::utilities::sampleMesh(device_mesh, sampleCount, randomSamplingSeed);
 
     // PCL uses an inefficient memory layout for its GPU input buffers: float3[]
@@ -93,9 +96,8 @@ SpinImage::gpu::FPFHHistograms SpinImage::gpu::generateFPFHHistograms(
     fe_gpu.setSearchSurface(surface_gpu);
     fe_gpu.setRadiusSearch(supportRadius, int(maxNeighbours));
 
-    pcl::gpu::DeviceArray2D<pcl::FPFHSignature33> fpfhs_gpu;
-    fe_gpu.compute(fpfhs_gpu);
-
+    pcl::gpu::DeviceArray2D<pcl::FPFHSignature33> device_fpfhSignatures;
+    fe_gpu.compute(device_fpfhSignatures);
 
     checkCudaErrors(cudaFree(device_reformatted_vertices));
     checkCudaErrors(cudaFree(device_reformatted_origins_vertices));
@@ -103,7 +105,19 @@ SpinImage::gpu::FPFHHistograms SpinImage::gpu::generateFPFHHistograms(
 
     pointCloud.free();
 
-    SpinImage::gpu::FPFHHistograms histograms;
+    // Making a persistent copy of the generated descriptors
+    SpinImage::gpu::FPFHHistograms device_histograms;
 
-    return histograms;
+    size_t outputHistogramsSize = device_origins.length * sizeof(pcl::FPFHSignature33);
+
+    checkCudaErrors(cudaMalloc(&device_histograms.histograms, outputHistogramsSize));
+    checkCudaErrors(cudaMemcpy(device_histograms.histograms, device_fpfhSignatures.ptr(), outputHistogramsSize, cudaMemcpyDeviceToDevice));
+
+    std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
+
+    if(runInfo != nullptr) {
+        runInfo->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
+    }
+
+    return device_histograms;
 }

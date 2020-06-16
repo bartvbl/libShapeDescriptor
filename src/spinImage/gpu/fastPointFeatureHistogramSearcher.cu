@@ -86,6 +86,13 @@ __global__ void computeFPFHSearchResultIndices(
 
     float referenceDescriptorAverage = computeDescriptorAverage(&referenceDescriptor);
 
+    if(referenceDescriptorAverage == 0) {
+        if(threadIdx.x == 0) {
+            atomicAdd(&searchResults[needleDescriptorIndex], 512);
+        }
+        return;
+    }
+
     float referenceCorrelation = computeFPFHDescriptorSimilarity(
             &referenceDescriptor,
             referenceDescriptorAverage,
@@ -98,9 +105,19 @@ __global__ void computeFPFHSearchResultIndices(
 
     unsigned int searchResultRank = 0;
 
-    for(size_t haystackImageIndex = 0; haystackImageIndex < haystackDescriptorCount; haystackImageIndex += warpSize) {
+    for(size_t haystackImageIndex = 0; haystackImageIndex < haystackDescriptorCount; haystackImageIndex++) {
         if(needleDescriptorIndex == haystackImageIndex) {
             continue;
+        }
+
+        if(blockIdx.x == 0) {
+            if(threadIdx.x == 0) {
+                printf("%i: ", haystackImageIndex);
+            }
+            printf("%f, ", haystackDescriptors[haystackImageIndex].contents[threadIdx.x]);
+            if(threadIdx.x == 0) {
+                printf("%f\n", haystackDescriptors[haystackImageIndex].contents[32]);
+            }
         }
 
         float correlation = computeFPFHDescriptorSimilarity(

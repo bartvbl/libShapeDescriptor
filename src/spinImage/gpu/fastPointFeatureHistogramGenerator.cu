@@ -108,10 +108,17 @@ SpinImage::gpu::FPFHHistograms SpinImage::gpu::generateFPFHHistograms(
     // Making a persistent copy of the generated descriptors
     SpinImage::gpu::FPFHHistograms device_histograms;
 
+    // Relaying through the CPU for GPU memory capacity reasons
+    std::vector<pcl::FPFHSignature33> hostData;
+    int step = 0;
+    device_fpfhSignatures.download(hostData, step);
+
+    device_fpfhSignatures.release();
+
     size_t outputHistogramsSize = device_origins.length * sizeof(pcl::FPFHSignature33);
 
     checkCudaErrors(cudaMalloc(&device_histograms.histograms, outputHistogramsSize));
-    checkCudaErrors(cudaMemcpy(device_histograms.histograms, device_fpfhSignatures.ptr(), outputHistogramsSize, cudaMemcpyDeviceToDevice));
+    checkCudaErrors(cudaMemcpy(device_histograms.histograms, hostData.data(), outputHistogramsSize, cudaMemcpyHostToDevice));
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 

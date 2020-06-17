@@ -1,124 +1,322 @@
+// FPFH implementation was partially adapted from two sources.
+
+// Source 1: https://github.com/ahmorsi/Fast-Point-Feature-Histograms
+
+// Source 2: Point Cloud Library
+
+/*
+ * Software License Agreement (BSD License)
+ *
+ *  Copyright (c) 2011, Willow Garage, Inc.
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of Willow Garage, Inc. nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *
+ *  Author: Anatoly Baskeheev, Itseez Ltd, (myname.mysurname@mycompany.com)
+ */
+
 #include "fastPointFeatureHistogramGenerator.cuh"
 #include <iostream>
-#include <pcl/gpu/features/features.hpp>
 #include <nvidia/helper_cuda.h>
+#include <nvidia/helper_math.h>
 #include <cuda_runtime.h>
 #include <spinImage/gpu/types/PointCloud.h>
 #include <spinImage/utilities/meshSampler.cuh>
 #include <chrono>
 
-__global__ void reformatVertexBuffer(SpinImage::gpu::DeviceVertexList inputList, pcl::gpu::Feature::PointType* output, size_t count) {
-    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if(index >= count) {
-        return;
+
+__device__ __host__ __forceinline__
+bool pcl_computePairFeatures (
+    const float3& histogramOriginVertex,
+    const float3& histogramOriginNormal,
+    const float3& samplePointVertex,
+    const float3& samplePointNormal,
+    float &feature1_theta,
+    float &feature2_alpha,
+    float &feature3_phi,
+    float &feature4_euclideanDistance)
+{
+    feature1_theta = 0.0f;
+    feature2_alpha = 0.0f;
+    feature3_phi = 0.0f;
+    feature4_euclideanDistance = 0.0f;
+
+    float3 dp2p1 = samplePointVertex - histogramOriginVertex;
+    feature4_euclideanDistance = length(dp2p1);
+
+    if (feature4_euclideanDistance == 0.f) {
+        return false;
     }
 
-    float3 vertex = inputList.at(index);
-    output[index].x = vertex.x;
-    output[index].y = vertex.y;
-    output[index].z = vertex.z;
-};
+    float3 n1_copy = histogramOriginNormal, n2_copy = samplePointNormal;
+    float angle1 = dot(n1_copy, dp2p1) / feature4_euclideanDistance;
 
-__global__ void reformatOrigins(SpinImage::gpu::DeviceOrientedPoint* origins, pcl::gpu::Feature::PointType* vertices, pcl::gpu::Feature::PointType* normals, size_t count) {
-    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if(index >= count) {
-        return;
+    float angle2 = dot(n2_copy, dp2p1) / feature4_euclideanDistance;
+    if (std::acos (std::abs (angle1)) > std::acos (std::abs (angle2))) {
+        // switch p1 and p2
+        n1_copy = samplePointNormal;
+        n2_copy = histogramOriginNormal;
+        dp2p1 *= (-1);
+        feature3_phi = -angle2;
+    } else {
+        feature3_phi = angle1;
     }
 
-    float3 vertex = origins[index].vertex;
-    float3 normal = origins[index].normal;
+    // Create a Darboux frame coordinate system u-v-w
+    // u = n1; v = (p_idx - q_idx) x u / || (p_idx - q_idx) x u ||; w = u x v
+    float3 v = cross(dp2p1, n1_copy);
+    float v_norm = length(v);
+    if (v_norm == 0.0f) {
+        return false;
+    }
 
-    vertices[index].x = vertex.x;
-    vertices[index].y = vertex.y;
-    vertices[index].z = vertex.z;
+    // Normalize v
+    v *= 1.f/v_norm;
 
-    normals[index].x = normal.x;
-    normals[index].y = normal.y;
-    normals[index].z = normal.z;
+    // Do not have to normalize w - it is a unit vector by construction
+    feature2_alpha = dot(v, n2_copy);
+
+    float3 w = cross(n1_copy, v);
+    // Compute f1 = arctan (w * n2, u * n2) i.e. angle of n2 in the x=u, y=w coordinate system
+    feature1_theta = std::atan2 (dot(w, n2_copy), dot(n1_copy, n2_copy)); // @todo optimize this
+
+    return true;
 }
 
+__global__ void computeSPFHHistograms(
+        const unsigned int numDescriptorBinsPerFeature,
+        SpinImage::gpu::DeviceVertexList descriptorOriginVertices,
+        SpinImage::gpu::DeviceVertexList descriptorOriginNormals,
+        SpinImage::gpu::PointCloud pointCloud,
+        const float supportRadius,
+        float* histograms) {
+    // Launch dimensions: one block for every descriptor
+#define SPFHDescriptorIndex blockIdx.x
 
+#define floatsPerHistogram 3 * numDescriptorBinsPerFeature
+
+    extern __shared__ unsigned int histogramSPFH[];
+
+    unsigned int neighbourCount = 0;
+
+    for(int i = threadIdx.x; i < floatsPerHistogram; i+= blockDim.x) {
+        histogramSPFH[i] = 0;
+    }
+
+    __syncthreads();
+
+    float3 descriptorOrigin = descriptorOriginVertices.at(SPFHDescriptorIndex);
+    float3 descriptorOriginNormal = descriptorOriginNormals.at(SPFHDescriptorIndex);
+
+    for(unsigned int i = threadIdx.x; i < pointCloud.vertices.length; i += blockDim.x) {
+        float3 pointCloudPoint = pointCloud.vertices.at(i);
+        float distanceToPoint = length(pointCloudPoint - descriptorOrigin);
+        if(distanceToPoint > 0 && distanceToPoint <= supportRadius) {
+            float3 pointCloudNormal = pointCloud.normals.at(i);
+            float feature1_theta = 0;
+            float feature2_alpha = 0;
+            float feature3_phi = 0;
+            float feature4_euclideanDistance = 0;
+            const bool featuresComputedSuccessfully = pcl_computePairFeatures(
+                descriptorOrigin,
+                descriptorOriginNormal,
+                pointCloudPoint,
+                pointCloudNormal,
+                feature1_theta, feature2_alpha, feature3_phi, feature4_euclideanDistance);
+            if(featuresComputedSuccessfully) {
+                neighbourCount++;
+
+                unsigned int feature1BinIndex = std::floor (numDescriptorBinsPerFeature * ((feature1_theta + M_PI) * (1.0f / (2.0f * M_PI))));
+                feature1BinIndex = clamp(feature1BinIndex, 0U, numDescriptorBinsPerFeature - 1);
+                atomicAdd(histogramSPFH + 0 * numDescriptorBinsPerFeature + feature1BinIndex, 1);
+
+                unsigned int feature2BinIndex = std::floor (numDescriptorBinsPerFeature * ((feature2_alpha + 1.0f) * 0.5f));
+                feature2BinIndex = clamp(feature2BinIndex, 0U, numDescriptorBinsPerFeature - 1);
+                atomicAdd(histogramSPFH + 1 * numDescriptorBinsPerFeature + feature2BinIndex, 1);
+
+                unsigned int feature3BinIndex = std::floor (numDescriptorBinsPerFeature * ((feature3_phi + 1.0f) * 0.5f));
+                feature3BinIndex = clamp(feature3BinIndex, 0U, numDescriptorBinsPerFeature - 1);
+                atomicAdd(histogramSPFH + 2 * numDescriptorBinsPerFeature + feature3BinIndex, 1);
+            }
+        }
+    }
+
+    __syncthreads();
+
+    float normalisationFactor = 1.0f / float(neighbourCount);
+
+    if(std::isnan(normalisationFactor)) {
+        normalisationFactor = 0;
+    }
+
+    // Compute final histogram and copy it to main memory
+    for(int i = threadIdx.x; i < floatsPerHistogram; i += blockDim.x) {
+        histograms[SPFHDescriptorIndex * floatsPerHistogram + i] = normalisationFactor * histogramSPFH[i];
+    }
+}
+
+__global__ void computeFPFHHistograms(
+        const unsigned int numDescriptorBinsPerFeature,
+        SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> descriptorOrigins,
+        SpinImage::gpu::PointCloud pointCloud,
+        const float supportRadius,
+        float* histogramOriginHistograms,
+        float* pointCloudHistograms,
+        float* fpfhHistograms) {
+    // Launch dimensions: one block for every descriptor
+    // Blocks should contain just about as many threads as a histogram has bins
+#define FPFHDescriptorIndex blockIdx.x
+
+    extern __shared__ float histogramFPFH[];
+
+    for(int i = threadIdx.x; i < floatsPerHistogram; i+= blockDim.x) {
+        histogramFPFH[i] = histogramOriginHistograms[FPFHDescriptorIndex * floatsPerHistogram + i];
+    }
+
+    unsigned int neighbourCount = 0;
+
+    __syncthreads();
+
+    float3 descriptorOrigin = descriptorOrigins.content[FPFHDescriptorIndex].vertex;
+
+    for(unsigned int neighbourHistogram = 0; neighbourHistogram < pointCloud.vertices.length; neighbourHistogram++) {
+        for(unsigned int histogramBin = threadIdx.x; histogramBin < floatsPerHistogram; histogramBin += blockDim.x) {
+            float3 pointCloudPoint = pointCloud.vertices.at(neighbourHistogram);
+            float distanceToPoint = length(pointCloudPoint - descriptorOrigin);
+            if(distanceToPoint <= supportRadius) {
+                neighbourCount++;
+                float distanceWeight = 1.0f / distanceToPoint;
+                float histogramValue = pointCloudHistograms[neighbourHistogram * floatsPerHistogram + histogramBin];
+                atomicAdd(&histogramFPFH[histogramBin], distanceWeight * histogramValue);
+            }
+        }
+    }
+
+    __syncthreads();
+
+    // Copy histogram back to main memory
+    for(int i = threadIdx.x; i < floatsPerHistogram; i += blockDim.x) {
+        fpfhHistograms[FPFHDescriptorIndex * floatsPerHistogram + i] = histogramFPFH[i] / float(neighbourCount);
+    }
+}
+
+__global__ void reformatOrigins(
+        SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> originsArray,
+        SpinImage::gpu::DeviceVertexList reformattedOriginVerticesList,
+        SpinImage::gpu::DeviceVertexList reformattedOriginNormalsList) {
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
+    if(index >= originsArray.length) {
+        return;
+    }
+    SpinImage::gpu::DeviceOrientedPoint origin = originsArray.content[index];
+    reformattedOriginVerticesList.set(index, origin.vertex);
+    reformattedOriginNormalsList.set(index, origin.normal);
+}
 
 SpinImage::gpu::FPFHHistograms SpinImage::gpu::generateFPFHHistograms(
         Mesh device_mesh,
         array<SpinImage::gpu::DeviceOrientedPoint> device_origins,
         float supportRadius,
-        unsigned int maxNeighbours,
+        unsigned int numDescriptorBinsPerFeature,
         size_t sampleCount,
         size_t randomSamplingSeed,
         SpinImage::debug::FPFHRunInfo* runInfo)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
-    gpu::PointCloud pointCloud = SpinImage::utilities::sampleMesh(device_mesh, sampleCount, randomSamplingSeed);
+    gpu::PointCloud device_pointCloud = SpinImage::utilities::sampleMesh(device_mesh, sampleCount, randomSamplingSeed);
 
-    // PCL uses an inefficient memory layout for its GPU input buffers: float3[]
-    // Threads can only do 4, 8, or 16 byte requests for fast streaming,
-    // so this means you need to do 3 separate requests,
-    // each making only use of 33% of the available memory bandwidth.
-    // Still, the most fair comparison is using PCL as-is if we're saying in the paper that we're using their implementation
-    // That requires as a first pre-processing step to reformat the input vertices and normals
-    pcl::gpu::Feature::PointType* device_reformatted_vertices;
-    pcl::gpu::Feature::PointType* device_reformatted_origins_vertices;
-    pcl::gpu::Feature::PointType* device_reformatted_origins_normals;
+    const unsigned int binsPerHistogram = 3 * numDescriptorBinsPerFeature;
+    size_t singleHistogramSizeBytes = binsPerHistogram * sizeof(float);
+    size_t outputHistogramsSize = device_origins.length * singleHistogramSizeBytes;
 
-    checkCudaErrors(cudaMalloc(&device_reformatted_vertices, sampleCount * sizeof(pcl::gpu::Feature::PointType)));
-    checkCudaErrors(cudaMalloc(&device_reformatted_origins_vertices, device_origins.length * sizeof(pcl::gpu::Feature::PointType)));
-    checkCudaErrors(cudaMalloc(&device_reformatted_origins_normals, device_origins.length * sizeof(pcl::gpu::Feature::PointType)));
 
-    // Copy data
-    reformatOrigins<<<(unsigned int) ((device_origins.length / 32) + 1), 32>>>(
-            device_origins.content,
-            device_reformatted_origins_vertices,
-            device_reformatted_origins_normals,
-            device_origins.length);
-    reformatVertexBuffer<<<(unsigned int) ((sampleCount / 32) + 1), 32>>>(
-            pointCloud.vertices,
-            device_reformatted_vertices,
-            sampleCount);
-
+    // Reformat origins to a better buffer format (makes SPFH kernel usable for both input buffers)
+    std::cout << "\t\t\tReformatting origins.." << std::endl;
+    DeviceVertexList device_reformattedOriginVerticesList(device_origins.length);
+    DeviceVertexList device_reformattedOriginNormalsList(device_origins.length);
+    reformatOrigins<<<(device_origins.length / 32) + 1, 32>>>(
+            device_origins,
+            device_reformattedOriginVerticesList,
+            device_reformattedOriginNormalsList);
     checkCudaErrors(cudaDeviceSynchronize());
 
+    // Compute SPFH for descriptor origin points
+    std::cout << "\t\t\tGenerating SPFH histograms for origin vertices.." << std::endl;
+    float* device_origins_SPFH_histograms;
+    checkCudaErrors(cudaMalloc(&device_origins_SPFH_histograms, outputHistogramsSize));
+    computeSPFHHistograms<<<device_origins.length, 64, singleHistogramSizeBytes>>>(
+            numDescriptorBinsPerFeature,
+            device_reformattedOriginVerticesList,
+            device_reformattedOriginNormalsList,
+            device_pointCloud,
+            supportRadius,
+            device_origins_SPFH_histograms);
+    checkCudaErrors(cudaDeviceSynchronize());
 
-    //uploading data to GPU
-    pcl::gpu::FPFHEstimation::PointCloud cloud_gpu(device_reformatted_origins_vertices, device_origins.length);
-    pcl::gpu::FPFHEstimation::Normals normals_gpu(device_reformatted_origins_normals, device_origins.length);
-    pcl::gpu::FPFHEstimation::PointCloud surface_gpu(device_reformatted_vertices, device_mesh.vertexCount);
+    device_reformattedOriginVerticesList.free();
+    device_reformattedOriginNormalsList.free();
 
+    // Compute SPFH for all points in point cloud
+    std::cout << "\t\t\tGenerating SPFH histograms for point cloud vertices.." << std::endl;
+    float* device_pointCloud_SPFH_histograms;
+    checkCudaErrors(cudaMalloc(&device_pointCloud_SPFH_histograms, sampleCount * singleHistogramSizeBytes));
+    computeSPFHHistograms<<<sampleCount, 64, singleHistogramSizeBytes>>>(
+            numDescriptorBinsPerFeature,
+            device_pointCloud.vertices,
+            device_pointCloud.normals,
+            device_pointCloud,
+            supportRadius,
+            device_pointCloud_SPFH_histograms);
+    checkCudaErrors(cudaDeviceSynchronize());
 
-
-    //GPU call
-    pcl::gpu::FPFHEstimation fe_gpu;
-    fe_gpu.setInputCloud (cloud_gpu);
-    fe_gpu.setInputNormals (normals_gpu);
-    fe_gpu.setSearchSurface(surface_gpu);
-    fe_gpu.setRadiusSearch(supportRadius, int(maxNeighbours));
-
-    pcl::gpu::DeviceArray2D<pcl::FPFHSignature33> device_fpfhSignatures;
-    fe_gpu.compute(device_fpfhSignatures);
-
-    checkCudaErrors(cudaFree(device_reformatted_vertices));
-    checkCudaErrors(cudaFree(device_reformatted_origins_vertices));
-    checkCudaErrors(cudaFree(device_reformatted_origins_normals));
-
-    pointCloud.free();
-
-    // Making a persistent copy of the generated descriptors
+    // Compute FPFH
+    std::cout << "\t\t\tGenerating FPFH descriptors.." << std::endl;
     SpinImage::gpu::FPFHHistograms device_histograms;
-
-    // Relaying through the CPU for GPU memory capacity reasons
-    std::vector<pcl::FPFHSignature33> hostData;
-    int step = 0;
-    device_fpfhSignatures.download(hostData, step);
-
-    device_fpfhSignatures.release();
-
-    size_t outputHistogramsSize = device_origins.length * sizeof(pcl::FPFHSignature33);
-
+    device_histograms.count = device_origins.length;
+    device_histograms.binsPerHistogramFeature = numDescriptorBinsPerFeature;
     checkCudaErrors(cudaMalloc(&device_histograms.histograms, outputHistogramsSize));
-    checkCudaErrors(cudaMemcpy(device_histograms.histograms, hostData.data(), outputHistogramsSize, cudaMemcpyHostToDevice));
+
+    computeFPFHHistograms<<<device_origins.length, 64, singleHistogramSizeBytes>>>(
+            numDescriptorBinsPerFeature,
+            device_origins,
+            device_pointCloud,
+            supportRadius,
+            device_origins_SPFH_histograms,
+            device_pointCloud_SPFH_histograms,
+            device_histograms.histograms);
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    device_pointCloud.free();
+    checkCudaErrors(cudaFree(device_origins_SPFH_histograms));
+    checkCudaErrors(cudaFree(device_pointCloud_SPFH_histograms));
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 

@@ -15,6 +15,9 @@ namespace SpinImage {
                 this->length = length;
             }
 
+            // For copying
+            DeviceVertexList() {}
+
             __device__ float3 at(size_t index) {
                 assert(index < length);
 

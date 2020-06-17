@@ -21,30 +21,30 @@ __inline__ __device__ float warpAllReduceSum(float val) {
     return val;
 }
 
-__inline__ __device__ float computeDescriptorAverage(SpinImage::gpu::FPFHHistogram33* descriptor) {
+__inline__ __device__ float computeDescriptorAverage(float* descriptor, unsigned int binsPerHistogram) {
     float threadSum = 0;
-    threadSum += descriptor->contents[threadIdx.x];
-    if(threadIdx.x == 0) {
-        threadSum += descriptor->contents[32];
+    for(unsigned int i = threadIdx.x; i < binsPerHistogram; i += blockDim.x) {
+        threadSum += descriptor[i];
     }
     float totalSum = warpAllReduceSum(threadSum);
-    return totalSum / 33.0f;
+    return totalSum / float(binsPerHistogram);
 }
 
 __device__ float computeFPFHDescriptorSimilarity(
-        SpinImage::gpu::FPFHHistogram33* needleDescriptor,
+        float* needleDescriptor,
         float needleDescriptorAverage,
-        SpinImage::gpu::FPFHHistogram33* haystackDescriptor) {
+        float* haystackDescriptor,
+        unsigned int binsPerHistogram) {
 
-    float haystackDescriptorAverage = computeDescriptorAverage(haystackDescriptor);
+    float haystackDescriptorAverage = computeDescriptorAverage(haystackDescriptor, binsPerHistogram);
 
     float threadSquaredSumX = 0;
     float threadSquaredSumY = 0;
     float threadMultiplicativeSum = 0;
 
-    for(int i = threadIdx.x; i < 33; i += warpSize) {
-        float needleDescriptorValue = needleDescriptor->contents[i];
-        float haystackDescriptorValue = haystackDescriptor->contents[i];
+    for(int i = threadIdx.x; i < binsPerHistogram; i += warpSize) {
+        float needleDescriptorValue = needleDescriptor[i];
+        float haystackDescriptorValue = haystackDescriptor[i];
 
         float deltaX = float(needleDescriptorValue) - needleDescriptorAverage;
         float deltaY = float(haystackDescriptorValue) - haystackDescriptorAverage;
@@ -65,38 +65,39 @@ __device__ float computeFPFHDescriptorSimilarity(
 
 
 __global__ void computeFPFHSearchResultIndices(
-        SpinImage::gpu::FPFHHistogram33* needleDescriptors,
-        SpinImage::gpu::FPFHHistogram33* haystackDescriptors,
+        float* needleDescriptors,
+        float* haystackDescriptors,
+        unsigned int binsPerHistogram,
         size_t haystackDescriptorCount,
         unsigned int* searchResults) {
 
 #define needleDescriptorIndex blockIdx.x
     assert(blockDim.x == 32);
 
-    __shared__ SpinImage::gpu::FPFHHistogram33 referenceDescriptor;
+    extern __shared__ float referenceDescriptor[];
 
-    referenceDescriptor.contents[threadIdx.x] = needleDescriptors[needleDescriptorIndex].contents[threadIdx.x];
-
-    // Descriptor has length 33, so with a single warp (32 threads) we need to manually copy the last one with thread 0
-    if(threadIdx.x == 0) {
-        referenceDescriptor.contents[32] = needleDescriptors[needleDescriptorIndex].contents[32];
+    for(unsigned int i = threadIdx.x; i < binsPerHistogram; i += blockDim.x) {
+        referenceDescriptor[i] = needleDescriptors[needleDescriptorIndex * binsPerHistogram + i];
     }
 
     __syncthreads();
 
-    float referenceDescriptorAverage = computeDescriptorAverage(&referenceDescriptor);
+    float referenceDescriptorAverage = computeDescriptorAverage(referenceDescriptor, binsPerHistogram);
 
     if(referenceDescriptorAverage == 0) {
         if(threadIdx.x == 0) {
-            atomicAdd(&searchResults[needleDescriptorIndex], 512);
+            printf("WARNING: descriptor %i consists entirely of zeroes!\n", needleDescriptorIndex);
+            // Effectively remove the descriptor from the list of search results
+            atomicAdd(&searchResults[needleDescriptorIndex], 1 << 30);
         }
         return;
     }
 
     float referenceCorrelation = computeFPFHDescriptorSimilarity(
-            &referenceDescriptor,
+            referenceDescriptor,
             referenceDescriptorAverage,
-            &haystackDescriptors[needleDescriptorIndex]);
+            haystackDescriptors + binsPerHistogram * needleDescriptorIndex,
+            binsPerHistogram);
 
     // No image pair can have a better correlation than 1, so we can just stop the search right here
     if(referenceCorrelation == 1) {
@@ -110,7 +111,7 @@ __global__ void computeFPFHSearchResultIndices(
             continue;
         }
 
-        if(blockIdx.x == 0) {
+        /*if(blockIdx.x == 0) {
             if(threadIdx.x == 0) {
                 printf("%i: ", haystackImageIndex);
             }
@@ -118,12 +119,13 @@ __global__ void computeFPFHSearchResultIndices(
             if(threadIdx.x == 0) {
                 printf("%f\n", haystackDescriptors[haystackImageIndex].contents[32]);
             }
-        }
+        }*/
 
         float correlation = computeFPFHDescriptorSimilarity(
-                &referenceDescriptor,
+                referenceDescriptor,
                 referenceDescriptorAverage,
-                &haystackDescriptors[haystackImageIndex]);
+                haystackDescriptors + binsPerHistogram * haystackImageIndex,
+                binsPerHistogram);
 
         // We've found a result that's better than the reference one. That means this search result would end up
         // above ours in the search result list. We therefore move our search result down by 1.
@@ -152,11 +154,16 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeFPFHSearchResultRanks(
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
     checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
 
+    const unsigned int binsPerHistogram = 3 * device_needleDescriptors.binsPerHistogramFeature;
+    size_t singleHistogramSizeBytes = binsPerHistogram * sizeof(float);
+
     auto searchStart = std::chrono::steady_clock::now();
 
-    computeFPFHSearchResultIndices<<<needleDescriptorCount, 32>>>(
+
+    computeFPFHSearchResultIndices<<<needleDescriptorCount, 32, singleHistogramSizeBytes>>>(
          device_needleDescriptors.histograms,
          device_haystackDescriptors.histograms,
+         device_needleDescriptors.binsPerHistogramFeature,
          haystackDescriptorCount,
          device_searchResults);
 

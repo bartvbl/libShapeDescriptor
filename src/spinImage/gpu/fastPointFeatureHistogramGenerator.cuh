@@ -13,15 +13,10 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        // Clone of the pcl::FPFHSignature33 struct
-        // by duplicating it, we ensure that a library using this one does not need to have PCL headers available.
-        struct FPFHHistogram33 {
-            float contents[33];
-        };
-
         struct FPFHHistograms {
-            FPFHHistogram33* histograms;
+            float* histograms;
             unsigned int count;
+            unsigned int binsPerHistogramFeature;
         };
 
         // A seed of 0 will cause the implementation to pick one
@@ -29,7 +24,7 @@ namespace SpinImage {
                 Mesh device_mesh,
                 array<DeviceOrientedPoint> device_origins,
                 float supportRadius = 0.2,
-                unsigned int maxNeighbours = 50,
+                unsigned int numDescriptorBinsPerAxis = 11,
                 size_t sampleCount = 1000000,
                 size_t randomSamplingSeed = 0,
                 SpinImage::debug::FPFHRunInfo* runInfo = nullptr);

@@ -9,6 +9,10 @@ namespace SpinImage {
     namespace debug {
         struct FPFHRunInfo {
             double totalExecutionTimeSeconds;
+            double originReformatExecutionTimeSeconds;
+            double originSPFHGenerationExecutionTimeSeconds;
+            double pointCloudSPFHGenerationExecutionTimeSeconds;
+            double fpfhGenerationExecutionTimeSeconds;
         };
     }
 

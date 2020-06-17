@@ -260,6 +260,7 @@ SpinImage::gpu::FPFHHistograms SpinImage::gpu::generateFPFHHistograms(
 
     // Reformat origins to a better buffer format (makes SPFH kernel usable for both input buffers)
     std::cout << "\t\t\tReformatting origins.." << std::endl;
+    auto reformatTimeStart = std::chrono::steady_clock::now();
     DeviceVertexList device_reformattedOriginVerticesList(device_origins.length);
     DeviceVertexList device_reformattedOriginNormalsList(device_origins.length);
     reformatOrigins<<<(device_origins.length / 32) + 1, 32>>>(
@@ -268,8 +269,11 @@ SpinImage::gpu::FPFHHistograms SpinImage::gpu::generateFPFHHistograms(
             device_reformattedOriginNormalsList);
     checkCudaErrors(cudaDeviceSynchronize());
 
+    std::chrono::milliseconds originReformatDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - reformatTimeStart);
+
     // Compute SPFH for descriptor origin points
     std::cout << "\t\t\tGenerating SPFH histograms for origin vertices.." << std::endl;
+    auto originsSPFHTimeStart = std::chrono::steady_clock::now();
     float* device_origins_SPFH_histograms;
     checkCudaErrors(cudaMalloc(&device_origins_SPFH_histograms, outputHistogramsSize));
     computeSPFHHistograms<<<device_origins.length, 64, singleHistogramSizeBytes>>>(
@@ -281,11 +285,14 @@ SpinImage::gpu::FPFHHistograms SpinImage::gpu::generateFPFHHistograms(
             device_origins_SPFH_histograms);
     checkCudaErrors(cudaDeviceSynchronize());
 
+    std::chrono::milliseconds originsSPFHDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - originsSPFHTimeStart);
+
     device_reformattedOriginVerticesList.free();
     device_reformattedOriginNormalsList.free();
 
     // Compute SPFH for all points in point cloud
     std::cout << "\t\t\tGenerating SPFH histograms for point cloud vertices.." << std::endl;
+    auto pointCloudSPFHTimeStart = std::chrono::steady_clock::now();
     float* device_pointCloud_SPFH_histograms;
     checkCudaErrors(cudaMalloc(&device_pointCloud_SPFH_histograms, sampleCount * singleHistogramSizeBytes));
     computeSPFHHistograms<<<sampleCount, 64, singleHistogramSizeBytes>>>(
@@ -297,8 +304,11 @@ SpinImage::gpu::FPFHHistograms SpinImage::gpu::generateFPFHHistograms(
             device_pointCloud_SPFH_histograms);
     checkCudaErrors(cudaDeviceSynchronize());
 
+    std::chrono::milliseconds pointCloudSPFHDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - pointCloudSPFHTimeStart);
+
     // Compute FPFH
     std::cout << "\t\t\tGenerating FPFH descriptors.." << std::endl;
+    auto fpfhGenerationTimeStart = std::chrono::steady_clock::now();
     SpinImage::gpu::FPFHHistograms device_histograms;
     device_histograms.count = device_origins.length;
     device_histograms.binsPerHistogramFeature = numDescriptorBinsPerFeature;
@@ -314,6 +324,8 @@ SpinImage::gpu::FPFHHistograms SpinImage::gpu::generateFPFHHistograms(
             device_histograms.histograms);
     checkCudaErrors(cudaDeviceSynchronize());
 
+    std::chrono::milliseconds fpfhHistogramComputationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - fpfhGenerationTimeStart);
+
     device_pointCloud.free();
     checkCudaErrors(cudaFree(device_origins_SPFH_histograms));
     checkCudaErrors(cudaFree(device_pointCloud_SPFH_histograms));
@@ -321,6 +333,10 @@ SpinImage::gpu::FPFHHistograms SpinImage::gpu::generateFPFHHistograms(
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 
     if(runInfo != nullptr) {
+        runInfo->originReformatExecutionTimeSeconds = double(originReformatDuration.count()) / 1000.0;
+        runInfo->originSPFHGenerationExecutionTimeSeconds = double(originsSPFHDuration.count()) / 1000.0;
+        runInfo->pointCloudSPFHGenerationExecutionTimeSeconds = double(pointCloudSPFHDuration.count()) / 1000.0;
+        runInfo->fpfhGenerationExecutionTimeSeconds = double(fpfhHistogramComputationDuration.count()) / 1000.0;
         runInfo->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
     }
 

@@ -223,7 +223,7 @@ __global__ void computeFPFHHistograms(
 
     // Copy histogram back to main memory
     for(int i = threadIdx.x; i < floatsPerHistogram; i += blockDim.x) {
-        fpfhHistograms[FPFHDescriptorIndex * floatsPerHistogram + i] = histogramFPFH[i] / float(neighbourCount);
+        fpfhHistograms[FPFHDescriptorIndex * floatsPerHistogram + i] = neighbourCount == 0 ? 0 : histogramFPFH[i] / float(neighbourCount);
     }
 }
 

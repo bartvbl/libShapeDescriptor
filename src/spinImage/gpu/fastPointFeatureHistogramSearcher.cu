@@ -115,9 +115,11 @@ __global__ void computeFPFHSearchResultIndices(
             if(threadIdx.x == 0) {
                 printf("%i: ", haystackImageIndex);
             }
-            printf("%f, ", haystackDescriptors[haystackImageIndex].contents[threadIdx.x]);
+            for(unsigned int i = threadIdx.x; i < binsPerHistogram; i += blockDim.x) {
+                printf("%f, ", haystackDescriptors[binsPerHistogram * haystackImageIndex + i]);
+            }
             if(threadIdx.x == 0) {
-                printf("%f\n", haystackDescriptors[haystackImageIndex].contents[32]);
+                printf("\n");
             }
         }*/
 
@@ -163,7 +165,7 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeFPFHSearchResultRanks(
     computeFPFHSearchResultIndices<<<needleDescriptorCount, 32, singleHistogramSizeBytes>>>(
          device_needleDescriptors.histograms,
          device_haystackDescriptors.histograms,
-         device_needleDescriptors.binsPerHistogramFeature,
+         binsPerHistogram,
          haystackDescriptorCount,
          device_searchResults);
 

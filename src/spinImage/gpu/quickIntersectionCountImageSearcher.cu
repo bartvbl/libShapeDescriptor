@@ -257,8 +257,8 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeQUICCImageSearchResultRank
 
 
 __global__ void computeElementWiseQUICCIDistances(
-        SpinImage::gpu::QUICCIImages descriptors,
-        SpinImage::gpu::QUICCIImages correspondingDescriptors,
+        unsigned int* descriptors,
+        unsigned int* correspondingDescriptors,
         SpinImage::gpu::QUICCIDistances* distances) {
     const size_t descriptorIndex = blockIdx.x;
     const int laneIndex = threadIdx.x;
@@ -304,8 +304,7 @@ __global__ void computeElementWiseQUICCIDistances(
             // for weighted hamming as the other ranking functions.
             threadWeightedHammingDistance += float(__popc(haystackChunk));
 
-            unsigned int missingUnsetPixelCount = __popc((~needleChunk ^ ~haystackChunk) & ~needleChunk);
-            threadPixelCountDistance += missingUnsetPixelCount;
+            threadPixelCountDistance += __popc(haystackChunk);
         }
     }
 
@@ -325,7 +324,7 @@ SpinImage::gpu::computeQUICCIElementWiseDistances(SpinImage::gpu::QUICCIImages d
                                                   SpinImage::gpu::QUICCIImages device_correspondingDescriptors,
                                                   size_t descriptorCount) {
     size_t searchResultBufferSize = descriptorCount * sizeof(SpinImage::gpu::QUICCIDistances);
-    unsigned int* device_searchResults;
+    SpinImage::gpu::QUICCIDistances* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
     checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
 

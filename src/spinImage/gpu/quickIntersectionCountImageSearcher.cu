@@ -18,7 +18,13 @@
 
 const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
 
-__inline__ __device__ distanceType warpAllReduceSum(distanceType val) {
+__inline__ __device__ unsigned int warpAllReduceSum(unsigned int val) {
+    for (int mask = warpSize/2; mask > 0; mask /= 2)
+        val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
+    return val;
+}
+
+__inline__ __device__ float warpAllReduceSum(float val) {
     for (int mask = warpSize/2; mask > 0; mask /= 2)
         val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
     return val;
@@ -240,4 +246,105 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeQUICCImageSearchResultRank
     }
 
     return resultIndices;
+}
+
+
+
+
+
+
+
+
+
+__global__ void computeElementWiseQUICCIDistances(
+        SpinImage::gpu::QUICCIImages descriptors,
+        SpinImage::gpu::QUICCIImages correspondingDescriptors,
+        SpinImage::gpu::QUICCIDistances* distances) {
+    const size_t descriptorIndex = blockIdx.x;
+    const int laneIndex = threadIdx.x;
+    static_assert(spinImageWidthPixels % 32 == 0);
+
+    SpinImage::gpu::QUICCIDistances imageDistances;
+
+    int referenceImageBitCount = computeImageSumGPU(descriptors, descriptorIndex);
+
+    SpinImage::utilities::HammingWeights hammingWeights = SpinImage::utilities::computeWeightedHammingWeights(referenceImageBitCount, spinImageWidthPixels * spinImageWidthPixels);
+
+    bool needleImageIsConstant = referenceImageBitCount == 0;
+
+    unsigned int threadClutterResistantDistance = 0;
+    unsigned int threadHammingDistance = 0;
+    float threadWeightedHammingDistance = 0;
+    unsigned int threadPixelCountDistance = 0;
+
+    if(!needleImageIsConstant) {
+        for (int chunk = laneIndex; chunk < uintsPerQUICCImage; chunk += warpSize) {
+            unsigned int needleChunk = getChunkAt(descriptors, descriptorIndex, chunk);
+            unsigned int haystackChunk = getChunkAt(correspondingDescriptors, descriptorIndex, chunk);
+
+            unsigned int missingSetPixelCount = __popc((needleChunk ^ haystackChunk) & needleChunk);
+            unsigned int missingUnsetPixelCount = __popc((~needleChunk ^ ~haystackChunk) & ~needleChunk);
+
+            threadClutterResistantDistance += __popc((needleChunk ^ haystackChunk) & needleChunk);
+            threadHammingDistance += __popc(needleChunk ^ haystackChunk);
+            threadWeightedHammingDistance += SpinImage::utilities::computeChunkWeightedHammingDistance(hammingWeights, needleChunk, haystackChunk);
+            threadPixelCountDistance += spinImageWidthPixels * spinImageWidthPixels * missingSetPixelCount + missingUnsetPixelCount;
+        }
+    } else {
+        for (int chunk = laneIndex; chunk < uintsPerQUICCImage; chunk += warpSize) {
+            unsigned int haystackChunk =
+                    getChunkAt(correspondingDescriptors, descriptorIndex, chunk);
+
+            // Constant image is empty. Hence we only need to look at the haystack side of things.
+            threadClutterResistantDistance += __popc(haystackChunk);
+            threadHammingDistance += __popc(haystackChunk);
+
+            // Since a constant needle image will always use this function for ranking, and due to avoiding zero
+            // division errors the weight of a missed unset bit is always 1, we can use the same ranking function
+            // for weighted hamming as the other ranking functions.
+            threadWeightedHammingDistance += float(__popc(haystackChunk));
+
+            unsigned int missingUnsetPixelCount = __popc((~needleChunk ^ ~haystackChunk) & ~needleChunk);
+            threadPixelCountDistance += missingUnsetPixelCount;
+        }
+    }
+
+    imageDistances.clutterResistantDistance = warpAllReduceSum(threadClutterResistantDistance);
+    imageDistances.hammingDistance = warpAllReduceSum(threadHammingDistance);
+    imageDistances.weightedHammingDistance = warpAllReduceSum(threadWeightedHammingDistance);
+    imageDistances.pixelCountDistance = warpAllReduceSum(threadPixelCountDistance);
+
+    if(threadIdx.x == 0) {
+        distances[descriptorIndex] = imageDistances;
+    }
+}
+
+
+SpinImage::array<SpinImage::gpu::QUICCIDistances>
+SpinImage::gpu::computeQUICCIElementWiseDistances(SpinImage::gpu::QUICCIImages device_descriptors,
+                                                  SpinImage::gpu::QUICCIImages device_correspondingDescriptors,
+                                                  size_t descriptorCount) {
+    size_t searchResultBufferSize = descriptorCount * sizeof(SpinImage::gpu::QUICCIDistances);
+    unsigned int* device_searchResults;
+    checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
+    checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
+
+    computeElementWiseQUICCIDistances<<<descriptorCount, 32>>>(
+        device_descriptors.images,
+        device_correspondingDescriptors.images,
+        device_searchResults);
+
+    checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+
+    SpinImage::array<SpinImage::gpu::QUICCIDistances> resultDistances;
+    resultDistances.content = new SpinImage::gpu::QUICCIDistances[descriptorCount];
+    resultDistances.length = descriptorCount;
+
+    checkCudaErrors(cudaMemcpy(resultDistances.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));
+
+    // Cleanup
+    cudaFree(device_searchResults);
+
+    return resultDistances;
 }

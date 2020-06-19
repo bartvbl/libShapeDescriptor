@@ -12,11 +12,23 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        array<unsigned int> computeQUICCImageSearchResultRanks(
+        SpinImage::array<unsigned int> computeQUICCImageSearchResultRanks(
                 SpinImage::gpu::QUICCIImages device_needleDescriptors,
                 size_t needleImageCount,
                 SpinImage::gpu::QUICCIImages device_haystackDescriptors,
                 size_t haystackImageCount,
                 SpinImage::debug::QUICCISearchRunInfo* runInfo = nullptr);
+
+        struct QUICCIDistances {
+            unsigned int clutterResistantDistance = 0;
+            unsigned int hammingDistance = 0;
+            float weightedHammingDistance = 0;
+            unsigned int pixelCountDistance = 0;
+        };
+
+        SpinImage::array<SpinImage::gpu::QUICCIDistances> computeQUICCIElementWiseDistances(
+                SpinImage::gpu::QUICCIImages device_descriptors,
+                SpinImage::gpu::QUICCIImages device_correspondingDescriptors,
+                size_t descriptorCount);
     }
 }

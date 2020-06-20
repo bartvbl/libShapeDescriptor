@@ -15,6 +15,8 @@ void dumpMesh(SpinImage::cpu::Mesh mesh, const std::experimental::filesystem::pa
     outputFile.open(outputFilePath);
     const std::string materialLibFileName = useCustomTextureMap ? "highlightObject.mtl" : "exportedObject.mtl";
 
+    std::stringstream fileContents;
+
     if(hasHighlightsEnabled || useCustomTextureMap) {
         std::experimental::filesystem::path materialLibPath =
                 outputFilePath.parent_path() / materialLibFileName;
@@ -53,55 +55,57 @@ void dumpMesh(SpinImage::cpu::Mesh mesh, const std::experimental::filesystem::pa
 
         materialFile.close();
 
-        outputFile << "mtllib " << materialLibFileName << std::endl;
+        fileContents << "mtllib " << materialLibFileName << std::endl;
 
-        outputFile << std::endl;
+        fileContents << std::endl;
     }
 
     for(unsigned int i = 0; i < mesh.vertexCount; i++) {
-        outputFile << "v " << mesh.vertices[i].x << " " << mesh.vertices[i].y << " " <<mesh.vertices[i].z << std::endl;
+        fileContents << "v " << mesh.vertices[i].x << " " << mesh.vertices[i].y << " " <<mesh.vertices[i].z << std::endl;
     }
 
-    outputFile << std::endl;
+    fileContents << std::endl;
 
     for(unsigned int i = 0; i < mesh.vertexCount; i++) {
-        outputFile << "vn " << mesh.normals[i].x << " " << mesh.normals[i].y << " " <<mesh.normals[i].z << std::endl;
+        fileContents << "vn " << mesh.normals[i].x << " " << mesh.normals[i].y << " " <<mesh.normals[i].z << std::endl;
     }
 
     if(useCustomTextureMap) {
-        outputFile << std::endl;
+        fileContents << std::endl;
 
         for(unsigned int i = 0; i < mesh.vertexCount; i++) {
-            outputFile << "vt " << vertexTextureCoordinates.content[i].x << " " << vertexTextureCoordinates.content[i].y << std::endl;
+            fileContents << "vt " << vertexTextureCoordinates.content[i].x << " " << vertexTextureCoordinates.content[i].y << std::endl;
         }
     }
 
     bool lastIterationWasHighlighted = false;
 
-    outputFile << std::endl;
+    fileContents << std::endl;
 
     for(unsigned int i = 0; i < mesh.vertexCount; i += 3) {
         bool currentIterationIsHighlighted = i >= highlightStartVertex && i < highlightEndVertex;
 
         if((hasHighlightsEnabled || useCustomTextureMap) && (currentIterationIsHighlighted != lastIterationWasHighlighted || i == 0)) {
-            outputFile << std::endl;
-            outputFile << "o object_" << i << std::endl;
-            outputFile << "g object_" << i << std::endl;
+            fileContents << std::endl;
+            fileContents << "o object_" << i << std::endl;
+            fileContents << "g object_" << i << std::endl;
 
             if(currentIterationIsHighlighted) {
-                outputFile << "usemtl highlightMaterial" << std::endl;
+                fileContents << "usemtl highlightMaterial" << std::endl;
             } else {
-                outputFile << "usemtl regularMaterial" << std::endl;
+                fileContents << "usemtl regularMaterial" << std::endl;
             }
-            outputFile << std::endl;
+            fileContents << std::endl;
         }
 
-        outputFile << "f "
+        fileContents << "f "
            << (i+1) << "/" << (i+1) << "/" << (i+1) << " "
            << (i+2) << "/" << (i+2) << "/" << (i+2) << " "
            << (i+3) << "/" << (i+3) << "/" << (i+3) << std::endl;
         lastIterationWasHighlighted = currentIterationIsHighlighted;
     }
+
+    outputFile << fileContents.str();
 
     outputFile.close();
 }

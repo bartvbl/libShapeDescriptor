@@ -6,9 +6,12 @@
 namespace SpinImage {
     namespace cpu {
         struct float3 {
-            float x;
-            float y;
-            float z;
+            float x = 0;
+            float y = 0;
+            float z = 0;
+
+            float3() = default;
+            float3(float x, float y, float z) : x(x), y(y), z(z) {}
 
             float3 operator- (float3 other) {
                 float3 out;

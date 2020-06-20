@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include <cuda_runtime_api.h>
+#include <device_launch_parameters.h>
 #include "nvidia/helper_cuda.h"
 
 namespace SpinImage {

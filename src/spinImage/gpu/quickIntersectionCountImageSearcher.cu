@@ -275,15 +275,11 @@ __global__ void computeElementWiseQUICCIDistances(
     unsigned int threadClutterResistantDistance = 0;
     unsigned int threadHammingDistance = 0;
     float threadWeightedHammingDistance = 0;
-    unsigned int threadPixelCountDistance = 0;
 
     if(!needleImageIsConstant) {
         for (int chunk = laneIndex; chunk < uintsPerQUICCImage; chunk += warpSize) {
             unsigned int needleChunk = getChunkAt(descriptors, descriptorIndex, chunk);
             unsigned int haystackChunk = getChunkAt(correspondingDescriptors, descriptorIndex, chunk);
-
-            unsigned int missingSetPixelCount = __popc((needleChunk ^ haystackChunk) & needleChunk);
-            unsigned int missingUnsetPixelCount = __popc((~needleChunk ^ ~haystackChunk) & ~needleChunk);
 
             threadClutterResistantDistance += __popc((needleChunk ^ haystackChunk) & needleChunk);
             threadHammingDistance += __popc(needleChunk ^ haystackChunk);
@@ -308,6 +304,7 @@ __global__ void computeElementWiseQUICCIDistances(
     imageDistances.clutterResistantDistance = warpAllReduceSum(threadClutterResistantDistance);
     imageDistances.hammingDistance = warpAllReduceSum(threadHammingDistance);
     imageDistances.weightedHammingDistance = warpAllReduceSum(threadWeightedHammingDistance);
+    imageDistances.needleImageBitCount = referenceImageBitCount;
 
     if(threadIdx.x == 0) {
         distances[descriptorIndex] = imageDistances;

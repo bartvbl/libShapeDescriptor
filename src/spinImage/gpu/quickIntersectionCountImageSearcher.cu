@@ -288,7 +288,6 @@ __global__ void computeElementWiseQUICCIDistances(
             threadClutterResistantDistance += __popc((needleChunk ^ haystackChunk) & needleChunk);
             threadHammingDistance += __popc(needleChunk ^ haystackChunk);
             threadWeightedHammingDistance += SpinImage::utilities::computeChunkWeightedHammingDistance(hammingWeights, needleChunk, haystackChunk);
-            threadPixelCountDistance += spinImageWidthPixels * spinImageWidthPixels * missingSetPixelCount + missingUnsetPixelCount;
         }
     } else {
         for (int chunk = laneIndex; chunk < uintsPerQUICCImage; chunk += warpSize) {
@@ -303,15 +302,12 @@ __global__ void computeElementWiseQUICCIDistances(
             // division errors the weight of a missed unset bit is always 1, we can use the same ranking function
             // for weighted hamming as the other ranking functions.
             threadWeightedHammingDistance += float(__popc(haystackChunk));
-
-            threadPixelCountDistance += __popc(haystackChunk);
         }
     }
 
     imageDistances.clutterResistantDistance = warpAllReduceSum(threadClutterResistantDistance);
     imageDistances.hammingDistance = warpAllReduceSum(threadHammingDistance);
     imageDistances.weightedHammingDistance = warpAllReduceSum(threadWeightedHammingDistance);
-    imageDistances.pixelCountDistance = warpAllReduceSum(threadPixelCountDistance);
 
     if(threadIdx.x == 0) {
         distances[descriptorIndex] = imageDistances;

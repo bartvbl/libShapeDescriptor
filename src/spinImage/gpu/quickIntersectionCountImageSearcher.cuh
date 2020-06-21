@@ -23,7 +23,6 @@ namespace SpinImage {
             unsigned int clutterResistantDistance = 0;
             unsigned int hammingDistance = 0;
             float weightedHammingDistance = 0;
-            unsigned int pixelCountDistance = 0;
         };
 
         SpinImage::array<SpinImage::gpu::QUICCIDistances> computeQUICCIElementWiseDistances(

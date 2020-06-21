@@ -22,10 +22,10 @@ namespace SpinImage {
             // If any count is 0, bump it up to 1
 
             #ifdef __CUDACC__
-                totalBitsInBitString = max(setBitCount, 1);
+                setBitCount = max(setBitCount, 1);
                 queryImageUnsetBitCount = max(queryImageUnsetBitCount, 1);
             #else
-                totalBitsInBitString = std::max<unsigned int>(setBitCount, 1);
+                setBitCount = std::max<unsigned int>(setBitCount, 1);
                 queryImageUnsetBitCount = std::max<unsigned int>(queryImageUnsetBitCount, 1);
             #endif
 

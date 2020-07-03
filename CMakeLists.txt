@@ -67,18 +67,3 @@ target_link_libraries(runTests SpinImage Catch2::Catch2 cudadevrt)
 add_executable(imagerenderer ${RENDER_TOOL_SOURCES})
 target_link_libraries(imagerenderer SpinImage cudadevrt)
 
-add_executable(buildindex ${INDEX_BUILD_TOOL_SOURCES})
-target_link_libraries(buildindex SpinImage cudadevrt)
-
-add_executable(benchmarkindex ${INDEX_BENCHMARK_TOOL_SOURCES})
-target_link_libraries(benchmarkindex SpinImage cudadevrt)
-
-add_executable(queryindex ${INDEX_QUERY_TOOL_SOURCES})
-target_link_libraries(queryindex SpinImage cudadevrt)
-
-add_executable(quiccidumper ${QUICCI_DUMPER_TOOL_SOURCES})
-target_link_libraries(quiccidumper SpinImage cudadevrt)
-
-add_executable(compressor ${COMPRESSOR_TOOL_SOURCES})
-target_link_libraries(compressor SpinImage cudadevrt)
-

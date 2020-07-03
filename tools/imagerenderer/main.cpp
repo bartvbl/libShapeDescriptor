@@ -1,8 +1,6 @@
 #include <spinImage/cpu/types/Mesh.h>
-#include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/gpu/spinImageGenerator.cuh>
 #include <spinImage/gpu/radialIntersectionCountImageGenerator.cuh>
-#include <spinImage/gpu/quickIntersectionCountImageGenerator.cuh>
 #include <spinImage/utilities/OBJLoader.h>
 #include <spinImage/utilities/copy/hostMeshToDevice.h>
 #include <spinImage/utilities/dumpers/spinImageDumper.h>
@@ -19,7 +17,7 @@ int main(int argc, const char** argv) {
     const auto& showHelp = parser.add<bool>(
             "help", "Show this help message.", 'h', arrrgh::Optional, false);
     const auto& generationMode = parser.add<std::string>(
-            "image-type", "Which image type to generate. Can either be 'si', 'rici', or 'quicci'.", '\0', arrrgh::Optional, "rici");
+            "image-type", "Which image type to generate. Can either be 'si' or 'rici'.", '\0', arrrgh::Optional, "rici");
     const auto& forceGPU = parser.add<int>(
             "force-gpu", "Force using the GPU with the given ID", 'b', arrrgh::Optional, -1);
     const auto& spinImageWidth = parser.add<float>(
@@ -100,19 +98,6 @@ int main(int argc, const char** argv) {
 
         cudaFree(descriptors.content);
 
-    } else if(generationMode.value() == "quicci") {
-        SpinImage::gpu::QUICCIImages images = SpinImage::gpu::generateQUICCImages(deviceMesh,
-                                                                                  spinOrigins,
-                                                                                  spinImageWidth.value());
-
-        std::cout << "Dumping results.. " << std::endl;
-
-        SpinImage::cpu::QUICCIImages host_images = SpinImage::copy::QUICCIDescriptorsToHost(images);
-
-        SpinImage::dump::descriptors(host_images, outputFile.value(), imagesPerRow.value());
-
-        cudaFree(images.images);
-        delete[] host_images.images;
     } else {
         std::cerr << "Unrecognised image type: " << generationMode.value() << std::endl;
         std::cerr << "Should be either 'si', 'rici', or 'quicci'." << std::endl;

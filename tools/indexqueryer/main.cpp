@@ -43,7 +43,7 @@ int main(int argc, const char** argv) {
     std::vector<unsigned char> imageData;
     unsigned int width;
     unsigned int height;
-    lodepng::decode(imageData, width, height, imageFilePath, LCT_RGBA);
+    lodepng::decode(imageData, width, height, imageFilePath.string(), LCT_RGBA);
     std::cout << "Image is " << width << "x" << height << std::endl;
 
     assert(width == spinImageWidthPixels && height == spinImageWidthPixels);

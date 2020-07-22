@@ -1,8 +1,7 @@
 #include <spinImage/libraryBuildSettings.h>
 #include "quicciReader.h"
 #include <exception>
-#include <ZipLib/ZipArchive.h>
-#include <ZipLib/ZipFile.h>
+#include <iostream>
 #include <spinImage/utilities/fileutils.h>
 
 SpinImage::cpu::QUICCIImages readImageLZFile(const std::experimental::filesystem::path &path) {

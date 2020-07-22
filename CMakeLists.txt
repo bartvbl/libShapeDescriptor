@@ -16,7 +16,7 @@ endif()
 
 set(CUDA_NVCC_FLAGS -arch=sm_61 -gencode arch=compute_61,code=\"sm_61,compute_61\" -Xptxas -O3,-v -lcurand -lineinfo -lcudart -std=c++14)
 
-add_subdirectory(lib/ziplib ${CMAKE_CURRENT_BINARY_DIR}/ziplib)
+#add_subdirectory(lib/ziplib ${CMAKE_CURRENT_BINARY_DIR}/ziplib)
 
 add_subdirectory(lib/fast-lzma2 ${CMAKE_CURRENT_BINARY_DIR}/fast-lzma2)
 
@@ -24,7 +24,7 @@ include_directories (
         src/
         lib/glm/
         lib/nvidia-samples-common/
-        lib/ziplib/Source/
+        #lib/ziplib/Source/
         lib/lodepng/
         lib/arrrgh/
         lib/json/
@@ -56,7 +56,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
         POSITION_INDEPENDENT_CODE ON
         CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-target_link_libraries(${PROJECT_NAME} stdc++fs ziplib fast-lzma2)
+target_link_libraries(${PROJECT_NAME} stdc++fs fast-lzma2)
 
 target_include_directories(${PROJECT_NAME} PUBLIC src/)
 

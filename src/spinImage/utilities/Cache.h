@@ -275,11 +275,19 @@ public:
         cacheLock.lock();
 
         size_t flushedCount = 0;
-        #pragma omp parallel
-        #pragma omp single
-        {
+#if _MSC_VER && !__INTEL_COMPILER
+		#pragma message ("OpenMP 3.0 is not supported in MSVC, cache flushing will fall back to single threaded execution")
+#else
+		#pragma omp parallel
+		#pragma omp single
+#endif
+		{
             for (auto item = lruItemQueue.begin(); item != lruItemQueue.end(); ++item) {
-                #pragma omp task firstprivate(item)
+#if _MSC_VER && !__INTEL_COMPILER
+				#pragma message ("OpenMP 3.0 is not supported in MSVC, cache flushing will fall back to single threaded execution")
+#else                
+				#pragma omp task firstprivate(item)
+#endif
                 {
                     #pragma omp atomic
                     statistics.evictions++;
@@ -300,7 +308,11 @@ public:
                     }
                 }
             }
+#if _MSC_VER && !__INTEL_COMPILER
+			#pragma message ("OpenMP 3.0 is not supported in MSVC, cache flushing will fall back to single threaded execution")
+#else
             #pragma omp taskwait
+#endif
         };
 
 

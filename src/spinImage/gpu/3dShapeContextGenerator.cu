@@ -79,11 +79,9 @@ __device__ float absoluteAngle(float y, float x) {
 
 // Run once for every vertex index
 __global__ void createDescriptors(
-        SpinImage::gpu::Mesh mesh,
         SpinImage::gpu::DeviceOrientedPoint* device_spinImageOrigins,
         SpinImage::gpu::PointCloud pointCloud,
         SpinImage::array<shapeContextBinType> descriptors,
-        SpinImage::array<float> areaArray,
         SpinImage::array<unsigned int> pointDensityArray,
         size_t sampleCount,
         float minSupportRadius,
@@ -231,46 +229,30 @@ __global__ void createDescriptors(
 
 }
 
-SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
-        Mesh device_mesh,
-        array<DeviceOrientedPoint> device_spinImageOrigins,
+SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> SpinImage::gpu::generate3DSCDescriptors(
+        SpinImage::gpu::PointCloud device_pointCloud,
+        SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> device_spinImageOrigins,
         float pointDensityRadius,
         float minSupportRadius,
         float maxSupportRadius,
-        size_t sampleCount,
-        size_t randomSamplingSeed,
         SpinImage::debug::SCRunInfo* runInfo) {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t descriptorCount = device_spinImageOrigins.length;
+    size_t descriptorBufferSize = sizeof(SpinImage::gpu::ShapeContextDescriptor) * descriptorCount;
 
-    size_t descriptorBufferLength = descriptorCount * elementsPerShapeContextDescriptor;
-    size_t descriptorBufferSize = sizeof(shapeContextBinType) * descriptorBufferLength;
-
-    array<shapeContextBinType> device_descriptors = {0, nullptr};
+    SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> device_descriptors = {0, nullptr};
 
     // -- Initialisation --
     auto initialisationStart = std::chrono::steady_clock::now();
 
     checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
-
     device_descriptors.length = descriptorCount;
 
-    CudaLaunchDimensions valueSetSettings = calculateCudaLaunchDimensions(descriptorBufferLength);
-    setValue <shapeContextBinType><<<valueSetSettings.blocksPerGrid, valueSetSettings.threadsPerBlock >>> (device_descriptors.content, descriptorBufferLength, 0);
-    cudaDeviceSynchronize();
+    cudaMemset(device_descriptors.content, 0, descriptorBufferSize);
     checkCudaErrors(cudaGetLastError());
 
     std::chrono::milliseconds initialisationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - initialisationStart);
-
-    // -- Mesh Sampling --
-    auto meshSamplingStart = std::chrono::steady_clock::now();
-
-    SpinImage::internal::MeshSamplingBuffers sampleBuffers;
-    PointCloud device_pointCloud = SpinImage::utilities::sampleMesh(device_mesh, sampleCount, randomSamplingSeed, &sampleBuffers);
-    array<float> device_cumulativeAreaArray = sampleBuffers.cumulativeAreaArray;
-
-    std::chrono::milliseconds meshSamplingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - meshSamplingStart);
 
     // -- Point Count Computation --
     auto pointCountingStart = std::chrono::steady_clock::now();
@@ -284,13 +266,11 @@ SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
     auto generationStart = std::chrono::steady_clock::now();
 
     createDescriptors <<<descriptorCount, 416>>>(
-        device_mesh,
         device_spinImageOrigins.content,
         device_pointCloud,
         device_descriptors,
-        device_cumulativeAreaArray,
         device_pointCountArray,
-        sampleCount,
+        device_pointCloud.vertices.length,
         minSupportRadius,
         maxSupportRadius);
     checkCudaErrors(cudaDeviceSynchronize());
@@ -300,7 +280,6 @@ SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
 
     // -- Cleanup --
 
-    checkCudaErrors(cudaFree(device_cumulativeAreaArray.content));
     checkCudaErrors(cudaFree(device_pointCountArray.content));
     device_pointCloud.vertices.free();
     device_pointCloud.normals.free();
@@ -310,7 +289,6 @@ SpinImage::array<shapeContextBinType> SpinImage::gpu::generate3DSCDescriptors(
     if(runInfo != nullptr) {
         runInfo->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
         runInfo->initialisationTimeSeconds = double(initialisationDuration.count()) / 1000.0;
-        runInfo->meshSamplingTimeSeconds = double(meshSamplingDuration.count()) / 1000.0;
         runInfo->generationTimeSeconds = double(generationDuration.count()) / 1000.0;
         runInfo->pointCountingTimeSeconds = double(pointCountingDuration.count()) / 1000.0;
     }

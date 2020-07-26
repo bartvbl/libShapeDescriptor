@@ -20,11 +20,9 @@ namespace SpinImage {
                 array<radialIntersectionCountImagePixelType> device_haystackDescriptors,
                 size_t haystackImageCount);
 
-        array<unsigned int> computeRadialIntersectionCountImageSearchResultRanks(
-                array<radialIntersectionCountImagePixelType> device_needleDescriptors,
-                size_t needleImageCount,
-                array<radialIntersectionCountImagePixelType> device_haystackDescriptors,
-                size_t haystackImageCount,
+        SpinImage::array<unsigned int> computeRadialIntersectionCountImageSearchResultRanks(
+                SpinImage::array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
+                SpinImage::array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors,
                 SpinImage::debug::RICISearchRunInfo* runInfo = nullptr);
     }
 }

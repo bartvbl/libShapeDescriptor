@@ -9,6 +9,7 @@
 #include <cfloat>
 #include <chrono>
 #include <typeinfo>
+#include <spinImage/gpu/types/methods/RICIDescriptor.h>
 #include "nvidia/helper_cuda.h"
 #include "radialIntersectionCountImageSearcher.cuh"
 
@@ -24,9 +25,7 @@ __inline__ __device__ int warpAllReduceSum(int val) {
 
 const int indexBasedWarpCount = 16;
 
-__device__ int computeImageSquaredSumGPU(
-        const radialIntersectionCountImagePixelType* needleImages,
-        const size_t needleImageIndex) {
+__device__ int computeImageSquaredSumGPU(const SpinImage::gpu::RICIDescriptor &needleImage) {
 
     const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
     const int laneIndex = threadIdx.x % 32;
@@ -41,7 +40,7 @@ __device__ int computeImageSquaredSumGPU(
     for(int pixel = 0; pixel < spinImageElementCount; pixel++) {
         radialIntersectionCountImagePixelType previousWarpLastNeedlePixelValue = 0;
         radialIntersectionCountImagePixelType currentNeedlePixelValue =
-                needleImages[needleImageIndex * spinImageElementCount + pixel];
+                needleImage.contents[pixel];
 
         int targetThread;
         if (laneIndex > 0) {
@@ -72,9 +71,9 @@ __device__ int computeImageSquaredSumGPU(
 }
 
 __device__ size_t compareConstantRadialIntersectionCountImagePairGPU(
-        const radialIntersectionCountImagePixelType* needleImages,
+        const SpinImage::gpu::RICIDescriptor* needleImages,
         const size_t needleImageIndex,
-        const radialIntersectionCountImagePixelType* haystackImages,
+        const SpinImage::gpu::RICIDescriptor* haystackImages,
         const size_t haystackImageIndex) {
 
     const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
@@ -93,9 +92,9 @@ __device__ size_t compareConstantRadialIntersectionCountImagePairGPU(
         // Each thread processes one pixel, a warp processes therefore 32 pixels per iteration
         for (int pixel = laneIndex; pixel < spinImageWidthPixels; pixel += warpSize) {
             radialIntersectionCountImagePixelType currentNeedlePixelValue =
-                    needleImages[needleImageIndex * spinImageElementCount + row * spinImageWidthPixels + pixel];
+                    needleImages[needleImageIndex].contents[row * spinImageWidthPixels + pixel];
             radialIntersectionCountImagePixelType currentHaystackPixelValue =
-                    haystackImages[haystackImageIndex * spinImageElementCount + row * spinImageWidthPixels + pixel];
+                    haystackImages[haystackImageIndex].contents[row * spinImageWidthPixels + pixel];
 
             // This bit handles the case where an image is completely constant.
             // In that case, we use the absolute sum of squares as a distance function instead
@@ -119,9 +118,9 @@ __device__ size_t compareConstantRadialIntersectionCountImagePairGPU(
 
 
 __device__ int compareRadialIntersectionCountImagePairGPU(
-        const radialIntersectionCountImagePixelType* needleImages,
+        const SpinImage::gpu::RICIDescriptor* needleImages,
         const size_t needleImageIndex,
-        const radialIntersectionCountImagePixelType* haystackImages,
+        const SpinImage::gpu::RICIDescriptor* haystackImages,
         const size_t haystackImageIndex,
         const int distanceToBeat = INT_MAX) {
 
@@ -140,9 +139,9 @@ __device__ int compareRadialIntersectionCountImagePairGPU(
         // Each thread processes one pixel, a warp processes therefore 32 pixels per iteration
         for (int pixel = laneIndex; pixel < spinImageWidthPixels; pixel += warpSize) {
             radialIntersectionCountImagePixelType currentNeedlePixelValue =
-                    needleImages[needleImageIndex * spinImageElementCount + row * spinImageWidthPixels + pixel];
+                    needleImages[needleImageIndex].contents[row * spinImageWidthPixels + pixel];
             radialIntersectionCountImagePixelType currentHaystackPixelValue =
-                    haystackImages[haystackImageIndex * spinImageElementCount + row * spinImageWidthPixels + pixel];
+                    haystackImages[haystackImageIndex].contents[row * spinImageWidthPixels + pixel];
 
             // To save on memory bandwidth, we use shuffle instructions to pass around other values needed by the
             // distance computation. We first need to use some logic to determine which thread should read from which
@@ -216,31 +215,33 @@ __device__ int compareRadialIntersectionCountImagePairGPU(
 }
 
 __global__ void computeRadialIntersectionCountImageSearchResultIndices(
-        const radialIntersectionCountImagePixelType* needleDescriptors,
-        radialIntersectionCountImagePixelType* haystackDescriptors,
+        const SpinImage::gpu::RICIDescriptor* needleDescriptors,
+        SpinImage::gpu::RICIDescriptor* haystackDescriptors,
         size_t haystackImageCount,
         unsigned int* searchResults) {
     size_t needleImageIndex = blockIdx.x;
 
-    __shared__ radialIntersectionCountImagePixelType referenceImage[spinImageWidthPixels * spinImageWidthPixels];
+    __shared__ SpinImage::gpu::RICIDescriptor referenceImage;
     for(unsigned int index = threadIdx.x; index < spinImageWidthPixels * spinImageWidthPixels; index += blockDim.x) {
-        referenceImage[index] = needleDescriptors[spinImageWidthPixels * spinImageWidthPixels * needleImageIndex + index];
+        referenceImage.contents[index] = needleDescriptors[needleImageIndex].contents[index];
     }
 
     __syncthreads();
 
     int referenceScore;
 
-    int needleSquaredSum = computeImageSquaredSumGPU(referenceImage, 0);
+    int needleSquaredSum = computeImageSquaredSumGPU(referenceImage);
 
     bool needleImageIsConstant = needleSquaredSum == 0;
 
     if(!needleImageIsConstant) {
-        referenceScore = compareRadialIntersectionCountImagePairGPU(referenceImage, 0, haystackDescriptors,
-                                                                    needleImageIndex);
+        referenceScore = compareRadialIntersectionCountImagePairGPU(
+                &referenceImage, 0,
+                haystackDescriptors, needleImageIndex);
     } else {
-        referenceScore = compareConstantRadialIntersectionCountImagePairGPU(referenceImage, 0, haystackDescriptors,
-                                                                            needleImageIndex);
+        referenceScore = compareConstantRadialIntersectionCountImagePairGPU(
+                &referenceImage, 0,
+                haystackDescriptors, needleImageIndex);
     }
 
     // If the reference distance is 0, no image pair can beat the score. As such we can just skip it.
@@ -261,12 +262,14 @@ __global__ void computeRadialIntersectionCountImageSearchResultIndices(
         int pairScore;
         if(!needleImageIsConstant) {
             // If there's variation in the image, we'll use the regular distance function
-            pairScore = compareRadialIntersectionCountImagePairGPU(referenceImage, 0, haystackDescriptors,
-                                                                   haystackImageIndex, referenceScore);
+            pairScore = compareRadialIntersectionCountImagePairGPU(
+                    &referenceImage, 0, haystackDescriptors,
+                    haystackImageIndex, referenceScore);
         } else {
             // If the image is constant, we use sum of squares as a fallback
-            pairScore = compareConstantRadialIntersectionCountImagePairGPU(referenceImage, 0, haystackDescriptors,
-                                                                           haystackImageIndex);
+            pairScore = compareConstantRadialIntersectionCountImagePairGPU(
+                    &referenceImage, 0,
+                    haystackDescriptors, haystackImageIndex);
         }
 
         // We found a better search result that will end up higher in the results list
@@ -285,26 +288,23 @@ __global__ void computeRadialIntersectionCountImageSearchResultIndices(
 
 
 SpinImage::array<unsigned int> SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
-        array<radialIntersectionCountImagePixelType> device_needleDescriptors,
-        size_t needleImageCount,
-        array<radialIntersectionCountImagePixelType> device_haystackDescriptors,
-        size_t haystackImageCount,
+        SpinImage::array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
+        SpinImage::array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors,
         SpinImage::debug::RICISearchRunInfo* runInfo) {
 
     auto executionStart = std::chrono::steady_clock::now();
 
-    size_t searchResultBufferSize = needleImageCount * sizeof(unsigned int);
+    size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(unsigned int);
     unsigned int* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
     checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
 
     auto searchStart = std::chrono::steady_clock::now();
 
-    computeRadialIntersectionCountImageSearchResultIndices << < needleImageCount, 32 * indexBasedWarpCount >> > (
-            device_needleDescriptors.content,
-                    device_haystackDescriptors.content,
-                    haystackImageCount,
-                    device_searchResults);
+    computeRadialIntersectionCountImageSearchResultIndices <<< device_needleDescriptors.length, 32 * indexBasedWarpCount >>> (device_needleDescriptors.content,
+      device_haystackDescriptors.content,
+      device_haystackDescriptors.length,
+      device_searchResults);
 
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
@@ -312,8 +312,8 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeRadialIntersectionCountIma
     std::chrono::milliseconds searchDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart);
 
     array<unsigned int> resultIndices;
-    resultIndices.content = new unsigned int[needleImageCount];
-    resultIndices.length = needleImageCount;
+    resultIndices.content = new unsigned int[device_needleDescriptors.length];
+    resultIndices.length = device_needleDescriptors.length;
 
     checkCudaErrors(cudaMemcpy(resultIndices.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));
 

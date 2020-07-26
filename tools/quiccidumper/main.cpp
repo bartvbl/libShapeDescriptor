@@ -12,7 +12,7 @@
 #include <cuda_runtime.h>
 #include <fstream>
 #include <spinImage/cpu/types/QUICCIImages.h>
-#include <spinImage/utilities/copy/deviceDescriptorsToHost.h>
+#include <spinImage/utilities/copy/descriptors.h>
 #include <spinImage/utilities/modelScaler.h>
 #include <spinImage/utilities/dumpers/rawDescriptorDumper.h>
 

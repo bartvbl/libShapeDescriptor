@@ -6,7 +6,7 @@
 #include <spinImage/utilities/OBJLoader.h>
 #include <spinImage/utilities/copy/hostMeshToDevice.h>
 #include <spinImage/utilities/dumpers/spinImageDumper.h>
-#include <spinImage/utilities/copy/deviceDescriptorsToHost.h>
+#include <spinImage/utilities/copy/descriptors.h>
 #include <spinImage/utilities/CUDAContextCreator.h>
 #include <spinImage/utilities/spinOriginBufferGenerator.h>
 

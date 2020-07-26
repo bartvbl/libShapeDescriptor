@@ -14,5 +14,11 @@ namespace SpinImage {
 
         SpinImage::cpu::QUICCIImages
         QUICCIDescriptorsToHost(SpinImage::gpu::QUICCIImages descriptors);
+
+        array<radialIntersectionCountImagePixelType>
+        hostDescriptorsToDevice(array<radialIntersectionCountImagePixelType> hostDescriptors, size_t imageCount);
+
+        array<spinImagePixelType>
+        hostDescriptorsToDevice(array<spinImagePixelType> hostDescriptors, size_t imageCount);
     }
 }

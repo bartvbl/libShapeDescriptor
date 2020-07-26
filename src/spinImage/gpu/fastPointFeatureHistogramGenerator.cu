@@ -247,7 +247,7 @@ SpinImage::gpu::FPFHHistograms SpinImage::gpu::generateFPFHHistograms(
         unsigned int numDescriptorBinsPerFeature,
         size_t sampleCount,
         size_t randomSamplingSeed,
-        SpinImage::debug::FPFHRunInfo* runInfo)
+        SpinImage::debug::FPFHExecutionTimes* executionTimes)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
@@ -332,12 +332,12 @@ SpinImage::gpu::FPFHHistograms SpinImage::gpu::generateFPFHHistograms(
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 
-    if(runInfo != nullptr) {
-        runInfo->originReformatExecutionTimeSeconds = double(originReformatDuration.count()) / 1000.0;
-        runInfo->originSPFHGenerationExecutionTimeSeconds = double(originsSPFHDuration.count()) / 1000.0;
-        runInfo->pointCloudSPFHGenerationExecutionTimeSeconds = double(pointCloudSPFHDuration.count()) / 1000.0;
-        runInfo->fpfhGenerationExecutionTimeSeconds = double(fpfhHistogramComputationDuration.count()) / 1000.0;
-        runInfo->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
+    if(executionTimes != nullptr) {
+        executionTimes->originReformatExecutionTimeSeconds = double(originReformatDuration.count()) / 1000.0;
+        executionTimes->originSPFHGenerationExecutionTimeSeconds = double(originsSPFHDuration.count()) / 1000.0;
+        executionTimes->pointCloudSPFHGenerationExecutionTimeSeconds = double(pointCloudSPFHDuration.count()) / 1000.0;
+        executionTimes->fpfhGenerationExecutionTimeSeconds = double(fpfhHistogramComputationDuration.count()) / 1000.0;
+        executionTimes->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
     }
 
     return device_histograms;

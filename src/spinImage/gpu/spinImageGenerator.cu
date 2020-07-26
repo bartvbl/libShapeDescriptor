@@ -199,7 +199,7 @@ SpinImage::array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
         size_t sampleCount,
         float supportAngleDegrees,
         size_t randomSamplingSeed,
-        SpinImage::debug::SIRunInfo* runInfo)
+        SpinImage::debug::SIExecutionTimes* executionTimes)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
@@ -261,11 +261,11 @@ SpinImage::array<spinImagePixelType> SpinImage::gpu::generateSpinImages(
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 
-    if(runInfo != nullptr) {
-	    runInfo->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
-		runInfo->initialisationTimeSeconds = double(initialisationDuration.count()) / 1000.0;
-		runInfo->meshSamplingTimeSeconds = double(meshSamplingDuration.count()) / 1000.0;
-	    runInfo->generationTimeSeconds = double(generationDuration.count()) / 1000.0;
+    if(executionTimes != nullptr) {
+        executionTimes->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
+        executionTimes->initialisationTimeSeconds = double(initialisationDuration.count()) / 1000.0;
+        executionTimes->meshSamplingTimeSeconds = double(meshSamplingDuration.count()) / 1000.0;
+        executionTimes->generationTimeSeconds = double(generationDuration.count()) / 1000.0;
 	}
 
 	return device_descriptors;

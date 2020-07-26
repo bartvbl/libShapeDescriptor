@@ -8,7 +8,7 @@
 
 namespace SpinImage {
     namespace debug {
-        struct QUICCIRunInfo {
+        struct QUICCIExecutionTimes {
             double generationTimeSeconds;
             double meshScaleTimeSeconds;
             double redistributionTimeSeconds;
@@ -21,6 +21,6 @@ namespace SpinImage {
                 Mesh device_mesh,
                 array<DeviceOrientedPoint> device_spinImageOrigins,
                 float supportRadius,
-                SpinImage::debug::QUICCIRunInfo* runinfo = nullptr);
+                SpinImage::debug::QUICCIExecutionTimes* executionTimes = nullptr);
     }
 }

@@ -234,7 +234,7 @@ SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> SpinImage::gpu::generat
         float pointDensityRadius,
         float minSupportRadius,
         float maxSupportRadius,
-        SpinImage::debug::SCRunInfo* runInfo) {
+        SpinImage::debug::SCExecutionTimes* executionTimes) {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t descriptorCount = device_spinImageOrigins.length;
@@ -285,11 +285,11 @@ SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> SpinImage::gpu::generat
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 
-    if(runInfo != nullptr) {
-        runInfo->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
-        runInfo->initialisationTimeSeconds = double(initialisationDuration.count()) / 1000.0;
-        runInfo->generationTimeSeconds = double(generationDuration.count()) / 1000.0;
-        runInfo->pointCountingTimeSeconds = double(pointCountingDuration.count()) / 1000.0;
+    if(executionTimes != nullptr) {
+        executionTimes->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
+        executionTimes->initialisationTimeSeconds = double(initialisationDuration.count()) / 1000.0;
+        executionTimes->generationTimeSeconds = double(generationDuration.count()) / 1000.0;
+        executionTimes->pointCountingTimeSeconds = double(pointCountingDuration.count()) / 1000.0;
     }
 
     return device_descriptors;

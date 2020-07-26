@@ -7,7 +7,7 @@
 
 namespace SpinImage {
     namespace debug {
-        struct RICIRunInfo {
+        struct RICIExecutionTimes {
             double generationTimeSeconds;
             double meshScaleTimeSeconds;
             double redistributionTimeSeconds;
@@ -20,6 +20,6 @@ namespace SpinImage {
                 Mesh device_mesh,
                 array<DeviceOrientedPoint> device_spinImageOrigins,
                 float spinImageWidth,
-                SpinImage::debug::RICIRunInfo* runinfo = nullptr);
+                SpinImage::debug::RICIExecutionTimes* executionTimes = nullptr);
     }
 }

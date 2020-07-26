@@ -545,7 +545,7 @@ SpinImage::gpu::QUICCIImages SpinImage::gpu::generateQUICCImages(
         Mesh device_mesh,
         array<DeviceOrientedPoint> device_spinImageOrigins,
         float supportRadius,
-        SpinImage::debug::QUICCIRunInfo* runinfo)
+        SpinImage::debug::QUICCIExecutionTimes* executionTimes)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
@@ -623,11 +623,11 @@ SpinImage::gpu::QUICCIImages SpinImage::gpu::generateQUICCImages(
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 
-    if(runinfo != nullptr) {
-        runinfo->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
-        runinfo->generationTimeSeconds = double(generationDuration.count()) / 1000.0;
-        runinfo->meshScaleTimeSeconds = double(meshScaleDuration.count()) / 1000.0;
-        runinfo->redistributionTimeSeconds = double(redistributeDuration.count()) / 1000.0;
+    if(executionTimes != nullptr) {
+        executionTimes->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
+        executionTimes->generationTimeSeconds = double(generationDuration.count()) / 1000.0;
+        executionTimes->meshScaleTimeSeconds = double(meshScaleDuration.count()) / 1000.0;
+        executionTimes->redistributionTimeSeconds = double(redistributeDuration.count()) / 1000.0;
     }
 
     return descriptors;

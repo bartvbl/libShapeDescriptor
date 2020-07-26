@@ -7,7 +7,7 @@
 
 namespace SpinImage {
     namespace debug {
-        struct SCRunInfo {
+        struct SCExecutionTimes {
             double totalExecutionTimeSeconds;
             double initialisationTimeSeconds;
             double generationTimeSeconds;
@@ -27,6 +27,6 @@ namespace SpinImage {
                 float pointDensityRadius,
                 float minSupportRadius,
                 float maxSupportRadius,
-                SpinImage::debug::SCRunInfo* runInfo = nullptr);
+                SpinImage::debug::SCExecutionTimes* executionTimes = nullptr);
     }
 }

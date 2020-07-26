@@ -6,7 +6,7 @@
 
 namespace SpinImage {
     namespace debug {
-        struct SIRunInfo {
+        struct SIExecutionTimes {
             double totalExecutionTimeSeconds;
             double initialisationTimeSeconds;
             double meshSamplingTimeSeconds;
@@ -23,6 +23,6 @@ namespace SpinImage {
                 size_t sampleCount,
                 float supportAngleDegrees,
                 size_t randomSamplingSeed = 0,
-                SpinImage::debug::SIRunInfo* runInfo = nullptr);
+                SpinImage::debug::SIExecutionTimes* executionTimes = nullptr);
     }
 }

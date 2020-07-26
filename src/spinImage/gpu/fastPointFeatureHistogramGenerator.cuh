@@ -7,7 +7,7 @@
 
 namespace SpinImage {
     namespace debug {
-        struct FPFHRunInfo {
+        struct FPFHExecutionTimes {
             double totalExecutionTimeSeconds;
             double originReformatExecutionTimeSeconds;
             double originSPFHGenerationExecutionTimeSeconds;
@@ -31,6 +31,6 @@ namespace SpinImage {
                 unsigned int numDescriptorBinsPerAxis = 11,
                 size_t sampleCount = 1000000,
                 size_t randomSamplingSeed = 0,
-                SpinImage::debug::FPFHRunInfo* runInfo = nullptr);
+                SpinImage::debug::FPFHExecutionTimes* executionTimes = nullptr);
     }
 }

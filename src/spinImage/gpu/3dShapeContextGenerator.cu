@@ -81,7 +81,7 @@ __device__ float absoluteAngle(float y, float x) {
 __global__ void createDescriptors(
         SpinImage::gpu::DeviceOrientedPoint* device_spinImageOrigins,
         SpinImage::gpu::PointCloud pointCloud,
-        SpinImage::array<shapeContextBinType> descriptors,
+        SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> descriptors,
         SpinImage::array<unsigned int> pointDensityArray,
         size_t sampleCount,
         float minSupportRadius,
@@ -96,9 +96,9 @@ __global__ void createDescriptors(
 
     normal /= length(normal);
 
-    __shared__ shapeContextBinType localDescriptor[elementsPerShapeContextDescriptor];
+    __shared__ SpinImage::gpu::ShapeContextDescriptor localDescriptor;
     for(int i = threadIdx.x; i < elementsPerShapeContextDescriptor; i += blockDim.x) {
-        localDescriptor[i] = 0;
+        localDescriptor.contents[i] = 0;
     }
 
     __syncthreads();
@@ -215,16 +215,15 @@ __global__ void createDescriptors(
                 binIndex.z;
         assert(index < elementsPerShapeContextDescriptor);
         assert(!std::isnan(sampleWeight));
-        atomicAdd(&localDescriptor[index], sampleWeight);
+        atomicAdd(&localDescriptor.contents[index], sampleWeight);
     }
 
     __syncthreads();
 
     // Copy final descriptor into memory
 
-    size_t descriptorBaseIndex = size_t(descriptorIndex) * elementsPerShapeContextDescriptor;
     for(size_t i = threadIdx.x; i < elementsPerShapeContextDescriptor; i += blockDim.x) {
-        descriptors.content[descriptorBaseIndex + i] = localDescriptor[i];
+        descriptors.content[descriptorIndex].contents[i] = localDescriptor.contents[i];
     }
 
 }

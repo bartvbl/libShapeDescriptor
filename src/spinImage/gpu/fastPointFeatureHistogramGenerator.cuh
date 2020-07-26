@@ -4,6 +4,7 @@
 #include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/gpu/types/DeviceOrientedPoint.h>
 #include <array>
+#include <spinImage/gpu/types/methods/FPFHDescriptor.h>
 
 namespace SpinImage {
     namespace debug {
@@ -17,20 +18,11 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        struct FPFHHistograms {
-            float* histograms;
-            unsigned int count;
-            unsigned int binsPerHistogramFeature;
-        };
-
-        // A seed of 0 will cause the implementation to pick one
-        FPFHHistograms generateFPFHHistograms(
-                Mesh device_mesh,
-                array<DeviceOrientedPoint> device_origins,
-                float supportRadius = 0.2,
+        SpinImage::array<SpinImage::gpu::FPFHDescriptor> generateFPFHHistograms(
+                SpinImage::gpu::PointCloud device_pointCloud,
+                SpinImage::array<DeviceOrientedPoint> device_descriptorOrigins,
+                float supportRadius,
                 unsigned int numDescriptorBinsPerAxis = 11,
-                size_t sampleCount = 1000000,
-                size_t randomSamplingSeed = 0,
                 SpinImage::debug::FPFHExecutionTimes* executionTimes = nullptr);
     }
 }

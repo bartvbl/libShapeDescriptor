@@ -269,7 +269,7 @@ SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> SpinImage::gpu::generat
         device_pointCloud,
         device_descriptors,
         device_pointCountArray,
-        device_pointCloud.vertices.length,
+        device_pointCloud.pointCount,
         minSupportRadius,
         maxSupportRadius);
     checkCudaErrors(cudaDeviceSynchronize());

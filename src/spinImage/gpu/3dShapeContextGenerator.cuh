@@ -23,7 +23,7 @@ namespace SpinImage {
         // A seed of 0 will cause the implementation to pick one
         SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> generate3DSCDescriptors(
                 SpinImage::gpu::PointCloud device_pointCloud,
-                SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> device_spinImageOrigins,
+                SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> device_descriptorOrigins,
                 float pointDensityRadius,
                 float minSupportRadius,
                 float maxSupportRadius,

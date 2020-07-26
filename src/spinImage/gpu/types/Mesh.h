@@ -1,5 +1,6 @@
 #pragma once
 #include "spinImage/common/types/array.h"
+#include "PointCloud.h"
 #include <host_defines.h>
 
 namespace SpinImage {
@@ -24,5 +25,10 @@ namespace SpinImage {
         void freeMesh(Mesh mesh);
 
 
+        array <FPFHDescriptor> generateFPFHHistograms(SpinImage::gpu::PointCloud device_pointCloud,
+                                                      array <DeviceOrientedPoint> device_descriptorOrigins,
+                                                      float supportRadius,
+                                                      unsigned int numDescriptorBinsPerAxis,
+                                                      SpinImage::debug::FPFHExecutionTimes *executionTimes);
     }
 }

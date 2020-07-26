@@ -7,8 +7,9 @@ namespace SpinImage {
         struct PointCloud {
             DeviceVertexList vertices;
             DeviceVertexList normals;
+            size_t pointCount;
 
-            PointCloud(size_t pointCount) : vertices(pointCount), normals(pointCount) {}
+            PointCloud(size_t pointCount) : vertices(pointCount), normals(pointCount), pointCount(pointCount) {}
 
             void free() {
                 vertices.free();

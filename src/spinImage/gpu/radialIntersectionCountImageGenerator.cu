@@ -143,7 +143,7 @@ __device__ __inline__ void rasteriseRow(int pixelBaseIndex, radialIntersectionCo
 #endif
 
 __device__ __inline__ void rasteriseTriangle(
-        radialIntersectionCountImagePixelType* descriptors,
+        SpinImage::gpu::RICIDescriptor* descriptors,
         float3 vertices[3],
         const float3 &spinImageVertex,
         const float3 &spinImageNormal)
@@ -284,9 +284,9 @@ __device__ __inline__ void rasteriseTriangle(
 			rowEndPixels = min((unsigned int)spinImageWidthPixels, rowEndPixels);
 
 #if !ENABLE_SHARED_MEMORY_IMAGE
-			const size_t jobSpinImageBaseIndex = size_t(renderedSpinImageIndex) * spinImageWidthPixels * spinImageWidthPixels + pixelYCoordinate * spinImageWidthPixels;
+			const size_t jobImageIndex = size_t(renderedSpinImageIndex);
 #else
-			const size_t jobSpinImageBaseIndex = pixelYCoordinate * ((unsigned short) spinImageWidthPixels);
+            const size_t jobImageIndex = 0;
 #endif
 
 			// Step 9: Fill pixels
@@ -301,7 +301,7 @@ __device__ __inline__ void rasteriseTriangle(
 				for (int jobX = jobDoubleIntersectionStartPixels; jobX < rowStartPixels; jobX++)
 				{
 					// Increment pixel by 2 because 2 intersections occurred.
-					atomicAdd(&(descriptors[jobSpinImageBaseIndex + jobX]), 2);
+					atomicAdd(&(descriptors[jobImageIndex].contents[pixelYCoordinate * spinImageWidthPixels + jobX]), 2);
 				}
 #elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
@@ -319,7 +319,7 @@ __device__ __inline__ void rasteriseTriangle(
 			// It's imperative the condition of this loop is a < comparison
 			for (int jobX = rowStartPixels; jobX < rowEndPixels; jobX++)
 			{
-				atomicAdd(&(descriptors[jobSpinImageBaseIndex + jobX]), 1);
+				atomicAdd(&(descriptors[jobImageIndex].contents[pixelYCoordinate * spinImageWidthPixels + jobX]), 1);
 			}
 #elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
 	#if !ENABLE_SHARED_MEMORY_IMAGE
@@ -336,7 +336,7 @@ __device__ __inline__ void rasteriseTriangle(
 }
 
 __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateRadialIntersectionCountImage(
-        radialIntersectionCountImagePixelType* descriptors,
+        SpinImage::gpu::RICIDescriptor* descriptors,
         RICIMesh mesh)
 {
 	// Copying over precalculated values
@@ -357,12 +357,12 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateRadialInte
 
 #if ENABLE_SHARED_MEMORY_IMAGE
 	// Creating a copy of the image in shared memory, then copying it into main memory
-	__shared__ radialIntersectionCountImagePixelType descriptorArrayPointer[spinImageWidthPixels * spinImageWidthPixels];
+	__shared__ SpinImage::gpu::RICIDescriptor descriptorArrayPointer[spinImageWidthPixels * spinImageWidthPixels];
 
 	// Initialising the values in memory to 0
 	for(int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += RASTERISATION_WARP_SIZE)
 	{
-		descriptorArrayPointer[i] = 0;
+		descriptorArrayPointer.contents[i] = 0;
 	}
 
 	__syncthreads();
@@ -403,16 +403,14 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateRadialInte
 	__syncthreads();
 	// Image finished. Copying into main memory
 	// Assumption: entire warp processes same spin image
-	const size_t jobSpinImageBaseIndex = renderedSpinImageIndex * spinImageWidthPixels * spinImageWidthPixels;
 
 	for (int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += RASTERISATION_WARP_SIZE)
 	{
-		atomicAdd(&descriptors[jobSpinImageBaseIndex + i], descriptorArrayPointer[i]);
+		atomicAdd(&descriptors[renderedSpinImageIndex].contents[i], descriptorArrayPointer[i]);
 	}
 #elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
-	size_t jobSpinImageBaseIndex = size_t(renderedSpinImageIndex) * spinImageWidthPixels * spinImageWidthPixels;
 
-	unsigned int* integerBasePointer = (unsigned int*)((void*)(descriptors + jobSpinImageBaseIndex));
+	unsigned int* integerBasePointer = (unsigned int*)((void*)(descriptors + size_t(renderedSpinImageIndex)));
 	unsigned int* sharedImageIntPointer = (unsigned int*)((void*)(descriptorArrayPointer));
 
 	// Divide update count by 2 because we update two pixels at a time
@@ -484,15 +482,15 @@ __global__ void redistributeSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* spi
     riciMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
 
-SpinImage::array<radialIntersectionCountImagePixelType> SpinImage::gpu::generateRadialIntersectionCountImages(
+SpinImage::array<SpinImage::gpu::RICIDescriptor> SpinImage::gpu::generateRadialIntersectionCountImages(
         Mesh device_mesh,
-        array<DeviceOrientedPoint> device_spinImageOrigins,
+        array<DeviceOrientedPoint> device_descriptorOrigins,
         float spinImageWidth,
         SpinImage::debug::RICIExecutionTimes* executionTimes)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
-    size_t imageCount = device_spinImageOrigins.length;
+    size_t imageCount = device_descriptorOrigins.length;
     size_t meshVertexCount = device_mesh.vertexCount;
     size_t triangleCount = meshVertexCount / (size_t) 3;
 
@@ -510,7 +508,7 @@ SpinImage::array<radialIntersectionCountImagePixelType> SpinImage::gpu::generate
 
         DeviceOrientedPoint* device_editableSpinOriginsCopy;
         checkCudaErrors(cudaMalloc(&device_editableSpinOriginsCopy, imageCount * sizeof(DeviceOrientedPoint)));
-        checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_spinImageOrigins.content, imageCount * sizeof(DeviceOrientedPoint), cudaMemcpyDeviceToDevice));
+        checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_descriptorOrigins.content, imageCount * sizeof(DeviceOrientedPoint), cudaMemcpyDeviceToDevice));
         scaleSpinOrigins<<<(imageCount / 128) + 1, 128>>>(device_editableSpinOriginsCopy, imageCount, scaleFactor);
         checkCudaErrors(cudaDeviceSynchronize());
 
@@ -538,17 +536,14 @@ SpinImage::array<radialIntersectionCountImagePixelType> SpinImage::gpu::generate
 
     // -- Descriptor Array Allocation and Initialisation --
 
-    size_t descriptorBufferLength = imageCount * spinImageWidthPixels * spinImageWidthPixels;
-    size_t descriptorBufferSize = sizeof(radialIntersectionCountImagePixelType) * descriptorBufferLength;
+    size_t descriptorBufferSize = imageCount * sizeof(SpinImage::gpu::RICIDescriptor);
 
 
-    array<radialIntersectionCountImagePixelType> device_descriptors;
+    SpinImage::array<SpinImage::gpu::RICIDescriptor> device_descriptors;
 	checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
 	device_descriptors.length = imageCount;
 
-    setValue<radialIntersectionCountImagePixelType> << < (descriptorBufferLength / 64) + 1, 64 >> > (device_descriptors.content, descriptorBufferLength, 0);
-    checkCudaErrors(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
+	cudaMemset(device_descriptors.content, 0, descriptorBufferSize);
 
     // -- Descriptor Generation --
 

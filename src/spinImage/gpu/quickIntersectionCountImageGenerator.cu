@@ -347,7 +347,7 @@ __device__ __inline__ void rasteriseTriangle(
 
 
 __device__ void writeQUICCImage(
-        unsigned int* descriptorArray,
+        SpinImage::gpu::QUICCIDescriptor* descriptorArray,
         radialIntersectionCountImagePixelType* RICIDescriptor) {
 
     const int laneIndex = threadIdx.x % 32;
@@ -387,8 +387,8 @@ __device__ void writeQUICCImage(
             unsigned int changeOccurredCombined = __brev(__ballot_sync(0xFFFFFFFF, didIntersectionCountsChange));
 
             if(laneIndex == 0) {
-                size_t chunkIndex = (blockIdx.x * unsignedIntegersPerImage) + (row * (spinImageWidthPixels / 32)) + (pixel / 32);
-                descriptorArray[chunkIndex] = changeOccurredCombined;
+                size_t chunkIndex = (row * (spinImageWidthPixels / 32)) + (pixel / 32);
+                descriptorArray[blockIdx.x].contents[chunkIndex] = changeOccurredCombined;
             }
 
             // This only matters for thread 31, so no need to broadcast it using a shuffle instruction
@@ -399,7 +399,7 @@ __device__ void writeQUICCImage(
 }
 
 __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuickIntersectionCountChangeImage(
-        radialIntersectionCountImagePixelType* descriptors,
+        SpinImage::gpu::QUICCIDescriptor* descriptors,
         QUICCIMesh mesh)
 {
     // Copying over precalculated values
@@ -541,15 +541,15 @@ __global__ void redistributeSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* spi
     quicciMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
 
-SpinImage::gpu::QUICCIImages SpinImage::gpu::generateQUICCImages(
-        Mesh device_mesh,
-        array<DeviceOrientedPoint> device_spinImageOrigins,
+SpinImage::array<SpinImage::gpu::QUICCIDescriptor> SpinImage::gpu::generateQUICCImages(
+        SpinImage::gpu::Mesh device_mesh,
+        array<DeviceOrientedPoint> device_descriptorOrigins,
         float supportRadius,
         SpinImage::debug::QUICCIExecutionTimes* executionTimes)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
-    size_t imageCount = device_spinImageOrigins.length;
+    size_t imageCount = device_descriptorOrigins.length;
     size_t meshVertexCount = device_mesh.vertexCount;
     size_t triangleCount = meshVertexCount / (size_t) 3;
 
@@ -567,7 +567,7 @@ SpinImage::gpu::QUICCIImages SpinImage::gpu::generateQUICCImages(
 
     DeviceOrientedPoint* device_editableSpinOriginsCopy;
     checkCudaErrors(cudaMalloc(&device_editableSpinOriginsCopy, imageCount * sizeof(DeviceOrientedPoint)));
-    checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_spinImageOrigins.content, imageCount * sizeof(DeviceOrientedPoint), cudaMemcpyDeviceToDevice));
+    checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_descriptorOrigins.content, imageCount * sizeof(DeviceOrientedPoint), cudaMemcpyDeviceToDevice));
     scaleQUICCISpinOrigins<<<(imageCount / 128) + 1, 128>>>(device_editableSpinOriginsCopy, imageCount, scaleFactor);
     checkCudaErrors(cudaDeviceSynchronize());
 
@@ -594,14 +594,14 @@ SpinImage::gpu::QUICCIImages SpinImage::gpu::generateQUICCImages(
     std::chrono::milliseconds redistributeDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - redistributeTimeStart);
 
     // -- Descriptor Array Allocation and Initialisation --
-    size_t imageSequenceSize = imageCount * unsignedIntegersPerImage * sizeof(unsigned int);
+    size_t imageSequenceSize = imageCount * sizeof(SpinImage::gpu::QUICCIDescriptor);
 
-    unsigned int* device_descriptors;
+    SpinImage::gpu::QUICCIDescriptor* device_descriptors;
     checkCudaErrors(cudaMalloc(&device_descriptors, imageSequenceSize));
 
-    SpinImage::gpu::QUICCIImages descriptors;
-    descriptors.images = device_descriptors;
-    descriptors.imageCount = imageCount;
+    SpinImage::array<SpinImage::gpu::QUICCIDescriptor> descriptors;
+    descriptors.content = device_descriptors;
+    descriptors.length = imageCount;
 
     // -- Descriptor Generation --
 

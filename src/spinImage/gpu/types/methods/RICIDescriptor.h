@@ -6,6 +6,7 @@
 namespace SpinImage {
     namespace gpu {
         class RICIDescriptor {
+        public:
             std::array<radialIntersectionCountImagePixelType, spinImageWidthPixels * spinImageWidthPixels> contents;
         };
     }

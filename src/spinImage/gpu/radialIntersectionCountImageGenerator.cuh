@@ -4,6 +4,7 @@
 #include <spinImage/libraryBuildSettings.h>
 #include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/gpu/types/DeviceOrientedPoint.h>
+#include <spinImage/gpu/types/methods/RICIDescriptor.h>
 
 namespace SpinImage {
     namespace debug {
@@ -16,9 +17,9 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        array<radialIntersectionCountImagePixelType> generateRadialIntersectionCountImages(
+        SpinImage::array<SpinImage::gpu::RICIDescriptor> generateRadialIntersectionCountImages(
                 Mesh device_mesh,
-                array<DeviceOrientedPoint> device_spinImageOrigins,
+                array<DeviceOrientedPoint> device_descriptorOrigins,
                 float spinImageWidth,
                 SpinImage::debug::RICIExecutionTimes* executionTimes = nullptr);
     }

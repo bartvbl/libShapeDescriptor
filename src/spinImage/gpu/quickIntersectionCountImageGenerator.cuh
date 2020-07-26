@@ -5,6 +5,7 @@
 #include <spinImage/gpu/types/QUICCImages.h>
 #include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/gpu/types/DeviceOrientedPoint.h>
+#include <spinImage/gpu/types/methods/QUICCIDescriptor.h>
 
 namespace SpinImage {
     namespace debug {
@@ -17,9 +18,9 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        QUICCIImages generateQUICCImages(
+        SpinImage::array<SpinImage::gpu::QUICCIDescriptor> generateQUICCImages(
                 Mesh device_mesh,
-                array<DeviceOrientedPoint> device_spinImageOrigins,
+                array<DeviceOrientedPoint> device_descriptorOrigins,
                 float supportRadius,
                 SpinImage::debug::QUICCIExecutionTimes* executionTimes = nullptr);
     }

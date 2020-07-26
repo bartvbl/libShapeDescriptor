@@ -5,7 +5,7 @@
 
 namespace SpinImage {
     namespace gpu {
-        struct QUICCImage {
+        struct QUICCIDescriptor {
             std::array<unsigned int, (spinImageWidthPixels * spinImageWidthPixels) / (sizeof(unsigned int) * 8)> contents;
         };
     }

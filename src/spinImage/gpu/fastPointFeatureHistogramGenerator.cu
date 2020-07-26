@@ -185,7 +185,7 @@ __global__ void computeFPFHHistograms(
         const float supportRadius,
         float* histogramOriginHistograms,
         float* pointCloudHistograms,
-        float* fpfhHistograms) {
+        SpinImage::gpu::FPFHDescriptor* fpfhHistograms) {
     // Launch dimensions: one block for every descriptor
     // Blocks should contain just about as many threads as a histogram has bins
 #define FPFHDescriptorIndex blockIdx.x
@@ -219,7 +219,7 @@ __global__ void computeFPFHHistograms(
 
     // Copy histogram back to main memory
     for(int i = threadIdx.x; i < 3 * FPFH_BINS_PER_FEATURE; i += blockDim.x) {
-        fpfhHistograms[FPFHDescriptorIndex * 3 * FPFH_BINS_PER_FEATURE + i] = neighbourCount == 0 ? 0 : histogramFPFH[i] / float(neighbourCount);
+        fpfhHistograms[FPFHDescriptorIndex].contents[i] = neighbourCount == 0 ? 0 : histogramFPFH[i] / float(neighbourCount);
     }
 }
 

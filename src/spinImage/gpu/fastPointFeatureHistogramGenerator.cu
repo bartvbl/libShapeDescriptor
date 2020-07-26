@@ -46,7 +46,7 @@
 #include <nvidia/helper_math.h>
 #include <cuda_runtime.h>
 #include <spinImage/gpu/types/PointCloud.h>
-#include <spinImage/utilities/meshSampler.cuh>
+#include <spinImage/utilities/kernels/meshSampler.cuh>
 #include <chrono>
 #include <spinImage/libraryBuildSettings.h>
 

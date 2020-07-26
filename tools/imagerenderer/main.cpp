@@ -3,12 +3,12 @@
 #include <spinImage/gpu/spinImageGenerator.cuh>
 #include <spinImage/gpu/radialIntersectionCountImageGenerator.cuh>
 #include <spinImage/gpu/quickIntersectionCountImageGenerator.cuh>
-#include <spinImage/utilities/OBJLoader.h>
+#include <spinImage/utilities/mesh/OBJLoader.h>
 #include <spinImage/utilities/copy/hostMeshToDevice.h>
 #include <spinImage/utilities/dumpers/spinImageDumper.h>
 #include <spinImage/utilities/copy/descriptors.h>
 #include <spinImage/utilities/CUDAContextCreator.h>
-#include <spinImage/utilities/spinOriginBufferGenerator.h>
+#include <spinImage/utilities/kernels/spinOriginBufferGenerator.h>
 
 #include <arrrgh.hpp>
 

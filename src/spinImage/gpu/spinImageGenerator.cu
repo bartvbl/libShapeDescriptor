@@ -13,8 +13,8 @@
 
 #include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/gpu/types/CudaLaunchDimensions.h>
-#include <spinImage/utilities/setValue.cuh>
-#include <spinImage/utilities/meshSampler.cuh>
+#include <spinImage/utilities/kernels/setValue.cuh>
+#include <spinImage/utilities/kernels/meshSampler.cuh>
 #include <spinImage/utilities/dumpers/spinImageDumper.h>
 #include <spinImage/gpu/types/PointCloud.h>
 #include <spinImage/gpu/types/DeviceVertexList.cuh>

@@ -1,14 +1,14 @@
 #include <spinImage/gpu/types/SampleBounds.h>
 #include <spinImage/gpu/types/PointCloud.h>
 #include <spinImage/gpu/types/CudaLaunchDimensions.h>
-#include <spinImage/utilities/meshSampler.cuh>
-#include <spinImage/utilities/setValue.cuh>
+#include <spinImage/utilities/kernels/meshSampler.cuh>
+#include <spinImage/utilities/kernels/setValue.cuh>
 #include <chrono>
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
 #include <nvidia/helper_math.h>
 #include <spinImage/gpu/types/BoundingBox.h>
-#include <spinImage/utilities/pointCloudUtils.h>
+#include <spinImage/utilities/kernels/pointCloudUtils.h>
 #include <iostream>
 #include "3dShapeContextGenerator.cuh"
 

@@ -5,7 +5,7 @@
 
 #include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/gpu/types/CudaLaunchDimensions.h>
-#include <spinImage/utilities/setValue.cuh>
+#include <spinImage/utilities/kernels/setValue.cuh>
 #include <spinImage/libraryBuildSettings.h>
 
 #include "nvidia/helper_math.h"

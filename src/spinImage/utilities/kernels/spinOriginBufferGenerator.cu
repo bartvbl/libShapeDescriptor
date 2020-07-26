@@ -3,7 +3,7 @@
 #include "spinOriginBufferGenerator.h"
 #include <nvidia/helper_cuda.h>
 #include <cassert>
-#include <spinImage/utilities/copy/hostMeshToDevice.h>
+#include <spinImage/utilities/copy/mesh.h>
 
 __global__ void removeDuplicates(SpinImage::gpu::Mesh inputMesh, SpinImage::gpu::DeviceOrientedPoint* compactedOrigins, size_t* totalVertexCount) {
     // Only a single warp to avoid complications related to divergence within a block

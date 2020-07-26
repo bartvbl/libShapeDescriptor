@@ -3,7 +3,7 @@
 #include <vector_types.h>
 #include <spinImage/gpu/types/PointCloud.h>
 #include <spinImage/common/types/array.h>
-#include <spinImage/utilities/pointCloudUtils.h>
+#include <spinImage/utilities/kernels/pointCloudUtils.h>
 #include <iostream>
 
 

@@ -294,7 +294,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateRadialInte
 		vertices[2].y = mesh.geometryBasePointer[7 * vertexComponentBlockSize + triangleIndex];
 		vertices[2].z = mesh.geometryBasePointer[8 * vertexComponentBlockSize + triangleIndex];
 
-		rasteriseTriangle(descriptorArrayPointer, vertices, spinImageVertex, spinImageNormal);
+		rasteriseTriangle(&descriptorArrayPointer, vertices, spinImageVertex, spinImageNormal);
 	}
 
 	__syncthreads();

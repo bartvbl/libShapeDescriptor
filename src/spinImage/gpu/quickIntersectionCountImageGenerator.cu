@@ -29,16 +29,6 @@ static_assert(sizeof(radialIntersectionCountImagePixelType) == 4);
 const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
 const int unsignedIntegersPerImage = spinImageElementCount / 32;
 
-#if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
-const int SHORT_SINGLE_BOTH_MASK = 0x00010001;
-const int SHORT_SINGLE_ONE_MASK = 0x00000001;
-const int SHORT_SINGLE_FIRST_MASK = 0x00010000;
-
-const int SHORT_DOUBLE_BOTH_MASK = 0x00020002;
-const int SHORT_DOUBLE_ONE_MASK = 0x00000002;
-const int SHORT_DOUBLE_FIRST_MASK = 0x00020000;
-#endif
-
 #define spinOriginCount gridDim.x
 #define renderedSpinImageIndex blockIdx.x
 

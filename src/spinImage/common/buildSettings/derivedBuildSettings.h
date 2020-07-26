@@ -2,10 +2,6 @@
 
 #if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT
 typedef unsigned int radialIntersectionCountImagePixelType;
-#elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
-typedef unsigned short radialIntersectionCountImagePixelType;
-#elif RICI_PIXEL_DATATYPE == DATATYPE_FLOAT32
-typedef float radialIntersectionCountImagePixelType;
 #else
 #error Unsupported datatype has been specified for the Radial Intersection Count Image
 #endif

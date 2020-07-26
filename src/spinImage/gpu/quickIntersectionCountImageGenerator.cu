@@ -95,63 +95,6 @@ __host__ __device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInB
     return (sizeInBytes + 127u) & ~((size_t) 127);
 }
 
-#if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
-__device__ __inline__ void rasteriseRow(int pixelBaseIndex, radialIntersectionCountImagePixelType* descriptorArray, unsigned int pixelStart, unsigned int pixelEnd, const unsigned int singleMask, const unsigned int doubleMask, const unsigned int initialMask)
-{
-    // First we calculate a base pointer for the first short value that should be updated
-    radialIntersectionCountImagePixelType* rowStartPointer = descriptorArray + pixelBaseIndex;
-    // Next, since atomicAdd() requires an integer pointer, we force a cast to an integer pointer
-    // while preserving the address of the original
-    unsigned int* jobBasePixelPointer = (unsigned int*)((void*)(rowStartPointer));
-    // We need an aligned pointer for atomicAdd, so we zero the final two bits of the pointer.
-    // We use shifts because the actual size of uintprt_t is not known. Could be 40-bit.
-    unsigned int* jobAlignedPointer = (unsigned int*)((((uintptr_t)jobBasePixelPointer) >> 2) << 2);
-
-    int pixelCount = pixelEnd - pixelStart;
-
-    // Zero pixel counts and unchecked pixel ranges can still exist at this point.
-    // The initial loop was meant to filter them out
-    // pixelEnd is not clamped, resulting in a negative overflow
-    // The equals check ensures zero width ranges are filtered.
-    if(pixelEnd <= pixelStart)
-    {
-        return;
-    }
-
-    assert((unsigned long) (jobBasePixelPointer) - (unsigned long) (jobAlignedPointer) == 0 || (unsigned long) (jobBasePixelPointer) - (unsigned long) (jobAlignedPointer) == 2);
-
-    unsigned int currentMask = doubleMask;
-
-    // In 1 / 2 cases, the aligned pointer will have been moved back.
-    // We thus need to update the latter short in the slot, and move on to the next.
-    if(jobAlignedPointer < jobBasePixelPointer)
-    {
-        currentMask = initialMask;
-        // Needed to keep the loop going on case another pixel update needs to be done
-        pixelCount++;
-        // The other special scenario is a single pixel at the start. This only occurs when the base pointer equals the
-        // aligned pointer and the total pixel count is 1.
-    } else if(pixelCount == 1) {
-        currentMask = singleMask;
-    }
-
-    unsigned int jobPointerOffset = 0;
-
-    // We need the rounding down behaviour of division here to calculate number of "full" updates
-    while (pixelCount > 0)
-    {
-        unsigned int* updateAddress = jobAlignedPointer + jobPointerOffset;
-
-        atomicAdd(updateAddress, currentMask);
-
-        pixelCount -= 2;
-        jobPointerOffset++;
-
-        currentMask = pixelCount == 1 ? singleMask : doubleMask;
-    }
-}
-#endif
-
 __device__ __inline__ void rasteriseTriangle(
         radialIntersectionCountImagePixelType* descriptors,
         float3 vertices[3],
@@ -293,11 +236,7 @@ __device__ __inline__ void rasteriseTriangle(
             rowStartPixels = min((unsigned int)spinImageWidthPixels, max(0, rowStartPixels));
             rowEndPixels = min((unsigned int)spinImageWidthPixels, rowEndPixels);
 
-#if !ENABLE_SHARED_MEMORY_IMAGE
-            const size_t jobSpinImageBaseIndex = size_t(renderedSpinImageIndex) * spinImageWidthPixels * spinImageWidthPixels + pixelYCoordinate * spinImageWidthPixels;
-#else
             const size_t jobSpinImageBaseIndex = pixelYCoordinate * ((unsigned short) spinImageWidthPixels);
-#endif
 
             // Step 9: Fill pixels
             if (hasDoubleIntersection)
@@ -307,40 +246,18 @@ __device__ __inline__ void rasteriseTriangle(
 
                 // rowStartPixels must already be in bounds, and doubleIntersectionStartPixels can not be smaller than 0.
                 // Hence the values in this loop are in-bounds.
-#if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT || RICI_PIXEL_DATATYPE == DATATYPE_FLOAT32
                 for (int jobX = jobDoubleIntersectionStartPixels; jobX < rowStartPixels; jobX++)
                 {
                     // Increment pixel by 2 because 2 intersections occurred.
                     atomicAdd(&(descriptors[jobSpinImageBaseIndex + jobX]), 2);
                 }
-#elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
-                #if !ENABLE_SHARED_MEMORY_IMAGE
-				int jobBaseIndex = jobSpinImageBaseIndex + jobDoubleIntersectionStartPixels;
-				radialIntersectionCountImagePixelType* descriptorArrayPointer = descriptors.content;
-	#else
-				int jobBaseIndex = pixelYCoordinate * spinImageWidthPixels + jobDoubleIntersectionStartPixels;
-				radialIntersectionCountImagePixelType* descriptorArrayPointer = descriptors;
-	#endif
-				rasteriseRow(jobBaseIndex, descriptorArrayPointer, jobDoubleIntersectionStartPixels, rowStartPixels, SHORT_DOUBLE_ONE_MASK, SHORT_DOUBLE_BOTH_MASK, SHORT_DOUBLE_FIRST_MASK);
-#endif
             }
 
-#if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT || RICI_PIXEL_DATATYPE == DATATYPE_FLOAT32
             // It's imperative the condition of this loop is a < comparison
             for (int jobX = rowStartPixels; jobX < rowEndPixels; jobX++)
             {
                 atomicAdd(&(descriptors[jobSpinImageBaseIndex + jobX]), 1);
             }
-#elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
-            #if !ENABLE_SHARED_MEMORY_IMAGE
-			int jobBaseIndex = jobSpinImageBaseIndex + rowStartPixels;
-			radialIntersectionCountImagePixelType* descriptorArrayPointer = descriptors.content;
-	#else
-			int jobBaseIndex = pixelYCoordinate * spinImageWidthPixels + rowStartPixels;
-			radialIntersectionCountImagePixelType* descriptorArrayPointer = descriptors;
-	#endif
-			rasteriseRow(jobBaseIndex, descriptorArrayPointer, rowStartPixels, rowEndPixels, SHORT_SINGLE_ONE_MASK, SHORT_SINGLE_BOTH_MASK, SHORT_SINGLE_FIRST_MASK);
-#endif
         }
     }
 }
@@ -417,8 +334,6 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuickInter
     spinImageNormal.z = mesh.spinOriginsBasePointer[5 * spinComponentBlockSize + renderedSpinImageIndex];
 
     assert(__activemask() == 0xFFFFFFFF);
-
-#if ENABLE_SHARED_MEMORY_IMAGE
     // Creating a copy of the image in shared memory, then copying it into main memory
 	__shared__ radialIntersectionCountImagePixelType descriptorArrayPointer[spinImageWidthPixels * spinImageWidthPixels];
 
@@ -429,7 +344,6 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuickInter
 	}
 
 	__syncthreads();
-#endif
 
     const size_t triangleCount = mesh.vertexCount / 3;
     for (int triangleIndex = threadIdx.x;
@@ -452,33 +366,12 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuickInter
         vertices[2].y = mesh.geometryBasePointer[7 * vertexComponentBlockSize + triangleIndex];
         vertices[2].z = mesh.geometryBasePointer[8 * vertexComponentBlockSize + triangleIndex];
 
-#if ENABLE_SHARED_MEMORY_IMAGE
         rasteriseTriangle(descriptorArrayPointer, vertices, spinImageVertex, spinImageNormal);
-#else
-        rasteriseTriangle(descriptors, vertices, settings);
-#endif
-
     }
-#if ENABLE_SHARED_MEMORY_IMAGE
-
-    #if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT
 
 	__syncthreads();
 	// Image finished. Copying into main memory
 	writeQUICCImage(descriptors, descriptorArrayPointer);
-#elif RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_SHORT
-	size_t jobSpinImageBaseIndex = size_t(renderedSpinImageIndex) * spinImageWidthPixels * spinImageWidthPixels;
-
-	unsigned int* integerBasePointer = (unsigned int*)((void*)(descriptors + jobSpinImageBaseIndex));
-	unsigned int* sharedImageIntPointer = (unsigned int*)((void*)(descriptorArrayPointer));
-
-	// Divide update count by 2 because we update two pixels at a time
-	for (int i = threadIdx.x; i < (spinImageWidthPixels * spinImageWidthPixels) / 2; i += RASTERISATION_WARP_SIZE)
-	{
-		atomicAdd(integerBasePointer + i, *(sharedImageIntPointer + i));
-	}
-#endif
-#endif
 }
 
 __global__ void scaleQUICCIMesh(SpinImage::gpu::Mesh mesh, float scaleFactor) {

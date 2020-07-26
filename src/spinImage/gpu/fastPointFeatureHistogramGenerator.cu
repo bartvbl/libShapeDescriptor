@@ -48,7 +48,7 @@
 #include <spinImage/gpu/types/PointCloud.h>
 #include <spinImage/utilities/meshSampler.cuh>
 #include <chrono>
-
+#include <spinImage/libraryBuildSettings.h>
 
 
 __device__ __host__ __forceinline__
@@ -111,7 +111,6 @@ bool pcl_computePairFeatures (
 }
 
 __global__ void computeSPFHHistograms(
-        const unsigned int numDescriptorBinsPerFeature,
         SpinImage::gpu::DeviceVertexList descriptorOriginVertices,
         SpinImage::gpu::DeviceVertexList descriptorOriginNormals,
         SpinImage::gpu::PointCloud pointCloud,
@@ -120,13 +119,11 @@ __global__ void computeSPFHHistograms(
     // Launch dimensions: one block for every descriptor
 #define SPFHDescriptorIndex blockIdx.x
 
-#define floatsPerHistogram 3 * numDescriptorBinsPerFeature
-
     extern __shared__ unsigned int histogramSPFH[];
 
     unsigned int neighbourCount = 0;
 
-    for(int i = threadIdx.x; i < floatsPerHistogram; i+= blockDim.x) {
+    for(int i = threadIdx.x; i < 3 * FPFH_BINS_PER_FEATURE; i+= blockDim.x) {
         histogramSPFH[i] = 0;
     }
 
@@ -153,17 +150,17 @@ __global__ void computeSPFHHistograms(
             if(featuresComputedSuccessfully) {
                 neighbourCount++;
 
-                unsigned int feature1BinIndex = std::floor (numDescriptorBinsPerFeature * ((feature1_theta + M_PI) * (1.0f / (2.0f * M_PI))));
-                feature1BinIndex = clamp(feature1BinIndex, 0U, numDescriptorBinsPerFeature - 1);
-                atomicAdd(histogramSPFH + 0 * numDescriptorBinsPerFeature + feature1BinIndex, 1);
+                unsigned int feature1BinIndex = std::floor (FPFH_BINS_PER_FEATURE * ((feature1_theta + M_PI) * (1.0f / (2.0f * M_PI))));
+                feature1BinIndex = clamp(feature1BinIndex, 0U, FPFH_BINS_PER_FEATURE - 1U);
+                atomicAdd(histogramSPFH + 0 * FPFH_BINS_PER_FEATURE + feature1BinIndex, 1);
 
-                unsigned int feature2BinIndex = std::floor (numDescriptorBinsPerFeature * ((feature2_alpha + 1.0f) * 0.5f));
-                feature2BinIndex = clamp(feature2BinIndex, 0U, numDescriptorBinsPerFeature - 1);
-                atomicAdd(histogramSPFH + 1 * numDescriptorBinsPerFeature + feature2BinIndex, 1);
+                unsigned int feature2BinIndex = std::floor (FPFH_BINS_PER_FEATURE * ((feature2_alpha + 1.0f) * 0.5f));
+                feature2BinIndex = clamp(feature2BinIndex, 0U, FPFH_BINS_PER_FEATURE - 1U);
+                atomicAdd(histogramSPFH + 1 * FPFH_BINS_PER_FEATURE + feature2BinIndex, 1);
 
-                unsigned int feature3BinIndex = std::floor (numDescriptorBinsPerFeature * ((feature3_phi + 1.0f) * 0.5f));
-                feature3BinIndex = clamp(feature3BinIndex, 0U, numDescriptorBinsPerFeature - 1);
-                atomicAdd(histogramSPFH + 2 * numDescriptorBinsPerFeature + feature3BinIndex, 1);
+                unsigned int feature3BinIndex = std::floor (FPFH_BINS_PER_FEATURE * ((feature3_phi + 1.0f) * 0.5f));
+                feature3BinIndex = clamp(feature3BinIndex, 0U, FPFH_BINS_PER_FEATURE - 1U);
+                atomicAdd(histogramSPFH + 2 * FPFH_BINS_PER_FEATURE + feature3BinIndex, 1);
             }
         }
     }
@@ -177,13 +174,12 @@ __global__ void computeSPFHHistograms(
     }
 
     // Compute final histogram and copy it to main memory
-    for(int i = threadIdx.x; i < floatsPerHistogram; i += blockDim.x) {
-        histograms[SPFHDescriptorIndex * floatsPerHistogram + i] = normalisationFactor * histogramSPFH[i];
+    for(int i = threadIdx.x; i < 3 * FPFH_BINS_PER_FEATURE; i += blockDim.x) {
+        histograms[SPFHDescriptorIndex * 3 * FPFH_BINS_PER_FEATURE + i] = normalisationFactor * histogramSPFH[i];
     }
 }
 
 __global__ void computeFPFHHistograms(
-        const unsigned int numDescriptorBinsPerFeature,
         SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> descriptorOrigins,
         SpinImage::gpu::PointCloud pointCloud,
         const float supportRadius,
@@ -196,8 +192,8 @@ __global__ void computeFPFHHistograms(
 
     extern __shared__ float histogramFPFH[];
 
-    for(int i = threadIdx.x; i < floatsPerHistogram; i+= blockDim.x) {
-        histogramFPFH[i] = histogramOriginHistograms[FPFHDescriptorIndex * floatsPerHistogram + i];
+    for(int i = threadIdx.x; i < 3 * FPFH_BINS_PER_FEATURE; i+= blockDim.x) {
+        histogramFPFH[i] = histogramOriginHistograms[FPFHDescriptorIndex * 3 * FPFH_BINS_PER_FEATURE + i];
     }
 
     unsigned int neighbourCount = 0;
@@ -207,13 +203,13 @@ __global__ void computeFPFHHistograms(
     float3 descriptorOrigin = descriptorOrigins.content[FPFHDescriptorIndex].vertex;
 
     for(unsigned int neighbourHistogram = 0; neighbourHistogram < pointCloud.vertices.length; neighbourHistogram++) {
-        for(unsigned int histogramBin = threadIdx.x; histogramBin < floatsPerHistogram; histogramBin += blockDim.x) {
+        for(unsigned int histogramBin = threadIdx.x; histogramBin < 3 * FPFH_BINS_PER_FEATURE; histogramBin += blockDim.x) {
             float3 pointCloudPoint = pointCloud.vertices.at(neighbourHistogram);
             float distanceToPoint = length(pointCloudPoint - descriptorOrigin);
             if(distanceToPoint <= supportRadius) {
                 neighbourCount++;
                 float distanceWeight = 1.0f / distanceToPoint;
-                float histogramValue = pointCloudHistograms[neighbourHistogram * floatsPerHistogram + histogramBin];
+                float histogramValue = pointCloudHistograms[neighbourHistogram * 3 * FPFH_BINS_PER_FEATURE + histogramBin];
                 atomicAdd(&histogramFPFH[histogramBin], distanceWeight * histogramValue);
             }
         }
@@ -222,8 +218,8 @@ __global__ void computeFPFHHistograms(
     __syncthreads();
 
     // Copy histogram back to main memory
-    for(int i = threadIdx.x; i < floatsPerHistogram; i += blockDim.x) {
-        fpfhHistograms[FPFHDescriptorIndex * floatsPerHistogram + i] = neighbourCount == 0 ? 0 : histogramFPFH[i] / float(neighbourCount);
+    for(int i = threadIdx.x; i < 3 * FPFH_BINS_PER_FEATURE; i += blockDim.x) {
+        fpfhHistograms[FPFHDescriptorIndex * 3 * FPFH_BINS_PER_FEATURE + i] = neighbourCount == 0 ? 0 : histogramFPFH[i] / float(neighbourCount);
     }
 }
 
@@ -244,12 +240,11 @@ SpinImage::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFPFHHis
         SpinImage::gpu::PointCloud device_pointCloud,
         SpinImage::array<DeviceOrientedPoint> device_descriptorOrigins,
         float supportRadius,
-        unsigned int numDescriptorBinsPerAxis,
         SpinImage::debug::FPFHExecutionTimes* executionTimes)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
-    const unsigned int binsPerHistogram = 3 * numDescriptorBinsPerAxis;
+    const unsigned int binsPerHistogram = 3 * FPFH_BINS_PER_FEATURE;
     size_t singleHistogramSizeBytes = binsPerHistogram * sizeof(float);
     size_t outputHistogramsSize = device_descriptorOrigins.length * singleHistogramSizeBytes;
 
@@ -273,7 +268,6 @@ SpinImage::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFPFHHis
     float* device_origins_SPFH_histograms;
     checkCudaErrors(cudaMalloc(&device_origins_SPFH_histograms, outputHistogramsSize));
     computeSPFHHistograms<<<device_descriptorOrigins.length, 64, singleHistogramSizeBytes>>>(
-            numDescriptorBinsPerAxis,
             device_reformattedOriginVerticesList,
             device_reformattedOriginNormalsList,
             device_pointCloud,
@@ -292,7 +286,6 @@ SpinImage::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFPFHHis
     float* device_pointCloud_SPFH_histograms;
     checkCudaErrors(cudaMalloc(&device_pointCloud_SPFH_histograms, device_pointCloud.pointCount * singleHistogramSizeBytes));
     computeSPFHHistograms<<<device_pointCloud.pointCount, 64, singleHistogramSizeBytes>>>(
-            numDescriptorBinsPerAxis,
             device_pointCloud.vertices,
             device_pointCloud.normals,
             device_pointCloud,
@@ -310,7 +303,6 @@ SpinImage::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFPFHHis
     checkCudaErrors(cudaMalloc(&device_histograms.content, outputHistogramsSize));
 
     computeFPFHHistograms<<<device_descriptorOrigins.length, 64, singleHistogramSizeBytes>>>(
-            numDescriptorBinsPerAxis,
             device_descriptorOrigins,
             device_pointCloud,
             supportRadius,

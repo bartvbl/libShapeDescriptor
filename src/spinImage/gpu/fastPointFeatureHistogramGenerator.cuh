@@ -22,7 +22,6 @@ namespace SpinImage {
                 SpinImage::gpu::PointCloud device_pointCloud,
                 SpinImage::array<DeviceOrientedPoint> device_descriptorOrigins,
                 float supportRadius,
-                unsigned int numDescriptorBinsPerAxis = 11,
                 SpinImage::debug::FPFHExecutionTimes* executionTimes = nullptr);
     }
 }

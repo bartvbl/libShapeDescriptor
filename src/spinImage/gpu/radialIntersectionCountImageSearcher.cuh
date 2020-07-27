@@ -15,10 +15,8 @@ namespace SpinImage {
 
     namespace gpu {
         array<RadialIntersectionCountImageSearchResults> findRadialIntersectionCountImagesInHaystack(
-                array<radialIntersectionCountImagePixelType> device_needleDescriptors,
-                size_t needleImageCount,
-                array<radialIntersectionCountImagePixelType> device_haystackDescriptors,
-                size_t haystackImageCount);
+                array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
+                array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors);
 
         SpinImage::array<unsigned int> computeRadialIntersectionCountImageSearchResultRanks(
                 SpinImage::array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,

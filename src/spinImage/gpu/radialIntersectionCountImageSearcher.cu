@@ -363,9 +363,9 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeRadialIntersectionCountIma
 
 const unsigned int warpCount = 16;
 
-__global__ void generateSearchResults(radialIntersectionCountImagePixelType* needleDescriptors,
+__global__ void generateSearchResults(SpinImage::gpu::RICIDescriptor* needleDescriptors,
                                       size_t needleImageCount,
-                                      radialIntersectionCountImagePixelType* haystackDescriptors,
+                                      SpinImage::gpu::RICIDescriptor* haystackDescriptors,
                                       size_t haystackImageCount,
                                       SpinImage::gpu::RadialIntersectionCountImageSearchResults* searchResults) {
 
@@ -453,23 +453,21 @@ __global__ void generateSearchResults(radialIntersectionCountImagePixelType* nee
 }
 
 SpinImage::array<SpinImage::gpu::RadialIntersectionCountImageSearchResults> SpinImage::gpu::findRadialIntersectionCountImagesInHaystack(
-        array<radialIntersectionCountImagePixelType> device_needleDescriptors,
-        size_t needleImageCount,
-        array<radialIntersectionCountImagePixelType> device_haystackDescriptors,
-        size_t haystackImageCount) {
+        array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
+        array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors) {
 
-    size_t searchResultBufferSize = needleImageCount * sizeof(RadialIntersectionCountImageSearchResults);
+    size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(RadialIntersectionCountImageSearchResults);
     RadialIntersectionCountImageSearchResults* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
 
     std::cout << "\t\tPerforming search.." << std::endl;
     auto start = std::chrono::steady_clock::now();
 
-    generateSearchResults<<<(needleImageCount / warpCount) + 1, 32 * warpCount>>>(
+    generateSearchResults<<<(device_needleDescriptors.length / warpCount) + 1, 32 * warpCount>>>(
             device_needleDescriptors.content,
-            needleImageCount,
+            device_needleDescriptors.length,
             device_haystackDescriptors.content,
-            haystackImageCount,
+            device_haystackDescriptors.length,
             device_searchResults);
     checkCudaErrors(cudaDeviceSynchronize());
 
@@ -479,8 +477,8 @@ SpinImage::array<SpinImage::gpu::RadialIntersectionCountImageSearchResults> Spin
     // Step 3: Copying results to CPU
 
     array<RadialIntersectionCountImageSearchResults> searchResults;
-    searchResults.content = new RadialIntersectionCountImageSearchResults[needleImageCount];
-    searchResults.length = needleImageCount;
+    searchResults.content = new RadialIntersectionCountImageSearchResults[device_needleDescriptors.length];
+    searchResults.length = device_needleDescriptors.length;
 
     checkCudaErrors(cudaMemcpy(searchResults.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));
 

@@ -2,23 +2,22 @@
 
 #include <spinImage/common/types/array.h>
 #include <spinImage/libraryBuildSettings.h>
+#include <spinImage/gpu/types/methods/3DSCDescriptor.h>
 
 namespace SpinImage {
     namespace debug {
-        struct SCSearchRunInfo {
+        struct SCSearchExecutionTimes {
             double totalExecutionTimeSeconds;
             double searchExecutionTimeSeconds;
         };
     }
 
     namespace gpu {
-        array<unsigned int> compute3DSCSearchResultRanks(
-                array<shapeContextBinType> device_needleDescriptors,
-                size_t needleDescriptorCount,
+        SpinImage::array<unsigned int> compute3DSCSearchResultRanks(
+                SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> device_needleDescriptors,
                 size_t needleDescriptorSampleCount,
-                array<shapeContextBinType> device_haystackDescriptors,
-                size_t haystackDescriptorCount,
+                SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> device_haystackDescriptors,
                 size_t haystackDescriptorSampleCount,
-                SpinImage::debug::SCSearchRunInfo* runInfo = nullptr);
+                SpinImage::debug::SCSearchExecutionTimes* executionTimes = nullptr);
     }
 }

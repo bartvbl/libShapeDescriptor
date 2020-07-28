@@ -6,6 +6,7 @@
 #include <host_defines.h>
 #include <iostream>
 #include <vector_types.h>
+#include <spinImage/gpu/types/methods/3DSCDescriptor.h>
 
 const size_t elementsPerShapeContextDescriptor =
         SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT *
@@ -66,8 +67,8 @@ __device__ float compute3DSCPairDistanceGPU(
 }
 
 __global__ void computeShapeContextSearchResultIndices(
-        shapeContextBinType* needleDescriptors,
-        shapeContextBinType* haystackDescriptors,
+        SpinImage::gpu::ShapeContextDescriptor* needleDescriptors,
+        SpinImage::gpu::ShapeContextDescriptor* haystackDescriptors,
         size_t haystackDescriptorCount,
         float haystackScaleFactor,
         unsigned int* searchResults) {
@@ -78,7 +79,7 @@ __global__ void computeShapeContextSearchResultIndices(
 
     __shared__ shapeContextBinType referenceDescriptor[elementsPerShapeContextDescriptor];
     for(unsigned int index = blockDim.x * threadIdx.y + threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x * blockDim.y) {
-        referenceDescriptor[index] = needleDescriptors[elementsPerShapeContextDescriptor * needleDescriptorIndex + index];
+        referenceDescriptor[index] = needleDescriptors[needleDescriptorIndex].contents[index];
     }
 
     __shared__ shapeContextBinType haystackDescriptor[elementsPerShapeContextDescriptor];
@@ -137,18 +138,16 @@ __global__ void computeShapeContextSearchResultIndices(
 
 
 SpinImage::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
-        array<shapeContextBinType> device_needleDescriptors,
-        size_t needleDescriptorCount,
+        SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> device_needleDescriptors,
         size_t needleDescriptorSampleCount,
-        array<shapeContextBinType> device_haystackDescriptors,
-        size_t haystackDescriptorCount,
+        SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> device_haystackDescriptors,
         size_t haystackDescriptorSampleCount,
-        SpinImage::debug::SCSearchRunInfo* runInfo) {
+        SpinImage::debug::SCSearchExecutionTimes* executionTimes) {
     static_assert(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT <= 32);
 
     auto executionStart = std::chrono::steady_clock::now();
 
-    size_t searchResultBufferSize = needleDescriptorCount * sizeof(unsigned int);
+    size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(unsigned int);
     unsigned int* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
     checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
@@ -161,10 +160,10 @@ SpinImage::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
     dim3 blockDimensions = {
         32, SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT, 1
     };
-    computeShapeContextSearchResultIndices<<<needleDescriptorCount, blockDimensions>>>(
+    computeShapeContextSearchResultIndices<<<device_needleDescriptors.length, blockDimensions>>>(
         device_needleDescriptors.content,
         device_haystackDescriptors.content,
-        haystackDescriptorCount,
+        device_haystackDescriptors.length,
         haystackScaleFactor,
         device_searchResults);
 
@@ -174,8 +173,8 @@ SpinImage::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
     std::chrono::milliseconds searchDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart);
 
     array<unsigned int> resultIndices;
-    resultIndices.content = new unsigned int[needleDescriptorCount];
-    resultIndices.length = needleDescriptorCount;
+    resultIndices.content = new unsigned int[device_needleDescriptors.length];
+    resultIndices.length = device_needleDescriptors.length;
 
     checkCudaErrors(cudaMemcpy(resultIndices.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));
 
@@ -185,9 +184,9 @@ SpinImage::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
 
     std::chrono::milliseconds executionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - executionStart);
 
-    if(runInfo != nullptr) {
-        runInfo->searchExecutionTimeSeconds = double(searchDuration.count()) / 1000.0;
-        runInfo->totalExecutionTimeSeconds = double(executionDuration.count()) / 1000.0;
+    if(executionTimes != nullptr) {
+        executionTimes->searchExecutionTimeSeconds = double(searchDuration.count()) / 1000.0;
+        executionTimes->totalExecutionTimeSeconds = double(executionDuration.count()) / 1000.0;
     }
 
     return resultIndices;

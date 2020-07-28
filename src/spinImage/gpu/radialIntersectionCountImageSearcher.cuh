@@ -7,7 +7,7 @@
 
 namespace SpinImage {
     namespace debug {
-        struct RICISearchRunInfo {
+        struct RICISearchExecutionTimes {
             double totalExecutionTimeSeconds;
             double searchExecutionTimeSeconds;
         };
@@ -21,6 +21,6 @@ namespace SpinImage {
         SpinImage::array<unsigned int> computeRadialIntersectionCountImageSearchResultRanks(
                 SpinImage::array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
                 SpinImage::array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors,
-                SpinImage::debug::RICISearchRunInfo* runInfo = nullptr);
+                SpinImage::debug::RICISearchExecutionTimes* executionTimes = nullptr);
     }
 }

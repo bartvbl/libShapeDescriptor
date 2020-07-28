@@ -12,6 +12,8 @@
 #include <spinImage/gpu/types/methods/RICIDescriptor.h>
 #include "nvidia/helper_cuda.h"
 #include "radialIntersectionCountImageSearcher.cuh"
+#include "types/methods/RICIDescriptor.h"
+#include "types/ImageSearchResults.h"
 
 #ifndef warpSize
 #define warpSize 32
@@ -290,7 +292,7 @@ __global__ void computeRadialIntersectionCountImageSearchResultIndices(
 SpinImage::array<unsigned int> SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
         SpinImage::array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
         SpinImage::array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors,
-        SpinImage::debug::RICISearchRunInfo* runInfo) {
+        SpinImage::debug::RICISearchExecutionTimes* executionTimes) {
 
     auto executionStart = std::chrono::steady_clock::now();
 
@@ -323,9 +325,9 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeRadialIntersectionCountIma
 
     std::chrono::milliseconds executionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - executionStart);
 
-    if(runInfo != nullptr) {
-        runInfo->searchExecutionTimeSeconds = double(searchDuration.count()) / 1000.0;
-        runInfo->totalExecutionTimeSeconds = double(executionDuration.count()) / 1000.0;
+    if(executionTimes != nullptr) {
+        executionTimes->searchExecutionTimeSeconds = double(searchDuration.count()) / 1000.0;
+        executionTimes->totalExecutionTimeSeconds = double(executionDuration.count()) / 1000.0;
     }
 
     return resultIndices;

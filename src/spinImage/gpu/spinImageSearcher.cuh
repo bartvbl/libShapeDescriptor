@@ -7,7 +7,7 @@
 
 namespace SpinImage {
     namespace debug {
-        struct SISearchRunInfo {
+        struct SISearchExecutionTimes {
             double totalExecutionTimeSeconds;
             double searchExecutionTimeSeconds;
             double averagingExecutionTimeSeconds;
@@ -15,17 +15,13 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        array<SpinImageSearchResults> findSpinImagesInHaystack(
-                array<spinImagePixelType> device_needleDescriptors,
-                size_t needleImageCount,
-                array<spinImagePixelType> device_haystackDescriptors,
-                size_t haystackImageCount);
+        SpinImage::array<SpinImageSearchResults> findSpinImagesInHaystack(
+                SpinImage::array<SpinImage::gpu::SpinImageDescriptor> device_needleDescriptors,
+                SpinImage::array<SpinImage::gpu::SpinImageDescriptor> device_haystackDescriptors);
 
-        array<unsigned int> computeSpinImageSearchResultRanks(
-                array<spinImagePixelType> device_needleDescriptors,
-                size_t needleImageCount,
-                array<spinImagePixelType> device_haystackDescriptors,
-                size_t haystackImageCount,
-                SpinImage::debug::SISearchRunInfo* runInfo = nullptr);
+        SpinImage::array<unsigned int> computeSpinImageSearchResultRanks(
+                SpinImage::array<SpinImage::gpu::SpinImageDescriptor> device_needleDescriptors,
+                SpinImage::array<SpinImage::gpu::SpinImageDescriptor> device_haystackDescriptors,
+                SpinImage::debug::SISearchExecutionTimes* executionTimes = nullptr);
     }
 }

@@ -119,7 +119,7 @@ __global__ void computeSPFHHistograms(
     // Launch dimensions: one block for every descriptor
 #define SPFHDescriptorIndex blockIdx.x
 
-    extern __shared__ unsigned int histogramSPFH[];
+    __shared__ unsigned int histogramSPFH[3 * FPFH_BINS_PER_FEATURE];
 
     unsigned int neighbourCount = 0;
 
@@ -190,7 +190,7 @@ __global__ void computeFPFHHistograms(
     // Blocks should contain just about as many threads as a histogram has bins
 #define FPFHDescriptorIndex blockIdx.x
 
-    extern __shared__ float histogramFPFH[];
+    __shared__ float histogramFPFH[3 * FPFH_BINS_PER_FEATURE];
 
     for(int i = threadIdx.x; i < 3 * FPFH_BINS_PER_FEATURE; i+= blockDim.x) {
         histogramFPFH[i] = histogramOriginHistograms[FPFHDescriptorIndex * 3 * FPFH_BINS_PER_FEATURE + i];
@@ -244,8 +244,7 @@ SpinImage::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFPFHHis
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
-    const unsigned int binsPerHistogram = 3 * FPFH_BINS_PER_FEATURE;
-    size_t singleHistogramSizeBytes = binsPerHistogram * sizeof(float);
+    size_t singleHistogramSizeBytes = sizeof(SpinImage::gpu::FPFHDescriptor);
     size_t outputHistogramsSize = device_descriptorOrigins.length * singleHistogramSizeBytes;
 
 
@@ -267,7 +266,7 @@ SpinImage::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFPFHHis
     auto originsSPFHTimeStart = std::chrono::steady_clock::now();
     float* device_origins_SPFH_histograms;
     checkCudaErrors(cudaMalloc(&device_origins_SPFH_histograms, outputHistogramsSize));
-    computeSPFHHistograms<<<device_descriptorOrigins.length, 64, singleHistogramSizeBytes>>>(
+    computeSPFHHistograms<<<device_descriptorOrigins.length, 64>>>(
             device_reformattedOriginVerticesList,
             device_reformattedOriginNormalsList,
             device_pointCloud,
@@ -285,7 +284,7 @@ SpinImage::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFPFHHis
     auto pointCloudSPFHTimeStart = std::chrono::steady_clock::now();
     float* device_pointCloud_SPFH_histograms;
     checkCudaErrors(cudaMalloc(&device_pointCloud_SPFH_histograms, device_pointCloud.pointCount * singleHistogramSizeBytes));
-    computeSPFHHistograms<<<device_pointCloud.pointCount, 64, singleHistogramSizeBytes>>>(
+    computeSPFHHistograms<<<device_pointCloud.pointCount, 64>>>(
             device_pointCloud.vertices,
             device_pointCloud.normals,
             device_pointCloud,
@@ -302,7 +301,7 @@ SpinImage::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFPFHHis
     device_histograms.length = device_descriptorOrigins.length;
     checkCudaErrors(cudaMalloc(&device_histograms.content, outputHistogramsSize));
 
-    computeFPFHHistograms<<<device_descriptorOrigins.length, 64, singleHistogramSizeBytes>>>(
+    computeFPFHHistograms<<<device_descriptorOrigins.length, 64>>>(
             device_descriptorOrigins,
             device_pointCloud,
             supportRadius,

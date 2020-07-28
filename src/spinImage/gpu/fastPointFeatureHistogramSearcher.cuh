@@ -4,7 +4,7 @@
 
 namespace SpinImage {
     namespace debug {
-        struct FPFHSearchRunInfo {
+        struct FPFHSearchExecutionTimes {
             double totalExecutionTimeSeconds;
             double searchExecutionTimeSeconds;
         };
@@ -12,10 +12,8 @@ namespace SpinImage {
 
     namespace gpu {
         array<unsigned int> computeFPFHSearchResultRanks(
-                SpinImage::gpu::FPFHHistograms device_needleDescriptors,
-                size_t needleDescriptorCount,
-                SpinImage::gpu::FPFHHistograms device_haystackDescriptors,
-                size_t haystackDescriptorCount,
-                SpinImage::debug::FPFHSearchRunInfo* runInfo = nullptr);
+                SpinImage::array<SpinImage::gpu::FPFHDescriptor> device_needleDescriptors,
+                SpinImage::array<SpinImage::gpu::FPFHDescriptor> device_haystackDescriptors,
+                SpinImage::debug::FPFHSearchExecutionTimes* executionTimes = nullptr);
     }
 }

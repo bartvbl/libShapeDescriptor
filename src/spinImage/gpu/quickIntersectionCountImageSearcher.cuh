@@ -5,7 +5,7 @@
 
 namespace SpinImage {
     namespace debug {
-        struct QUICCISearchRunInfo {
+        struct QUICCISearchExecutionTimes {
             double totalExecutionTimeSeconds;
             double searchExecutionTimeSeconds;
         };
@@ -13,11 +13,9 @@ namespace SpinImage {
 
     namespace gpu {
         SpinImage::array<unsigned int> computeQUICCImageSearchResultRanks(
-                SpinImage::gpu::QUICCIImages device_needleDescriptors,
-                size_t needleImageCount,
-                SpinImage::gpu::QUICCIImages device_haystackDescriptors,
-                size_t haystackImageCount,
-                SpinImage::debug::QUICCISearchRunInfo* runInfo = nullptr);
+                SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_needleDescriptors,
+                SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_haystackDescriptors,
+                SpinImage::debug::QUICCISearchExecutionTimes* executionTimes = nullptr);
 
         struct QUICCIDistances {
             unsigned int clutterResistantDistance = 0;
@@ -27,8 +25,7 @@ namespace SpinImage {
         };
 
         SpinImage::array<SpinImage::gpu::QUICCIDistances> computeQUICCIElementWiseDistances(
-                SpinImage::gpu::QUICCIImages device_descriptors,
-                SpinImage::gpu::QUICCIImages device_correspondingDescriptors,
-                size_t descriptorCount);
+                SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_descriptors,
+                SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_correspondingDescriptors);
     }
 }

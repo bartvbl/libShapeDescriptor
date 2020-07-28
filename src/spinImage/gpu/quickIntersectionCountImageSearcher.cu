@@ -30,14 +30,14 @@ __inline__ __device__ float warpAllReduceSum(float val) {
     return val;
 }
 
-__inline__ __device__ unsigned int getChunkAt(const unsigned int* imageArray, const size_t imageIndex, const int chunkIndex) {
-    return imageArray[imageIndex * uintsPerQUICCImage + chunkIndex];
+__inline__ __device__ unsigned int getChunkAt(const SpinImage::gpu::QUICCIDescriptor* image, const size_t imageIndex, const int chunkIndex) {
+    return image[imageIndex].contents[chunkIndex];
 }
 
 const int indexBasedWarpCount = 16;
 
 __device__ int computeImageSumGPU(
-        const unsigned int* needleImages,
+        const SpinImage::gpu::QUICCIDescriptor* needleImages,
         const size_t imageIndex) {
 
     const int laneIndex = threadIdx.x % 32;
@@ -57,7 +57,7 @@ __device__ int computeImageSumGPU(
 }
 
 __device__ distanceType compareConstantQUICCImagePairGPU(
-        const unsigned int* haystackImages,
+        const SpinImage::gpu::QUICCIDescriptor* haystackImages,
         const size_t haystackImageIndex) {
 
     const int laneIndex = threadIdx.x % 32;
@@ -87,9 +87,9 @@ __device__ distanceType compareConstantQUICCImagePairGPU(
 }
 
 __device__ distanceType compareQUICCImagePairGPU(
-        const unsigned int* needleImages,
+        const SpinImage::gpu::QUICCIDescriptor* needleImages,
         const size_t needleImageIndex,
-        const unsigned int* haystackImages,
+        const SpinImage::gpu::QUICCIDescriptor* haystackImages,
         const size_t haystackImageIndex
 #if QUICCI_DISTANCE_FUNCTION == WEIGHTED_HAMMING_DISTANCE
         , SpinImage::utilities::HammingWeights hammingWeights
@@ -122,23 +122,23 @@ __device__ distanceType compareQUICCImagePairGPU(
 }
 
 __global__ void computeQUICCISearchResultIndices(
-        const unsigned int* needleDescriptors,
-        const unsigned int* haystackDescriptors,
+        const SpinImage::gpu::QUICCIDescriptor* needleDescriptors,
+        const SpinImage::gpu::QUICCIDescriptor* haystackDescriptors,
         size_t haystackImageCount,
         unsigned int* searchResults) {
     size_t needleImageIndex = blockIdx.x;
 
-    __shared__ unsigned int referenceImage[uintsPerQUICCImage];
+    __shared__ SpinImage::gpu::QUICCIDescriptor referenceImage;
 
     for(unsigned int chunk = threadIdx.x; chunk < uintsPerQUICCImage; chunk += blockDim.x) {
-        referenceImage[chunk] = getChunkAt(needleDescriptors, needleImageIndex, chunk);
+        referenceImage.contents[chunk] = getChunkAt(needleDescriptors, needleImageIndex, chunk);
     }
 
     __syncthreads();
 
     distanceType referenceScore;
 
-    int referenceImageBitCount = computeImageSumGPU(referenceImage, 0);
+    int referenceImageBitCount = computeImageSumGPU(&referenceImage, 0);
 
 #if QUICCI_DISTANCE_FUNCTION == WEIGHTED_HAMMING_DISTANCE
     SpinImage::utilities::HammingWeights hammingWeights = SpinImage::utilities::computeWeightedHammingWeights(referenceImageBitCount, spinImageWidthPixels * spinImageWidthPixels);
@@ -148,7 +148,7 @@ __global__ void computeQUICCISearchResultIndices(
 
     if(!needleImageIsConstant) {
         referenceScore = compareQUICCImagePairGPU(
-               referenceImage, 0,
+               &referenceImage, 0,
                haystackDescriptors, needleImageIndex
                #if QUICCI_DISTANCE_FUNCTION == WEIGHTED_HAMMING_DISTANCE
                , hammingWeights
@@ -177,7 +177,7 @@ __global__ void computeQUICCISearchResultIndices(
         if(!needleImageIsConstant) {
             // If there's variation in the image, we'll use the regular distance function
             pairScore = compareQUICCImagePairGPU(
-                    referenceImage, 0,
+                    &referenceImage, 0,
                     haystackDescriptors, haystackImageIndex
                     #if QUICCI_DISTANCE_FUNCTION == WEIGHTED_HAMMING_DISTANCE
                     , hammingWeights
@@ -203,24 +203,22 @@ __global__ void computeQUICCISearchResultIndices(
 }
 
 SpinImage::array<unsigned int> SpinImage::gpu::computeQUICCImageSearchResultRanks(
-        SpinImage::gpu::QUICCIImages device_needleDescriptors,
-        size_t needleImageCount,
-        SpinImage::gpu::QUICCIImages device_haystackDescriptors,
-        size_t haystackImageCount,
-        SpinImage::debug::QUICCISearchRunInfo* runInfo) {
+        SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_needleDescriptors,
+        SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_haystackDescriptors,
+        SpinImage::debug::QUICCISearchExecutionTimes* executionTimes) {
     auto executionStart = std::chrono::steady_clock::now();
 
-    size_t searchResultBufferSize = needleImageCount * sizeof(unsigned int);
+    size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(unsigned int);
     unsigned int* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
     checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
 
     auto searchStart = std::chrono::steady_clock::now();
 
-    computeQUICCISearchResultIndices << < needleImageCount, 32 * indexBasedWarpCount >> > (
-            device_needleDescriptors.images,
-            device_haystackDescriptors.images,
-            haystackImageCount,
+    computeQUICCISearchResultIndices << < device_needleDescriptors.length, 32 * indexBasedWarpCount >> > (
+            device_needleDescriptors.content,
+            device_haystackDescriptors.content,
+            device_haystackDescriptors.length,
             device_searchResults);
 
     checkCudaErrors(cudaDeviceSynchronize());
@@ -229,8 +227,8 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeQUICCImageSearchResultRank
     std::chrono::milliseconds searchDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart);
 
     array<unsigned int> resultIndices;
-    resultIndices.content = new unsigned int[needleImageCount];
-    resultIndices.length = needleImageCount;
+    resultIndices.content = new unsigned int[device_needleDescriptors.length];
+    resultIndices.length = device_needleDescriptors.length;
 
     checkCudaErrors(cudaMemcpy(resultIndices.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));
 
@@ -240,9 +238,9 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeQUICCImageSearchResultRank
 
     std::chrono::milliseconds executionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - executionStart);
 
-    if(runInfo != nullptr) {
-        runInfo->searchExecutionTimeSeconds = double(searchDuration.count()) / 1000.0;
-        runInfo->totalExecutionTimeSeconds = double(executionDuration.count()) / 1000.0;
+    if(executionTimes != nullptr) {
+        executionTimes->searchExecutionTimeSeconds = double(searchDuration.count()) / 1000.0;
+        executionTimes->totalExecutionTimeSeconds = double(executionDuration.count()) / 1000.0;
     }
 
     return resultIndices;
@@ -257,8 +255,8 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeQUICCImageSearchResultRank
 
 
 __global__ void computeElementWiseQUICCIDistances(
-        unsigned int* descriptors,
-        unsigned int* correspondingDescriptors,
+        SpinImage::gpu::QUICCIDescriptor* descriptors,
+        SpinImage::gpu::QUICCIDescriptor* correspondingDescriptors,
         SpinImage::gpu::QUICCIDistances* distances) {
     const size_t descriptorIndex = blockIdx.x;
     const int laneIndex = threadIdx.x;
@@ -313,25 +311,24 @@ __global__ void computeElementWiseQUICCIDistances(
 
 
 SpinImage::array<SpinImage::gpu::QUICCIDistances>
-SpinImage::gpu::computeQUICCIElementWiseDistances(SpinImage::gpu::QUICCIImages device_descriptors,
-                                                  SpinImage::gpu::QUICCIImages device_correspondingDescriptors,
-                                                  size_t descriptorCount) {
-    size_t searchResultBufferSize = descriptorCount * sizeof(SpinImage::gpu::QUICCIDistances);
+SpinImage::gpu::computeQUICCIElementWiseDistances(SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_descriptors,
+                                                  SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_correspondingDescriptors) {
+    size_t searchResultBufferSize = device_descriptors.length * sizeof(SpinImage::gpu::QUICCIDistances);
     SpinImage::gpu::QUICCIDistances* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
     checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
 
-    computeElementWiseQUICCIDistances<<<descriptorCount, 32>>>(
-        device_descriptors.images,
-        device_correspondingDescriptors.images,
+    computeElementWiseQUICCIDistances<<<device_descriptors.length, 32>>>(
+        device_descriptors.content,
+        device_correspondingDescriptors.content,
         device_searchResults);
 
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 
     SpinImage::array<SpinImage::gpu::QUICCIDistances> resultDistances;
-    resultDistances.content = new SpinImage::gpu::QUICCIDistances[descriptorCount];
-    resultDistances.length = descriptorCount;
+    resultDistances.content = new SpinImage::gpu::QUICCIDistances[device_descriptors.length];
+    resultDistances.length = device_descriptors.length;
 
     checkCudaErrors(cudaMemcpy(resultDistances.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));
 

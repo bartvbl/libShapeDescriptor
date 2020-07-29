@@ -7,7 +7,7 @@
 #include <nvidia/helper_cuda.h>
 #include <spinImage/gpu/spinImageSearcher.cuh>
 #include <iostream>
-#include <spinImage/utilities/dumpers/spinImageDumper.h>
+#include <spinImage/utilities/dumpers/descriptors.h>
 #include <spinImage/utilities/copy/array.h>
 
 const float correlationThreshold = 0.00001f;

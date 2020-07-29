@@ -15,7 +15,7 @@
 #include <spinImage/gpu/types/CudaLaunchDimensions.h>
 #include <spinImage/utilities/kernels/setValue.cuh>
 #include <spinImage/utilities/kernels/meshSampler.cuh>
-#include <spinImage/utilities/dumpers/spinImageDumper.h>
+#include <spinImage/utilities/dumpers/descriptors.h>
 #include <spinImage/gpu/types/PointCloud.h>
 #include <spinImage/gpu/types/DeviceVertexList.cuh>
 #include <spinImage/gpu/types/SampleBounds.h>

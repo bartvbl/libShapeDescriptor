@@ -4,7 +4,7 @@
 #include <spinImage/cpu/index/IndexQueryer.h>
 #include <lodepng.h>
 #include <spinImage/cpu/types/QUICCIImages.h>
-#include <spinImage/utilities/dumpers/spinImageDumper.h>
+#include <spinImage/utilities/dumpers/descriptors.h>
 #include <spinImage/cpu/index/types/BitCountMipmapStack.h>
 
 int main(int argc, const char** argv) {

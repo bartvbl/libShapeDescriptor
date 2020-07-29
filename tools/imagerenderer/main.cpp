@@ -4,7 +4,7 @@
 #include <spinImage/gpu/radialIntersectionCountImageGenerator.cuh>
 #include <spinImage/gpu/quickIntersectionCountImageGenerator.cuh>
 #include <spinImage/utilities/mesh/OBJLoader.h>
-#include <spinImage/utilities/dumpers/spinImageDumper.h>
+#include <spinImage/utilities/dumpers/descriptors.h>
 #include <spinImage/utilities/CUDAContextCreator.h>
 #include <spinImage/utilities/kernels/spinOriginBufferGenerator.h>
 

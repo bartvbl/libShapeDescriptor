@@ -1,4 +1,4 @@
-#include "spinImageDumper.h"
+#include "descriptors.h"
 #include <iostream>
 #include <algorithm>
 #include <cmath>

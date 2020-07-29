@@ -181,7 +181,7 @@ __global__ void computeSPFHHistograms(
 }
 
 __global__ void computeFPFHHistograms(
-        SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> descriptorOrigins,
+        SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> descriptorOrigins,
         SpinImage::gpu::PointCloud pointCloud,
         const float supportRadius,
         float* histogramOriginHistograms,
@@ -225,7 +225,7 @@ __global__ void computeFPFHHistograms(
 }
 
 __global__ void reformatOrigins(
-        SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> originsArray,
+        SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> originsArray,
         SpinImage::gpu::DeviceVertexList reformattedOriginVerticesList,
         SpinImage::gpu::DeviceVertexList reformattedOriginNormalsList) {
     unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;

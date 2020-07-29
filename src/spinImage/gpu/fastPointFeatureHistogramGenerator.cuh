@@ -1,9 +1,8 @@
 #pragma once
 
-#include <spinImage/common/buildSettings/derivedBuildSettings.h>
+#include <spinImage/gpu/types/array.h>
 #include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/gpu/types/DeviceOrientedPoint.h>
-#include <array>
 #include <spinImage/gpu/types/methods/FPFHDescriptor.h>
 
 namespace SpinImage {

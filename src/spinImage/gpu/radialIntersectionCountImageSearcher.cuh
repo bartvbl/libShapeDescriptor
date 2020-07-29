@@ -1,7 +1,6 @@
 #pragma once
 
 #include "spinImage/gpu/types/Mesh.h"
-#include "spinImage/common/types/array.h"
 #include "spinImage/libraryBuildSettings.h"
 #include "spinImage/gpu/types/ImageSearchResults.h"
 

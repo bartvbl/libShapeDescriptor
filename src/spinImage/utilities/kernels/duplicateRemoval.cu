@@ -135,7 +135,7 @@ SpinImage::gpu::array<signed long long> SpinImage::utilities::computeUniqueIndex
     return device_uniqueIndexMapping;
 }
 
-__global__ void mapVertices(SpinImage::gpu::Mesh boxScene, SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> origins, SpinImage::gpu::array<signed long long> mapping) {
+__global__ void mapVertices(SpinImage::gpu::Mesh boxScene, SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> origins, SpinImage::gpu::array<signed long long> mapping) {
     size_t vertexIndex = blockIdx.x * blockDim.x + threadIdx.x;
     if(vertexIndex >= boxScene.vertexCount) {
         return;

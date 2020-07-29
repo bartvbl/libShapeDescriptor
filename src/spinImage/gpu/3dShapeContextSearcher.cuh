@@ -1,7 +1,7 @@
 #pragma once
 
-#include <spinImage/common/types/array.h>
-#include <spinImage/libraryBuildSettings.h>
+#include <spinImage/cpu/types/array.h>
+#include <spinImage/gpu/types/array.h>
 #include <spinImage/gpu/types/methods/3DSCDescriptor.h>
 
 namespace SpinImage {

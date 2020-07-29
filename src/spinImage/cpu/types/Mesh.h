@@ -1,6 +1,5 @@
 #pragma once
 
-#include "spinImage/common/types/array.h"
 #include "float3.h"
 #include "float2.h"
 

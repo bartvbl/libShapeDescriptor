@@ -2,6 +2,7 @@
 
 #include <spinImage/gpu/types/PointCloud.h>
 #include <spinImage/gpu/types/Mesh.h>
+#include <spinImage/gpu/types/array.h>
 
 namespace SpinImage {
     namespace internal {

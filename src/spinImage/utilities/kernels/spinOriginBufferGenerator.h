@@ -1,10 +1,10 @@
 #pragma once
 
-#include <spinImage/common/types/array.h>
 #include <spinImage/gpu/types/DeviceOrientedPoint.h>
 #include <spinImage/cpu/types/float3.h>
 #include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/cpu/types/Mesh.h>
+#include <spinImage/gpu/types/array.h>
 #include <vector>
 
 namespace SpinImage {

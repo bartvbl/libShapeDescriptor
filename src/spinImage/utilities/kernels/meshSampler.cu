@@ -1,6 +1,5 @@
 #include "meshSampler.cuh"
 
-#include <spinImage/common/types/array.h>
 #include <spinImage/gpu/types/SampleBounds.h>
 #include <spinImage/gpu/types/CudaLaunchDimensions.h>
 
@@ -94,7 +93,7 @@ __global__ void calculateAreas(SpinImage::gpu::array<float> areaArray, SpinImage
     areaArray.content[triangleIndex] = area;
 }
 
-__global__ void calculateCumulativeAreas(SpinImage::gpu::array<float> areaArray, SpinImage::array<float> device_cumulativeAreaArray) {
+__global__ void calculateCumulativeAreas(SpinImage::gpu::array<float> areaArray, SpinImage::gpu::array<float> device_cumulativeAreaArray) {
     int triangleIndex = blockDim.x * blockIdx.x + threadIdx.x;
     if (triangleIndex >= areaArray.length)
     {

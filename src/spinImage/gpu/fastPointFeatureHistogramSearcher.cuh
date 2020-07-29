@@ -1,5 +1,4 @@
 #pragma once
-#include <spinImage/common/types/array.h>
 #include <spinImage/gpu/fastPointFeatureHistogramGenerator.cuh>
 
 namespace SpinImage {

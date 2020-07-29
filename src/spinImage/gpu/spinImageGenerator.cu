@@ -45,7 +45,7 @@ __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNo
 __global__ void createDescriptors(
         SpinImage::gpu::DeviceOrientedPoint* device_spinImageOrigins,
         SpinImage::gpu::PointCloud pointCloud,
-        SpinImage::array<SpinImage::gpu::SpinImageDescriptor> descriptors,
+        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> descriptors,
         float oneOverSpinImagePixelWidth,
         float supportAngleCosine)
 {

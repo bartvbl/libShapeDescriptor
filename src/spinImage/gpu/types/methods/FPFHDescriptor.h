@@ -1,11 +1,11 @@
 #pragma once
 
-#include <array>
+#include <spinImage/libraryBuildSettings.h>
 
 namespace SpinImage {
     namespace gpu {
         struct FPFHDescriptor {
-            std::array<float, 3 * FPFH_BINS_PER_FEATURE> contents;
+            float contents[3 * FPFH_BINS_PER_FEATURE];
         };
     }
 }

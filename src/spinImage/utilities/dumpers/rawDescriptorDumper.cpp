@@ -2,13 +2,15 @@
 #include <sstream>
 #include "rawDescriptorDumper.h"
 #include <spinImage/utilities/fileutils.h>
+#include <spinImage/gpu/types/methods/QUICCIDescriptor.h>
+#include <spinImage/cpu/types/array.h>
 
 void SpinImage::dump::raw::descriptors(
         const std::experimental::filesystem::path &outputDumpFile,
-        const SpinImage::cpu::QUICCIImages &images) {
+        const SpinImage::cpu::array<SpinImage::gpu::QUICCIDescriptor> &images) {
     const unsigned int imageWidthPixels = spinImageWidthPixels;
 
-    size_t imageBlockSize = images.imageCount * sizeof(QuiccImage);
+    size_t imageBlockSize = images.length * sizeof(QuiccImage);
     size_t outFileBufferSize = 5 + sizeof(size_t) + sizeof(unsigned int) + 2 * imageBlockSize;
     char* outFileBuffer = new char[outFileBufferSize];
     
@@ -16,10 +18,10 @@ void SpinImage::dump::raw::descriptors(
     
     std::copy(header.begin(), header.end(), outFileBuffer);
     outFileBuffer[4] = 0;
-    *reinterpret_cast<size_t*>(outFileBuffer + 5) = images.imageCount;
+    *reinterpret_cast<size_t*>(outFileBuffer + 5) = images.length;
     *reinterpret_cast<unsigned int*>(outFileBuffer + 5 + sizeof(size_t)) = imageWidthPixels;
-    std::copy(images.images, images.images + images.imageCount,
-            reinterpret_cast<QuiccImage*>(outFileBuffer + 5 + sizeof(size_t) + sizeof(unsigned int)));
+    std::copy(images.content, images.content + images.length,
+            reinterpret_cast<SpinImage::gpu::QUICCIDescriptor*>(outFileBuffer + 5 + sizeof(size_t) + sizeof(unsigned int)));
 
     SpinImage::utilities::writeCompressedFile(outFileBuffer, outFileBufferSize, outputDumpFile);
     

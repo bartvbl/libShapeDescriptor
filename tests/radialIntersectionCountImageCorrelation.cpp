@@ -15,14 +15,14 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
 
     SpinImage::utilities::createCUDAContext();
 
-    SpinImage::cpu::array<radialIntersectionCountImagePixelType> imageSequence = generateKnownRadialIntersectionCountImageSequence(
+    SpinImage::cpu::array<SpinImage::gpu::RICIDescriptor> imageSequence = generateKnownRadialIntersectionCountImageSequence(
             imageCount, pixelsPerImage);
 
-    SpinImage::gpu::array<radialIntersectionCountImagePixelType> device_haystackImages = SpinImage::copy::hostArrayToDevice(imageSequence);
+    SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_haystackImages = SpinImage::copy::hostArrayToDevice(imageSequence);
 
     SECTION("Ranking by generating search results on GPU") {
         SpinImage::cpu::array<SpinImage::gpu::RadialIntersectionCountImageSearchResults> searchResults = SpinImage::gpu::findRadialIntersectionCountImagesInHaystack(
-                device_haystackImages, imageCount, device_haystackImages, imageCount);
+                device_haystackImages, device_haystackImages);
 
         SpinImage::dump::searchResults(searchResults, imageCount, "rici_another_dump.txt");
 

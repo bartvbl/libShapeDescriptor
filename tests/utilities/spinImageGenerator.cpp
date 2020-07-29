@@ -1,5 +1,7 @@
 #include <spinImage/libraryBuildSettings.h>
 #include <spinImage/cpu/types/array.h>
+#include <spinImage/gpu/types/methods/RICIDescriptor.h>
+#include <spinImage/gpu/types/methods/SpinImageDescriptor.h>
 #include "spinImageGenerator.h"
 
 
@@ -105,12 +107,12 @@ SpinImage::cpu::array<radialIntersectionCountImagePixelType> generateRepeatingTe
             patternPart7);
 }
 
-SpinImage::cpu::array<spinImagePixelType> generateKnownSpinImageSequence(const int imageCount, const int pixelsPerImage) {
-    return generateKnownImageSequence<spinImagePixelType>(imageCount, pixelsPerImage);
+SpinImage::cpu::array<SpinImage::gpu::SpinImageDescriptor> generateKnownSpinImageSequence(const int imageCount, const int pixelsPerImage) {
+    return generateKnownImageSequence<SpinImage::gpu::SpinImageDescriptor>(imageCount, pixelsPerImage);
 }
 
-SpinImage::cpu::array<radialIntersectionCountImagePixelType> generateKnownRadialIntersectionCountImageSequence(const int imageCount, const int pixelsPerImage) {
-    return generateKnownImageSequence<radialIntersectionCountImagePixelType>(imageCount, pixelsPerImage);
+SpinImage::cpu::array<SpinImage::gpu::RICIDescriptor> generateKnownRadialIntersectionCountImageSequence(const int imageCount, const int pixelsPerImage) {
+    return generateKnownImageSequence<SpinImage::gpu::RICIDescriptor>(imageCount, pixelsPerImage);
 }
 
 

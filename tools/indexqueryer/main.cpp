@@ -73,16 +73,17 @@ int main(int argc, const char** argv) {
     std::vector<SpinImage::index::QueryResult> searchResults = SpinImage::index::query(index, queryQUIICIMage, resultCount);
 
     std::cout << "Dumping results.." << std::endl;
-    SpinImage::cpu::QUICCIImages imageBuffer;
-    imageBuffer.images = new QuiccImage[std::max<unsigned int>(searchResults.size(), 1)];
-    imageBuffer.imageCount = std::max<unsigned int>(searchResults.size(), 1);
+    SpinImage::cpu::array<SpinImage::gpu::QUICCIDescriptor> imageBuffer;
+    imageBuffer.content = new SpinImage::gpu::QUICCIDescriptor[std::max<unsigned int>(searchResults.size(), 1)];
+    imageBuffer.length = std::max<unsigned int>(searchResults.size(), 1);
 
     QuiccImage blankImage;
     std::fill(blankImage.begin(), blankImage.end(), 0);
-    std::fill(imageBuffer.images, imageBuffer.images + std::max<unsigned int>(searchResults.size(), 1), blankImage);
+    std::fill(imageBuffer.content, imageBuffer.content + std::max<unsigned int>(searchResults.size(), 1), blankImage);
 
     for(int searchResult = 0; searchResult < searchResults.size(); searchResult++) {
-        imageBuffer.images[searchResult] = searchResults.at(searchResult).image;
+        // Not the greatest way of handling this, but allows the libraries to be 'glued' together without too much pain
+        imageBuffer.content[searchResult] = *reinterpret_cast<SpinImage::gpu::QUICCIDescriptor*>(&searchResults.at(searchResult).image);
     }
 
     SpinImage::dump::descriptors(imageBuffer, "searchResults.png", 50);

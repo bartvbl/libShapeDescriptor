@@ -1,5 +1,7 @@
 #pragma once
 #include <spinImage/libraryBuildSettings.h>
+#include <spinImage/gpu/types/array.h>
+#include <spinImage/cpu/types/array.h>
 
 const int imageCount = spinImageWidthPixels * spinImageWidthPixels + 1 - 2;
 const int pixelsPerImage = spinImageWidthPixels * spinImageWidthPixels;
@@ -26,5 +28,5 @@ SpinImage::cpu::array<radialIntersectionCountImagePixelType> generateRepeatingTe
         radialIntersectionCountImagePixelType patternPart6,
         radialIntersectionCountImagePixelType patternPart7);
 
-SpinImage::cpu::array<spinImagePixelType> generateKnownSpinImageSequence(const int imageCount, const int pixelsPerImage);
-SpinImage::cpu::array<radialIntersectionCountImagePixelType> generateKnownRadialIntersectionCountImageSequence(const int imageCount, const int pixelsPerImage);
+SpinImage::cpu::array<SpinImage::gpu::SpinImageDescriptor> generateKnownSpinImageSequence(const int imageCount, const int pixelsPerImage);
+SpinImage::cpu::array<SpinImage::gpu::RICIDescriptor> generateKnownRadialIntersectionCountImageSequence(const int imageCount, const int pixelsPerImage);

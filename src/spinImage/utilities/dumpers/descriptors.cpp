@@ -177,8 +177,8 @@ void SpinImage::dump::descriptors(SpinImage::cpu::array<SpinImage::gpu::QUICCIDe
 	unsigned int pixelIndex = hostDescriptors.length * UINTS_PER_QUICCI * 32;
 
 	for(unsigned int emptyImageIndex = 0; emptyImageIndex < fillerImageCount; emptyImageIndex++) {
-		for(int i = 0; i < fillerImageCount; i++) {
-			decompressedDesciptors.content[pixelIndex] = UINT32_MAX;
+		for(int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
+			decompressedDesciptors.content[emptyImageIndex].contents[i] = UINT32_MAX;
 			pixelIndex++;
 		}
 	}

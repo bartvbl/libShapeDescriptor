@@ -1,7 +1,8 @@
 #pragma once
 
-#include "spinImage/gpu/types/Mesh.h"
-#include "spinImage/libraryBuildSettings.h"
+#include <spinImage/gpu/types/array.h>
+#include <spinImage/cpu/types/array.h>
+#include <spinImage/gpu/types/methods/RICIDescriptor.h>
 #include "spinImage/gpu/types/ImageSearchResults.h"
 
 namespace SpinImage {

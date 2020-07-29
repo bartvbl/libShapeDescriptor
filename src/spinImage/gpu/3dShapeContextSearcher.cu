@@ -7,6 +7,8 @@
 #include <iostream>
 #include <vector_types.h>
 #include <spinImage/gpu/types/methods/3DSCDescriptor.h>
+#include <spinImage/cpu/types/array.h>
+#include <spinImage/gpu/types/array.h>
 
 const size_t elementsPerShapeContextDescriptor =
         SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT *
@@ -135,10 +137,10 @@ __global__ void computeShapeContextSearchResultIndices(
 
 
 
-SpinImage::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
-        SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> device_needleDescriptors,
+SpinImage::cpu::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
+        SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> device_needleDescriptors,
         size_t needleDescriptorSampleCount,
-        SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> device_haystackDescriptors,
+        SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> device_haystackDescriptors,
         size_t haystackDescriptorSampleCount,
         SpinImage::debug::SCSearchExecutionTimes* executionTimes) {
     static_assert(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT <= 32);
@@ -170,7 +172,7 @@ SpinImage::array<unsigned int> SpinImage::gpu::compute3DSCSearchResultRanks(
 
     std::chrono::milliseconds searchDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart);
 
-    array<unsigned int> resultIndices;
+    SpinImage::cpu::array<unsigned int> resultIndices;
     resultIndices.content = new unsigned int[device_needleDescriptors.length];
     resultIndices.length = device_needleDescriptors.length;
 

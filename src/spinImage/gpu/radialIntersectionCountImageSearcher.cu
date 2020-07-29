@@ -10,6 +10,8 @@
 #include <chrono>
 #include <typeinfo>
 #include <spinImage/gpu/types/methods/RICIDescriptor.h>
+#include <spinImage/cpu/types/array.h>
+#include <spinImage/gpu/types/array.h>
 #include "nvidia/helper_cuda.h"
 #include "radialIntersectionCountImageSearcher.cuh"
 #include "types/methods/RICIDescriptor.h"
@@ -289,9 +291,9 @@ __global__ void computeRadialIntersectionCountImageSearchResultIndices(
 }
 
 
-SpinImage::array<unsigned int> SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
-        SpinImage::array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
-        SpinImage::array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors,
+SpinImage::cpu::array<unsigned int> SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
+        SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
+        SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors,
         SpinImage::debug::RICISearchExecutionTimes* executionTimes) {
 
     auto executionStart = std::chrono::steady_clock::now();
@@ -313,7 +315,7 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeRadialIntersectionCountIma
 
     std::chrono::milliseconds searchDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart);
 
-    array<unsigned int> resultIndices;
+    SpinImage::cpu::array<unsigned int> resultIndices;
     resultIndices.content = new unsigned int[device_needleDescriptors.length];
     resultIndices.length = device_needleDescriptors.length;
 
@@ -454,9 +456,9 @@ __global__ void generateSearchResults(SpinImage::gpu::RICIDescriptor* needleDesc
 
 }
 
-SpinImage::array<SpinImage::gpu::RadialIntersectionCountImageSearchResults> SpinImage::gpu::findRadialIntersectionCountImagesInHaystack(
-        array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
-        array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors) {
+SpinImage::cpu::array<SpinImage::gpu::RadialIntersectionCountImageSearchResults> SpinImage::gpu::findRadialIntersectionCountImagesInHaystack(
+        SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
+        SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors) {
 
     size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(RadialIntersectionCountImageSearchResults);
     RadialIntersectionCountImageSearchResults* device_searchResults;
@@ -478,7 +480,7 @@ SpinImage::array<SpinImage::gpu::RadialIntersectionCountImageSearchResults> Spin
 
     // Step 3: Copying results to CPU
 
-    array<RadialIntersectionCountImageSearchResults> searchResults;
+    SpinImage::cpu::array<RadialIntersectionCountImageSearchResults> searchResults;
     searchResults.content = new RadialIntersectionCountImageSearchResults[device_needleDescriptors.length];
     searchResults.length = device_needleDescriptors.length;
 

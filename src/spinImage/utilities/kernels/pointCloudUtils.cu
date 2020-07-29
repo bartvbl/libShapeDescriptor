@@ -226,7 +226,7 @@ __global__ void rearrangePointCloud(
 }
 
 __global__ void computePointCounts(
-        SpinImage::array<unsigned int> pointDensityArray,
+        SpinImage::gpu::array<unsigned int> pointDensityArray,
         SpinImage::gpu::PointCloud pointCloud,
         SpinImage::gpu::BoundingBox boundingBox,
         unsigned int* indexTable,
@@ -303,7 +303,7 @@ __global__ void computePointCounts(
     }
 }
 
-SpinImage::array<unsigned int> SpinImage::utilities::computePointDensities(
+SpinImage::gpu::array<unsigned int> SpinImage::utilities::computePointDensities(
         float pointDensityRadius, SpinImage::gpu::PointCloud device_pointCloud) {
     size_t sampleCount = device_pointCloud.vertices.length;
 
@@ -362,7 +362,7 @@ SpinImage::array<unsigned int> SpinImage::utilities::computePointDensities(
     device_tempPointCloud.free();
 
     // 8. Count nearby points using new array and its index structure
-    SpinImage::array<unsigned int> device_pointCountArray = {sampleCount, nullptr};
+    SpinImage::gpu::array<unsigned int> device_pointCountArray = {sampleCount, nullptr};
     checkCudaErrors(cudaMalloc(&device_pointCountArray.content, sampleCount * sizeof(unsigned int)));
     computePointCounts<<<sampleCount, 32>>>(
             device_pointCountArray, device_pointCloud, boundingBox, device_indexTable, binCounts, binSize, pointDensityRadius);

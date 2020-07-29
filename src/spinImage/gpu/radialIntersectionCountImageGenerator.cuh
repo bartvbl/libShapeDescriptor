@@ -1,9 +1,9 @@
 #pragma once
 
-#include <spinImage/common/types/array.h>
-#include <spinImage/gpu/types/Mesh.h>
-#include <spinImage/gpu/types/DeviceOrientedPoint.h>
-#include <spinImage/gpu/types/methods/RICIDescriptor.h>
+#include "types/Mesh.h"
+#include "types/DeviceOrientedPoint.h"
+#include "types/array.h"
+#include "types/methods/RICIDescriptor.h"
 
 namespace SpinImage {
     namespace debug {
@@ -16,9 +16,9 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        SpinImage::array<SpinImage::gpu::RICIDescriptor> generateRadialIntersectionCountImages(
-                Mesh device_mesh,
-                array<DeviceOrientedPoint> device_descriptorOrigins,
+        SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> generateRadialIntersectionCountImages(
+                SpinImage::gpu::Mesh device_mesh,
+                SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> device_descriptorOrigins,
                 float supportRadius,
                 SpinImage::debug::RICIExecutionTimes* executionTimes = nullptr);
     }

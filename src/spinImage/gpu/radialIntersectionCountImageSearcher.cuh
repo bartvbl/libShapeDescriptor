@@ -14,13 +14,13 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        array<RadialIntersectionCountImageSearchResults> findRadialIntersectionCountImagesInHaystack(
-                array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
-                array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors);
+        SpinImage::cpu::array<RadialIntersectionCountImageSearchResults> findRadialIntersectionCountImagesInHaystack(
+                SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
+                SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors);
 
-        SpinImage::array<unsigned int> computeRadialIntersectionCountImageSearchResultRanks(
-                SpinImage::array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
-                SpinImage::array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors,
+        SpinImage::cpu::array<unsigned int> computeRadialIntersectionCountImageSearchResultRanks(
+                SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
+                SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors,
                 SpinImage::debug::RICISearchExecutionTimes* executionTimes = nullptr);
     }
 }

@@ -2,7 +2,6 @@
 #include <cuda_runtime.h>
 #include <vector_types.h>
 #include <spinImage/gpu/types/PointCloud.h>
-#include <spinImage/common/types/array.h>
 #include <spinImage/utilities/kernels/pointCloudUtils.h>
 #include <iostream>
 
@@ -12,7 +11,7 @@ unsigned int *computeNeighbourCounts(const float *simpleCloud, unsigned int poin
 
     cudaMemcpy(device_pointCloud.vertices.array, simpleCloud, pointCount * 3 * sizeof(float), cudaMemcpyHostToDevice);
 
-    SpinImage::array<unsigned int> device_pointDensities = SpinImage::utilities::computePointDensities(radius, device_pointCloud);
+    SpinImage::gpu::array<unsigned int> device_pointDensities = SpinImage::utilities::computePointDensities(radius, device_pointCloud);
 
     unsigned int* counts = new unsigned int[pointCount];
     cudaMemcpy(counts, device_pointDensities.content, pointCount * sizeof(unsigned int), cudaMemcpyDeviceToHost);

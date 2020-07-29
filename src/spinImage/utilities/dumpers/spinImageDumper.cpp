@@ -11,7 +11,7 @@
 #include <spinImage/cpu/types/QUICCIImages.h>
 
 template<typename spinPixelType>
-void performSpinDump(SpinImage::array<spinPixelType> descriptors, const std::experimental::filesystem::path &imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
+void performSpinDump(SpinImage::cpu::array<spinPixelType> descriptors, const std::experimental::filesystem::path &imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
 	size_t rowCount = (descriptors.length / imagesPerRow) + ((descriptors.length % imagesPerRow == 0) ? 0 : 1);
 	std::cout << "Dumping " << rowCount << " rows containing " << descriptors.length << " images." << std::endl;
 
@@ -143,12 +143,12 @@ void performSpinDump(SpinImage::array<spinPixelType> descriptors, const std::exp
 	}
 }
 
-void SpinImage::dump::descriptors(array<spinImagePixelType> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void SpinImage::dump::descriptors(SpinImage::cpu::array<spinImagePixelType> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
 	performSpinDump<spinImagePixelType>(hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void SpinImage::dump::descriptors(array<radialIntersectionCountImagePixelType> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void SpinImage::dump::descriptors(SpinImage::cpu::array<radialIntersectionCountImagePixelType> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
 	performSpinDump<radialIntersectionCountImagePixelType> (hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
@@ -163,7 +163,7 @@ void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, 
 
 	const size_t pixelsPerImage = spinImageWidthPixels * spinImageWidthPixels;
 
-	SpinImage::array<unsigned int> decompressedDesciptors;
+	SpinImage::cpu::array<unsigned int> decompressedDesciptors;
 	size_t imageTotalPixelCount = totalImageCount * pixelsPerImage;
 
 	decompressedDesciptors.content = new unsigned int[imageTotalPixelCount];
@@ -200,7 +200,7 @@ void SpinImage::dump::descriptors(
         unsigned int imagesPerRow) {
     size_t pixelIndex = 0;
 
-    SpinImage::array<unsigned int> decompressedDescriptors = {
+    SpinImage::cpu::array<unsigned int> decompressedDescriptors = {
             hostDescriptors.size(),
             new unsigned int[hostDescriptors.size() * (sizeof(QuiccImage) / sizeof(unsigned int))]};
 

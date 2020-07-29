@@ -13,10 +13,10 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        SpinImage::array<unsigned int> compute3DSCSearchResultRanks(
-                SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> device_needleDescriptors,
+        SpinImage::cpu::array<unsigned int> compute3DSCSearchResultRanks(
+                SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> device_needleDescriptors,
                 size_t needleDescriptorSampleCount,
-                SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> device_haystackDescriptors,
+                SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> device_haystackDescriptors,
                 size_t haystackDescriptorSampleCount,
                 SpinImage::debug::SCSearchExecutionTimes* executionTimes = nullptr);
     }

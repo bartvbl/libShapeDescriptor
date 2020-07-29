@@ -53,7 +53,7 @@ __global__ void detectDuplicates(SpinImage::gpu::Mesh mesh, bool* isDuplicate) {
     isDuplicate[vertexIndex] = false;
 }
 
-__global__ void computeTargetIndices(SpinImage::array<signed long long> targetIndices, bool* duplicateVertices, size_t vertexCount) {
+__global__ void computeTargetIndices(SpinImage::gpu::array<signed long long> targetIndices, bool* duplicateVertices, size_t vertexCount) {
     size_t vertexIndex = blockIdx.x * blockDim.x + threadIdx.x;
     if(vertexIndex >= vertexCount) {
         return;
@@ -76,7 +76,7 @@ __global__ void computeTargetIndices(SpinImage::array<signed long long> targetIn
     targetIndices.content[vertexIndex] = targetIndex;
 }
 
-SpinImage::array<signed long long> SpinImage::utilities::computeUniqueIndexMapping(SpinImage::gpu::Mesh boxScene, std::vector<SpinImage::gpu::Mesh> deviceMeshes, std::vector<size_t> *uniqueVertexCounts, size_t &totalUniqueVertexCount) {
+SpinImage::gpu::array<signed long long> SpinImage::utilities::computeUniqueIndexMapping(SpinImage::gpu::Mesh boxScene, std::vector<SpinImage::gpu::Mesh> deviceMeshes, std::vector<size_t> *uniqueVertexCounts, size_t &totalUniqueVertexCount) {
     size_t sceneVertexCount = boxScene.vertexCount;
 
     bool* device_duplicateVertices;
@@ -125,7 +125,7 @@ SpinImage::array<signed long long> SpinImage::utilities::computeUniqueIndexMappi
     SpinImage::cpu::freeMesh(temp_host_boxScene);
     delete[] temp_duplicateVertices;
 
-    SpinImage::array<signed long long> device_uniqueIndexMapping;
+    SpinImage::gpu::array<signed long long> device_uniqueIndexMapping;
     device_uniqueIndexMapping.length = boxScene.vertexCount;
     checkCudaErrors(cudaMalloc(&device_uniqueIndexMapping.content, boxScene.vertexCount * sizeof(signed long long)));
     computeTargetIndices<<<(boxScene.vertexCount / 256) + 1, 256>>>(device_uniqueIndexMapping, device_duplicateVertices, boxScene.vertexCount);
@@ -135,7 +135,7 @@ SpinImage::array<signed long long> SpinImage::utilities::computeUniqueIndexMappi
     return device_uniqueIndexMapping;
 }
 
-__global__ void mapVertices(SpinImage::gpu::Mesh boxScene, SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> origins, SpinImage::array<signed long long> mapping) {
+__global__ void mapVertices(SpinImage::gpu::Mesh boxScene, SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> origins, SpinImage::gpu::array<signed long long> mapping) {
     size_t vertexIndex = blockIdx.x * blockDim.x + threadIdx.x;
     if(vertexIndex >= boxScene.vertexCount) {
         return;
@@ -161,10 +161,10 @@ __global__ void mapVertices(SpinImage::gpu::Mesh boxScene, SpinImage::array<Spin
     }
 }
 
-SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> SpinImage::utilities::applyUniqueMapping(SpinImage::gpu::Mesh boxScene, SpinImage::array<signed long long> device_mapping, size_t totalUniqueVertexCount) {
+SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> SpinImage::utilities::applyUniqueMapping(SpinImage::gpu::Mesh boxScene, SpinImage::gpu::array<signed long long> device_mapping, size_t totalUniqueVertexCount) {
     assert(boxScene.vertexCount == device_mapping.length);
 
-    SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> device_origins;
+    SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> device_origins;
     device_origins.length = totalUniqueVertexCount;
     checkCudaErrors(cudaMalloc(&device_origins.content, totalUniqueVertexCount * sizeof(SpinImage::gpu::DeviceOrientedPoint)));
 
@@ -174,13 +174,13 @@ SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> SpinImage::utilities::appl
     return device_origins;
 }
 
-SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> SpinImage::utilities::computeUniqueVertices(SpinImage::gpu::Mesh &mesh) {
+SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> SpinImage::utilities::computeUniqueVertices(SpinImage::gpu::Mesh &mesh) {
     std::vector<SpinImage::gpu::Mesh> deviceMeshes;
     deviceMeshes.push_back(mesh);
     std::vector<size_t> vertexCounts;
     size_t totalUniqueVertexCount;
-    SpinImage::array<signed long long> device_mapping = computeUniqueIndexMapping(mesh, deviceMeshes, &vertexCounts, totalUniqueVertexCount);
-    SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> device_origins = applyUniqueMapping(mesh, device_mapping, totalUniqueVertexCount);
+    SpinImage::gpu::array<signed long long> device_mapping = computeUniqueIndexMapping(mesh, deviceMeshes, &vertexCounts, totalUniqueVertexCount);
+    SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> device_origins = applyUniqueMapping(mesh, device_mapping, totalUniqueVertexCount);
     checkCudaErrors(cudaFree(device_mapping.content));
     return device_origins;
 }

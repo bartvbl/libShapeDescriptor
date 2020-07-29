@@ -1,10 +1,9 @@
-#include <spinImage/common/types/array.h>
 #include <cuda_runtime_api.h>
 #include <iostream>
 #include "DeviceVertexList.h"
 
-SpinImage::array<SpinImage::cpu::float3> SpinImage::copy::deviceVertexListToHost(SpinImage::gpu::DeviceVertexList vertexList) {
-    SpinImage::array<SpinImage::cpu::float3> outList;
+SpinImage::cpu::array<SpinImage::cpu::float3> SpinImage::copy::deviceVertexListToHost(SpinImage::gpu::DeviceVertexList vertexList) {
+    SpinImage::cpu::array<SpinImage::cpu::float3> outList;
     outList.length = vertexList.length;
     outList.content = new SpinImage::cpu::float3[vertexList.length];
 

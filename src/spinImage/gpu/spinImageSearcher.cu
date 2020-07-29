@@ -199,9 +199,9 @@ __global__ void generateSearchResults(SpinImage::gpu::SpinImageDescriptor* needl
 
 }
 
-SpinImage::array<SpinImage::gpu::SpinImageSearchResults> SpinImage::gpu::findSpinImagesInHaystack(
-        SpinImage::array<SpinImage::gpu::SpinImageDescriptor> device_needleDescriptors,
-        SpinImage::array<SpinImage::gpu::SpinImageDescriptor> device_haystackDescriptors) {
+SpinImage::cpu::array<SpinImage::gpu::SpinImageSearchResults> SpinImage::gpu::findSpinImagesInHaystack(
+        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_needleDescriptors,
+        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_haystackDescriptors) {
 
     // Step 1: Compute image averages, since they're constant and are needed for each comparison
 
@@ -240,7 +240,7 @@ SpinImage::array<SpinImage::gpu::SpinImageSearchResults> SpinImage::gpu::findSpi
 
     // Step 3: Copying results to CPU
 
-	array<SpinImageSearchResults> searchResults;
+	SpinImage::cpu::array<SpinImageSearchResults> searchResults;
 	searchResults.content = new SpinImageSearchResults[device_needleDescriptors.length];
 	searchResults.length = device_needleDescriptors.length;
 
@@ -339,9 +339,9 @@ __global__ void computeSpinImageSearchResultIndices(
 	}
 }
 
-SpinImage::array<unsigned int> SpinImage::gpu::computeSpinImageSearchResultRanks(
-        SpinImage::array<SpinImage::gpu::SpinImageDescriptor> device_needleDescriptors,
-        SpinImage::array<SpinImage::gpu::SpinImageDescriptor> device_haystackDescriptors,
+SpinImage::cpu::array<unsigned int> SpinImage::gpu::computeSpinImageSearchResultRanks(
+        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_needleDescriptors,
+        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_haystackDescriptors,
         SpinImage::debug::SISearchExecutionTimes* executionTimes) {
 
 	auto executionStart = std::chrono::steady_clock::now();
@@ -382,7 +382,7 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeSpinImageSearchResultRanks
 
 	std::chrono::milliseconds searchDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart);
 
-	array<unsigned int> resultIndices;
+	SpinImage::cpu::array<unsigned int> resultIndices;
 	resultIndices.content = new unsigned int[device_needleDescriptors.length];
 	resultIndices.length = device_needleDescriptors.length;
 

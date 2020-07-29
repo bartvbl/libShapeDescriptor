@@ -18,6 +18,8 @@
 #include <chrono>
 #include <sstream>
 #include <spinImage/gpu/types/DeviceOrientedPoint.h>
+#include <spinImage/gpu/types/array.h>
+#include <spinImage/cpu/types/array.h>
 
 #ifndef ENABLE_SHARED_MEMORY_IMAGE
 #define ENABLE_SHARED_MEMORY_IMAGE true
@@ -424,9 +426,9 @@ __global__ void redistributeSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* spi
     quicciMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
 
-SpinImage::array<SpinImage::gpu::QUICCIDescriptor> SpinImage::gpu::generateQUICCImages(
+SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> SpinImage::gpu::generateQUICCImages(
         SpinImage::gpu::Mesh device_mesh,
-        array<DeviceOrientedPoint> device_descriptorOrigins,
+        SpinImage::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
         float supportRadius,
         SpinImage::debug::QUICCIExecutionTimes* executionTimes)
 {
@@ -482,7 +484,7 @@ SpinImage::array<SpinImage::gpu::QUICCIDescriptor> SpinImage::gpu::generateQUICC
     SpinImage::gpu::QUICCIDescriptor* device_descriptors;
     checkCudaErrors(cudaMalloc(&device_descriptors, imageSequenceSize));
 
-    SpinImage::array<SpinImage::gpu::QUICCIDescriptor> descriptors;
+    SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> descriptors;
     descriptors.content = device_descriptors;
     descriptors.length = imageCount;
 

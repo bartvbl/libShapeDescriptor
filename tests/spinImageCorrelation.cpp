@@ -1,7 +1,6 @@
 #include "utilities/spinImageGenerator.h"
 #include <catch2/catch.hpp>
 #include <spinImage/common/buildSettings/derivedBuildSettings.h>
-#include <spinImage/common/types/array.h>
 #include <spinImage/libraryBuildSettings.h>
 #include <spinImage/utilities/CUDAContextCreator.h>
 #include <cuda_runtime.h>
@@ -9,6 +8,7 @@
 #include <spinImage/gpu/spinImageSearcher.cuh>
 #include <iostream>
 #include <spinImage/utilities/dumpers/spinImageDumper.h>
+#include <spinImage/utilities/copy/array.h>
 
 const float correlationThreshold = 0.00001f;
 
@@ -16,12 +16,12 @@ TEST_CASE("Ranking of Spin Images on the GPU") {
 
     SpinImage::utilities::createCUDAContext();
 
-    SpinImage::array<spinImagePixelType> imageSequence = generateKnownSpinImageSequence(imageCount, pixelsPerImage);
+    SpinImage::cpu::array<SpinImage::gpu::SpinImageDescriptor> imageSequence = generateKnownSpinImageSequence(imageCount, pixelsPerImage);
 
-    SpinImage::array<spinImagePixelType> device_haystackImages = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
+    SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_haystackImages = SpinImage::copy::hostArrayToDevice(imageSequence);
 
     SECTION("Ranking by generating search results on GPU") {
-        SpinImage::array<SpinImage::gpu::SpinImageSearchResults> searchResults = SpinImage::gpu::findSpinImagesInHaystack(device_haystackImages, imageCount, device_haystackImages, imageCount);
+        SpinImage::cpu::array<SpinImage::gpu::SpinImageSearchResults> searchResults = SpinImage::gpu::findSpinImagesInHaystack(device_haystackImages, device_haystackImages);
 
         SECTION("Equivalent images are the top search results") {
             for (int image = 0; image < imageCount; image++) {
@@ -53,7 +53,7 @@ TEST_CASE("Ranking of Spin Images on the GPU") {
 
     SECTION("Ranking by computing rank indices") {
 
-        SpinImage::array<unsigned int> results = SpinImage::gpu::computeSpinImageSearchResultRanks(device_haystackImages, imageCount, device_haystackImages, imageCount);
+        SpinImage::cpu::array<unsigned int> results = SpinImage::gpu::computeSpinImageSearchResultRanks(device_haystackImages, device_haystackImages);
 
         for(int i = 0; i < imageCount; i++) {
             REQUIRE(results.content[i] == 0);
@@ -64,9 +64,9 @@ TEST_CASE("Ranking of Spin Images on the GPU") {
     SECTION("Ranking by computing rank indices, reversed image sequence") {
         std::reverse(imageSequence.content, imageSequence.content + imageCount * pixelsPerImage);
 
-        SpinImage::array<spinImagePixelType> device_haystackImages_reversed = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
+        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_haystackImages_reversed = SpinImage::copy::hostArrayToDevice(imageSequence);
 
-        SpinImage::array<unsigned int> results = SpinImage::gpu::computeSpinImageSearchResultRanks(device_haystackImages_reversed, imageCount, device_haystackImages_reversed, imageCount);
+        SpinImage::cpu::array<unsigned int> results = SpinImage::gpu::computeSpinImageSearchResultRanks(device_haystackImages_reversed, device_haystackImages_reversed);
 
         for(int i = 0; i < imageCount; i++) {
             REQUIRE(results.content[i] == 0);

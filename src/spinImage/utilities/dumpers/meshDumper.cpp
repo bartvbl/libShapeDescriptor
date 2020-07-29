@@ -5,7 +5,7 @@
 #include <cassert>
 
 void dumpMesh(SpinImage::cpu::Mesh mesh, const std::experimental::filesystem::path &outputFilePath, size_t highlightStartVertex, size_t highlightEndVertex,
-        bool useCustomTextureMap, SpinImage::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
+        bool useCustomTextureMap, SpinImage::cpu::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
 
     bool hasHighlightsEnabled =
             (highlightStartVertex > 0 && highlightStartVertex <= mesh.vertexCount) ||
@@ -122,7 +122,7 @@ void SpinImage::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::
 }
 
 void SpinImage::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::path &outputFilePath,
-          SpinImage::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
+          SpinImage::cpu::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
     assert(vertexTextureCoordinates.length == mesh.vertexCount);
     dumpMesh(mesh, outputFilePath, -1, -1, true, vertexTextureCoordinates, textureMapPath);
 }

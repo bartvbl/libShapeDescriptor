@@ -19,6 +19,7 @@
 #include <spinImage/gpu/types/PointCloud.h>
 #include <spinImage/gpu/types/DeviceVertexList.cuh>
 #include <spinImage/gpu/types/SampleBounds.h>
+#include <spinImage/gpu/types/array.h>
 
 __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNormal, float3 point)
 {
@@ -140,9 +141,9 @@ __global__ void createDescriptors(
     }
 }
 
-SpinImage::array<SpinImage::gpu::SpinImageDescriptor> SpinImage::gpu::generateSpinImages(
+SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> SpinImage::gpu::generateSpinImages(
         SpinImage::gpu::PointCloud device_pointCloud,
-        SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> device_descriptorOrigins,
+        SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> device_descriptorOrigins,
         float supportRadius,
         float supportAngleDegrees,
         SpinImage::debug::SIExecutionTimes* executionTimes)
@@ -153,7 +154,7 @@ SpinImage::array<SpinImage::gpu::SpinImageDescriptor> SpinImage::gpu::generateSp
 
 	size_t descriptorBufferSize = imageCount * sizeof(SpinImage::gpu::SpinImageDescriptor);
 
-	SpinImage::array<SpinImage::gpu::SpinImageDescriptor> device_descriptors;
+	SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_descriptors;
 
 	float supportAngleCosine = float(std::cos(supportAngleDegrees * (M_PI / 180.0)));
 

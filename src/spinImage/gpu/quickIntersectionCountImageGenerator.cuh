@@ -1,6 +1,5 @@
 #pragma once
 
-#include <spinImage/common/types/array.h>
 #include <spinImage/libraryBuildSettings.h>
 #include <spinImage/gpu/types/QUICCImages.h>
 #include <spinImage/gpu/types/Mesh.h>
@@ -18,9 +17,9 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        SpinImage::array<SpinImage::gpu::QUICCIDescriptor> generateQUICCImages(
+        SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> generateQUICCImages(
                 Mesh device_mesh,
-                array<DeviceOrientedPoint> device_descriptorOrigins,
+                SpinImage::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
                 float supportRadius,
                 SpinImage::debug::QUICCIExecutionTimes* executionTimes = nullptr);
     }

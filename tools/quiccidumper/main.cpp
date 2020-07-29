@@ -11,9 +11,10 @@
 #include <cuda_runtime.h>
 #include <fstream>
 #include <spinImage/cpu/types/QUICCIImages.h>
-#include <spinImage/utilities/copy/descriptors.h>
 #include <spinImage/utilities/mesh/modelScaler.h>
 #include <spinImage/utilities/dumpers/rawDescriptorDumper.h>
+#include <spinImage/utilities/copy/mesh.h>
+#include <spinImage/utilities/copy/array.h>
 
 const float DEFAULT_SPIN_IMAGE_WIDTH = 0.3;
 
@@ -56,18 +57,18 @@ int main(int argc, const char** argv) {
     SpinImage::cpu::freeMesh(hostMesh);
 
     std::cout << "Computing QUICCI images.." << std::endl;
-    SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> uniqueVertices =
+    SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> uniqueVertices =
             SpinImage::utilities::computeUniqueVertices(deviceMesh);
 
-    SpinImage::gpu::QUICCIImages images = SpinImage::gpu::generateQUICCImages(deviceMesh, uniqueVertices, spinImageWidth.value());
-    SpinImage::cpu::QUICCIImages hostImages = SpinImage::copy::QUICCIDescriptorsToHost(images);
+    SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> images = SpinImage::gpu::generateQUICCImages(deviceMesh, uniqueVertices, spinImageWidth.value());
+    SpinImage::cpu::array<SpinImage::gpu::QUICCIDescriptor> hostImages = SpinImage::copy::deviceArrayToHost(images);
 
     std::cout << "Writing output file.." << std::endl,
     SpinImage::dump::raw::descriptors(outputDumpFile.value(), hostImages);
 
     SpinImage::gpu::freeMesh(deviceMesh);
     cudaFree(uniqueVertices.content);
-    cudaFree(images.images);
+    cudaFree(images.content);
 
 }
 

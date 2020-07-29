@@ -10,6 +10,7 @@
 #include <spinImage/gpu/types/BoundingBox.h>
 #include <spinImage/utilities/kernels/pointCloudUtils.h>
 #include <iostream>
+#include <spinImage/gpu/types/array.h>
 #include "3dShapeContextGenerator.cuh"
 
 __device__ bool operator==(float3 &a, float3 &b) {
@@ -81,8 +82,8 @@ __device__ float absoluteAngle(float y, float x) {
 __global__ void createDescriptors(
         SpinImage::gpu::DeviceOrientedPoint* device_spinImageOrigins,
         SpinImage::gpu::PointCloud pointCloud,
-        SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> descriptors,
-        SpinImage::array<unsigned int> pointDensityArray,
+        SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> descriptors,
+        SpinImage::gpu::array<unsigned int> pointDensityArray,
         size_t sampleCount,
         float minSupportRadius,
         float maxSupportRadius)
@@ -228,9 +229,9 @@ __global__ void createDescriptors(
 
 }
 
-SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> SpinImage::gpu::generate3DSCDescriptors(
+SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> SpinImage::gpu::generate3DSCDescriptors(
         SpinImage::gpu::PointCloud device_pointCloud,
-        SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> device_spinImageOrigins,
+        SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> device_spinImageOrigins,
         float pointDensityRadius,
         float minSupportRadius,
         float maxSupportRadius,
@@ -240,7 +241,7 @@ SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> SpinImage::gpu::generat
     size_t descriptorCount = device_spinImageOrigins.length;
     size_t descriptorBufferSize = sizeof(SpinImage::gpu::ShapeContextDescriptor) * descriptorCount;
 
-    SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> device_descriptors = {0, nullptr};
+    SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> device_descriptors = {0, nullptr};
 
     // -- Initialisation --
     auto initialisationStart = std::chrono::steady_clock::now();
@@ -256,7 +257,7 @@ SpinImage::array<SpinImage::gpu::ShapeContextDescriptor> SpinImage::gpu::generat
     // -- Point Count Computation --
     auto pointCountingStart = std::chrono::steady_clock::now();
 
-    SpinImage::array<unsigned int> device_pointCountArray =
+    SpinImage::gpu::array<unsigned int> device_pointCountArray =
             SpinImage::utilities::computePointDensities(pointDensityRadius, device_pointCloud);
 
     std::chrono::milliseconds pointCountingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - pointCountingStart);

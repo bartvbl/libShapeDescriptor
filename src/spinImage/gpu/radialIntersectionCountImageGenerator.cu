@@ -367,9 +367,9 @@ __global__ void redistributeSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* spi
     riciMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
 
-SpinImage::array<SpinImage::gpu::RICIDescriptor> SpinImage::gpu::generateRadialIntersectionCountImages(
-        Mesh device_mesh,
-        array<DeviceOrientedPoint> device_descriptorOrigins,
+SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> SpinImage::gpu::generateRadialIntersectionCountImages(
+        SpinImage::gpu::Mesh device_mesh,
+        SpinImage::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
         float spinImageWidth,
         SpinImage::debug::RICIExecutionTimes* executionTimes)
 {
@@ -424,7 +424,7 @@ SpinImage::array<SpinImage::gpu::RICIDescriptor> SpinImage::gpu::generateRadialI
     size_t descriptorBufferSize = imageCount * sizeof(SpinImage::gpu::RICIDescriptor);
 
 
-    SpinImage::array<SpinImage::gpu::RICIDescriptor> device_descriptors;
+    SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_descriptors;
 	checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
 	device_descriptors.length = imageCount;
 

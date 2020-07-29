@@ -15,9 +15,9 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        SpinImage::array<SpinImage::gpu::SpinImageDescriptor> generateSpinImages(
+        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> generateSpinImages(
                 SpinImage::gpu::PointCloud device_pointCloud,
-                SpinImage::array<SpinImage::gpu::DeviceOrientedPoint> device_descriptorOrigins,
+                SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> device_descriptorOrigins,
                 float supportRadius,
                 float supportAngleDegrees,
                 SpinImage::debug::SIExecutionTimes* executionTimes = nullptr);

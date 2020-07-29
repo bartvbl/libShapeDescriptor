@@ -7,13 +7,14 @@
 #include <cuda_runtime_api.h>
 #include <curand.h>
 #include <curand_kernel.h>
+#include <spinImage/gpu/types/array.h>
 
 #include "nvidia/helper_math.h"
 #include "nvidia/helper_cuda.h"
 
 #define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
 
-__device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const SpinImage::array<float> &areaArray, int triangleIndex, int sampleCount) {
+__device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const SpinImage::gpu::array<float> &areaArray, int triangleIndex, int sampleCount) {
     SpinImage::SampleBounds sampleBounds;
     float maxArea = areaArray.content[areaArray.length - 1];
     float areaStepSize = maxArea / (float)sampleCount;
@@ -78,7 +79,7 @@ __device__ __inline__ void lookupTriangleNormals(SpinImage::gpu::Mesh mesh, int 
 
 
 // One thread = One triangle
-__global__ void calculateAreas(SpinImage::array<float> areaArray, SpinImage::gpu::Mesh mesh)
+__global__ void calculateAreas(SpinImage::gpu::array<float> areaArray, SpinImage::gpu::Mesh mesh)
 {
     int triangleIndex = blockDim.x * blockIdx.x + threadIdx.x;
     if (triangleIndex >= areaArray.length)
@@ -93,7 +94,7 @@ __global__ void calculateAreas(SpinImage::array<float> areaArray, SpinImage::gpu
     areaArray.content[triangleIndex] = area;
 }
 
-__global__ void calculateCumulativeAreas(SpinImage::array<float> areaArray, SpinImage::array<float> device_cumulativeAreaArray) {
+__global__ void calculateCumulativeAreas(SpinImage::gpu::array<float> areaArray, SpinImage::array<float> device_cumulativeAreaArray) {
     int triangleIndex = blockDim.x * blockIdx.x + threadIdx.x;
     if (triangleIndex >= areaArray.length)
     {
@@ -110,7 +111,7 @@ __global__ void calculateCumulativeAreas(SpinImage::array<float> areaArray, Spin
     device_cumulativeAreaArray.content[triangleIndex] = totalArea;
 }
 
-__global__ void generateRandomSampleCoefficients(SpinImage::array<float2> coefficients, curandState *randomState, int sampleCount, size_t randomSeed) {
+__global__ void generateRandomSampleCoefficients(SpinImage::gpu::array<float2> coefficients, curandState *randomState, int sampleCount, size_t randomSeed) {
     int rawThreadIndex = threadIdx.x+blockDim.x*blockIdx.x;
 
     assert(rawThreadIndex < SAMPLE_COEFFICIENT_THREAD_COUNT);
@@ -136,9 +137,9 @@ __global__ void generateRandomSampleCoefficients(SpinImage::array<float2> coeffi
 // One thread = One triangle
 __global__ void sampleMesh(
         SpinImage::gpu::Mesh mesh,
-        SpinImage::array<float> areaArray,
+        SpinImage::gpu::array<float> areaArray,
         SpinImage::gpu::PointCloud pointCloud,
-        SpinImage::array<float2> coefficients,
+        SpinImage::gpu::array<float2> coefficients,
         int sampleCount) {
     int triangleIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -189,10 +190,10 @@ SpinImage::gpu::PointCloud SpinImage::utilities::sampleMesh(gpu::Mesh device_mes
     size_t areaArrayLength = triangleCount;
     size_t areaArraySize = areaArrayLength * sizeof(float);
     curandState* device_randomState;
-    array<float2> device_coefficients;
+    SpinImage::gpu::array<float2> device_coefficients;
 
-    array<float> device_areaArray;
-    array<float> device_cumulativeAreaArray;
+    SpinImage::gpu::array<float> device_areaArray;
+    SpinImage::gpu::array<float> device_cumulativeAreaArray;
 
     gpu::PointCloud device_pointCloud(sampleCount);
 

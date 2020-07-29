@@ -18,9 +18,9 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        SpinImage::array<SpinImage::gpu::FPFHDescriptor> generateFPFHHistograms(
+        SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> generateFPFHHistograms(
                 SpinImage::gpu::PointCloud device_pointCloud,
-                SpinImage::array<DeviceOrientedPoint> device_descriptorOrigins,
+                SpinImage::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
                 float supportRadius,
                 SpinImage::debug::FPFHExecutionTimes* executionTimes = nullptr);
     }

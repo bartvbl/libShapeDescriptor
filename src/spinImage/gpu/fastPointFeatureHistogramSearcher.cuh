@@ -11,9 +11,9 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        array<unsigned int> computeFPFHSearchResultRanks(
-                SpinImage::array<SpinImage::gpu::FPFHDescriptor> device_needleDescriptors,
-                SpinImage::array<SpinImage::gpu::FPFHDescriptor> device_haystackDescriptors,
+        SpinImage::cpu::array<unsigned int> computeFPFHSearchResultRanks(
+                SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> device_needleDescriptors,
+                SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> device_haystackDescriptors,
                 SpinImage::debug::FPFHSearchExecutionTimes* executionTimes = nullptr);
     }
 }

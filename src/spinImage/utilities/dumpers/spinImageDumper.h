@@ -6,23 +6,24 @@
 #include <experimental/filesystem>
 
 #include <string>
+#include <spinImage/cpu/types/array.h>
 
 namespace SpinImage {
     namespace dump {
         void descriptors(
-                array<radialIntersectionCountImagePixelType> hostDescriptors,
+                SpinImage::cpu::array<radialIntersectionCountImagePixelType> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
                 bool logarithmicImage,
                 unsigned int imagesPerRow);
 
         void descriptors(
-                array<spinImagePixelType> hostDescriptors,
+                SpinImage::cpu::array<spinImagePixelType> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
                 bool logarithmicImage,
                 unsigned int imagesPerRow);
 
         void descriptors(
-                cpu::QUICCIImages hostDescriptors,
+                SpinImage::cpu::QUICCIImages hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
                 unsigned int imagesPerRow);
 

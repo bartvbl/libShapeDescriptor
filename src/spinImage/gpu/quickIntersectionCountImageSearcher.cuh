@@ -1,7 +1,8 @@
 #pragma once
-#include <spinImage/common/types/array.h>
 #include <spinImage/gpu/types/ImageSearchResults.h>
 #include <spinImage/gpu/quickIntersectionCountImageGenerator.cuh>
+#include <spinImage/cpu/types/array.h>
+#include <spinImage/gpu/types/array.h>
 
 namespace SpinImage {
     namespace debug {
@@ -12,9 +13,9 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        SpinImage::array<unsigned int> computeQUICCImageSearchResultRanks(
-                SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_needleDescriptors,
-                SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_haystackDescriptors,
+        SpinImage::cpu::array<unsigned int> computeQUICCImageSearchResultRanks(
+                SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> device_needleDescriptors,
+                SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> device_haystackDescriptors,
                 SpinImage::debug::QUICCISearchExecutionTimes* executionTimes = nullptr);
 
         struct QUICCIDistances {
@@ -24,8 +25,8 @@ namespace SpinImage {
             unsigned int needleImageBitCount = 0;
         };
 
-        SpinImage::array<SpinImage::gpu::QUICCIDistances> computeQUICCIElementWiseDistances(
-                SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_descriptors,
-                SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_correspondingDescriptors);
+        SpinImage::cpu::array<SpinImage::gpu::QUICCIDistances> computeQUICCIElementWiseDistances(
+                SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> device_descriptors,
+                SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> device_correspondingDescriptors);
     }
 }

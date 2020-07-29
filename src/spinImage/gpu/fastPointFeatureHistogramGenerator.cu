@@ -49,6 +49,7 @@
 #include <spinImage/utilities/kernels/meshSampler.cuh>
 #include <chrono>
 #include <spinImage/libraryBuildSettings.h>
+#include <spinImage/gpu/types/array.h>
 
 
 __device__ __host__ __forceinline__
@@ -236,9 +237,9 @@ __global__ void reformatOrigins(
     reformattedOriginNormalsList.set(index, origin.normal);
 }
 
-SpinImage::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFPFHHistograms(
+SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFPFHHistograms(
         SpinImage::gpu::PointCloud device_pointCloud,
-        SpinImage::array<DeviceOrientedPoint> device_descriptorOrigins,
+        SpinImage::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
         float supportRadius,
         SpinImage::debug::FPFHExecutionTimes* executionTimes)
 {
@@ -297,7 +298,7 @@ SpinImage::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFPFHHis
     // Compute FPFH
     std::cout << "\t\t\tGenerating FPFH descriptors.." << std::endl;
     auto fpfhGenerationTimeStart = std::chrono::steady_clock::now();
-    SpinImage::array<SpinImage::gpu::FPFHDescriptor> device_histograms;
+    SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> device_histograms;
     device_histograms.length = device_descriptorOrigins.length;
     checkCudaErrors(cudaMalloc(&device_histograms.content, outputHistogramsSize));
 

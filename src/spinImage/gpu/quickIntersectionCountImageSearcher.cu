@@ -202,9 +202,9 @@ __global__ void computeQUICCISearchResultIndices(
     }
 }
 
-SpinImage::array<unsigned int> SpinImage::gpu::computeQUICCImageSearchResultRanks(
-        SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_needleDescriptors,
-        SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_haystackDescriptors,
+SpinImage::cpu::array<unsigned int> SpinImage::gpu::computeQUICCImageSearchResultRanks(
+        SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> device_needleDescriptors,
+        SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> device_haystackDescriptors,
         SpinImage::debug::QUICCISearchExecutionTimes* executionTimes) {
     auto executionStart = std::chrono::steady_clock::now();
 
@@ -226,7 +226,7 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeQUICCImageSearchResultRank
 
     std::chrono::milliseconds searchDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart);
 
-    array<unsigned int> resultIndices;
+    SpinImage::cpu::array<unsigned int> resultIndices;
     resultIndices.content = new unsigned int[device_needleDescriptors.length];
     resultIndices.length = device_needleDescriptors.length;
 
@@ -310,9 +310,9 @@ __global__ void computeElementWiseQUICCIDistances(
 }
 
 
-SpinImage::array<SpinImage::gpu::QUICCIDistances>
-SpinImage::gpu::computeQUICCIElementWiseDistances(SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_descriptors,
-                                                  SpinImage::array<SpinImage::gpu::QUICCIDescriptor> device_correspondingDescriptors) {
+SpinImage::cpu::array<SpinImage::gpu::QUICCIDistances>
+SpinImage::gpu::computeQUICCIElementWiseDistances(SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> device_descriptors,
+                                                  SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> device_correspondingDescriptors) {
     size_t searchResultBufferSize = device_descriptors.length * sizeof(SpinImage::gpu::QUICCIDistances);
     SpinImage::gpu::QUICCIDistances* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
@@ -326,7 +326,7 @@ SpinImage::gpu::computeQUICCIElementWiseDistances(SpinImage::array<SpinImage::gp
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 
-    SpinImage::array<SpinImage::gpu::QUICCIDistances> resultDistances;
+    SpinImage::cpu::array<SpinImage::gpu::QUICCIDistances> resultDistances;
     resultDistances.content = new SpinImage::gpu::QUICCIDistances[device_descriptors.length];
     resultDistances.length = device_descriptors.length;
 

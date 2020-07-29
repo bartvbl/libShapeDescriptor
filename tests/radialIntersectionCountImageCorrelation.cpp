@@ -1,11 +1,11 @@
 #include <catch2/catch.hpp>
 #include <spinImage/libraryBuildSettings.h>
-#include <spinImage/common/types/array.h>
 #include <spinImage/utilities/CUDAContextCreator.h>
 #include <spinImage/gpu/types/ImageSearchResults.h>
 #include <spinImage/gpu/radialIntersectionCountImageSearcher.cuh>
 #include <iostream>
 #include <spinImage/utilities/dumpers/searchResultDumper.h>
+#include <spinImage/utilities/copy/array.h>
 #include "utilities/spinImageGenerator.h"
 
 const float correlationThreshold = 0.00001f;
@@ -15,13 +15,13 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
 
     SpinImage::utilities::createCUDAContext();
 
-    SpinImage::array<radialIntersectionCountImagePixelType> imageSequence = generateKnownRadialIntersectionCountImageSequence(
+    SpinImage::cpu::array<radialIntersectionCountImagePixelType> imageSequence = generateKnownRadialIntersectionCountImageSequence(
             imageCount, pixelsPerImage);
 
-    SpinImage::array<radialIntersectionCountImagePixelType> device_haystackImages = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
+    SpinImage::gpu::array<radialIntersectionCountImagePixelType> device_haystackImages = SpinImage::copy::hostArrayToDevice(imageSequence);
 
     SECTION("Ranking by generating search results on GPU") {
-        SpinImage::array<SpinImage::gpu::RadialIntersectionCountImageSearchResults> searchResults = SpinImage::gpu::findRadialIntersectionCountImagesInHaystack(
+        SpinImage::cpu::array<SpinImage::gpu::RadialIntersectionCountImageSearchResults> searchResults = SpinImage::gpu::findRadialIntersectionCountImagesInHaystack(
                 device_haystackImages, imageCount, device_haystackImages, imageCount);
 
         SpinImage::dump::searchResults(searchResults, imageCount, "rici_another_dump.txt");
@@ -58,7 +58,7 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
 
     SECTION("Ranking by computing rank indices") {
 
-        SpinImage::array<unsigned int> results = SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
+        SpinImage::cpu::array<unsigned int> results = SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
                 device_haystackImages, imageCount, device_haystackImages, imageCount);
 
         for(int i = 0; i < imageCount; i++) {
@@ -70,9 +70,9 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
     SECTION("Ranking by computing rank indices, reversed image sequence") {
         std::reverse(imageSequence.content, imageSequence.content + imageCount * pixelsPerImage);
 
-        SpinImage::array<radialIntersectionCountImagePixelType> device_haystackImages_reversed = SpinImage::copy::hostDescriptorsToDevice(imageSequence, imageCount);
+        SpinImage::gpu::array<radialIntersectionCountImagePixelType> device_haystackImages_reversed = SpinImage::copy::hostArrayToDevice(imageSequence);
 
-        SpinImage::array<unsigned int> results = SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
+        SpinImage::cpu::array<unsigned int> results = SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
                 device_haystackImages_reversed, imageCount, device_haystackImages_reversed, imageCount);
 
         for(int i = 0; i < imageCount; i++) {

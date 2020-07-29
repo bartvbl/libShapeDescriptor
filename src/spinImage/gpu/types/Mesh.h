@@ -1,5 +1,4 @@
 #pragma once
-#include "spinImage/common/types/array.h"
 #include "PointCloud.h"
 #include <host_defines.h>
 

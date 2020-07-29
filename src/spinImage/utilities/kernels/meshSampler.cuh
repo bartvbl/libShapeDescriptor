@@ -6,11 +6,11 @@
 namespace SpinImage {
     namespace internal {
         struct MeshSamplingBuffers {
-            array<float> cumulativeAreaArray;
+            SpinImage::gpu::array<float> cumulativeAreaArray;
         };
     }
 
     namespace utilities {
-        gpu::PointCloud sampleMesh(gpu::Mesh mesh, size_t sampleCount, size_t randomSamplingSeed, SpinImage::internal::MeshSamplingBuffers* keepComputedBuffersForExternalUse = nullptr);
+        SpinImage::gpu::PointCloud sampleMesh(gpu::Mesh mesh, size_t sampleCount, size_t randomSamplingSeed, SpinImage::internal::MeshSamplingBuffers* keepComputedBuffersForExternalUse = nullptr);
     }
 }

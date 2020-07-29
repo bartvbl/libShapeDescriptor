@@ -3,6 +3,8 @@
 #include <cassert>
 #include <nvidia/helper_cuda.h>
 #include <spinImage/cpu/types/QuiccImage.h>
+#include <spinImage/cpu/types/array.h>
+#include <spinImage/gpu/types/array.h>
 #include "fastPointFeatureHistogramSearcher.cuh"
 
 __inline__ __device__ float warpAllReduceSum(float val) {
@@ -122,9 +124,9 @@ __global__ void computeFPFHSearchResultIndices(
 }
 
 
-SpinImage::array<unsigned int> SpinImage::gpu::computeFPFHSearchResultRanks(
-        SpinImage::array<SpinImage::gpu::FPFHDescriptor> device_needleDescriptors,
-        SpinImage::array<SpinImage::gpu::FPFHDescriptor> device_haystackDescriptors,
+SpinImage::cpu::array<unsigned int> SpinImage::gpu::computeFPFHSearchResultRanks(
+        SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> device_needleDescriptors,
+        SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> device_haystackDescriptors,
         SpinImage::debug::FPFHSearchExecutionTimes* executionTimes) {
 
     auto executionStart = std::chrono::steady_clock::now();
@@ -148,7 +150,7 @@ SpinImage::array<unsigned int> SpinImage::gpu::computeFPFHSearchResultRanks(
 
     std::chrono::milliseconds searchDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart);
 
-    array<unsigned int> resultIndices;
+    SpinImage::cpu::array<unsigned int> resultIndices;
     resultIndices.content = new unsigned int[device_needleDescriptors.length];
     resultIndices.length = device_needleDescriptors.length;
 

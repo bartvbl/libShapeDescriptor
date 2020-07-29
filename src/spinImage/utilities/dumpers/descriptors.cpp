@@ -10,8 +10,8 @@
 #include <lodepng.h>
 #include <spinImage/cpu/types/QUICCIImages.h>
 
-template<typename spinPixelType>
-void performSpinDump(SpinImage::cpu::array<spinPixelType> descriptors, const std::experimental::filesystem::path &imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
+template<typename spinPixelType, typename descriptorType>
+void performSpinDump(SpinImage::cpu::array<descriptorType> descriptors, const std::experimental::filesystem::path &imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
 	size_t rowCount = (descriptors.length / imagesPerRow) + ((descriptors.length % imagesPerRow == 0) ? 0 : 1);
 	std::cout << "Dumping " << rowCount << " rows containing " << descriptors.length << " images." << std::endl;
 
@@ -28,7 +28,7 @@ void performSpinDump(SpinImage::cpu::array<spinPixelType> descriptors, const std
 			for(size_t y = 0; y < spinImageWidthPixels; y++)
 			{
 				size_t pixel_index = size_t(spinImageWidthPixels) * size_t(spinImageWidthPixels) * image + size_t(spinImageWidthPixels) * y + x;
-				spinPixelType pixel_value = descriptors.content[pixel_index];
+				spinPixelType pixel_value = descriptors.content[image].contents[pixel_index];
 				if(pixel_value != 0) {
 					nonzeroPixelCount++;
 				}
@@ -92,14 +92,12 @@ void performSpinDump(SpinImage::cpu::array<spinPixelType> descriptors, const std
 			}
 
 			// Hacky way to mark image as empty. Used to display multiple sets of images.
-			unsigned int topLeftPixel = descriptors.content[size_t(spinImageWidthPixels) * size_t(spinImageWidthPixels) * imageIndex];
+			unsigned int topLeftPixel = descriptors.content[imageIndex].contents[0];
 			if(topLeftPixel != UINT32_MAX) {
 
 				for (size_t x = 0; x < spinImageWidthPixels; x++) {
 					for (size_t y = 0; y < spinImageWidthPixels; y++) {
-						size_t pixel_index = size_t(spinImageWidthPixels) * size_t(spinImageWidthPixels) * imageIndex +
-											 size_t(spinImageWidthPixels) * y + x;
-						spinPixelType pixelValue = descriptors.content[pixel_index];
+						spinPixelType pixelValue = descriptors.content[imageIndex].contents[size_t(spinImageWidthPixels) * y + x];
 						float normalised;
 						if (logarithmicImage && max != 1.0f) {
 							normalised = (std::log(std::max(0.0f, float(pixelValue))) / std::log(float(max))) * 255.0f;
@@ -143,79 +141,49 @@ void performSpinDump(SpinImage::cpu::array<spinPixelType> descriptors, const std
 	}
 }
 
-void SpinImage::dump::descriptors(SpinImage::cpu::array<spinImagePixelType> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void SpinImage::dump::descriptors(SpinImage::cpu::array<SpinImage::gpu::SpinImageDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
-	performSpinDump<spinImagePixelType>(hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
+	performSpinDump<float, SpinImage::gpu::SpinImageDescriptor>(hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void SpinImage::dump::descriptors(SpinImage::cpu::array<radialIntersectionCountImagePixelType> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void SpinImage::dump::descriptors(SpinImage::cpu::array<SpinImage::gpu::RICIDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
-	performSpinDump<radialIntersectionCountImagePixelType> (hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
+	performSpinDump<unsigned int, SpinImage::gpu::RICIDescriptor> (hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void SpinImage::dump::descriptors(SpinImage::cpu::QUICCIImages hostDescriptors, std::experimental::filesystem::path imageDestinationFile, unsigned int imagesPerRow) {
+void SpinImage::dump::descriptors(SpinImage::cpu::array<SpinImage::gpu::QUICCIDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, unsigned int imagesPerRow) {
 	// Compute the number of images that should be inserted to separate the two series
 	// If the number of rows fits the images exactly, an extra one is inserted for better clarity.
-	size_t rowRemainder = hostDescriptors.imageCount % imagesPerRow;
+	size_t rowRemainder = hostDescriptors.length % imagesPerRow;
 	size_t fillerImageCount = (rowRemainder == 0) ? imagesPerRow : (imagesPerRow - rowRemainder);
 
-	size_t totalImageCount = hostDescriptors.imageCount + fillerImageCount;
+	size_t totalImageCount = hostDescriptors.length + fillerImageCount;
 
-	const size_t pixelsPerImage = spinImageWidthPixels * spinImageWidthPixels;
+	SpinImage::cpu::array<SpinImage::gpu::RICIDescriptor> decompressedDesciptors;
 
-	SpinImage::cpu::array<unsigned int> decompressedDesciptors;
-	size_t imageTotalPixelCount = totalImageCount * pixelsPerImage;
-
-	decompressedDesciptors.content = new unsigned int[imageTotalPixelCount];
+	decompressedDesciptors.content = new SpinImage::gpu::RICIDescriptor[totalImageCount];
 	decompressedDesciptors.length = totalImageCount;
 
-	const size_t uintsPerImage = pixelsPerImage / 32;
-
-	size_t pixelIndex = 0;
-
-	for(unsigned int imageIndex = 0; imageIndex < hostDescriptors.imageCount; imageIndex++) {
+	for(unsigned int imageIndex = 0; imageIndex < hostDescriptors.length; imageIndex++) {
 	    for(unsigned int chunkIndex = 0; chunkIndex < UINTS_PER_QUICCI; chunkIndex++) {
-            unsigned int chunk = hostDescriptors.images[imageIndex][chunkIndex];
+            unsigned int chunk = hostDescriptors.content[imageIndex].contents[chunkIndex];
             std::bitset<32> entryBits(chunk);
             for(char bit = 0; bit < 32; bit++) {
-                decompressedDesciptors.content[pixelIndex] = unsigned(int(entryBits[31 - bit]) * 255);
-                pixelIndex++;
+                decompressedDesciptors.content[imageIndex].contents[32 * chunkIndex + bit] = unsigned(int(entryBits[31 - bit]) * 255);
             }
         }
 	}
 
-	for(unsigned int emptyPixelIndex = 0; emptyPixelIndex < fillerImageCount * pixelsPerImage; emptyPixelIndex++) {
-		decompressedDesciptors.content[pixelIndex] = UINT32_MAX;
-		pixelIndex++;
+	unsigned int pixelIndex = hostDescriptors.length * UINTS_PER_QUICCI * 32;
+
+	for(unsigned int emptyImageIndex = 0; emptyImageIndex < fillerImageCount; emptyImageIndex++) {
+		for(int i = 0; i < fillerImageCount; i++) {
+			decompressedDesciptors.content[pixelIndex] = UINT32_MAX;
+			pixelIndex++;
+		}
 	}
 
-    performSpinDump<unsigned int>(decompressedDesciptors, imageDestinationFile, false, imagesPerRow);
+    performSpinDump<unsigned int, SpinImage::gpu::RICIDescriptor>(decompressedDesciptors, imageDestinationFile, false, imagesPerRow);
 
     delete[] decompressedDesciptors.content;
-}
-
-void SpinImage::dump::descriptors(
-        const std::vector<QuiccImage> &hostDescriptors,
-        std::experimental::filesystem::path imageDestinationFile,
-        unsigned int imagesPerRow) {
-    size_t pixelIndex = 0;
-
-    SpinImage::cpu::array<unsigned int> decompressedDescriptors = {
-            hostDescriptors.size(),
-            new unsigned int[hostDescriptors.size() * (sizeof(QuiccImage) / sizeof(unsigned int))]};
-
-    for(unsigned int imageIndex = 0; imageIndex < hostDescriptors.size(); imageIndex++) {
-        for(unsigned int chunkIndex = 0; chunkIndex < UINTS_PER_QUICCI; chunkIndex++) {
-            unsigned int chunk = hostDescriptors.at(imageIndex)[chunkIndex];
-            std::bitset<32> entryBits(chunk);
-            for(char bit = 0; bit < 32; bit++) {
-                decompressedDescriptors.content[pixelIndex] = unsigned(int(entryBits[31 - bit]) * 255);
-                pixelIndex++;
-            }
-        }
-    }
-
-    performSpinDump<unsigned int>(decompressedDescriptors, imageDestinationFile, false, imagesPerRow);
-
-    delete decompressedDescriptors.content;
 }

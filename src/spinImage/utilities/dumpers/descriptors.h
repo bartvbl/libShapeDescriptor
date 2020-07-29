@@ -1,34 +1,31 @@
 #pragma once
 
-#include <spinImage/common/types/array.h>
-#include <spinImage/libraryBuildSettings.h>
-#include <spinImage/cpu/types/QUICCIImages.h>
+#include <string>
 #include <experimental/filesystem>
 
-#include <string>
+#include <spinImage/libraryBuildSettings.h>
+#include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/cpu/types/array.h>
+#include <spinImage/gpu/types/methods/RICIDescriptor.h>
+#include <spinImage/gpu/types/methods/SpinImageDescriptor.h>
+#include <spinImage/gpu/types/methods/QUICCIDescriptor.h>
 
 namespace SpinImage {
     namespace dump {
         void descriptors(
-                SpinImage::cpu::array<radialIntersectionCountImagePixelType> hostDescriptors,
+                SpinImage::cpu::array<SpinImage::gpu::RICIDescriptor> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
                 bool logarithmicImage,
                 unsigned int imagesPerRow);
 
         void descriptors(
-                SpinImage::cpu::array<spinImagePixelType> hostDescriptors,
+                SpinImage::cpu::array<SpinImage::gpu::SpinImageDescriptor> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
                 bool logarithmicImage,
                 unsigned int imagesPerRow);
 
         void descriptors(
-                SpinImage::cpu::QUICCIImages hostDescriptors,
-                std::experimental::filesystem::path imageDestinationFile,
-                unsigned int imagesPerRow);
-
-        void descriptors(
-                const std::vector<QuiccImage> &hostDescriptors,
+                SpinImage::cpu::array<SpinImage::gpu::QUICCIDescriptor> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
                 unsigned int imagesPerRow);
     }

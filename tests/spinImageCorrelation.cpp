@@ -6,7 +6,6 @@
 #include <spinImage/utilities/CUDAContextCreator.h>
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
-#include <spinImage/utilities/copy/hostDescriptorsToDevice.h>
 #include <spinImage/gpu/spinImageSearcher.cuh>
 #include <iostream>
 #include <spinImage/utilities/dumpers/spinImageDumper.h>

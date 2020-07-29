@@ -4,6 +4,7 @@
 #include "spinImage/common/types/array.h"
 #include "spinImage/libraryBuildSettings.h"
 #include "spinImage/gpu/types/ImageSearchResults.h"
+#include <spinImage/gpu/types/methods/SpinImageDescriptor.h>
 
 namespace SpinImage {
     namespace debug {

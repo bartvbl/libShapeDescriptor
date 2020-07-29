@@ -2,7 +2,6 @@
 #include <spinImage/libraryBuildSettings.h>
 #include <spinImage/common/types/array.h>
 #include <spinImage/utilities/CUDAContextCreator.h>
-#include <spinImage/utilities/copy/hostDescriptorsToDevice.h>
 #include <spinImage/gpu/types/ImageSearchResults.h>
 #include <spinImage/gpu/radialIntersectionCountImageSearcher.cuh>
 #include <iostream>

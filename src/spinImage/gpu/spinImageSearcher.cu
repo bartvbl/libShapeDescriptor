@@ -41,8 +41,6 @@ __device__ float computeSpinImagePairCorrelationGPU(
 		const int warpSize = 32;
 		for (int x = threadIdx.x % 32; x < spinImageWidthPixels; x += warpSize)
 		{
-			const size_t spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
-
 			pixelValueX = descriptors[spinImageIndex].contents[y * spinImageWidthPixels + x];
 			pixelValueY = otherDescriptors[otherImageIndex].contents[y * spinImageWidthPixels + x];
 

@@ -10,7 +10,7 @@ SpinImage::array<pixelType> copyDescriptorsToDevice(const SpinImage::array<pixel
     size_t bufferSize = sizeof(pixelType) * spinImageWidthPixels * spinImageWidthPixels * imageCount;
 
     deviceDescriptors.length = imageCount;
-    checkCudaErrors(cudaMalloc(&deviceDescriptors.content, bufferSize));
+    checkCudaErrors(cudaMalloc((void**) &deviceDescriptors.content, bufferSize));
     checkCudaErrors(cudaMemcpy(deviceDescriptors.content, hostDescriptors.content, bufferSize, cudaMemcpyHostToDevice));
     return deviceDescriptors;
 }

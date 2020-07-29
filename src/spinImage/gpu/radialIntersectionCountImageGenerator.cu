@@ -303,7 +303,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateRadialInte
 
 	for (int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += RASTERISATION_WARP_SIZE)
 	{
-		atomicAdd(&descriptors[renderedSpinImageIndex].contents[i], descriptorArrayPointer[i]);
+		atomicAdd(&descriptors[renderedSpinImageIndex].contents[i], descriptorArrayPointer.contents[i]);
 	}
 }
 

@@ -1,7 +1,6 @@
 #include <arrrgh.hpp>
 #include <spinImage/cpu/types/Mesh.h>
 #include <spinImage/utilities/mesh/OBJLoader.h>
-#include <spinImage/utilities/copy/hostMeshToDevice.h>
 #include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/gpu/types/QUICCImages.h>
 #include <spinImage/gpu/types/DeviceOrientedPoint.h>

@@ -2,7 +2,6 @@
 #include <chrono>
 #include <cassert>
 #include <nvidia/helper_cuda.h>
-#include <spinImage/cpu/types/QuiccImage.h>
 #include <spinImage/cpu/types/array.h>
 #include <spinImage/gpu/types/array.h>
 #include "fastPointFeatureHistogramSearcher.cuh"

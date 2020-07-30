@@ -1,5 +1,4 @@
 #include <spinImage/cpu/types/Mesh.h>
-#include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/gpu/spinImageGenerator.cuh>
 #include <spinImage/gpu/radialIntersectionCountImageGenerator.cuh>
 #include <spinImage/gpu/quickIntersectionCountImageGenerator.cuh>

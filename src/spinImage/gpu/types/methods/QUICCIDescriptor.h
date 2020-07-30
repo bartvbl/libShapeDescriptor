@@ -1,6 +1,6 @@
 #pragma once
 
-#include <spinImage/cpu/types/QuiccImage.h>
+#include <spinImage/libraryBuildSettings.h>
 
 namespace SpinImage {
     namespace gpu {

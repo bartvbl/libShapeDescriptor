@@ -8,7 +8,6 @@
 
 #include <vector>
 #include <lodepng.h>
-#include <spinImage/cpu/types/QUICCIImages.h>
 
 template<typename spinPixelType, typename descriptorType>
 void performSpinDump(SpinImage::cpu::array<descriptorType> descriptors, const std::experimental::filesystem::path &imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {

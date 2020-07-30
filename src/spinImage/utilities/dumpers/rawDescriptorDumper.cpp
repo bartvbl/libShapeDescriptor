@@ -10,7 +10,7 @@ void SpinImage::dump::raw::descriptors(
         const SpinImage::cpu::array<SpinImage::gpu::QUICCIDescriptor> &images) {
     const unsigned int imageWidthPixels = spinImageWidthPixels;
 
-    size_t imageBlockSize = images.length * sizeof(QuiccImage);
+    size_t imageBlockSize = images.length * sizeof(SpinImage::gpu::QUICCIDescriptor);
     size_t outFileBufferSize = 5 + sizeof(size_t) + sizeof(unsigned int) + 2 * imageBlockSize;
     char* outFileBuffer = new char[outFileBufferSize];
     

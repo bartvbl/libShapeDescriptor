@@ -45,11 +45,7 @@ file (GLOB_RECURSE LIBRARY_SOURCES             src/*.cpp
                                                lib/lodepng/lodepng.cpp)
 file (GLOB_RECURSE TEST_SOURCES                tests/*.cpp)
 file (GLOB_RECURSE RENDER_TOOL_SOURCES         tools/imagerenderer/*.cpp)
-file (GLOB_RECURSE INDEX_BUILD_TOOL_SOURCES    tools/indexbuilder/*.cpp)
-file (GLOB_RECURSE INDEX_QUERY_TOOL_SOURCES    tools/indexqueryer/*.cpp)
-file (GLOB_RECURSE INDEX_BENCHMARK_TOOL_SOURCES tools/indexBenchmark/*.cpp)
 file (GLOB_RECURSE QUICCI_DUMPER_TOOL_SOURCES  tools/quiccidumper/*.cpp)
-file (GLOB_RECURSE COMPRESSOR_TOOL_SOURCES     tools/compressor/*.cpp)
 
 cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -67,18 +63,6 @@ target_link_libraries(runTests SpinImage Catch2::Catch2 cudadevrt)
 add_executable(imagerenderer ${RENDER_TOOL_SOURCES})
 target_link_libraries(imagerenderer SpinImage cudadevrt)
 
-add_executable(buildindex ${INDEX_BUILD_TOOL_SOURCES})
-target_link_libraries(buildindex SpinImage cudadevrt)
-
-add_executable(benchmarkindex ${INDEX_BENCHMARK_TOOL_SOURCES})
-target_link_libraries(benchmarkindex SpinImage cudadevrt)
-
-add_executable(queryindex ${INDEX_QUERY_TOOL_SOURCES})
-target_link_libraries(queryindex SpinImage cudadevrt)
-
 add_executable(quiccidumper ${QUICCI_DUMPER_TOOL_SOURCES})
 target_link_libraries(quiccidumper SpinImage cudadevrt)
-
-add_executable(compressor ${COMPRESSOR_TOOL_SOURCES})
-target_link_libraries(compressor SpinImage cudadevrt)
 

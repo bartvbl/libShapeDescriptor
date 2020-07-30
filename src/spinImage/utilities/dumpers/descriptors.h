@@ -4,7 +4,6 @@
 #include <experimental/filesystem>
 
 #include <spinImage/libraryBuildSettings.h>
-#include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/cpu/types/array.h>
 #include <spinImage/gpu/types/methods/RICIDescriptor.h>
 #include <spinImage/gpu/types/methods/SpinImageDescriptor.h>

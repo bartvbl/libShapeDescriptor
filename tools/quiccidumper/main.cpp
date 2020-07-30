@@ -2,7 +2,6 @@
 #include <spinImage/cpu/types/Mesh.h>
 #include <spinImage/utilities/mesh/OBJLoader.h>
 #include <spinImage/gpu/types/Mesh.h>
-#include <spinImage/gpu/types/QUICCImages.h>
 #include <spinImage/gpu/types/DeviceOrientedPoint.h>
 #include <spinImage/gpu/quickIntersectionCountImageGenerator.cuh>
 #include <spinImage/utilities/kernels/duplicateRemoval.cuh>
@@ -10,7 +9,6 @@
 #include <spinImage/libraryBuildSettings.h>
 #include <cuda_runtime.h>
 #include <fstream>
-#include <spinImage/cpu/types/QUICCIImages.h>
 #include <spinImage/utilities/mesh/modelScaler.h>
 #include <spinImage/utilities/dumpers/rawDescriptorDumper.h>
 #include <spinImage/utilities/copy/mesh.h>

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <spinImage/cpu/types/QUICCIImages.h>
 #include <experimental/filesystem>
 #include <spinImage/gpu/types/methods/QUICCIDescriptor.h>
 #include <spinImage/cpu/types/array.h>

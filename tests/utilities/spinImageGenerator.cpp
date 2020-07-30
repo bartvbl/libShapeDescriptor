@@ -48,10 +48,10 @@ SpinImage::cpu::array<pixelType> generateKnownImageSequence(const int imageCount
 
     for(int image = 0; image < imageCount; image++) {
         for(int highIndex = 0; highIndex <= image; highIndex++) {
-            imageSequence.content[image * pixelsPerImage + highIndex] = 1;
+            imageSequence.content[image].contents[highIndex] = 1;
         }
         for(int lowIndex = image + 1; lowIndex < pixelsPerImage; lowIndex++) {
-            imageSequence.content[image * pixelsPerImage + lowIndex] = 0;
+            imageSequence.content[image].contents[lowIndex] = 0;
         }
     }
 

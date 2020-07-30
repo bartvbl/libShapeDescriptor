@@ -1,8 +1,8 @@
 #pragma once
 
-#include <spinImage/libraryBuildSettings.h>
 #include <spinImage/gpu/types/Mesh.h>
 #include <spinImage/gpu/types/DeviceOrientedPoint.h>
+#include <spinImage/gpu/types/array.h>
 #include <spinImage/gpu/types/methods/3DSCDescriptor.h>
 
 namespace SpinImage {

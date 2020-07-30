@@ -2,6 +2,8 @@
 #include <spinImage/libraryBuildSettings.h>
 #include <spinImage/gpu/types/array.h>
 #include <spinImage/cpu/types/array.h>
+#include <spinImage/gpu/types/methods/SpinImageDescriptor.h>
+#include <spinImage/gpu/types/methods/RICIDescriptor.h>
 
 const int imageCount = spinImageWidthPixels * spinImageWidthPixels + 1 - 2;
 const int pixelsPerImage = spinImageWidthPixels * spinImageWidthPixels;

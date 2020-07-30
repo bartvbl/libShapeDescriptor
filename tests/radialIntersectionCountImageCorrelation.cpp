@@ -59,7 +59,7 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
     SECTION("Ranking by computing rank indices") {
 
         SpinImage::cpu::array<unsigned int> results = SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
-                device_haystackImages, imageCount, device_haystackImages, imageCount);
+                device_haystackImages, device_haystackImages);
 
         for(int i = 0; i < imageCount; i++) {
             REQUIRE(results.content[i] == 0);
@@ -70,10 +70,10 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
     SECTION("Ranking by computing rank indices, reversed image sequence") {
         std::reverse(imageSequence.content, imageSequence.content + imageCount * pixelsPerImage);
 
-        SpinImage::gpu::array<radialIntersectionCountImagePixelType> device_haystackImages_reversed = SpinImage::copy::hostArrayToDevice(imageSequence);
+        SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_haystackImages_reversed = SpinImage::copy::hostArrayToDevice(imageSequence);
 
         SpinImage::cpu::array<unsigned int> results = SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
-                device_haystackImages_reversed, imageCount, device_haystackImages_reversed, imageCount);
+                device_haystackImages_reversed, device_haystackImages_reversed);
 
         for(int i = 0; i < imageCount; i++) {
             REQUIRE(results.content[i] == 0);

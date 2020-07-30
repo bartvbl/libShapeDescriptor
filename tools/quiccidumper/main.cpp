@@ -1,18 +1,15 @@
 #include <arrrgh.hpp>
-#include <spinImage/cpu/types/Mesh.h>
-#include <spinImage/utilities/mesh/OBJLoader.h>
-#include <spinImage/gpu/types/Mesh.h>
-#include <spinImage/gpu/types/DeviceOrientedPoint.h>
-#include <spinImage/gpu/quickIntersectionCountImageGenerator.cuh>
-#include <spinImage/utilities/kernels/duplicateRemoval.cuh>
-#include <spinImage/gpu/radialIntersectionCountImageGenerator.cuh>
-#include <spinImage/libraryBuildSettings.h>
+#include <shapeDescriptor/cpu/types/Mesh.h>
+#include <shapeDescriptor/utilities/mesh/OBJLoader.h>
+#include <shapeDescriptor/gpu/types/Mesh.h>
+#include <shapeDescriptor/gpu/types/DeviceOrientedPoint.h>
+#include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
+#include <shapeDescriptor/utilities/kernels/duplicateRemoval.cuh>
 #include <cuda_runtime.h>
-#include <fstream>
-#include <spinImage/utilities/mesh/modelScaler.h>
-#include <spinImage/utilities/dumpers/rawDescriptorDumper.h>
-#include <spinImage/utilities/copy/mesh.h>
-#include <spinImage/utilities/copy/array.h>
+#include <shapeDescriptor/utilities/mesh/modelScaler.h>
+#include <shapeDescriptor/utilities/dumpers/rawDescriptorDumper.h>
+#include <shapeDescriptor/utilities/copy/mesh.h>
+#include <shapeDescriptor/utilities/copy/array.h>
 
 const float DEFAULT_SPIN_IMAGE_WIDTH = 0.3;
 

@@ -1,7 +1,7 @@
 #include "setValue.cuh"
 #include <device_launch_parameters.h>
 
-#include <spinImage/libraryBuildSettings.h>
+#include <shapeDescriptor/libraryBuildSettings.h>
 
 template<typename valueType>
 __global__ void setValue(valueType* target, size_t length, valueType value)

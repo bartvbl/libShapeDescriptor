@@ -1,7 +1,7 @@
-#include <spinImage/libraryBuildSettings.h>
-#include <spinImage/cpu/types/array.h>
-#include <spinImage/gpu/types/methods/RICIDescriptor.h>
-#include <spinImage/gpu/types/methods/SpinImageDescriptor.h>
+#include <shapeDescriptor/libraryBuildSettings.h>
+#include <shapeDescriptor/cpu/types/array.h>
+#include <shapeDescriptor/gpu/types/methods/RICIDescriptor.h>
+#include <shapeDescriptor/gpu/types/methods/SpinImageDescriptor.h>
 #include "spinImageGenerator.h"
 
 

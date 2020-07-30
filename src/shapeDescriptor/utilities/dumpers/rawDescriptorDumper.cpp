@@ -1,9 +1,9 @@
-#include <spinImage/libraryBuildSettings.h>
+#include <shapeDescriptor/libraryBuildSettings.h>
 #include <sstream>
 #include "rawDescriptorDumper.h"
-#include <spinImage/utilities/fileutils.h>
-#include <spinImage/gpu/types/methods/QUICCIDescriptor.h>
-#include <spinImage/cpu/types/array.h>
+#include <shapeDescriptor/utilities/fileutils.h>
+#include <shapeDescriptor/gpu/types/methods/QUICCIDescriptor.h>
+#include <shapeDescriptor/cpu/types/array.h>
 
 void SpinImage::dump::raw::descriptors(
         const std::experimental::filesystem::path &outputDumpFile,

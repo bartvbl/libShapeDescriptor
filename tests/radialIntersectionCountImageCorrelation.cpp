@@ -1,11 +1,11 @@
 #include <catch2/catch.hpp>
-#include <spinImage/libraryBuildSettings.h>
-#include <spinImage/utilities/CUDAContextCreator.h>
-#include <spinImage/gpu/types/ImageSearchResults.h>
-#include <spinImage/gpu/radialIntersectionCountImageSearcher.cuh>
+#include <shapeDescriptor/libraryBuildSettings.h>
+#include <shapeDescriptor/utilities/CUDAContextCreator.h>
+#include <shapeDescriptor/gpu/types/ImageSearchResults.h>
+#include <shapeDescriptor/gpu/radialIntersectionCountImageSearcher.cuh>
 #include <iostream>
-#include <spinImage/utilities/dumpers/searchResultDumper.h>
-#include <spinImage/utilities/copy/array.h>
+#include <shapeDescriptor/utilities/dumpers/searchResultDumper.h>
+#include <shapeDescriptor/utilities/copy/array.h>
 #include "utilities/spinImageGenerator.h"
 
 const float correlationThreshold = 0.00001f;

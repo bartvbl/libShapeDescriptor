@@ -1,8 +1,8 @@
 #pragma once
 
-#include <spinImage/gpu/types/Mesh.h>
-#include <spinImage/gpu/types/DeviceOrientedPoint.h>
-#include <spinImage/gpu/types/array.h>
+#include <shapeDescriptor/gpu/types/Mesh.h>
+#include <shapeDescriptor/gpu/types/DeviceOrientedPoint.h>
+#include <shapeDescriptor/gpu/types/array.h>
 #include <vector>
 
 namespace SpinImage {

@@ -3,7 +3,7 @@
 #include <vector>
 #include <nvidia/helper_cuda.h>
 #include <cassert>
-#include <spinImage/utilities/copy/mesh.h>
+#include <shapeDescriptor/utilities/copy/mesh.h>
 
 __host__ __device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInBytes) {
     return (sizeInBytes + 127u) & ~((size_t) 127);

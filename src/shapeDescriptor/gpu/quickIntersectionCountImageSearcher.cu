@@ -1,10 +1,10 @@
 #include "quickIntersectionCountImageSearcher.cuh"
-#include <spinImage/gpu/quickIntersectionCountImageGenerator.cuh>
+#include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
 #include <chrono>
 #include <cuda_runtime_api.h>
 #include <iostream>
 #include <nvidia/helper_cuda.h>
-#include <spinImage/utilities/weightedHamming.cuh>
+#include <shapeDescriptor/utilities/weightedHamming.cuh>
 
 #ifndef warpSize
 #define warpSize 32

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <spinImage/cpu/types/float3.h>
-#include <spinImage/gpu/types/DeviceVertexList.cuh>
-#include <spinImage/cpu/types/array.h>
+#include <shapeDescriptor/cpu/types/float3.h>
+#include <shapeDescriptor/gpu/types/DeviceVertexList.cuh>
+#include <shapeDescriptor/cpu/types/array.h>
 
 namespace SpinImage {
     namespace copy {

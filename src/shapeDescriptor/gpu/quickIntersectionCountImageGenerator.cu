@@ -3,10 +3,10 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
-#include <spinImage/gpu/types/Mesh.h>
-#include <spinImage/gpu/types/CudaLaunchDimensions.h>
-#include <spinImage/utilities/kernels/setValue.cuh>
-#include <spinImage/libraryBuildSettings.h>
+#include <shapeDescriptor/gpu/types/Mesh.h>
+#include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
+#include <shapeDescriptor/utilities/kernels/setValue.cuh>
+#include <shapeDescriptor/libraryBuildSettings.h>
 
 #include "nvidia/helper_math.h"
 #include "nvidia/helper_cuda.h"
@@ -17,9 +17,9 @@
 #include <iomanip>
 #include <chrono>
 #include <sstream>
-#include <spinImage/gpu/types/DeviceOrientedPoint.h>
-#include <spinImage/gpu/types/array.h>
-#include <spinImage/cpu/types/array.h>
+#include <shapeDescriptor/gpu/types/DeviceOrientedPoint.h>
+#include <shapeDescriptor/gpu/types/array.h>
+#include <shapeDescriptor/cpu/types/array.h>
 
 #ifndef ENABLE_SHARED_MEMORY_IMAGE
 #define ENABLE_SHARED_MEMORY_IMAGE true

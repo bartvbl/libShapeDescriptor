@@ -1,16 +1,16 @@
-#include <spinImage/cpu/types/Mesh.h>
-#include <spinImage/gpu/spinImageGenerator.cuh>
-#include <spinImage/gpu/radialIntersectionCountImageGenerator.cuh>
-#include <spinImage/gpu/quickIntersectionCountImageGenerator.cuh>
-#include <spinImage/utilities/mesh/OBJLoader.h>
-#include <spinImage/utilities/dumpers/descriptors.h>
-#include <spinImage/utilities/CUDAContextCreator.h>
-#include <spinImage/utilities/kernels/spinOriginBufferGenerator.h>
+#include <shapeDescriptor/cpu/types/Mesh.h>
+#include <shapeDescriptor/gpu/spinImageGenerator.cuh>
+#include <shapeDescriptor/gpu/radialIntersectionCountImageGenerator.cuh>
+#include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
+#include <shapeDescriptor/utilities/mesh/OBJLoader.h>
+#include <shapeDescriptor/utilities/dumpers/descriptors.h>
+#include <shapeDescriptor/utilities/CUDAContextCreator.h>
+#include <shapeDescriptor/utilities/kernels/spinOriginBufferGenerator.h>
 
 #include <arrrgh.hpp>
-#include <spinImage/utilities/copy/mesh.h>
-#include <spinImage/utilities/kernels/meshSampler.cuh>
-#include <spinImage/utilities/copy/array.h>
+#include <shapeDescriptor/utilities/copy/mesh.h>
+#include <shapeDescriptor/utilities/kernels/meshSampler.cuh>
+#include <shapeDescriptor/utilities/copy/array.h>
 
 int main(int argc, const char** argv) {
     arrrgh::parser parser("imagerenderer", "Generate RICI or spin images from an input object and dump them into a PNG file");

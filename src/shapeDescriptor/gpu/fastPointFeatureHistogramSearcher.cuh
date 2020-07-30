@@ -1,5 +1,5 @@
 #pragma once
-#include <spinImage/gpu/fastPointFeatureHistogramGenerator.cuh>
+#include <shapeDescriptor/gpu/fastPointFeatureHistogramGenerator.cuh>
 
 namespace SpinImage {
     namespace debug {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <spinImage/common/buildSettings/buildSettingsPreamble.h>
+#include <shapeDescriptor/common/buildSettings/buildSettingsPreamble.h>
 
 #define RICI_PIXEL_DATATYPE DATATYPE_UNSIGNED_INT
 
@@ -52,4 +52,4 @@ const unsigned int NODE_SPLIT_THRESHOLD = 256;
 //#define QUICCI_DISTANCE_FUNCTION WEIGHTED_HAMMING_DISTANCE
 
 
-#include <spinImage/common/buildSettings/derivedBuildSettings.h>
+#include <shapeDescriptor/common/buildSettings/derivedBuildSettings.h>

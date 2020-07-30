@@ -1,9 +1,9 @@
 #pragma once
 
-#include <spinImage/cpu/types/Mesh.h>
+#include <shapeDescriptor/cpu/types/Mesh.h>
 #include <experimental/filesystem>
 #include <vector_types.h>
-#include <spinImage/cpu/types/array.h>
+#include <shapeDescriptor/cpu/types/array.h>
 
 namespace SpinImage {
     namespace dump {

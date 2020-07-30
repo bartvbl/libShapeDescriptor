@@ -2,8 +2,8 @@
 
 #include <string>
 #include <experimental/filesystem>
-#include <spinImage/gpu/types/methods/QUICCIDescriptor.h>
-#include <spinImage/cpu/types/array.h>
+#include <shapeDescriptor/gpu/types/methods/QUICCIDescriptor.h>
+#include <shapeDescriptor/cpu/types/array.h>
 
 namespace SpinImage {
     namespace dump {

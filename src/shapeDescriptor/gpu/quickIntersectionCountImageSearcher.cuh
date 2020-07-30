@@ -1,8 +1,8 @@
 #pragma once
-#include <spinImage/gpu/types/ImageSearchResults.h>
-#include <spinImage/gpu/quickIntersectionCountImageGenerator.cuh>
-#include <spinImage/cpu/types/array.h>
-#include <spinImage/gpu/types/array.h>
+#include <shapeDescriptor/gpu/types/ImageSearchResults.h>
+#include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
+#include <shapeDescriptor/cpu/types/array.h>
+#include <shapeDescriptor/gpu/types/array.h>
 
 namespace SpinImage {
     namespace debug {

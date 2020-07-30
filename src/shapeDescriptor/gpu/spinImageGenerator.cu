@@ -11,15 +11,15 @@
 #include <chrono>
 #include <map>
 
-#include <spinImage/gpu/types/Mesh.h>
-#include <spinImage/gpu/types/CudaLaunchDimensions.h>
-#include <spinImage/utilities/kernels/setValue.cuh>
-#include <spinImage/utilities/kernels/meshSampler.cuh>
-#include <spinImage/utilities/dumpers/descriptors.h>
-#include <spinImage/gpu/types/PointCloud.h>
-#include <spinImage/gpu/types/DeviceVertexList.cuh>
-#include <spinImage/gpu/types/SampleBounds.h>
-#include <spinImage/gpu/types/array.h>
+#include <shapeDescriptor/gpu/types/Mesh.h>
+#include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
+#include <shapeDescriptor/utilities/kernels/setValue.cuh>
+#include <shapeDescriptor/utilities/kernels/meshSampler.cuh>
+#include <shapeDescriptor/utilities/dumpers/descriptors.h>
+#include <shapeDescriptor/gpu/types/PointCloud.h>
+#include <shapeDescriptor/gpu/types/DeviceVertexList.cuh>
+#include <shapeDescriptor/gpu/types/SampleBounds.h>
+#include <shapeDescriptor/gpu/types/array.h>
 
 __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNormal, float3 point)
 {

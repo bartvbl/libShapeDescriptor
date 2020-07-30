@@ -1,16 +1,16 @@
-#include <spinImage/gpu/types/SampleBounds.h>
-#include <spinImage/gpu/types/PointCloud.h>
-#include <spinImage/gpu/types/CudaLaunchDimensions.h>
-#include <spinImage/utilities/kernels/meshSampler.cuh>
-#include <spinImage/utilities/kernels/setValue.cuh>
+#include <shapeDescriptor/gpu/types/SampleBounds.h>
+#include <shapeDescriptor/gpu/types/PointCloud.h>
+#include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
+#include <shapeDescriptor/utilities/kernels/meshSampler.cuh>
+#include <shapeDescriptor/utilities/kernels/setValue.cuh>
 #include <chrono>
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
 #include <nvidia/helper_math.h>
-#include <spinImage/gpu/types/BoundingBox.h>
-#include <spinImage/utilities/kernels/pointCloudUtils.h>
+#include <shapeDescriptor/gpu/types/BoundingBox.h>
+#include <shapeDescriptor/utilities/kernels/pointCloudUtils.h>
 #include <iostream>
-#include <spinImage/gpu/types/array.h>
+#include <shapeDescriptor/gpu/types/array.h>
 #include "3dShapeContextGenerator.cuh"
 
 __device__ bool operator==(float3 &a, float3 &b) {

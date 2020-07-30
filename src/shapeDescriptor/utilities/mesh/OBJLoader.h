@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spinImage/cpu/types/Mesh.h"
+#include "shapeDescriptor/cpu/types/Mesh.h"
 
 namespace SpinImage {
     namespace utilities {

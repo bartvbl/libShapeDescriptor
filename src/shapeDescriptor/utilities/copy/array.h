@@ -1,7 +1,8 @@
 #pragma once
 
-#include <spinImage/cpu/types/array.h>
-#include <spinImage/gpu/types/array.h>
+#include <shapeDescriptor/cpu/types/array.h>
+#include <shapeDescriptor/gpu/types/array.h>
+#include <nvidia/helper_cuda.h>
 
 namespace SpinImage {
     namespace copy {

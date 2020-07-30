@@ -1,8 +1,8 @@
 #include <catch2/catch.hpp>
 #include <cuda_runtime.h>
 #include <vector_types.h>
-#include <spinImage/gpu/types/PointCloud.h>
-#include <spinImage/utilities/kernels/pointCloudUtils.h>
+#include <shapeDescriptor/gpu/types/PointCloud.h>
+#include <shapeDescriptor/utilities/kernels/pointCloudUtils.h>
 #include <iostream>
 
 

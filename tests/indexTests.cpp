@@ -1,7 +1,7 @@
 #include <catch2/catch.hpp>
-#include <spinImage/libraryBuildSettings.h>
+#include <shapeDescriptor/libraryBuildSettings.h>
 #include <experimental/filesystem>>
-#include <spinImage/utilities/fileutils.h>
+#include <shapeDescriptor/utilities/fileutils.h>
 
 /*TEST_CASE("Reading and writing of compressed files", "[index]" ) {
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <spinImage/gpu/types/DeviceVertexList.cuh>
+#include <shapeDescriptor/gpu/types/DeviceVertexList.cuh>
 
 namespace SpinImage {
     namespace gpu {

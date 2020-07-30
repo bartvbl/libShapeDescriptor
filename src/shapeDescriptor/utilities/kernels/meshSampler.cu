@@ -1,12 +1,12 @@
 #include "meshSampler.cuh"
 
-#include <spinImage/gpu/types/SampleBounds.h>
-#include <spinImage/gpu/types/CudaLaunchDimensions.h>
+#include <shapeDescriptor/gpu/types/SampleBounds.h>
+#include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
 
 #include <cuda_runtime_api.h>
 #include <curand.h>
 #include <curand_kernel.h>
-#include <spinImage/gpu/types/array.h>
+#include <shapeDescriptor/gpu/types/array.h>
 
 #include "nvidia/helper_math.h"
 #include "nvidia/helper_cuda.h"

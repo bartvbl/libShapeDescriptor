@@ -2,8 +2,8 @@
 #include <chrono>
 #include <cassert>
 #include <nvidia/helper_cuda.h>
-#include <spinImage/cpu/types/array.h>
-#include <spinImage/gpu/types/array.h>
+#include <shapeDescriptor/cpu/types/array.h>
+#include <shapeDescriptor/gpu/types/array.h>
 #include "fastPointFeatureHistogramSearcher.cuh"
 
 __inline__ __device__ float warpAllReduceSum(float val) {

@@ -1,7 +1,7 @@
 #include "mesh.h"
 
-#include <spinImage/cpu/types/Mesh.h>
-#include <spinImage/gpu/types/Mesh.h>
+#include <shapeDescriptor/cpu/types/Mesh.h>
+#include <shapeDescriptor/gpu/types/Mesh.h>
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
 

@@ -6,9 +6,9 @@
 #include <host_defines.h>
 #include <iostream>
 #include <vector_types.h>
-#include <spinImage/gpu/types/methods/3DSCDescriptor.h>
-#include <spinImage/cpu/types/array.h>
-#include <spinImage/gpu/types/array.h>
+#include <shapeDescriptor/gpu/types/methods/3DSCDescriptor.h>
+#include <shapeDescriptor/cpu/types/array.h>
+#include <shapeDescriptor/gpu/types/array.h>
 
 const size_t elementsPerShapeContextDescriptor =
         SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT *

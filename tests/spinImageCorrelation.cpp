@@ -1,14 +1,12 @@
 #include "utilities/spinImageGenerator.h"
 #include <catch2/catch.hpp>
-#include <spinImage/common/buildSettings/derivedBuildSettings.h>
-#include <spinImage/libraryBuildSettings.h>
-#include <spinImage/utilities/CUDAContextCreator.h>
+#include <shapeDescriptor/libraryBuildSettings.h>
+#include <shapeDescriptor/utilities/CUDAContextCreator.h>
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
-#include <spinImage/gpu/spinImageSearcher.cuh>
+#include <shapeDescriptor/gpu/spinImageSearcher.cuh>
 #include <iostream>
-#include <spinImage/utilities/dumpers/descriptors.h>
-#include <spinImage/utilities/copy/array.h>
+#include <shapeDescriptor/utilities/copy/array.h>
 
 const float correlationThreshold = 0.00001f;
 

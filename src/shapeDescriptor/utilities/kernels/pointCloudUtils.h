@@ -1,9 +1,9 @@
 #pragma once
 
-#include <spinImage/gpu/types/BoundingBox.h>
-#include <spinImage/gpu/types/Mesh.h>
-#include <spinImage/gpu/types/PointCloud.h>
-#include <spinImage/gpu/types/array.h>
+#include <shapeDescriptor/gpu/types/BoundingBox.h>
+#include <shapeDescriptor/gpu/types/Mesh.h>
+#include <shapeDescriptor/gpu/types/PointCloud.h>
+#include <shapeDescriptor/gpu/types/array.h>
 
 namespace SpinImage {
     namespace utilities {

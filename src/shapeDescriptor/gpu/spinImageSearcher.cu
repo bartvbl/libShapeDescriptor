@@ -1,5 +1,5 @@
-#include <spinImage/gpu/types/Mesh.h>
-#include <spinImage/libraryBuildSettings.h>
+#include <shapeDescriptor/gpu/types/Mesh.h>
+#include <shapeDescriptor/libraryBuildSettings.h>
 #include <cuda_runtime.h>
 #include <curand_mtgp32_kernel.h>
 #include <tgmath.h>
@@ -9,7 +9,7 @@
 #include <cfloat>
 #include <chrono>
 #include <typeinfo>
-#include <spinImage/gpu/types/methods/SpinImageDescriptor.h>
+#include <shapeDescriptor/gpu/types/methods/SpinImageDescriptor.h>
 #include "nvidia/helper_cuda.h"
 #include "spinImageSearcher.cuh"
 

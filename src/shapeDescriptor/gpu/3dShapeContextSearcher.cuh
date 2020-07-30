@@ -1,8 +1,8 @@
 #pragma once
 
-#include <spinImage/cpu/types/array.h>
-#include <spinImage/gpu/types/array.h>
-#include <spinImage/gpu/types/methods/3DSCDescriptor.h>
+#include <shapeDescriptor/cpu/types/array.h>
+#include <shapeDescriptor/gpu/types/array.h>
+#include <shapeDescriptor/gpu/types/methods/3DSCDescriptor.h>
 
 namespace SpinImage {
     namespace debug {

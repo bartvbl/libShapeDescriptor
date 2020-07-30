@@ -1,6 +1,6 @@
 #pragma once
 
-#include <spinImage/libraryBuildSettings.h>
+#include <shapeDescriptor/libraryBuildSettings.h>
 #include <cstddef>
 
 namespace SpinImage {

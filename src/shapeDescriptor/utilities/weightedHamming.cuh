@@ -1,7 +1,7 @@
 #pragma once
 
 #include <utility>
-#include <spinImage/libraryBuildSettings.h>
+#include <shapeDescriptor/libraryBuildSettings.h>
 #include <algorithm>
 #include <bitset>
 

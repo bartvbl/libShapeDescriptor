@@ -1,6 +1,6 @@
 #include <catch2/catch.hpp>
-#include <spinImage/libraryBuildSettings.h>
-#include <spinImage/gpu/3dShapeContextGenerator.cuh>
+#include <shapeDescriptor/libraryBuildSettings.h>
+#include <shapeDescriptor/gpu/3dShapeContextGenerator.cuh>
 
 TEST_CASE("Ensuring volume computation makes sense") {
     SECTION("Volume computation") {

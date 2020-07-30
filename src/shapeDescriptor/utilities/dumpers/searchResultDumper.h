@@ -1,7 +1,7 @@
 #pragma once
 
-#include <spinImage/libraryBuildSettings.h>
-#include <spinImage/gpu/spinImageSearcher.cuh>
+#include <shapeDescriptor/libraryBuildSettings.h>
+#include <shapeDescriptor/gpu/spinImageSearcher.cuh>
 
 namespace SpinImage {
     namespace dump {

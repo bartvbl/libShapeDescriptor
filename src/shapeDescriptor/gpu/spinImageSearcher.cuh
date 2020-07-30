@@ -1,11 +1,9 @@
 #pragma once
 
-#include "spinImage/gpu/types/Mesh.h"
-#include "spinImage/libraryBuildSettings.h"
-#include "spinImage/gpu/types/ImageSearchResults.h"
-#include <spinImage/gpu/types/methods/SpinImageDescriptor.h>
-#include <spinImage/gpu/types/array.h>
-#include <spinImage/cpu/types/array.h>
+#include "shapeDescriptor/gpu/types/ImageSearchResults.h"
+#include <shapeDescriptor/gpu/types/methods/SpinImageDescriptor.h>
+#include <shapeDescriptor/gpu/types/array.h>
+#include <shapeDescriptor/cpu/types/array.h>
 
 namespace SpinImage {
     namespace debug {

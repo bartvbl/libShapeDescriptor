@@ -1,5 +1,5 @@
-#include <spinImage/gpu/types/Mesh.h>
-#include <spinImage/libraryBuildSettings.h>
+#include <shapeDescriptor/gpu/types/Mesh.h>
+#include <shapeDescriptor/libraryBuildSettings.h>
 #include <cuda_runtime.h>
 #include <curand_mtgp32_kernel.h>
 #include <tgmath.h>
@@ -9,9 +9,9 @@
 #include <cfloat>
 #include <chrono>
 #include <typeinfo>
-#include <spinImage/gpu/types/methods/RICIDescriptor.h>
-#include <spinImage/cpu/types/array.h>
-#include <spinImage/gpu/types/array.h>
+#include <shapeDescriptor/gpu/types/methods/RICIDescriptor.h>
+#include <shapeDescriptor/cpu/types/array.h>
+#include <shapeDescriptor/gpu/types/array.h>
 #include "nvidia/helper_cuda.h"
 #include "radialIntersectionCountImageSearcher.cuh"
 #include "types/methods/RICIDescriptor.h"

@@ -26,7 +26,7 @@ void performSpinDump(SpinImage::cpu::array<descriptorType> descriptors, const st
 		{
 			for(size_t y = 0; y < spinImageWidthPixels; y++)
 			{
-				size_t pixel_index = size_t(spinImageWidthPixels) * size_t(spinImageWidthPixels) * image + size_t(spinImageWidthPixels) * y + x;
+				size_t pixel_index = size_t(spinImageWidthPixels) * y + x;
 				spinPixelType pixel_value = descriptors.content[image].contents[pixel_index];
 				if(pixel_value != 0) {
 					nonzeroPixelCount++;

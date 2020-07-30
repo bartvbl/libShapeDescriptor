@@ -313,7 +313,6 @@ SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFP
 
     std::chrono::milliseconds fpfhHistogramComputationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - fpfhGenerationTimeStart);
 
-    device_pointCloud.free();
     checkCudaErrors(cudaFree(device_origins_SPFH_histograms));
     checkCudaErrors(cudaFree(device_pointCloud_SPFH_histograms));
 

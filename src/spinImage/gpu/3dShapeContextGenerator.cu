@@ -279,10 +279,7 @@ SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> SpinImage::gpu::ge
     std::chrono::milliseconds generationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - generationStart);
 
     // -- Cleanup --
-
     checkCudaErrors(cudaFree(device_pointCountArray.content));
-    device_pointCloud.vertices.free();
-    device_pointCloud.normals.free();
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 

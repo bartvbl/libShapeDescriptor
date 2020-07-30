@@ -1,4 +1,4 @@
-project(SpinImage CXX CUDA)
+project(ShapeDescriptor CXX CUDA)
 
 cmake_minimum_required (VERSION 3.0)
 

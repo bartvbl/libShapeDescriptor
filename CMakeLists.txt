@@ -58,11 +58,11 @@ target_include_directories(${PROJECT_NAME} PUBLIC src/)
 
 add_subdirectory(lib/Catch2)
 add_executable(runTests ${TEST_SOURCES})
-target_link_libraries(runTests SpinImage Catch2::Catch2 cudadevrt)
+target_link_libraries(runTests ShapeDescriptor Catch2::Catch2 cudadevrt)
 
 add_executable(imagerenderer ${RENDER_TOOL_SOURCES})
-target_link_libraries(imagerenderer SpinImage cudadevrt)
+target_link_libraries(imagerenderer ShapeDescriptor cudadevrt)
 
 add_executable(quiccidumper ${QUICCI_DUMPER_TOOL_SOURCES})
-target_link_libraries(quiccidumper SpinImage cudadevrt)
+target_link_libraries(quiccidumper ShapeDescriptor cudadevrt)
 

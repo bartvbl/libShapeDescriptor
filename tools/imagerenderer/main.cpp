@@ -74,7 +74,7 @@ int main(int argc, const char** argv) {
                 spinImageWidth.value(),
                 supportAngle.value());
         std::cout << "Dumping results.. " << std::endl;
-        SpinImage::cpu::array<SpinImage::gpu::SpinImageDescriptor> hostDescriptors = SpinImage::copy::deviceArrayToHost(descriptors);
+        SpinImage::cpu::array<SpinImage::gpu::SpinImageDescriptor> hostDescriptors = SpinImage::copy::deviceArrayToHost<SpinImage::gpu::SpinImageDescriptor>(descriptors);
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }

@@ -1,4 +1,3 @@
-#include <shapeDescriptor/gpu/types/SampleBounds.h>
 #include <shapeDescriptor/gpu/types/PointCloud.h>
 #include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
 #include <shapeDescriptor/utilities/kernels/meshSampler.cuh>

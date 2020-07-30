@@ -6,7 +6,7 @@
 #include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
 #include <shapeDescriptor/utilities/kernels/duplicateRemoval.cuh>
 #include <cuda_runtime.h>
-#include <shapeDescriptor/utilities/mesh/modelScaler.h>
+#include <shapeDescriptor/utilities/mesh/MeshScaler.h>
 #include <shapeDescriptor/utilities/dumpers/rawDescriptorDumper.h>
 #include <shapeDescriptor/utilities/copy/mesh.h>
 #include <shapeDescriptor/utilities/copy/array.h>

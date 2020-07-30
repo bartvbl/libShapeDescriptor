@@ -5,7 +5,7 @@
 namespace SpinImage {
     namespace gpu {
         struct SpinImageDescriptor {
-            radialIntersectionCountImagePixelType contents[spinImageWidthPixels * spinImageWidthPixels];
+            spinImagePixelType contents[spinImageWidthPixels * spinImageWidthPixels];
         };
     }
 }

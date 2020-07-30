@@ -1,1 +1,0 @@
-- Typesystem enforced distinction between values stored on the CPU and GPU. They're now more or less the same, without any real distinctions.

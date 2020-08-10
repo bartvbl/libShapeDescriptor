@@ -2,7 +2,7 @@
 #include <nvidia/helper_cuda.h>
 #include "Mesh.h"
 
-SpinImage::gpu::Mesh SpinImage::gpu::duplicateMesh(Mesh mesh) {
+ShapeDescriptor::gpu::Mesh ShapeDescriptor::gpu::duplicateMesh(Mesh mesh) {
     size_t bufferSize = mesh.vertexCount * sizeof(float);
 
     Mesh outMesh;
@@ -28,7 +28,7 @@ SpinImage::gpu::Mesh SpinImage::gpu::duplicateMesh(Mesh mesh) {
     return outMesh;
 }
 
-void SpinImage::gpu::freeMesh(Mesh mesh) {
+void ShapeDescriptor::gpu::freeMesh(Mesh mesh) {
     cudaFree(mesh.vertices_x);
     cudaFree(mesh.vertices_y);
     cudaFree(mesh.vertices_z);

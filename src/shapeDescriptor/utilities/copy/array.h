@@ -4,11 +4,11 @@
 #include <shapeDescriptor/gpu/types/array.h>
 #include <nvidia/helper_cuda.h>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace copy {
         template<typename T>
-        SpinImage::cpu::array<T> deviceArrayToHost(SpinImage::gpu::array<T> array) {
-            SpinImage::cpu::array<T> hostArray;
+        ShapeDescriptor::cpu::array<T> deviceArrayToHost(ShapeDescriptor::gpu::array<T> array) {
+            ShapeDescriptor::cpu::array<T> hostArray;
             hostArray.length = array.length;
             hostArray.content = new T[array.length];
 
@@ -18,8 +18,8 @@ namespace SpinImage {
         }
 
         template<typename T>
-        SpinImage::gpu::array<T> hostArrayToDevice(SpinImage::cpu::array<T> array) {
-            SpinImage::gpu::array<T> deviceArray;
+        ShapeDescriptor::gpu::array<T> hostArrayToDevice(ShapeDescriptor::cpu::array<T> array) {
+            ShapeDescriptor::gpu::array<T> deviceArray;
             deviceArray.length = array.length;
 
             size_t bufferSize = sizeof(T) * array.length;

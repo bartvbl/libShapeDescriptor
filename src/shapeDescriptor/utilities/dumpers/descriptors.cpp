@@ -10,7 +10,7 @@
 #include <lodepng.h>
 
 template<typename spinPixelType, typename descriptorType>
-void performSpinDump(SpinImage::cpu::array<descriptorType> descriptors, const std::experimental::filesystem::path &imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
+void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> descriptors, const std::experimental::filesystem::path &imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow) {
 	size_t rowCount = (descriptors.length / imagesPerRow) + ((descriptors.length % imagesPerRow == 0) ? 0 : 1);
 	std::cout << "Dumping " << rowCount << " rows containing " << descriptors.length << " images." << std::endl;
 
@@ -140,17 +140,17 @@ void performSpinDump(SpinImage::cpu::array<descriptorType> descriptors, const st
 	}
 }
 
-void SpinImage::dump::descriptors(SpinImage::cpu::array<SpinImage::gpu::SpinImageDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
-	performSpinDump<float, SpinImage::gpu::SpinImageDescriptor>(hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
+	performSpinDump<float, ShapeDescriptor::gpu::SpinImageDescriptor>(hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void SpinImage::dump::descriptors(SpinImage::cpu::array<SpinImage::gpu::RICIDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RICIDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
-	performSpinDump<unsigned int, SpinImage::gpu::RICIDescriptor> (hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
+	performSpinDump<unsigned int, ShapeDescriptor::gpu::RICIDescriptor> (hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void SpinImage::dump::descriptors(SpinImage::cpu::array<SpinImage::gpu::QUICCIDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, unsigned int imagesPerRow) {
+void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, unsigned int imagesPerRow) {
 	// Compute the number of images that should be inserted to separate the two series
 	// If the number of rows fits the images exactly, an extra one is inserted for better clarity.
 	size_t rowRemainder = hostDescriptors.length % imagesPerRow;
@@ -158,9 +158,9 @@ void SpinImage::dump::descriptors(SpinImage::cpu::array<SpinImage::gpu::QUICCIDe
 
 	size_t totalImageCount = hostDescriptors.length + fillerImageCount;
 
-	SpinImage::cpu::array<SpinImage::gpu::RICIDescriptor> decompressedDesciptors;
+	ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RICIDescriptor> decompressedDesciptors;
 
-	decompressedDesciptors.content = new SpinImage::gpu::RICIDescriptor[totalImageCount];
+	decompressedDesciptors.content = new ShapeDescriptor::gpu::RICIDescriptor[totalImageCount];
 	decompressedDesciptors.length = totalImageCount;
 
 	for(unsigned int imageIndex = 0; imageIndex < hostDescriptors.length; imageIndex++) {
@@ -182,7 +182,7 @@ void SpinImage::dump::descriptors(SpinImage::cpu::array<SpinImage::gpu::QUICCIDe
 		}
 	}
 
-    performSpinDump<unsigned int, SpinImage::gpu::RICIDescriptor>(decompressedDesciptors, imageDestinationFile, false, imagesPerRow);
+    performSpinDump<unsigned int, ShapeDescriptor::gpu::RICIDescriptor>(decompressedDesciptors, imageDestinationFile, false, imagesPerRow);
 
     delete[] decompressedDesciptors.content;
 }

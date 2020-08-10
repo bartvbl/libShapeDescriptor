@@ -6,7 +6,7 @@
 #include <device_launch_parameters.h>
 #include "nvidia/helper_cuda.h"
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace gpu {
         struct DeviceVertexList {
             float* array;

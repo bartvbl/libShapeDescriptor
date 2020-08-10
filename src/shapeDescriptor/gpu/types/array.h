@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace gpu {
         template<typename TYPE> struct array
         {

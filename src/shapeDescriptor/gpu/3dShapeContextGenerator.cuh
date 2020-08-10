@@ -5,7 +5,7 @@
 #include <shapeDescriptor/gpu/types/array.h>
 #include <shapeDescriptor/common/types/methods/3DSCDescriptor.h>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace debug {
         struct SCExecutionTimes {
             double totalExecutionTimeSeconds;
@@ -21,12 +21,12 @@ namespace SpinImage {
 
     namespace gpu {
         // A seed of 0 will cause the implementation to pick one
-        SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> generate3DSCDescriptors(
-                SpinImage::gpu::PointCloud device_pointCloud,
-                SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> device_descriptorOrigins,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> generate3DSCDescriptors(
+                ShapeDescriptor::gpu::PointCloud device_pointCloud,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_descriptorOrigins,
                 float pointDensityRadius,
                 float minSupportRadius,
                 float maxSupportRadius,
-                SpinImage::debug::SCExecutionTimes* executionTimes = nullptr);
+                ShapeDescriptor::debug::SCExecutionTimes* executionTimes = nullptr);
     }
 }

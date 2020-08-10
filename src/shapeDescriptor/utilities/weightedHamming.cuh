@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <bitset>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace utilities {
         struct HammingWeights {
             float missingSetBitPenalty = 0;

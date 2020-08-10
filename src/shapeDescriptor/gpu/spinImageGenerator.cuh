@@ -5,7 +5,7 @@
 #include <shapeDescriptor/gpu/types/DeviceOrientedPoint.h>
 #include <shapeDescriptor/common/types/methods/SpinImageDescriptor.h>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace debug {
         struct SIExecutionTimes {
             double totalExecutionTimeSeconds;
@@ -15,11 +15,11 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> generateSpinImages(
-                SpinImage::gpu::PointCloud device_pointCloud,
-                SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> device_descriptorOrigins,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> generateSpinImages(
+                ShapeDescriptor::gpu::PointCloud device_pointCloud,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_descriptorOrigins,
                 float supportRadius,
                 float supportAngleDegrees,
-                SpinImage::debug::SIExecutionTimes* executionTimes = nullptr);
+                ShapeDescriptor::debug::SIExecutionTimes* executionTimes = nullptr);
     }
 }

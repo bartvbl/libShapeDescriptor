@@ -5,7 +5,7 @@
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
 
-SpinImage::gpu::Mesh SpinImage::copy::hostMeshToDevice(cpu::Mesh hostMesh)
+ShapeDescriptor::gpu::Mesh ShapeDescriptor::copy::hostMeshToDevice(cpu::Mesh hostMesh)
 {
     size_t vertexCount = hostMesh.vertexCount;
     size_t normalCount = hostMesh.vertexCount;
@@ -85,7 +85,7 @@ SpinImage::gpu::Mesh SpinImage::copy::hostMeshToDevice(cpu::Mesh hostMesh)
     return device_mesh;
 }
 
-SpinImage::cpu::Mesh SpinImage::copy::deviceMeshToHost(gpu::Mesh deviceMesh)
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::copy::deviceMeshToHost(gpu::Mesh deviceMesh)
 {
     size_t vertexCount = deviceMesh.vertexCount;
 

@@ -1,7 +1,7 @@
 #include <fstream>
 #include "searchResultDumper.h"
 
-void SpinImage::dump::searchResults(SpinImage::cpu::array<gpu::SpinImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath) {
+void ShapeDescriptor::dump::searchResults(ShapeDescriptor::cpu::array<gpu::SpinImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath) {
     std::ofstream outputFile;
     outputFile.open(outputFilePath);
 
@@ -21,7 +21,7 @@ void SpinImage::dump::searchResults(SpinImage::cpu::array<gpu::SpinImageSearchRe
     outputFile.close();
 }
 
-void SpinImage::dump::searchResults(SpinImage::cpu::array<gpu::RadialIntersectionCountImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath) {
+void ShapeDescriptor::dump::searchResults(ShapeDescriptor::cpu::array<gpu::RadialIntersectionCountImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath) {
     std::ofstream outputFile;
     outputFile.open(outputFilePath);
 

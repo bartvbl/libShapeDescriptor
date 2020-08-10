@@ -76,7 +76,7 @@ __host__ __device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInB
 }
 
 __device__ __inline__ void rasteriseTriangle(
-        SpinImage::gpu::RICIDescriptor* descriptors,
+        ShapeDescriptor::gpu::RICIDescriptor* descriptors,
         float3 vertices[3],
         const float3 &spinImageVertex,
         const float3 &spinImageNormal)
@@ -243,7 +243,7 @@ __device__ __inline__ void rasteriseTriangle(
 }
 
 __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateRadialIntersectionCountImage(
-        SpinImage::gpu::RICIDescriptor* descriptors,
+        ShapeDescriptor::gpu::RICIDescriptor* descriptors,
         RICIMesh mesh)
 {
 	// Copying over precalculated values
@@ -263,7 +263,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateRadialInte
 	assert(__activemask() == 0xFFFFFFFF);
 
 	// Creating a copy of the image in shared memory, then copying it into main memory
-	__shared__ SpinImage::gpu::RICIDescriptor descriptorArrayPointer;
+	__shared__ ShapeDescriptor::gpu::RICIDescriptor descriptorArrayPointer;
 
 	// Initialising the values in memory to 0
 	for(int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += RASTERISATION_WARP_SIZE)
@@ -307,7 +307,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateRadialInte
 	}
 }
 
-__global__ void scaleMesh(SpinImage::gpu::Mesh mesh, float scaleFactor) {
+__global__ void scaleMesh(ShapeDescriptor::gpu::Mesh mesh, float scaleFactor) {
     size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
 
     if(vertexIndex >= mesh.vertexCount) {
@@ -319,7 +319,7 @@ __global__ void scaleMesh(SpinImage::gpu::Mesh mesh, float scaleFactor) {
     mesh.vertices_z[vertexIndex] *= scaleFactor;
 }
 
-__global__ void scaleSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* origins, size_t imageCount, float scaleFactor) {
+__global__ void scaleSpinOrigins(ShapeDescriptor::gpu::DeviceOrientedPoint* origins, size_t imageCount, float scaleFactor) {
     size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
 
     if(vertexIndex >= imageCount) {
@@ -331,7 +331,7 @@ __global__ void scaleSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* origins, s
     origins[vertexIndex].vertex.z *= scaleFactor;
 }
 
-__global__ void redistributeMesh(SpinImage::gpu::Mesh mesh, RICIMesh riciMesh) {
+__global__ void redistributeMesh(ShapeDescriptor::gpu::Mesh mesh, RICIMesh riciMesh) {
     size_t triangleIndex = blockIdx.x;
     size_t triangleBaseIndex = 3 * triangleIndex;
 
@@ -350,13 +350,13 @@ __global__ void redistributeMesh(SpinImage::gpu::Mesh mesh, RICIMesh riciMesh) {
     riciMesh.geometryBasePointer[8 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
 }
 
-__global__ void redistributeSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* spinOrigins, size_t imageCount, RICIMesh riciMesh) {
+__global__ void redistributeSpinOrigins(ShapeDescriptor::gpu::DeviceOrientedPoint* spinOrigins, size_t imageCount, RICIMesh riciMesh) {
     assert(imageCount == gridDim.x);
     size_t imageIndex = blockIdx.x;
 
     size_t spinOriginsBlockSize = roundSizeToNearestCacheLine(imageCount);
 
-    SpinImage::gpu::DeviceOrientedPoint spinOrigin = spinOrigins[imageIndex];
+    ShapeDescriptor::gpu::DeviceOrientedPoint spinOrigin = spinOrigins[imageIndex];
 
     riciMesh.spinOriginsBasePointer[0 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.x;
     riciMesh.spinOriginsBasePointer[1 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.y;
@@ -367,11 +367,11 @@ __global__ void redistributeSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* spi
     riciMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
 
-SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> SpinImage::gpu::generateRadialIntersectionCountImages(
-        SpinImage::gpu::Mesh device_mesh,
-        SpinImage::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
+ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
+        ShapeDescriptor::gpu::Mesh device_mesh,
+        ShapeDescriptor::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
         float spinImageWidth,
-        SpinImage::debug::RICIExecutionTimes* executionTimes)
+        ShapeDescriptor::debug::RICIExecutionTimes* executionTimes)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
@@ -421,10 +421,10 @@ SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> SpinImage::gpu::generateRa
 
     // -- Descriptor Array Allocation and Initialisation --
 
-    size_t descriptorBufferSize = imageCount * sizeof(SpinImage::gpu::RICIDescriptor);
+    size_t descriptorBufferSize = imageCount * sizeof(ShapeDescriptor::gpu::RICIDescriptor);
 
 
-    SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_descriptors;
+    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_descriptors;
 	checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
 	device_descriptors.length = imageCount;
 

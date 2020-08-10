@@ -10,7 +10,7 @@ __host__ __device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInB
 }
 
 
-__global__ void detectDuplicates(SpinImage::gpu::Mesh mesh, bool* isDuplicate) {
+__global__ void detectDuplicates(ShapeDescriptor::gpu::Mesh mesh, bool* isDuplicate) {
     size_t vertexIndex = blockIdx.x * blockDim.x + threadIdx.x;
     if(vertexIndex >= mesh.vertexCount) {
         return;
@@ -53,7 +53,7 @@ __global__ void detectDuplicates(SpinImage::gpu::Mesh mesh, bool* isDuplicate) {
     isDuplicate[vertexIndex] = false;
 }
 
-__global__ void computeTargetIndices(SpinImage::gpu::array<signed long long> targetIndices, bool* duplicateVertices, size_t vertexCount) {
+__global__ void computeTargetIndices(ShapeDescriptor::gpu::array<signed long long> targetIndices, bool* duplicateVertices, size_t vertexCount) {
     size_t vertexIndex = blockIdx.x * blockDim.x + threadIdx.x;
     if(vertexIndex >= vertexCount) {
         return;
@@ -76,7 +76,7 @@ __global__ void computeTargetIndices(SpinImage::gpu::array<signed long long> tar
     targetIndices.content[vertexIndex] = targetIndex;
 }
 
-SpinImage::gpu::array<signed long long> SpinImage::utilities::computeUniqueIndexMapping(SpinImage::gpu::Mesh boxScene, std::vector<SpinImage::gpu::Mesh> deviceMeshes, std::vector<size_t> *uniqueVertexCounts, size_t &totalUniqueVertexCount) {
+ShapeDescriptor::gpu::array<signed long long> ShapeDescriptor::utilities::computeUniqueIndexMapping(ShapeDescriptor::gpu::Mesh boxScene, std::vector<ShapeDescriptor::gpu::Mesh> deviceMeshes, std::vector<size_t> *uniqueVertexCounts, size_t &totalUniqueVertexCount) {
     size_t sceneVertexCount = boxScene.vertexCount;
 
     bool* device_duplicateVertices;
@@ -89,7 +89,7 @@ SpinImage::gpu::array<signed long long> SpinImage::utilities::computeUniqueIndex
 
     //std::fstream tempOutFile("DEBUG_duplicates_" + std::to_string(boxScene.vertexCount) + ".txt", std::ios::out);
 
-    SpinImage::cpu::Mesh temp_host_boxScene = SpinImage::copy::deviceMeshToHost(boxScene);
+    ShapeDescriptor::cpu::Mesh temp_host_boxScene = ShapeDescriptor::copy::deviceMeshToHost(boxScene);
 
     size_t baseIndex = 0;
     totalUniqueVertexCount = 0;
@@ -102,8 +102,8 @@ SpinImage::gpu::array<signed long long> SpinImage::utilities::computeUniqueIndex
                 totalUniqueVertexCount++;
                 meshUniqueVertexCount++;
             }
-            SpinImage::cpu::float3 vertex = temp_host_boxScene.vertices[baseIndex + i];
-            SpinImage::cpu::float3 normal = temp_host_boxScene.normals[baseIndex + i];
+            ShapeDescriptor::cpu::float3 vertex = temp_host_boxScene.vertices[baseIndex + i];
+            ShapeDescriptor::cpu::float3 normal = temp_host_boxScene.normals[baseIndex + i];
 
             std::string vertexString = vertex.to_string();
             std::string normalString = normal.to_string();
@@ -122,10 +122,10 @@ SpinImage::gpu::array<signed long long> SpinImage::utilities::computeUniqueIndex
         uniqueVertexCounts->push_back(meshUniqueVertexCount);
     }
 
-    SpinImage::cpu::freeMesh(temp_host_boxScene);
+    ShapeDescriptor::cpu::freeMesh(temp_host_boxScene);
     delete[] temp_duplicateVertices;
 
-    SpinImage::gpu::array<signed long long> device_uniqueIndexMapping;
+    ShapeDescriptor::gpu::array<signed long long> device_uniqueIndexMapping;
     device_uniqueIndexMapping.length = boxScene.vertexCount;
     checkCudaErrors(cudaMalloc(&device_uniqueIndexMapping.content, boxScene.vertexCount * sizeof(signed long long)));
     computeTargetIndices<<<(boxScene.vertexCount / 256) + 1, 256>>>(device_uniqueIndexMapping, device_duplicateVertices, boxScene.vertexCount);
@@ -135,7 +135,7 @@ SpinImage::gpu::array<signed long long> SpinImage::utilities::computeUniqueIndex
     return device_uniqueIndexMapping;
 }
 
-__global__ void mapVertices(SpinImage::gpu::Mesh boxScene, SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> origins, SpinImage::gpu::array<signed long long> mapping) {
+__global__ void mapVertices(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> origins, ShapeDescriptor::gpu::array<signed long long> mapping) {
     size_t vertexIndex = blockIdx.x * blockDim.x + threadIdx.x;
     if(vertexIndex >= boxScene.vertexCount) {
         return;
@@ -153,7 +153,7 @@ __global__ void mapVertices(SpinImage::gpu::Mesh boxScene, SpinImage::gpu::array
                 boxScene.normals_y[vertexIndex],
                 boxScene.normals_z[vertexIndex]);
 
-        SpinImage::gpu::DeviceOrientedPoint origin;
+        ShapeDescriptor::gpu::DeviceOrientedPoint origin;
         origin.vertex = vertex;
         origin.normal = normal;
 
@@ -161,12 +161,12 @@ __global__ void mapVertices(SpinImage::gpu::Mesh boxScene, SpinImage::gpu::array
     }
 }
 
-SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> SpinImage::utilities::applyUniqueMapping(SpinImage::gpu::Mesh boxScene, SpinImage::gpu::array<signed long long> device_mapping, size_t totalUniqueVertexCount) {
+ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> ShapeDescriptor::utilities::applyUniqueMapping(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor::gpu::array<signed long long> device_mapping, size_t totalUniqueVertexCount) {
     assert(boxScene.vertexCount == device_mapping.length);
 
-    SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> device_origins;
+    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_origins;
     device_origins.length = totalUniqueVertexCount;
-    checkCudaErrors(cudaMalloc(&device_origins.content, totalUniqueVertexCount * sizeof(SpinImage::gpu::DeviceOrientedPoint)));
+    checkCudaErrors(cudaMalloc(&device_origins.content, totalUniqueVertexCount * sizeof(ShapeDescriptor::gpu::DeviceOrientedPoint)));
 
     mapVertices<<<(boxScene.vertexCount / 256) + 1, 256>>>(boxScene, device_origins, device_mapping);
     checkCudaErrors(cudaDeviceSynchronize());
@@ -174,13 +174,13 @@ SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> SpinImage::utilities:
     return device_origins;
 }
 
-SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> SpinImage::utilities::computeUniqueVertices(SpinImage::gpu::Mesh &mesh) {
-    std::vector<SpinImage::gpu::Mesh> deviceMeshes;
+ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> ShapeDescriptor::utilities::computeUniqueVertices(ShapeDescriptor::gpu::Mesh &mesh) {
+    std::vector<ShapeDescriptor::gpu::Mesh> deviceMeshes;
     deviceMeshes.push_back(mesh);
     std::vector<size_t> vertexCounts;
     size_t totalUniqueVertexCount;
-    SpinImage::gpu::array<signed long long> device_mapping = computeUniqueIndexMapping(mesh, deviceMeshes, &vertexCounts, totalUniqueVertexCount);
-    SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> device_origins = applyUniqueMapping(mesh, device_mapping, totalUniqueVertexCount);
+    ShapeDescriptor::gpu::array<signed long long> device_mapping = computeUniqueIndexMapping(mesh, deviceMeshes, &vertexCounts, totalUniqueVertexCount);
+    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_origins = applyUniqueMapping(mesh, device_mapping, totalUniqueVertexCount);
     checkCudaErrors(cudaFree(device_mapping.content));
     return device_origins;
 }

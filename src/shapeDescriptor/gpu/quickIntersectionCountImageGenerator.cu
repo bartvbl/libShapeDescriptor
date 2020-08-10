@@ -256,7 +256,7 @@ __device__ __inline__ void rasteriseTriangle(
 
 
 __device__ void writeQUICCImage(
-        SpinImage::gpu::QUICCIDescriptor* descriptorArray,
+        ShapeDescriptor::gpu::QUICCIDescriptor* descriptorArray,
         radialIntersectionCountImagePixelType* RICIDescriptor) {
 
     const int laneIndex = threadIdx.x % 32;
@@ -308,7 +308,7 @@ __device__ void writeQUICCImage(
 }
 
 __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuickIntersectionCountChangeImage(
-        SpinImage::gpu::QUICCIDescriptor* descriptors,
+        ShapeDescriptor::gpu::QUICCIDescriptor* descriptors,
         QUICCIMesh mesh)
 {
     // Copying over precalculated values
@@ -366,7 +366,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuickInter
 	writeQUICCImage(descriptors, descriptorArrayPointer);
 }
 
-__global__ void scaleQUICCIMesh(SpinImage::gpu::Mesh mesh, float scaleFactor) {
+__global__ void scaleQUICCIMesh(ShapeDescriptor::gpu::Mesh mesh, float scaleFactor) {
     size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
 
     if(vertexIndex >= mesh.vertexCount) {
@@ -378,7 +378,7 @@ __global__ void scaleQUICCIMesh(SpinImage::gpu::Mesh mesh, float scaleFactor) {
     mesh.vertices_z[vertexIndex] *= scaleFactor;
 }
 
-__global__ void scaleQUICCISpinOrigins(SpinImage::gpu::DeviceOrientedPoint* origins, size_t imageCount, float scaleFactor) {
+__global__ void scaleQUICCISpinOrigins(ShapeDescriptor::gpu::DeviceOrientedPoint* origins, size_t imageCount, float scaleFactor) {
     size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
 
     if(vertexIndex >= imageCount) {
@@ -390,7 +390,7 @@ __global__ void scaleQUICCISpinOrigins(SpinImage::gpu::DeviceOrientedPoint* orig
     origins[vertexIndex].vertex.z *= scaleFactor;
 }
 
-__global__ void redistributeMesh(SpinImage::gpu::Mesh mesh, QUICCIMesh quicciMesh) {
+__global__ void redistributeMesh(ShapeDescriptor::gpu::Mesh mesh, QUICCIMesh quicciMesh) {
     size_t triangleIndex = blockIdx.x;
     size_t triangleBaseIndex = 3 * triangleIndex;
 
@@ -409,13 +409,13 @@ __global__ void redistributeMesh(SpinImage::gpu::Mesh mesh, QUICCIMesh quicciMes
     quicciMesh.geometryBasePointer[8 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
 }
 
-__global__ void redistributeSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* spinOrigins, size_t imageCount, QUICCIMesh quicciMesh) {
+__global__ void redistributeSpinOrigins(ShapeDescriptor::gpu::DeviceOrientedPoint* spinOrigins, size_t imageCount, QUICCIMesh quicciMesh) {
     assert(imageCount == gridDim.x);
     size_t imageIndex = blockIdx.x;
 
     size_t spinOriginsBlockSize = roundSizeToNearestCacheLine(imageCount);
 
-    SpinImage::gpu::DeviceOrientedPoint spinOrigin = spinOrigins[imageIndex];
+    ShapeDescriptor::gpu::DeviceOrientedPoint spinOrigin = spinOrigins[imageIndex];
 
     quicciMesh.spinOriginsBasePointer[0 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.x;
     quicciMesh.spinOriginsBasePointer[1 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.y;
@@ -426,11 +426,11 @@ __global__ void redistributeSpinOrigins(SpinImage::gpu::DeviceOrientedPoint* spi
     quicciMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
 
-SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> SpinImage::gpu::generateQUICCImages(
-        SpinImage::gpu::Mesh device_mesh,
-        SpinImage::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
+ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> ShapeDescriptor::gpu::generateQUICCImages(
+        ShapeDescriptor::gpu::Mesh device_mesh,
+        ShapeDescriptor::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
         float supportRadius,
-        SpinImage::debug::QUICCIExecutionTimes* executionTimes)
+        ShapeDescriptor::debug::QUICCIExecutionTimes* executionTimes)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
@@ -479,12 +479,12 @@ SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> SpinImage::gpu::generate
     std::chrono::milliseconds redistributeDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - redistributeTimeStart);
 
     // -- Descriptor Array Allocation and Initialisation --
-    size_t imageSequenceSize = imageCount * sizeof(SpinImage::gpu::QUICCIDescriptor);
+    size_t imageSequenceSize = imageCount * sizeof(ShapeDescriptor::gpu::QUICCIDescriptor);
 
-    SpinImage::gpu::QUICCIDescriptor* device_descriptors;
+    ShapeDescriptor::gpu::QUICCIDescriptor* device_descriptors;
     checkCudaErrors(cudaMalloc(&device_descriptors, imageSequenceSize));
 
-    SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> descriptors;
+    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> descriptors;
     descriptors.content = device_descriptors;
     descriptors.length = imageCount;
 

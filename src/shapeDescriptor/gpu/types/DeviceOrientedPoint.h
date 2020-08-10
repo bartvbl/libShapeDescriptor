@@ -2,7 +2,7 @@
 
 #include <vector_types.h>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace gpu {
         struct DeviceOrientedPoint {
             float3 vertex;

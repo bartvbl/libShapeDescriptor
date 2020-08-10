@@ -2,7 +2,7 @@
 #include "PointCloud.h"
 #include <host_defines.h>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace gpu {
         struct Mesh {
             float* vertices_x;

@@ -2,7 +2,7 @@
 
 #include "float3.h"
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace cpu {
 
         struct float2 {
@@ -33,13 +33,13 @@ namespace SpinImage {
     }
 }
 
-float length(SpinImage::cpu::float2 vec);
+float length(ShapeDescriptor::cpu::float2 vec);
 
-inline SpinImage::cpu::float2 make_float2_cpu(float x, float y) {
-    SpinImage::cpu::float2 out;
+inline ShapeDescriptor::cpu::float2 make_float2_cpu(float x, float y) {
+    ShapeDescriptor::cpu::float2 out;
     out.x = x;
     out.y = y;
     return out;
 }
 
-SpinImage::cpu::float2 normalize(SpinImage::cpu::float2 in);
+ShapeDescriptor::cpu::float2 normalize(ShapeDescriptor::cpu::float2 in);

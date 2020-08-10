@@ -5,7 +5,7 @@
 #include <shapeDescriptor/gpu/types/DeviceOrientedPoint.h>
 #include <shapeDescriptor/common/types/methods/FPFHDescriptor.h>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace debug {
         struct FPFHExecutionTimes {
             double totalExecutionTimeSeconds;
@@ -17,10 +17,10 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> generateFPFHHistograms(
-                SpinImage::gpu::PointCloud device_pointCloud,
-                SpinImage::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> generateFPFHHistograms(
+                ShapeDescriptor::gpu::PointCloud device_pointCloud,
+                ShapeDescriptor::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
                 float supportRadius,
-                SpinImage::debug::FPFHExecutionTimes* executionTimes = nullptr);
+                ShapeDescriptor::debug::FPFHExecutionTimes* executionTimes = nullptr);
     }
 }

@@ -4,7 +4,7 @@
 #include <shapeDescriptor/gpu/types/array.h>
 #include <shapeDescriptor/common/types/methods/3DSCDescriptor.h>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace debug {
         struct SCSearchExecutionTimes {
             double totalExecutionTimeSeconds;
@@ -13,11 +13,11 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        SpinImage::cpu::array<unsigned int> compute3DSCSearchResultRanks(
-                SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> device_needleDescriptors,
+        ShapeDescriptor::cpu::array<unsigned int> compute3DSCSearchResultRanks(
+                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> device_needleDescriptors,
                 size_t needleDescriptorSampleCount,
-                SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> device_haystackDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> device_haystackDescriptors,
                 size_t haystackDescriptorSampleCount,
-                SpinImage::debug::SCSearchExecutionTimes* executionTimes = nullptr);
+                ShapeDescriptor::debug::SCSearchExecutionTimes* executionTimes = nullptr);
     }
 }

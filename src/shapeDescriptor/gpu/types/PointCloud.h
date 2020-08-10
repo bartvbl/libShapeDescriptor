@@ -2,7 +2,7 @@
 
 #include <shapeDescriptor/gpu/types/DeviceVertexList.cuh>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace gpu {
         struct PointCloud {
             DeviceVertexList vertices;

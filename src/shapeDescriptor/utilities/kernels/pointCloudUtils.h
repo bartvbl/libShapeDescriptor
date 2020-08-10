@@ -5,9 +5,9 @@
 #include <shapeDescriptor/gpu/types/PointCloud.h>
 #include <shapeDescriptor/gpu/types/array.h>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace utilities {
-        SpinImage::gpu::BoundingBox computeBoundingBox(SpinImage::gpu::PointCloud device_pointCloud);
-        SpinImage::gpu::array<unsigned int> computePointDensities(float pointDensityRadius, SpinImage::gpu::PointCloud device_pointCloud);
+        ShapeDescriptor::gpu::BoundingBox computeBoundingBox(ShapeDescriptor::gpu::PointCloud device_pointCloud);
+        ShapeDescriptor::gpu::array<unsigned int> computePointDensities(float pointDensityRadius, ShapeDescriptor::gpu::PointCloud device_pointCloud);
     }
 }

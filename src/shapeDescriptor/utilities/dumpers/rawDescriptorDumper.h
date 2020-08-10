@@ -5,12 +5,12 @@
 #include <shapeDescriptor/common/types/methods/QUICCIDescriptor.h>
 #include <shapeDescriptor/cpu/types/array.h>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace dump {
         namespace raw {
             void descriptors(
                 const std::experimental::filesystem::path &outputDumpFile,
-                const SpinImage::cpu::array<SpinImage::gpu::QUICCIDescriptor> &images);
+                const ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> &images);
         }
     }
 

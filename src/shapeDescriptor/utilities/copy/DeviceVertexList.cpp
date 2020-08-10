@@ -2,10 +2,10 @@
 #include <iostream>
 #include "DeviceVertexList.h"
 
-SpinImage::cpu::array<SpinImage::cpu::float3> SpinImage::copy::deviceVertexListToHost(SpinImage::gpu::DeviceVertexList vertexList) {
-    SpinImage::cpu::array<SpinImage::cpu::float3> outList;
+ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> ShapeDescriptor::copy::deviceVertexListToHost(ShapeDescriptor::gpu::DeviceVertexList vertexList) {
+    ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> outList;
     outList.length = vertexList.length;
-    outList.content = new SpinImage::cpu::float3[vertexList.length];
+    outList.content = new ShapeDescriptor::cpu::float3[vertexList.length];
 
     size_t bufferSize = 3 * sizeof(float) * vertexList.length;
 

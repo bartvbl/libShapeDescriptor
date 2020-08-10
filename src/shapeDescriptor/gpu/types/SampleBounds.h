@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     struct SampleBounds {
         size_t sampleCount;
         float areaStart;

@@ -28,7 +28,7 @@ __inline__ __device__ int warpAllReduceSum(int val) {
 
 const int indexBasedWarpCount = 16;
 
-__device__ int computeImageSquaredSumGPU(const SpinImage::gpu::RICIDescriptor &needleImage) {
+__device__ int computeImageSquaredSumGPU(const ShapeDescriptor::gpu::RICIDescriptor &needleImage) {
 
     const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
     const int laneIndex = threadIdx.x % 32;
@@ -74,9 +74,9 @@ __device__ int computeImageSquaredSumGPU(const SpinImage::gpu::RICIDescriptor &n
 }
 
 __device__ size_t compareConstantRadialIntersectionCountImagePairGPU(
-        const SpinImage::gpu::RICIDescriptor* needleImages,
+        const ShapeDescriptor::gpu::RICIDescriptor* needleImages,
         const size_t needleImageIndex,
-        const SpinImage::gpu::RICIDescriptor* haystackImages,
+        const ShapeDescriptor::gpu::RICIDescriptor* haystackImages,
         const size_t haystackImageIndex) {
 
     const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
@@ -121,9 +121,9 @@ __device__ size_t compareConstantRadialIntersectionCountImagePairGPU(
 
 
 __device__ int compareRadialIntersectionCountImagePairGPU(
-        const SpinImage::gpu::RICIDescriptor* needleImages,
+        const ShapeDescriptor::gpu::RICIDescriptor* needleImages,
         const size_t needleImageIndex,
-        const SpinImage::gpu::RICIDescriptor* haystackImages,
+        const ShapeDescriptor::gpu::RICIDescriptor* haystackImages,
         const size_t haystackImageIndex,
         const int distanceToBeat = INT_MAX) {
 
@@ -218,13 +218,13 @@ __device__ int compareRadialIntersectionCountImagePairGPU(
 }
 
 __global__ void computeRadialIntersectionCountImageSearchResultIndices(
-        const SpinImage::gpu::RICIDescriptor* needleDescriptors,
-        SpinImage::gpu::RICIDescriptor* haystackDescriptors,
+        const ShapeDescriptor::gpu::RICIDescriptor* needleDescriptors,
+        ShapeDescriptor::gpu::RICIDescriptor* haystackDescriptors,
         size_t haystackImageCount,
         unsigned int* searchResults) {
     size_t needleImageIndex = blockIdx.x;
 
-    __shared__ SpinImage::gpu::RICIDescriptor referenceImage;
+    __shared__ ShapeDescriptor::gpu::RICIDescriptor referenceImage;
     for(unsigned int index = threadIdx.x; index < spinImageWidthPixels * spinImageWidthPixels; index += blockDim.x) {
         referenceImage.contents[index] = needleDescriptors[needleImageIndex].contents[index];
     }
@@ -290,10 +290,10 @@ __global__ void computeRadialIntersectionCountImageSearchResultIndices(
 }
 
 
-SpinImage::cpu::array<unsigned int> SpinImage::gpu::computeRadialIntersectionCountImageSearchResultRanks(
-        SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
-        SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors,
-        SpinImage::debug::RICISearchExecutionTimes* executionTimes) {
+ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeRadialIntersectionCountImageSearchResultRanks(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_needleDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_haystackDescriptors,
+        ShapeDescriptor::debug::RICISearchExecutionTimes* executionTimes) {
 
     auto executionStart = std::chrono::steady_clock::now();
 
@@ -314,7 +314,7 @@ SpinImage::cpu::array<unsigned int> SpinImage::gpu::computeRadialIntersectionCou
 
     std::chrono::milliseconds searchDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart);
 
-    SpinImage::cpu::array<unsigned int> resultIndices;
+    ShapeDescriptor::cpu::array<unsigned int> resultIndices;
     resultIndices.content = new unsigned int[device_needleDescriptors.length];
     resultIndices.length = device_needleDescriptors.length;
 
@@ -366,11 +366,11 @@ SpinImage::cpu::array<unsigned int> SpinImage::gpu::computeRadialIntersectionCou
 
 const unsigned int warpCount = 16;
 
-__global__ void generateSearchResults(SpinImage::gpu::RICIDescriptor* needleDescriptors,
+__global__ void generateSearchResults(ShapeDescriptor::gpu::RICIDescriptor* needleDescriptors,
                                       size_t needleImageCount,
-                                      SpinImage::gpu::RICIDescriptor* haystackDescriptors,
+                                      ShapeDescriptor::gpu::RICIDescriptor* haystackDescriptors,
                                       size_t haystackImageCount,
-                                      SpinImage::gpu::RadialIntersectionCountImageSearchResults* searchResults) {
+                                      ShapeDescriptor::gpu::RadialIntersectionCountImageSearchResults* searchResults) {
 
     size_t needleImageIndex = warpCount * blockIdx.x + (threadIdx.x / 32);
 
@@ -455,9 +455,9 @@ __global__ void generateSearchResults(SpinImage::gpu::RICIDescriptor* needleDesc
 
 }
 
-SpinImage::cpu::array<SpinImage::gpu::RadialIntersectionCountImageSearchResults> SpinImage::gpu::findRadialIntersectionCountImagesInHaystack(
-        SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_needleDescriptors,
-        SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> device_haystackDescriptors) {
+ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RadialIntersectionCountImageSearchResults> ShapeDescriptor::gpu::findRadialIntersectionCountImagesInHaystack(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_needleDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_haystackDescriptors) {
 
     size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(RadialIntersectionCountImageSearchResults);
     RadialIntersectionCountImageSearchResults* device_searchResults;
@@ -479,7 +479,7 @@ SpinImage::cpu::array<SpinImage::gpu::RadialIntersectionCountImageSearchResults>
 
     // Step 3: Copying results to CPU
 
-    SpinImage::cpu::array<RadialIntersectionCountImageSearchResults> searchResults;
+    ShapeDescriptor::cpu::array<RadialIntersectionCountImageSearchResults> searchResults;
     searchResults.content = new RadialIntersectionCountImageSearchResults[device_needleDescriptors.length];
     searchResults.length = device_needleDescriptors.length;
 

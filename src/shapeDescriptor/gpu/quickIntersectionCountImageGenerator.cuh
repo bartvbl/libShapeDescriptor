@@ -5,7 +5,7 @@
 #include <shapeDescriptor/gpu/types/DeviceOrientedPoint.h>
 #include <shapeDescriptor/common/types/methods/QUICCIDescriptor.h>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace debug {
         struct QUICCIExecutionTimes {
             double generationTimeSeconds;
@@ -16,10 +16,10 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> generateQUICCImages(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> generateQUICCImages(
                 Mesh device_mesh,
-                SpinImage::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
+                ShapeDescriptor::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
                 float supportRadius,
-                SpinImage::debug::QUICCIExecutionTimes* executionTimes = nullptr);
+                ShapeDescriptor::debug::QUICCIExecutionTimes* executionTimes = nullptr);
     }
 }

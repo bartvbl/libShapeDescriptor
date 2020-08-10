@@ -5,12 +5,12 @@
 #include <shapeDescriptor/common/types/methods/QUICCIDescriptor.h>
 #include <shapeDescriptor/cpu/types/array.h>
 
-void SpinImage::dump::raw::descriptors(
+void ShapeDescriptor::dump::raw::descriptors(
         const std::experimental::filesystem::path &outputDumpFile,
-        const SpinImage::cpu::array<SpinImage::gpu::QUICCIDescriptor> &images) {
+        const ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> &images) {
     const unsigned int imageWidthPixels = spinImageWidthPixels;
 
-    size_t imageBlockSize = images.length * sizeof(SpinImage::gpu::QUICCIDescriptor);
+    size_t imageBlockSize = images.length * sizeof(ShapeDescriptor::gpu::QUICCIDescriptor);
     size_t outFileBufferSize = 5 + sizeof(size_t) + sizeof(unsigned int) + 2 * imageBlockSize;
     char* outFileBuffer = new char[outFileBufferSize];
     
@@ -21,9 +21,9 @@ void SpinImage::dump::raw::descriptors(
     *reinterpret_cast<size_t*>(outFileBuffer + 5) = images.length;
     *reinterpret_cast<unsigned int*>(outFileBuffer + 5 + sizeof(size_t)) = imageWidthPixels;
     std::copy(images.content, images.content + images.length,
-            reinterpret_cast<SpinImage::gpu::QUICCIDescriptor*>(outFileBuffer + 5 + sizeof(size_t) + sizeof(unsigned int)));
+            reinterpret_cast<ShapeDescriptor::gpu::QUICCIDescriptor*>(outFileBuffer + 5 + sizeof(size_t) + sizeof(unsigned int)));
 
-    SpinImage::utilities::writeCompressedFile(outFileBuffer, outFileBufferSize, outputDumpFile);
+    ShapeDescriptor::utilities::writeCompressedFile(outFileBuffer, outFileBufferSize, outputDumpFile);
     
     delete[] outFileBuffer;
 }

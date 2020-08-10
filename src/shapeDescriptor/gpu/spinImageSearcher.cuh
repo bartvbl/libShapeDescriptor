@@ -5,7 +5,7 @@
 #include <shapeDescriptor/gpu/types/array.h>
 #include <shapeDescriptor/cpu/types/array.h>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace debug {
         struct SISearchExecutionTimes {
             double totalExecutionTimeSeconds;
@@ -15,13 +15,13 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        SpinImage::cpu::array<SpinImageSearchResults> findSpinImagesInHaystack(
-                SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_needleDescriptors,
-                SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_haystackDescriptors);
+        ShapeDescriptor::cpu::array<SpinImageSearchResults> findSpinImagesInHaystack(
+                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_needleDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_haystackDescriptors);
 
-        SpinImage::cpu::array<unsigned int> computeSpinImageSearchResultRanks(
-                SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_needleDescriptors,
-                SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_haystackDescriptors,
-                SpinImage::debug::SISearchExecutionTimes* executionTimes = nullptr);
+        ShapeDescriptor::cpu::array<unsigned int> computeSpinImageSearchResultRanks(
+                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_needleDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_haystackDescriptors,
+                ShapeDescriptor::debug::SISearchExecutionTimes* executionTimes = nullptr);
     }
 }

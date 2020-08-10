@@ -112,9 +112,9 @@ bool pcl_computePairFeatures (
 }
 
 __global__ void computeSPFHHistograms(
-        SpinImage::gpu::DeviceVertexList descriptorOriginVertices,
-        SpinImage::gpu::DeviceVertexList descriptorOriginNormals,
-        SpinImage::gpu::PointCloud pointCloud,
+        ShapeDescriptor::gpu::DeviceVertexList descriptorOriginVertices,
+        ShapeDescriptor::gpu::DeviceVertexList descriptorOriginNormals,
+        ShapeDescriptor::gpu::PointCloud pointCloud,
         const float supportRadius,
         float* histograms) {
     // Launch dimensions: one block for every descriptor
@@ -181,12 +181,12 @@ __global__ void computeSPFHHistograms(
 }
 
 __global__ void computeFPFHHistograms(
-        SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> descriptorOrigins,
-        SpinImage::gpu::PointCloud pointCloud,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> descriptorOrigins,
+        ShapeDescriptor::gpu::PointCloud pointCloud,
         const float supportRadius,
         float* histogramOriginHistograms,
         float* pointCloudHistograms,
-        SpinImage::gpu::FPFHDescriptor* fpfhHistograms) {
+        ShapeDescriptor::gpu::FPFHDescriptor* fpfhHistograms) {
     // Launch dimensions: one block for every descriptor
     // Blocks should contain just about as many threads as a histogram has bins
 #define FPFHDescriptorIndex blockIdx.x
@@ -225,27 +225,27 @@ __global__ void computeFPFHHistograms(
 }
 
 __global__ void reformatOrigins(
-        SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> originsArray,
-        SpinImage::gpu::DeviceVertexList reformattedOriginVerticesList,
-        SpinImage::gpu::DeviceVertexList reformattedOriginNormalsList) {
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> originsArray,
+        ShapeDescriptor::gpu::DeviceVertexList reformattedOriginVerticesList,
+        ShapeDescriptor::gpu::DeviceVertexList reformattedOriginNormalsList) {
     unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
     if(index >= originsArray.length) {
         return;
     }
-    SpinImage::gpu::DeviceOrientedPoint origin = originsArray.content[index];
+    ShapeDescriptor::gpu::DeviceOrientedPoint origin = originsArray.content[index];
     reformattedOriginVerticesList.set(index, origin.vertex);
     reformattedOriginNormalsList.set(index, origin.normal);
 }
 
-SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFPFHHistograms(
-        SpinImage::gpu::PointCloud device_pointCloud,
-        SpinImage::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
+ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> ShapeDescriptor::gpu::generateFPFHHistograms(
+        ShapeDescriptor::gpu::PointCloud device_pointCloud,
+        ShapeDescriptor::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
         float supportRadius,
-        SpinImage::debug::FPFHExecutionTimes* executionTimes)
+        ShapeDescriptor::debug::FPFHExecutionTimes* executionTimes)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
-    size_t singleHistogramSizeBytes = sizeof(SpinImage::gpu::FPFHDescriptor);
+    size_t singleHistogramSizeBytes = sizeof(ShapeDescriptor::gpu::FPFHDescriptor);
     size_t outputHistogramsSize = device_descriptorOrigins.length * singleHistogramSizeBytes;
 
 
@@ -298,7 +298,7 @@ SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> SpinImage::gpu::generateFP
     // Compute FPFH
     std::cout << "\t\t\tGenerating FPFH descriptors.." << std::endl;
     auto fpfhGenerationTimeStart = std::chrono::steady_clock::now();
-    SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> device_histograms;
+    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> device_histograms;
     device_histograms.length = device_descriptorOrigins.length;
     checkCudaErrors(cudaMalloc(&device_histograms.content, outputHistogramsSize));
 

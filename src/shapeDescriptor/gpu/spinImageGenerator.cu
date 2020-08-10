@@ -43,20 +43,20 @@ __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNo
 
 // Run once for every vertex index
 __global__ void createDescriptors(
-        SpinImage::gpu::DeviceOrientedPoint* device_spinImageOrigins,
-        SpinImage::gpu::PointCloud pointCloud,
-        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> descriptors,
+        ShapeDescriptor::gpu::DeviceOrientedPoint* device_spinImageOrigins,
+        ShapeDescriptor::gpu::PointCloud pointCloud,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> descriptors,
         float oneOverSpinImagePixelWidth,
         float supportAngleCosine)
 {
 #define spinImageIndex blockIdx.x
 
-	const SpinImage::gpu::DeviceOrientedPoint spinOrigin = device_spinImageOrigins[spinImageIndex];
+	const ShapeDescriptor::gpu::DeviceOrientedPoint spinOrigin = device_spinImageOrigins[spinImageIndex];
 
 	const float3 vertex = spinOrigin.vertex;
 	const float3 normal = spinOrigin.normal;
 
-	__shared__ SpinImage::gpu::SpinImageDescriptor localSpinImage;
+	__shared__ ShapeDescriptor::gpu::SpinImageDescriptor localSpinImage;
 	for(int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += blockDim.x) {
 	    localSpinImage.contents[i] = 0;
 	}
@@ -141,20 +141,20 @@ __global__ void createDescriptors(
     }
 }
 
-SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> SpinImage::gpu::generateSpinImages(
-        SpinImage::gpu::PointCloud device_pointCloud,
-        SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> device_descriptorOrigins,
+ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> ShapeDescriptor::gpu::generateSpinImages(
+        ShapeDescriptor::gpu::PointCloud device_pointCloud,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_descriptorOrigins,
         float supportRadius,
         float supportAngleDegrees,
-        SpinImage::debug::SIExecutionTimes* executionTimes)
+        ShapeDescriptor::debug::SIExecutionTimes* executionTimes)
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t imageCount = device_descriptorOrigins.length;
 
-	size_t descriptorBufferSize = imageCount * sizeof(SpinImage::gpu::SpinImageDescriptor);
+	size_t descriptorBufferSize = imageCount * sizeof(ShapeDescriptor::gpu::SpinImageDescriptor);
 
-	SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_descriptors;
+	ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_descriptors;
 
 	float supportAngleCosine = float(std::cos(supportAngleDegrees * (M_PI / 180.0)));
 

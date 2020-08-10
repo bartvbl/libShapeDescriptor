@@ -9,22 +9,22 @@
 #include <shapeDescriptor/common/types/methods/SpinImageDescriptor.h>
 #include <shapeDescriptor/common/types/methods/QUICCIDescriptor.h>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace dump {
         void descriptors(
-                SpinImage::cpu::array<SpinImage::gpu::RICIDescriptor> hostDescriptors,
+                ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RICIDescriptor> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
                 bool logarithmicImage,
                 unsigned int imagesPerRow);
 
         void descriptors(
-                SpinImage::cpu::array<SpinImage::gpu::SpinImageDescriptor> hostDescriptors,
+                ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
                 bool logarithmicImage,
                 unsigned int imagesPerRow);
 
         void descriptors(
-                SpinImage::cpu::array<SpinImage::gpu::QUICCIDescriptor> hostDescriptors,
+                ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
                 unsigned int imagesPerRow);
     }

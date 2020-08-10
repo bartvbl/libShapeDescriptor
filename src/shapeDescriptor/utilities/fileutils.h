@@ -2,7 +2,7 @@
 
 #include <experimental/filesystem>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace utilities {
         std::vector<std::experimental::filesystem::path> listDirectory(const std::string& directory);
         void writeCompressedFile(const char* buffer, size_t bufferSize, const std::experimental::filesystem::path &archiveFile);

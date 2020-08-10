@@ -68,7 +68,7 @@ __host__ __device__ inline float computeSingleBinVolume(short verticalBinIndex, 
 
 // Cuda is being dumb. Need to create separate function to allow the linker to figure out that, yes, this function does
 // indeed exist somewhere.
-float SpinImage::internal::computeBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius) {
+float ShapeDescriptor::internal::computeBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius) {
     return computeSingleBinVolume(verticalBinIndex, layerIndex, minSupportRadius, maxSupportRadius);
 }
 
@@ -79,24 +79,24 @@ __device__ float absoluteAngle(float y, float x) {
 
 // Run once for every vertex index
 __global__ void createDescriptors(
-        SpinImage::gpu::DeviceOrientedPoint* device_spinImageOrigins,
-        SpinImage::gpu::PointCloud pointCloud,
-        SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> descriptors,
-        SpinImage::gpu::array<unsigned int> pointDensityArray,
+        ShapeDescriptor::gpu::DeviceOrientedPoint* device_spinImageOrigins,
+        ShapeDescriptor::gpu::PointCloud pointCloud,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> descriptors,
+        ShapeDescriptor::gpu::array<unsigned int> pointDensityArray,
         size_t sampleCount,
         float minSupportRadius,
         float maxSupportRadius)
 {
 #define descriptorIndex blockIdx.x
 
-    const SpinImage::gpu::DeviceOrientedPoint spinOrigin = device_spinImageOrigins[descriptorIndex];
+    const ShapeDescriptor::gpu::DeviceOrientedPoint spinOrigin = device_spinImageOrigins[descriptorIndex];
 
     const float3 vertex = spinOrigin.vertex;
     float3 normal = spinOrigin.normal;
 
     normal /= length(normal);
 
-    __shared__ SpinImage::gpu::ShapeContextDescriptor localDescriptor;
+    __shared__ ShapeDescriptor::gpu::ShapeContextDescriptor localDescriptor;
     for(int i = threadIdx.x; i < elementsPerShapeContextDescriptor; i += blockDim.x) {
         localDescriptor.contents[i] = 0;
     }
@@ -228,19 +228,19 @@ __global__ void createDescriptors(
 
 }
 
-SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> SpinImage::gpu::generate3DSCDescriptors(
-        SpinImage::gpu::PointCloud device_pointCloud,
-        SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> device_spinImageOrigins,
+ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> ShapeDescriptor::gpu::generate3DSCDescriptors(
+        ShapeDescriptor::gpu::PointCloud device_pointCloud,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_spinImageOrigins,
         float pointDensityRadius,
         float minSupportRadius,
         float maxSupportRadius,
-        SpinImage::debug::SCExecutionTimes* executionTimes) {
+        ShapeDescriptor::debug::SCExecutionTimes* executionTimes) {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t descriptorCount = device_spinImageOrigins.length;
-    size_t descriptorBufferSize = sizeof(SpinImage::gpu::ShapeContextDescriptor) * descriptorCount;
+    size_t descriptorBufferSize = sizeof(ShapeDescriptor::gpu::ShapeContextDescriptor) * descriptorCount;
 
-    SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> device_descriptors = {0, nullptr};
+    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> device_descriptors = {0, nullptr};
 
     // -- Initialisation --
     auto initialisationStart = std::chrono::steady_clock::now();
@@ -256,8 +256,8 @@ SpinImage::gpu::array<SpinImage::gpu::ShapeContextDescriptor> SpinImage::gpu::ge
     // -- Point Count Computation --
     auto pointCountingStart = std::chrono::steady_clock::now();
 
-    SpinImage::gpu::array<unsigned int> device_pointCountArray =
-            SpinImage::utilities::computePointDensities(pointDensityRadius, device_pointCloud);
+    ShapeDescriptor::gpu::array<unsigned int> device_pointCountArray =
+            ShapeDescriptor::utilities::computePointDensities(pointDensityRadius, device_pointCloud);
 
     std::chrono::milliseconds pointCountingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - pointCountingStart);
 

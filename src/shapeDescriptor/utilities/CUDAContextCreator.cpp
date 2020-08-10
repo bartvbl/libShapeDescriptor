@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-cudaDeviceProp SpinImage::utilities::createCUDAContext(int forceGPU)
+cudaDeviceProp ShapeDescriptor::utilities::createCUDAContext(int forceGPU)
 {
 	int deviceCount;
 	checkCudaErrors(cudaGetDeviceCount(&deviceCount));
@@ -39,7 +39,7 @@ cudaDeviceProp SpinImage::utilities::createCUDAContext(int forceGPU)
 	return deviceWithMostMemory;
 }
 
-void SpinImage::utilities::printGPUProperties(unsigned int deviceIndex) {
+void ShapeDescriptor::utilities::printGPUProperties(unsigned int deviceIndex) {
 	cudaDeviceProp deviceInfo;
 
 	checkCudaErrors(cudaGetDeviceProperties(&deviceInfo, deviceIndex));

@@ -23,8 +23,8 @@ __inline__ __device__ float warpAllReduceSum(float val) {
 }
 
 __device__ float computeSpinImagePairCorrelationGPU(
-        SpinImage::gpu::SpinImageDescriptor* descriptors,
-        SpinImage::gpu::SpinImageDescriptor* otherDescriptors,
+        ShapeDescriptor::gpu::SpinImageDescriptor* descriptors,
+        ShapeDescriptor::gpu::SpinImageDescriptor* otherDescriptors,
 		size_t spinImageIndex,
 		size_t otherImageIndex,
 		float averageX, float averageY) {
@@ -62,7 +62,7 @@ __device__ float computeSpinImagePairCorrelationGPU(
 	return correlation;
 }
 
-__global__ void calculateImageAverages(SpinImage::gpu::SpinImageDescriptor* images, float* averages) {
+__global__ void calculateImageAverages(ShapeDescriptor::gpu::SpinImageDescriptor* images, float* averages) {
 	size_t imageIndex = blockIdx.x;
 
 	// Only support up to 32 warps
@@ -101,11 +101,11 @@ __global__ void calculateImageAverages(SpinImage::gpu::SpinImageDescriptor* imag
     }
 }
 
-__global__ void generateSearchResults(SpinImage::gpu::SpinImageDescriptor* needleDescriptors,
+__global__ void generateSearchResults(ShapeDescriptor::gpu::SpinImageDescriptor* needleDescriptors,
 									  size_t needleImageCount,
-                                      SpinImage::gpu::SpinImageDescriptor* haystackDescriptors,
+                                      ShapeDescriptor::gpu::SpinImageDescriptor* haystackDescriptors,
 									  size_t haystackImageCount,
-									  SpinImage::gpu::SpinImageSearchResults* searchResults,
+									  ShapeDescriptor::gpu::SpinImageSearchResults* searchResults,
 									  float* needleImageAverages,
 									  float* haystackImageAverages) {
 
@@ -199,9 +199,9 @@ __global__ void generateSearchResults(SpinImage::gpu::SpinImageDescriptor* needl
 
 }
 
-SpinImage::cpu::array<SpinImage::gpu::SpinImageSearchResults> SpinImage::gpu::findSpinImagesInHaystack(
-        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_needleDescriptors,
-        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_haystackDescriptors) {
+ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SpinImageSearchResults> ShapeDescriptor::gpu::findSpinImagesInHaystack(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_needleDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_haystackDescriptors) {
 
     // Step 1: Compute image averages, since they're constant and are needed for each comparison
 
@@ -240,7 +240,7 @@ SpinImage::cpu::array<SpinImage::gpu::SpinImageSearchResults> SpinImage::gpu::fi
 
     // Step 3: Copying results to CPU
 
-	SpinImage::cpu::array<SpinImageSearchResults> searchResults;
+	ShapeDescriptor::cpu::array<SpinImageSearchResults> searchResults;
 	searchResults.content = new SpinImageSearchResults[device_needleDescriptors.length];
 	searchResults.length = device_needleDescriptors.length;
 
@@ -277,8 +277,8 @@ SpinImage::cpu::array<SpinImage::gpu::SpinImageSearchResults> SpinImage::gpu::fi
 const int indexBasedWarpCount = 16;
 
 __global__ void computeSpinImageSearchResultIndices(
-        SpinImage::gpu::SpinImageDescriptor* needleDescriptors,
-        SpinImage::gpu::SpinImageDescriptor* haystackDescriptors,
+        ShapeDescriptor::gpu::SpinImageDescriptor* needleDescriptors,
+        ShapeDescriptor::gpu::SpinImageDescriptor* haystackDescriptors,
         size_t haystackImageCount,
         unsigned int* searchResults,
         float* needleImageAverages,
@@ -286,7 +286,7 @@ __global__ void computeSpinImageSearchResultIndices(
 
     size_t needleImageIndex = blockIdx.x;
 
-	__shared__ SpinImage::gpu::SpinImageDescriptor referenceImage;
+	__shared__ ShapeDescriptor::gpu::SpinImageDescriptor referenceImage;
 	for(unsigned int index = threadIdx.x; index < spinImageWidthPixels * spinImageWidthPixels; index += blockDim.x) {
 		referenceImage.contents[index] = needleDescriptors[needleImageIndex].contents[index];
 	}
@@ -339,10 +339,10 @@ __global__ void computeSpinImageSearchResultIndices(
 	}
 }
 
-SpinImage::cpu::array<unsigned int> SpinImage::gpu::computeSpinImageSearchResultRanks(
-        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_needleDescriptors,
-        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> device_haystackDescriptors,
-        SpinImage::debug::SISearchExecutionTimes* executionTimes) {
+ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeSpinImageSearchResultRanks(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_needleDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_haystackDescriptors,
+        ShapeDescriptor::debug::SISearchExecutionTimes* executionTimes) {
 
 	auto executionStart = std::chrono::steady_clock::now();
 
@@ -382,7 +382,7 @@ SpinImage::cpu::array<unsigned int> SpinImage::gpu::computeSpinImageSearchResult
 
 	std::chrono::milliseconds searchDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart);
 
-	SpinImage::cpu::array<unsigned int> resultIndices;
+	ShapeDescriptor::cpu::array<unsigned int> resultIndices;
 	resultIndices.content = new unsigned int[device_needleDescriptors.length];
 	resultIndices.length = device_needleDescriptors.length;
 

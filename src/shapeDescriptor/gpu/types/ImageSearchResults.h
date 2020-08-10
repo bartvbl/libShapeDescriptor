@@ -3,7 +3,7 @@
 #include <shapeDescriptor/libraryBuildSettings.h>
 #include <cstddef>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace gpu {
         struct SpinImageSearchResults {
             size_t resultIndices[SEARCH_RESULT_COUNT];

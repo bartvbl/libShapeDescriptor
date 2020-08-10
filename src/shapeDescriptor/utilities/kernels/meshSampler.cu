@@ -13,8 +13,8 @@
 
 #define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
 
-__device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const SpinImage::gpu::array<float> &areaArray, int triangleIndex, int sampleCount) {
-    SpinImage::SampleBounds sampleBounds;
+__device__ __inline__ ShapeDescriptor::SampleBounds calculateSampleBounds(const ShapeDescriptor::gpu::array<float> &areaArray, int triangleIndex, int sampleCount) {
+    ShapeDescriptor::SampleBounds sampleBounds;
     float maxArea = areaArray.content[areaArray.length - 1];
     float areaStepSize = maxArea / (float)sampleCount;
 
@@ -38,7 +38,7 @@ __device__ __inline__ SpinImage::SampleBounds calculateSampleBounds(const SpinIm
     return sampleBounds;
 }
 
-__device__ __inline__ void lookupTriangleVertices(SpinImage::gpu::Mesh mesh, int triangleIndex, float3 (&triangleVertices)[3]) {
+__device__ __inline__ void lookupTriangleVertices(ShapeDescriptor::gpu::Mesh mesh, int triangleIndex, float3 (&triangleVertices)[3]) {
     assert(triangleIndex >= 0);
     assert((3 * triangleIndex) + 2 < mesh.vertexCount);
 
@@ -57,7 +57,7 @@ __device__ __inline__ void lookupTriangleVertices(SpinImage::gpu::Mesh mesh, int
     triangleVertices[2].z = mesh.vertices_z[triangleBaseIndex + 2];
 }
 
-__device__ __inline__ void lookupTriangleNormals(SpinImage::gpu::Mesh mesh, int triangleIndex, float3 (&triangleNormals)[3]) {
+__device__ __inline__ void lookupTriangleNormals(ShapeDescriptor::gpu::Mesh mesh, int triangleIndex, float3 (&triangleNormals)[3]) {
     assert(triangleIndex >= 0);
     assert((3 * triangleIndex) + 2 < mesh.vertexCount);
 
@@ -78,7 +78,7 @@ __device__ __inline__ void lookupTriangleNormals(SpinImage::gpu::Mesh mesh, int 
 
 
 // One thread = One triangle
-__global__ void calculateAreas(SpinImage::gpu::array<float> areaArray, SpinImage::gpu::Mesh mesh)
+__global__ void calculateAreas(ShapeDescriptor::gpu::array<float> areaArray, ShapeDescriptor::gpu::Mesh mesh)
 {
     int triangleIndex = blockDim.x * blockIdx.x + threadIdx.x;
     if (triangleIndex >= areaArray.length)
@@ -93,7 +93,7 @@ __global__ void calculateAreas(SpinImage::gpu::array<float> areaArray, SpinImage
     areaArray.content[triangleIndex] = area;
 }
 
-__global__ void calculateCumulativeAreas(SpinImage::gpu::array<float> areaArray, SpinImage::gpu::array<float> device_cumulativeAreaArray) {
+__global__ void calculateCumulativeAreas(ShapeDescriptor::gpu::array<float> areaArray, ShapeDescriptor::gpu::array<float> device_cumulativeAreaArray) {
     int triangleIndex = blockDim.x * blockIdx.x + threadIdx.x;
     if (triangleIndex >= areaArray.length)
     {
@@ -110,7 +110,7 @@ __global__ void calculateCumulativeAreas(SpinImage::gpu::array<float> areaArray,
     device_cumulativeAreaArray.content[triangleIndex] = totalArea;
 }
 
-__global__ void generateRandomSampleCoefficients(SpinImage::gpu::array<float2> coefficients, curandState *randomState, int sampleCount, size_t randomSeed) {
+__global__ void generateRandomSampleCoefficients(ShapeDescriptor::gpu::array<float2> coefficients, curandState *randomState, int sampleCount, size_t randomSeed) {
     int rawThreadIndex = threadIdx.x+blockDim.x*blockIdx.x;
 
     assert(rawThreadIndex < SAMPLE_COEFFICIENT_THREAD_COUNT);
@@ -135,10 +135,10 @@ __global__ void generateRandomSampleCoefficients(SpinImage::gpu::array<float2> c
 
 // One thread = One triangle
 __global__ void sampleMesh(
-        SpinImage::gpu::Mesh mesh,
-        SpinImage::gpu::array<float> areaArray,
-        SpinImage::gpu::PointCloud pointCloud,
-        SpinImage::gpu::array<float2> coefficients,
+        ShapeDescriptor::gpu::Mesh mesh,
+        ShapeDescriptor::gpu::array<float> areaArray,
+        ShapeDescriptor::gpu::PointCloud pointCloud,
+        ShapeDescriptor::gpu::array<float2> coefficients,
         int sampleCount) {
     int triangleIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -153,7 +153,7 @@ __global__ void sampleMesh(
     float3 triangleNormals[3];
     lookupTriangleNormals(mesh, triangleIndex, triangleNormals);
 
-    SpinImage::SampleBounds bounds = calculateSampleBounds(areaArray, triangleIndex, sampleCount);
+    ShapeDescriptor::SampleBounds bounds = calculateSampleBounds(areaArray, triangleIndex, sampleCount);
 
     for(int sample = 0; sample < bounds.sampleCount; sample++) {
         size_t sampleIndex = bounds.sampleStartIndex + sample;
@@ -182,17 +182,17 @@ __global__ void sampleMesh(
     }
 }
 
-SpinImage::gpu::PointCloud SpinImage::utilities::sampleMesh(gpu::Mesh device_mesh, size_t sampleCount, size_t randomSamplingSeed, SpinImage::internal::MeshSamplingBuffers* internalSampleBuffers) {
+ShapeDescriptor::gpu::PointCloud ShapeDescriptor::utilities::sampleMesh(gpu::Mesh device_mesh, size_t sampleCount, size_t randomSamplingSeed, ShapeDescriptor::internal::MeshSamplingBuffers* internalSampleBuffers) {
     size_t vertexCount = device_mesh.vertexCount;
     size_t triangleCount = vertexCount / 3;
 
     size_t areaArrayLength = triangleCount;
     size_t areaArraySize = areaArrayLength * sizeof(float);
     curandState* device_randomState;
-    SpinImage::gpu::array<float2> device_coefficients;
+    ShapeDescriptor::gpu::array<float2> device_coefficients;
 
-    SpinImage::gpu::array<float> device_areaArray;
-    SpinImage::gpu::array<float> device_cumulativeAreaArray;
+    ShapeDescriptor::gpu::array<float> device_areaArray;
+    ShapeDescriptor::gpu::array<float> device_cumulativeAreaArray;
 
     gpu::PointCloud device_pointCloud(sampleCount);
 

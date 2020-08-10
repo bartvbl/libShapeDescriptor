@@ -7,7 +7,7 @@
 #include <glm/vec3.hpp>
 #include <glm/geometric.hpp>
 #pragma GCC optimize ("0")
-SpinImage::cpu::float3 hostComputeTriangleNormal(std::vector<SpinImage::cpu::float3> &vertices, unsigned int baseIndex);
+ShapeDescriptor::cpu::float3 hostComputeTriangleNormal(std::vector<ShapeDescriptor::cpu::float3> &vertices, unsigned int baseIndex);
 #pragma GCC reset_options
 
 void split(std::vector<std::string>* parts, const std::string &s, char delim) {
@@ -30,25 +30,25 @@ void deleteEmptyStrings(std::vector<std::string> &list) {
 	}
 }
 
-inline SpinImage::cpu::float3 elementWiseMin(SpinImage::cpu::float3 v1, SpinImage::cpu::float3 v2)
+inline ShapeDescriptor::cpu::float3 elementWiseMin(ShapeDescriptor::cpu::float3 v1, ShapeDescriptor::cpu::float3 v2)
 {
-	SpinImage::cpu::float3 output;
+	ShapeDescriptor::cpu::float3 output;
 	output.x = std::min(v1.x, v2.x);
 	output.y = std::min(v1.y, v2.y);
 	output.z = std::min(v1.z, v2.z);
 	return output;
 }
 
-inline SpinImage::cpu::float3 elementWiseMax(SpinImage::cpu::float3 v1, SpinImage::cpu::float3 v2)
+inline ShapeDescriptor::cpu::float3 elementWiseMax(ShapeDescriptor::cpu::float3 v1, ShapeDescriptor::cpu::float3 v2)
 {
-	SpinImage::cpu::float3 output;
+	ShapeDescriptor::cpu::float3 output;
 	output.x = std::max(v1.x, v2.x);
 	output.y = std::max(v1.y, v2.y);
 	output.z = std::max(v1.z, v2.z);
 	return output;
 }
 
-SpinImage::cpu::Mesh SpinImage::utilities::loadOBJ(std::string src, bool recomputeNormals)
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::string src, bool recomputeNormals)
 {
 	std::vector<std::string> lineParts;
 	lineParts.reserve(32);
@@ -220,13 +220,13 @@ SpinImage::cpu::Mesh SpinImage::utilities::loadOBJ(std::string src, bool recompu
 }
 
 #pragma GCC optimize ("0")
-SpinImage::cpu::float3 hostComputeTriangleNormal(std::vector<SpinImage::cpu::float3> &vertices, unsigned int baseIndex) {
-    SpinImage::cpu::float3 triangleVertex0 = vertices.at(baseIndex + 0);
-    SpinImage::cpu::float3 triangleVertex1 = vertices.at(baseIndex + 1);
-    SpinImage::cpu::float3 triangleVertex2 = vertices.at(baseIndex + 2);
+ShapeDescriptor::cpu::float3 hostComputeTriangleNormal(std::vector<ShapeDescriptor::cpu::float3> &vertices, unsigned int baseIndex) {
+    ShapeDescriptor::cpu::float3 triangleVertex0 = vertices.at(baseIndex + 0);
+    ShapeDescriptor::cpu::float3 triangleVertex1 = vertices.at(baseIndex + 1);
+    ShapeDescriptor::cpu::float3 triangleVertex2 = vertices.at(baseIndex + 2);
 
-    SpinImage::cpu::float3 side0 = triangleVertex1 - triangleVertex0;
-    SpinImage::cpu::float3 side1 = triangleVertex2 - triangleVertex0;
+    ShapeDescriptor::cpu::float3 side0 = triangleVertex1 - triangleVertex0;
+    ShapeDescriptor::cpu::float3 side1 = triangleVertex2 - triangleVertex0;
 
 
     side0 = side0 / length(side0);
@@ -256,7 +256,7 @@ SpinImage::cpu::float3 hostComputeTriangleNormal(std::vector<SpinImage::cpu::flo
     // GIVES INCORRECT RESULTS (0, -0.76, 0) -> (-1, 0, 0) for SOME reason
     //glmNormal = glm::normalize(glmNormal);
 
-    SpinImage::cpu::float3 normal = make_float3_cpu(glmNormal.x, glmNormal.y, glmNormal.z);
+    ShapeDescriptor::cpu::float3 normal = make_float3_cpu(glmNormal.x, glmNormal.y, glmNormal.z);
 
 
     return normal;

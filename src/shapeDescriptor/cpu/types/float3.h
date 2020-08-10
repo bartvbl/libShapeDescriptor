@@ -4,7 +4,7 @@
 #include <string>
 
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace cpu {
         struct float3 {
             float x = 0;
@@ -61,16 +61,16 @@ namespace SpinImage {
 }
 
 
-inline SpinImage::cpu::float3 make_float3_cpu(float x, float y, float z) {
-    SpinImage::cpu::float3 out;
+inline ShapeDescriptor::cpu::float3 make_float3_cpu(float x, float y, float z) {
+    ShapeDescriptor::cpu::float3 out;
     out.x = x;
     out.y = y;
     out.z = z;
     return out;
 }
 
-SpinImage::cpu::float3 normalize(SpinImage::cpu::float3 in);
-std::ostream & operator<<(std::ostream & os, SpinImage::cpu::float3 vec);
-SpinImage::cpu::float3 operator* (SpinImage::cpu::float3 vec, float other);
-SpinImage::cpu::float3 operator* (float other, SpinImage::cpu::float3 vec);
-float length(SpinImage::cpu::float3 vec);
+ShapeDescriptor::cpu::float3 normalize(ShapeDescriptor::cpu::float3 in);
+std::ostream & operator<<(std::ostream & os, ShapeDescriptor::cpu::float3 vec);
+ShapeDescriptor::cpu::float3 operator* (ShapeDescriptor::cpu::float3 vec, float other);
+ShapeDescriptor::cpu::float3 operator* (float other, ShapeDescriptor::cpu::float3 vec);
+float length(ShapeDescriptor::cpu::float3 vec);

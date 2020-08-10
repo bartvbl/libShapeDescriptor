@@ -7,9 +7,9 @@
 #include <shapeDescriptor/gpu/types/array.h>
 #include <vector>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace utilities {
-        SpinImage::gpu::array<gpu::DeviceOrientedPoint> generateUniqueSpinOriginBuffer(gpu::Mesh &mesh);
-        SpinImage::gpu::array<gpu::DeviceOrientedPoint> generateUniqueSpinOriginBuffer(std::vector<cpu::float3> &vertices, std::vector<cpu::float3> &normals);
+        ShapeDescriptor::gpu::array<gpu::DeviceOrientedPoint> generateUniqueSpinOriginBuffer(gpu::Mesh &mesh);
+        ShapeDescriptor::gpu::array<gpu::DeviceOrientedPoint> generateUniqueSpinOriginBuffer(std::vector<cpu::float3> &vertices, std::vector<cpu::float3> &normals);
     }
 }

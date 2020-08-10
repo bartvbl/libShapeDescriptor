@@ -1,7 +1,7 @@
 #pragma once
 #include <shapeDescriptor/gpu/fastPointFeatureHistogramGenerator.cuh>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace debug {
         struct FPFHSearchExecutionTimes {
             double totalExecutionTimeSeconds;
@@ -10,9 +10,9 @@ namespace SpinImage {
     }
 
     namespace gpu {
-        SpinImage::cpu::array<unsigned int> computeFPFHSearchResultRanks(
-                SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> device_needleDescriptors,
-                SpinImage::gpu::array<SpinImage::gpu::FPFHDescriptor> device_haystackDescriptors,
-                SpinImage::debug::FPFHSearchExecutionTimes* executionTimes = nullptr);
+        ShapeDescriptor::cpu::array<unsigned int> computeFPFHSearchResultRanks(
+                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> device_needleDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> device_haystackDescriptors,
+                ShapeDescriptor::debug::FPFHSearchExecutionTimes* executionTimes = nullptr);
     }
 }

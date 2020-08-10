@@ -3,7 +3,7 @@
 #include <shapeDescriptor/cpu/types/Mesh.h>
 #include <shapeDescriptor/gpu/types/Mesh.h>
 
-namespace SpinImage {
+namespace ShapeDescriptor {
     namespace copy{
         cpu::Mesh deviceMeshToHost(gpu::Mesh deviceMesh);
 

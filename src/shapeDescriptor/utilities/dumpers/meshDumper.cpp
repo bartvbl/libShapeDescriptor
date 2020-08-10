@@ -4,8 +4,8 @@
 #include <vector>
 #include <cassert>
 
-void dumpMesh(SpinImage::cpu::Mesh mesh, const std::experimental::filesystem::path &outputFilePath, size_t highlightStartVertex, size_t highlightEndVertex,
-        bool useCustomTextureMap, SpinImage::cpu::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
+void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::experimental::filesystem::path &outputFilePath, size_t highlightStartVertex, size_t highlightEndVertex,
+        bool useCustomTextureMap, ShapeDescriptor::cpu::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
 
     bool hasHighlightsEnabled =
             (highlightStartVertex > 0 && highlightStartVertex <= mesh.vertexCount) ||
@@ -110,19 +110,19 @@ void dumpMesh(SpinImage::cpu::Mesh mesh, const std::experimental::filesystem::pa
     outputFile.close();
 }
 
-void SpinImage::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::path outputFilePath) {
+void ShapeDescriptor::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::path outputFilePath) {
     // Highlight a range that will never be highlighted
     dumpMesh(mesh, outputFilePath, -1, -1, false, {0, nullptr}, "");
 }
 
-void SpinImage::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::path outputFilePath,
+void ShapeDescriptor::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::path outputFilePath,
         size_t highlightStartVertex, size_t highlightEndVertex) {
 
     dumpMesh(mesh, outputFilePath, highlightStartVertex, highlightEndVertex, false, {0, nullptr}, "");
 }
 
-void SpinImage::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::path &outputFilePath,
-          SpinImage::cpu::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
+void ShapeDescriptor::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::path &outputFilePath,
+          ShapeDescriptor::cpu::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
     assert(vertexTextureCoordinates.length == mesh.vertexCount);
     dumpMesh(mesh, outputFilePath, -1, -1, true, vertexTextureCoordinates, textureMapPath);
 }

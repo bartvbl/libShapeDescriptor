@@ -4,7 +4,7 @@
 #include "float2.h"
 
 
-namespace SpinImage {
+namespace ShapeDescriptor {
 	namespace cpu {
         struct Mesh {
             float3* vertices;
@@ -33,7 +33,7 @@ namespace SpinImage {
             }
         };
 
-        void freeMesh(SpinImage::cpu::Mesh &mesh);
+        void freeMesh(ShapeDescriptor::cpu::Mesh &mesh);
     }
 }
 

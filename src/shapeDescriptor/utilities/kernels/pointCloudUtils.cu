@@ -37,8 +37,8 @@ std::ostream& operator << (std::ostream &o, const float3& p)
 // Not a super efficient implementation, but good enough for what we need it to do.
 
 __global__ void computePointCloudBoundingBox(
-        SpinImage::gpu::PointCloud pointCloud,
-        SpinImage::gpu::BoundingBox* boundingBox) {
+        ShapeDescriptor::gpu::PointCloud pointCloud,
+        ShapeDescriptor::gpu::BoundingBox* boundingBox) {
 
     assert(blockDim.x == 1024);
     __shared__ float3 minVertices[1024 / 32];
@@ -104,20 +104,20 @@ __global__ void computePointCloudBoundingBox(
 
 }
 
-SpinImage::gpu::BoundingBox SpinImage::utilities::computeBoundingBox(SpinImage::gpu::PointCloud device_pointCloud) {
-    SpinImage::gpu::BoundingBox host_boundingBox = {
+ShapeDescriptor::gpu::BoundingBox ShapeDescriptor::utilities::computeBoundingBox(ShapeDescriptor::gpu::PointCloud device_pointCloud) {
+    ShapeDescriptor::gpu::BoundingBox host_boundingBox = {
             {std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max()},
             {-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), -std::numeric_limits<float>::max()}};
-    SpinImage::gpu::BoundingBox* device_boundingBox;
-    checkCudaErrors(cudaMalloc(&device_boundingBox, sizeof(SpinImage::gpu::BoundingBox)));
-    checkCudaErrors(cudaMemcpy(device_boundingBox, &host_boundingBox, sizeof(SpinImage::gpu::BoundingBox), cudaMemcpyHostToDevice));
+    ShapeDescriptor::gpu::BoundingBox* device_boundingBox;
+    checkCudaErrors(cudaMalloc(&device_boundingBox, sizeof(ShapeDescriptor::gpu::BoundingBox)));
+    checkCudaErrors(cudaMemcpy(device_boundingBox, &host_boundingBox, sizeof(ShapeDescriptor::gpu::BoundingBox), cudaMemcpyHostToDevice));
 
     // Single block, because CUDA is not being nice to me.
     computePointCloudBoundingBox<<<1, 1024>>>(device_pointCloud, device_boundingBox);
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 
-    checkCudaErrors(cudaMemcpy(&host_boundingBox, device_boundingBox, sizeof(SpinImage::gpu::BoundingBox), cudaMemcpyDeviceToHost));
+    checkCudaErrors(cudaMemcpy(&host_boundingBox, device_boundingBox, sizeof(ShapeDescriptor::gpu::BoundingBox), cudaMemcpyDeviceToHost));
     checkCudaErrors(cudaFree(device_boundingBox));
     return host_boundingBox;
 }
@@ -149,9 +149,9 @@ __device__ __inline__ unsigned int computeJumpTableIndex(int3 binIndex, int3 bin
 }
 
 __global__ void countBinContents(
-        SpinImage::gpu::PointCloud pointCloud,
+        ShapeDescriptor::gpu::PointCloud pointCloud,
         unsigned int* indexTable,
-        SpinImage::gpu::BoundingBox boundingBox,
+        ShapeDescriptor::gpu::BoundingBox boundingBox,
         int3 binCounts,
         float binSize) {
 
@@ -194,9 +194,9 @@ __global__ void countCumulativeBinIndices(unsigned int* indexTable, int3 binCoun
 }
 
 __global__ void rearrangePointCloud(
-        SpinImage::gpu::PointCloud sourcePointCloud,
-        SpinImage::gpu::PointCloud destinationPointCloud,
-        SpinImage::gpu::BoundingBox boundingBox,
+        ShapeDescriptor::gpu::PointCloud sourcePointCloud,
+        ShapeDescriptor::gpu::PointCloud destinationPointCloud,
+        ShapeDescriptor::gpu::BoundingBox boundingBox,
         unsigned int* nextIndexEntryTable,
         int3 binCounts,
         float binSize) {
@@ -226,9 +226,9 @@ __global__ void rearrangePointCloud(
 }
 
 __global__ void computePointCounts(
-        SpinImage::gpu::array<unsigned int> pointDensityArray,
-        SpinImage::gpu::PointCloud pointCloud,
-        SpinImage::gpu::BoundingBox boundingBox,
+        ShapeDescriptor::gpu::array<unsigned int> pointDensityArray,
+        ShapeDescriptor::gpu::PointCloud pointCloud,
+        ShapeDescriptor::gpu::BoundingBox boundingBox,
         unsigned int* indexTable,
         int3 binCounts,
         float binSize,
@@ -303,12 +303,12 @@ __global__ void computePointCounts(
     }
 }
 
-SpinImage::gpu::array<unsigned int> SpinImage::utilities::computePointDensities(
-        float pointDensityRadius, SpinImage::gpu::PointCloud device_pointCloud) {
+ShapeDescriptor::gpu::array<unsigned int> ShapeDescriptor::utilities::computePointDensities(
+        float pointDensityRadius, ShapeDescriptor::gpu::PointCloud device_pointCloud) {
     size_t sampleCount = device_pointCloud.vertices.length;
 
     // 1. Compute bounding box
-    SpinImage::gpu::BoundingBox boundingBox = SpinImage::utilities::computeBoundingBox(device_pointCloud);
+    ShapeDescriptor::gpu::BoundingBox boundingBox = ShapeDescriptor::utilities::computeBoundingBox(device_pointCloud);
 
     // 2. Allocate index array for boxes of radius x radius x radius
     float3 boundingBoxSize = boundingBox.max - boundingBox.min;
@@ -338,7 +338,7 @@ SpinImage::gpu::array<unsigned int> SpinImage::utilities::computePointDensities(
     checkCudaErrors(cudaGetLastError());
 
     // 5. Allocate temporary point cloud (vertices only)
-    SpinImage::gpu::PointCloud device_tempPointCloud(device_pointCloud.vertices.length);
+    ShapeDescriptor::gpu::PointCloud device_tempPointCloud(device_pointCloud.vertices.length);
 
     // 6. Copy over contents of point cloud
     checkCudaErrors(cudaMemcpy(device_tempPointCloud.vertices.array, device_pointCloud.vertices.array,
@@ -362,7 +362,7 @@ SpinImage::gpu::array<unsigned int> SpinImage::utilities::computePointDensities(
     device_tempPointCloud.free();
 
     // 8. Count nearby points using new array and its index structure
-    SpinImage::gpu::array<unsigned int> device_pointCountArray = {sampleCount, nullptr};
+    ShapeDescriptor::gpu::array<unsigned int> device_pointCountArray = {sampleCount, nullptr};
     checkCudaErrors(cudaMalloc(&device_pointCountArray.content, sampleCount * sizeof(unsigned int)));
     computePointCounts<<<sampleCount, 32>>>(
             device_pointCountArray, device_pointCloud, boundingBox, device_indexTable, binCounts, binSize, pointDensityRadius);

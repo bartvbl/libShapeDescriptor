@@ -33,7 +33,9 @@ namespace ShapeDescriptor {
     }
 }
 
-float length(ShapeDescriptor::cpu::float2 vec);
+inline float length(ShapeDescriptor::cpu::float2 vec) {
+    return std::sqrt(vec.x * vec.x + vec.y * vec.y);
+}
 
 inline ShapeDescriptor::cpu::float2 make_float2_cpu(float x, float y) {
     ShapeDescriptor::cpu::float2 out;
@@ -42,4 +44,10 @@ inline ShapeDescriptor::cpu::float2 make_float2_cpu(float x, float y) {
     return out;
 }
 
-ShapeDescriptor::cpu::float2 normalize(ShapeDescriptor::cpu::float2 in);
+inline ShapeDescriptor::cpu::float2 normalize(ShapeDescriptor::cpu::float2 in) {
+    ShapeDescriptor::cpu::float2 out;
+    float len = length(in);
+    out.x = in.x / len;
+    out.y = in.y / len;
+    return out;
+}

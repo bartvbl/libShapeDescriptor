@@ -54,63 +54,63 @@ int main(int argc, const char** argv) {
 
     if(forceGPU.value() != -1) {
         std::cout << "Forcing GPU " << forceGPU.value() << std::endl;
-        SpinImage::utilities::createCUDAContext(forceGPU.value());
+        ShapeDescriptor::utilities::createCUDAContext(forceGPU.value());
     }
 
     std::cout << "Loading OBJ file.." << std::endl;
-    SpinImage::cpu::Mesh mesh = SpinImage::utilities::loadOBJ(inputFile.value());
-    SpinImage::gpu::Mesh deviceMesh = SpinImage::copy::hostMeshToDevice(mesh);
+    ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ(inputFile.value());
+    ShapeDescriptor::gpu::Mesh deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
 
-    SpinImage::gpu::PointCloud pointCloud = SpinImage::utilities::sampleMesh(deviceMesh, spinImageSampleCount.value(), 0);
+    ShapeDescriptor::gpu::PointCloud pointCloud = ShapeDescriptor::utilities::sampleMesh(deviceMesh, spinImageSampleCount.value(), 0);
 
-    SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> spinOrigins = SpinImage::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
+    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
     size_t imageCount = spinOrigins.length;
 
     std::cout << "Generating images.. (this can take a while)" << std::endl;
     if(generationMode.value() == "si") {
-        SpinImage::gpu::array<SpinImage::gpu::SpinImageDescriptor> descriptors = SpinImage::gpu::generateSpinImages(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> descriptors = ShapeDescriptor::gpu::generateSpinImages(
                 pointCloud,
                 spinOrigins,
                 spinImageWidth.value(),
                 supportAngle.value());
         std::cout << "Dumping results.. " << std::endl;
-        SpinImage::cpu::array<SpinImage::gpu::SpinImageDescriptor> hostDescriptors = SpinImage::copy::deviceArrayToHost<SpinImage::gpu::SpinImageDescriptor>(descriptors);
+        ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> hostDescriptors = ShapeDescriptor::copy::deviceArrayToHost<ShapeDescriptor::gpu::SpinImageDescriptor>(descriptors);
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
-        SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, imagesPerRow.value());
+        ShapeDescriptor::dump::descriptors(hostDescriptors, outputFile.value(), true, imagesPerRow.value());
 
         cudaFree(descriptors.content);
         delete[] hostDescriptors.content;
 
     } else if(generationMode.value() == "rici") {
-        SpinImage::gpu::array<SpinImage::gpu::RICIDescriptor> descriptors =
-            SpinImage::gpu::generateRadialIntersectionCountImages(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> descriptors =
+                ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
                 deviceMesh,
                 spinOrigins,
                 spinImageWidth.value());
 
         std::cout << "Dumping results.. " << std::endl;
-        SpinImage::cpu::array<SpinImage::gpu::RICIDescriptor> hostDescriptors =
-                SpinImage::copy::deviceArrayToHost(descriptors);
+        ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RICIDescriptor> hostDescriptors =
+                ShapeDescriptor::copy::deviceArrayToHost(descriptors);
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
-        SpinImage::dump::descriptors(hostDescriptors, outputFile.value(), true, imagesPerRow.value());
+        ShapeDescriptor::dump::descriptors(hostDescriptors, outputFile.value(), true, imagesPerRow.value());
         delete[] hostDescriptors.content;
 
         cudaFree(descriptors.content);
 
     } else if(generationMode.value() == "quicci") {
-        SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> images = SpinImage::gpu::generateQUICCImages(deviceMesh,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> images = ShapeDescriptor::gpu::generateQUICCImages(deviceMesh,
                                                                                   spinOrigins,
                                                                                   spinImageWidth.value());
 
         std::cout << "Dumping results.. " << std::endl;
 
-        SpinImage::cpu::array<SpinImage::gpu::QUICCIDescriptor> host_images = SpinImage::copy::deviceArrayToHost(images);
+        ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> host_images = ShapeDescriptor::copy::deviceArrayToHost(images);
 
-        SpinImage::dump::descriptors(host_images, outputFile.value(), imagesPerRow.value());
+        ShapeDescriptor::dump::descriptors(host_images, outputFile.value(), imagesPerRow.value());
 
         cudaFree(images.content);
         delete[] host_images.content;
@@ -119,7 +119,7 @@ int main(int argc, const char** argv) {
         std::cerr << "Should be either 'si', 'rici', or 'quicci'." << std::endl;
     }
 
-    SpinImage::cpu::freeMesh(mesh);
-    SpinImage::gpu::freeMesh(deviceMesh);
+    ShapeDescriptor::cpu::freeMesh(mesh);
+    ShapeDescriptor::gpu::freeMesh(deviceMesh);
 
 }

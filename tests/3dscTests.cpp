@@ -10,7 +10,7 @@ TEST_CASE("Ensuring volume computation makes sense") {
         float totalVolume = 0;
         for(short layer = 0; layer < SHAPE_CONTEXT_LAYER_COUNT; layer++) {
             for(short slice = 0; slice < SHAPE_CONTEXT_VERTICAL_SLICE_COUNT; slice++) {
-                totalVolume += SpinImage::internal::computeBinVolume(slice, layer, minSupportRadius, maxSupportRadius);
+                totalVolume += ShapeDescriptor::internal::computeBinVolume(slice, layer, minSupportRadius, maxSupportRadius);
             }
         }
         totalVolume *= float(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT);

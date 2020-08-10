@@ -39,29 +39,29 @@ int main(int argc, const char** argv) {
     }
 
     std::cout << "Loading OBJ file: " << inputOBJFile.value() << std::endl;
-    SpinImage::cpu::Mesh hostMesh = SpinImage::utilities::loadOBJ(inputOBJFile.value(), true);
+    ShapeDescriptor::cpu::Mesh hostMesh = ShapeDescriptor::utilities::loadOBJ(inputOBJFile.value(), true);
 
     if(fitInUnitSphere.value()) {
         std::cout << "Fitting object in unit sphere.." << std::endl;
-        SpinImage::cpu::Mesh scaledMesh = SpinImage::utilities::fitMeshInsideSphereOfRadius(hostMesh, 1);
-        SpinImage::cpu::freeMesh(hostMesh);
+        ShapeDescriptor::cpu::Mesh scaledMesh = ShapeDescriptor::utilities::fitMeshInsideSphereOfRadius(hostMesh, 1);
+        ShapeDescriptor::cpu::freeMesh(hostMesh);
         hostMesh = scaledMesh;
     }
 
-    SpinImage::gpu::Mesh deviceMesh = SpinImage::copy::hostMeshToDevice(hostMesh);
-    SpinImage::cpu::freeMesh(hostMesh);
+    ShapeDescriptor::gpu::Mesh deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(hostMesh);
+    ShapeDescriptor::cpu::freeMesh(hostMesh);
 
     std::cout << "Computing QUICCI images.." << std::endl;
-    SpinImage::gpu::array<SpinImage::gpu::DeviceOrientedPoint> uniqueVertices =
-            SpinImage::utilities::computeUniqueVertices(deviceMesh);
+    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> uniqueVertices =
+            ShapeDescriptor::utilities::computeUniqueVertices(deviceMesh);
 
-    SpinImage::gpu::array<SpinImage::gpu::QUICCIDescriptor> images = SpinImage::gpu::generateQUICCImages(deviceMesh, uniqueVertices, spinImageWidth.value());
-    SpinImage::cpu::array<SpinImage::gpu::QUICCIDescriptor> hostImages = SpinImage::copy::deviceArrayToHost(images);
+    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> images = ShapeDescriptor::gpu::generateQUICCImages(deviceMesh, uniqueVertices, spinImageWidth.value());
+    ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> hostImages = ShapeDescriptor::copy::deviceArrayToHost(images);
 
     std::cout << "Writing output file.." << std::endl,
-    SpinImage::dump::raw::descriptors(outputDumpFile.value(), hostImages);
+            ShapeDescriptor::dump::raw::descriptors(outputDumpFile.value(), hostImages);
 
-    SpinImage::gpu::freeMesh(deviceMesh);
+    ShapeDescriptor::gpu::freeMesh(deviceMesh);
     cudaFree(uniqueVertices.content);
     cudaFree(images.content);
 

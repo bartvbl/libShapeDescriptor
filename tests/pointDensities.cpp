@@ -7,11 +7,11 @@
 
 
 unsigned int *computeNeighbourCounts(const float *simpleCloud, unsigned int pointCount, float radius) {
-    SpinImage::gpu::PointCloud device_pointCloud(pointCount);
+    ShapeDescriptor::gpu::PointCloud device_pointCloud(pointCount);
 
     cudaMemcpy(device_pointCloud.vertices.array, simpleCloud, pointCount * 3 * sizeof(float), cudaMemcpyHostToDevice);
 
-    SpinImage::gpu::array<unsigned int> device_pointDensities = SpinImage::utilities::computePointDensities(radius, device_pointCloud);
+    ShapeDescriptor::gpu::array<unsigned int> device_pointDensities = ShapeDescriptor::utilities::computePointDensities(radius, device_pointCloud);
 
     unsigned int* counts = new unsigned int[pointCount];
     cudaMemcpy(counts, device_pointDensities.content, pointCount * sizeof(unsigned int), cudaMemcpyDeviceToHost);

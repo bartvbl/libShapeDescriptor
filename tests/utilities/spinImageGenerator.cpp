@@ -6,9 +6,9 @@
 
 
 template<typename pixelType>
-SpinImage::cpu::array<pixelType> generateEmptyImages(size_t imageCount) {
+ShapeDescriptor::cpu::array<pixelType> generateEmptyImages(size_t imageCount) {
     pixelType* image = new pixelType[imageCount * spinImageWidthPixels * spinImageWidthPixels];
-    SpinImage::cpu::array<pixelType> images;
+    ShapeDescriptor::cpu::array<pixelType> images;
     images.content = image;
     images.length = imageCount * spinImageWidthPixels * spinImageWidthPixels;
 
@@ -16,7 +16,7 @@ SpinImage::cpu::array<pixelType> generateEmptyImages(size_t imageCount) {
 }
 
 template<typename pixelType>
-SpinImage::cpu::array<pixelType> generateRepeatingTemplateImage(
+ShapeDescriptor::cpu::array<pixelType> generateRepeatingTemplateImage(
         pixelType patternPart0,
         pixelType patternPart1,
         pixelType patternPart2,
@@ -26,7 +26,7 @@ SpinImage::cpu::array<pixelType> generateRepeatingTemplateImage(
         pixelType patternPart6,
         pixelType patternPart7) {
 
-    SpinImage::cpu::array<pixelType> images = generateEmptyImages<pixelType>(1);
+    ShapeDescriptor::cpu::array<pixelType> images = generateEmptyImages<pixelType>(1);
 
     for(size_t index = 0; index < spinImageWidthPixels * spinImageWidthPixels; index += 8) {
         images.content[index + 0] = patternPart0;
@@ -43,8 +43,8 @@ SpinImage::cpu::array<pixelType> generateRepeatingTemplateImage(
 }
 
 template<typename pixelType>
-SpinImage::cpu::array<pixelType> generateKnownImageSequence(const int imageCount, const int pixelsPerImage) {
-    SpinImage::cpu::array<pixelType> imageSequence = generateEmptyImages<pixelType>(imageCount);
+ShapeDescriptor::cpu::array<pixelType> generateKnownImageSequence(const int imageCount, const int pixelsPerImage) {
+    ShapeDescriptor::cpu::array<pixelType> imageSequence = generateEmptyImages<pixelType>(imageCount);
 
     for(int image = 0; image < imageCount; image++) {
         for(int highIndex = 0; highIndex <= image; highIndex++) {
@@ -59,15 +59,15 @@ SpinImage::cpu::array<pixelType> generateKnownImageSequence(const int imageCount
     return imageSequence;
 }
 
-SpinImage::cpu::array<spinImagePixelType> generateEmptySpinImages(size_t imageCount) {
+ShapeDescriptor::cpu::array<spinImagePixelType> generateEmptySpinImages(size_t imageCount) {
     return generateEmptyImages<spinImagePixelType>(imageCount);
 }
 
-SpinImage::cpu::array<radialIntersectionCountImagePixelType> generateEmptyRadialIntersectionCountImages(size_t imageCount) {
+ShapeDescriptor::cpu::array<radialIntersectionCountImagePixelType> generateEmptyRadialIntersectionCountImages(size_t imageCount) {
     return generateEmptyImages<radialIntersectionCountImagePixelType>(imageCount);
 }
 
-SpinImage::cpu::array<spinImagePixelType> generateRepeatingTemplateSpinImage(
+ShapeDescriptor::cpu::array<spinImagePixelType> generateRepeatingTemplateSpinImage(
         spinImagePixelType patternPart0,
         spinImagePixelType patternPart1,
         spinImagePixelType patternPart2,
@@ -87,7 +87,7 @@ SpinImage::cpu::array<spinImagePixelType> generateRepeatingTemplateSpinImage(
             patternPart7);
 }
 
-SpinImage::cpu::array<radialIntersectionCountImagePixelType> generateRepeatingTemplateRadialIntersectionCountImage(
+ShapeDescriptor::cpu::array<radialIntersectionCountImagePixelType> generateRepeatingTemplateRadialIntersectionCountImage(
         radialIntersectionCountImagePixelType patternPart0,
         radialIntersectionCountImagePixelType patternPart1,
         radialIntersectionCountImagePixelType patternPart2,
@@ -107,12 +107,12 @@ SpinImage::cpu::array<radialIntersectionCountImagePixelType> generateRepeatingTe
             patternPart7);
 }
 
-SpinImage::cpu::array<SpinImage::gpu::SpinImageDescriptor> generateKnownSpinImageSequence(const int imageCount, const int pixelsPerImage) {
-    return generateKnownImageSequence<SpinImage::gpu::SpinImageDescriptor>(imageCount, pixelsPerImage);
+ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> generateKnownSpinImageSequence(const int imageCount, const int pixelsPerImage) {
+    return generateKnownImageSequence<ShapeDescriptor::gpu::SpinImageDescriptor>(imageCount, pixelsPerImage);
 }
 
-SpinImage::cpu::array<SpinImage::gpu::RICIDescriptor> generateKnownRadialIntersectionCountImageSequence(const int imageCount, const int pixelsPerImage) {
-    return generateKnownImageSequence<SpinImage::gpu::RICIDescriptor>(imageCount, pixelsPerImage);
+ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RICIDescriptor> generateKnownRadialIntersectionCountImageSequence(const int imageCount, const int pixelsPerImage) {
+    return generateKnownImageSequence<ShapeDescriptor::gpu::RICIDescriptor>(imageCount, pixelsPerImage);
 }
 
 

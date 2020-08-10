@@ -12,19 +12,19 @@
 namespace ShapeDescriptor {
     namespace dump {
         void descriptors(
-                ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RICIDescriptor> hostDescriptors,
+                ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
                 bool logarithmicImage,
                 unsigned int imagesPerRow);
 
         void descriptors(
-                ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> hostDescriptors,
+                ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
                 bool logarithmicImage,
                 unsigned int imagesPerRow);
 
         void descriptors(
-                ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> hostDescriptors,
+                ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
                 unsigned int imagesPerRow);
     }

@@ -140,17 +140,17 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> descriptors, co
 	}
 }
 
-void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
-	performSpinDump<float, ShapeDescriptor::gpu::SpinImageDescriptor>(hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
+	performSpinDump<float, ShapeDescriptor::SpinImageDescriptor>(hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RICIDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
-	performSpinDump<unsigned int, ShapeDescriptor::gpu::RICIDescriptor> (hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
+	performSpinDump<unsigned int, ShapeDescriptor::RICIDescriptor> (hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, unsigned int imagesPerRow) {
+void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, unsigned int imagesPerRow) {
 	// Compute the number of images that should be inserted to separate the two series
 	// If the number of rows fits the images exactly, an extra one is inserted for better clarity.
 	size_t rowRemainder = hostDescriptors.length % imagesPerRow;
@@ -158,9 +158,9 @@ void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescrip
 
 	size_t totalImageCount = hostDescriptors.length + fillerImageCount;
 
-	ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RICIDescriptor> decompressedDesciptors;
+	ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> decompressedDesciptors;
 
-	decompressedDesciptors.content = new ShapeDescriptor::gpu::RICIDescriptor[totalImageCount];
+	decompressedDesciptors.content = new ShapeDescriptor::RICIDescriptor[totalImageCount];
 	decompressedDesciptors.length = totalImageCount;
 
 	for(unsigned int imageIndex = 0; imageIndex < hostDescriptors.length; imageIndex++) {
@@ -182,7 +182,7 @@ void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescrip
 		}
 	}
 
-    performSpinDump<unsigned int, ShapeDescriptor::gpu::RICIDescriptor>(decompressedDesciptors, imageDestinationFile, false, imagesPerRow);
+    performSpinDump<unsigned int, ShapeDescriptor::RICIDescriptor>(decompressedDesciptors, imageDestinationFile, false, imagesPerRow);
 
     delete[] decompressedDesciptors.content;
 }

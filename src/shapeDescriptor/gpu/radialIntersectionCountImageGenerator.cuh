@@ -16,7 +16,7 @@ namespace ShapeDescriptor {
     }
 
     namespace gpu {
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> generateRadialIntersectionCountImages(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> generateRadialIntersectionCountImages(
                 ShapeDescriptor::gpu::Mesh device_mesh,
                 ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_descriptorOrigins,
                 float supportRadius,

@@ -186,7 +186,7 @@ __global__ void computeFPFHHistograms(
         const float supportRadius,
         float* histogramOriginHistograms,
         float* pointCloudHistograms,
-        ShapeDescriptor::gpu::FPFHDescriptor* fpfhHistograms) {
+        ShapeDescriptor::FPFHDescriptor* fpfhHistograms) {
     // Launch dimensions: one block for every descriptor
     // Blocks should contain just about as many threads as a histogram has bins
 #define FPFHDescriptorIndex blockIdx.x
@@ -237,7 +237,7 @@ __global__ void reformatOrigins(
     reformattedOriginNormalsList.set(index, origin.normal);
 }
 
-ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> ShapeDescriptor::gpu::generateFPFHHistograms(
+ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> ShapeDescriptor::gpu::generateFPFHHistograms(
         ShapeDescriptor::gpu::PointCloud device_pointCloud,
         ShapeDescriptor::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
         float supportRadius,
@@ -245,7 +245,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> ShapeDescripto
 {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
-    size_t singleHistogramSizeBytes = sizeof(ShapeDescriptor::gpu::FPFHDescriptor);
+    size_t singleHistogramSizeBytes = sizeof(ShapeDescriptor::FPFHDescriptor);
     size_t outputHistogramsSize = device_descriptorOrigins.length * singleHistogramSizeBytes;
 
 
@@ -298,7 +298,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> ShapeDescripto
     // Compute FPFH
     std::cout << "\t\t\tGenerating FPFH descriptors.." << std::endl;
     auto fpfhGenerationTimeStart = std::chrono::steady_clock::now();
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> device_histograms;
+    ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_histograms;
     device_histograms.length = device_descriptorOrigins.length;
     checkCudaErrors(cudaMalloc(&device_histograms.content, outputHistogramsSize));
 

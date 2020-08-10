@@ -11,8 +11,8 @@ namespace ShapeDescriptor {
 
     namespace gpu {
         ShapeDescriptor::cpu::array<unsigned int> computeFPFHSearchResultRanks(
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> device_needleDescriptors,
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> device_haystackDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_needleDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_haystackDescriptors,
                 ShapeDescriptor::debug::FPFHSearchExecutionTimes* executionTimes = nullptr);
     }
 }

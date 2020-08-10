@@ -12,7 +12,7 @@ __inline__ __device__ float warpAllReduceSum(float val) {
     return val;
 }
 
-__inline__ __device__ float computeDescriptorAverage(ShapeDescriptor::gpu::FPFHDescriptor &descriptor) {
+__inline__ __device__ float computeDescriptorAverage(ShapeDescriptor::FPFHDescriptor &descriptor) {
     float threadSum = 0;
     for(unsigned int i = threadIdx.x; i < 3 * FPFH_BINS_PER_FEATURE; i += blockDim.x) {
         threadSum += descriptor.contents[i];
@@ -22,9 +22,9 @@ __inline__ __device__ float computeDescriptorAverage(ShapeDescriptor::gpu::FPFHD
 }
 
 __device__ float computeFPFHDescriptorSimilarity(
-        ShapeDescriptor::gpu::FPFHDescriptor &needleDescriptor,
+        ShapeDescriptor::FPFHDescriptor &needleDescriptor,
         float needleDescriptorAverage,
-        ShapeDescriptor::gpu::FPFHDescriptor &haystackDescriptor) {
+        ShapeDescriptor::FPFHDescriptor &haystackDescriptor) {
 
     float haystackDescriptorAverage = computeDescriptorAverage(haystackDescriptor);
 
@@ -55,16 +55,16 @@ __device__ float computeFPFHDescriptorSimilarity(
 
 
 __global__ void computeFPFHSearchResultIndices(
-        ShapeDescriptor::gpu::FPFHDescriptor* needleDescriptors,
-        ShapeDescriptor::gpu::FPFHDescriptor* haystackDescriptors,
+        ShapeDescriptor::FPFHDescriptor* needleDescriptors,
+        ShapeDescriptor::FPFHDescriptor* haystackDescriptors,
         size_t haystackDescriptorCount,
         unsigned int* searchResults) {
 
 #define needleDescriptorIndex blockIdx.x
     assert(blockDim.x == 32);
 
-    __shared__ ShapeDescriptor::gpu::FPFHDescriptor referenceDescriptor;
-    __shared__ ShapeDescriptor::gpu::FPFHDescriptor haystackDescriptor;
+    __shared__ ShapeDescriptor::FPFHDescriptor referenceDescriptor;
+    __shared__ ShapeDescriptor::FPFHDescriptor haystackDescriptor;
 
     for(unsigned int i = threadIdx.x; i < 3 * FPFH_BINS_PER_FEATURE; i += blockDim.x) {
         referenceDescriptor.contents[i] = needleDescriptors[needleDescriptorIndex].contents[i];
@@ -124,8 +124,8 @@ __global__ void computeFPFHSearchResultIndices(
 
 
 ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeFPFHSearchResultRanks(
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> device_needleDescriptors,
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> device_haystackDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_needleDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_haystackDescriptors,
         ShapeDescriptor::debug::FPFHSearchExecutionTimes* executionTimes) {
 
     auto executionStart = std::chrono::steady_clock::now();

@@ -30,5 +30,5 @@ ShapeDescriptor::cpu::array<radialIntersectionCountImagePixelType> generateRepea
         radialIntersectionCountImagePixelType patternPart6,
         radialIntersectionCountImagePixelType patternPart7);
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> generateKnownSpinImageSequence(const int imageCount, const int pixelsPerImage);
-ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RICIDescriptor> generateKnownRadialIntersectionCountImageSequence(const int imageCount, const int pixelsPerImage);
+ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> generateKnownSpinImageSequence(const int imageCount, const int pixelsPerImage);
+ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> generateKnownRadialIntersectionCountImageSequence(const int imageCount, const int pixelsPerImage);

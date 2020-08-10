@@ -14,8 +14,8 @@ namespace ShapeDescriptor {
 
     namespace gpu {
         ShapeDescriptor::cpu::array<unsigned int> computeQUICCImageSearchResultRanks(
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> device_needleDescriptors,
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> device_haystackDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_needleDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_haystackDescriptors,
                 ShapeDescriptor::debug::QUICCISearchExecutionTimes* executionTimes = nullptr);
 
         struct QUICCIDistances {
@@ -26,7 +26,7 @@ namespace ShapeDescriptor {
         };
 
         ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDistances> computeQUICCIElementWiseDistances(
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> device_descriptors,
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> device_correspondingDescriptors);
+                ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_descriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_correspondingDescriptors);
     }
 }

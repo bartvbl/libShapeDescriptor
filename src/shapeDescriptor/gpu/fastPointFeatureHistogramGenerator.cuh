@@ -17,7 +17,7 @@ namespace ShapeDescriptor {
     }
 
     namespace gpu {
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::FPFHDescriptor> generateFPFHHistograms(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> generateFPFHHistograms(
                 ShapeDescriptor::gpu::PointCloud device_pointCloud,
                 ShapeDescriptor::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
                 float supportRadius,

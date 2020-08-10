@@ -15,12 +15,12 @@ namespace ShapeDescriptor {
 
     namespace gpu {
         ShapeDescriptor::cpu::array<RadialIntersectionCountImageSearchResults> findRadialIntersectionCountImagesInHaystack(
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_needleDescriptors,
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_haystackDescriptors);
+                ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_needleDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackDescriptors);
 
         ShapeDescriptor::cpu::array<unsigned int> computeRadialIntersectionCountImageSearchResultRanks(
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_needleDescriptors,
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_haystackDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_needleDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackDescriptors,
                 ShapeDescriptor::debug::RICISearchExecutionTimes* executionTimes = nullptr);
     }
 }

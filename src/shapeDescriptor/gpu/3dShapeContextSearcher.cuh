@@ -14,9 +14,9 @@ namespace ShapeDescriptor {
 
     namespace gpu {
         ShapeDescriptor::cpu::array<unsigned int> compute3DSCSearchResultRanks(
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> device_needleDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_needleDescriptors,
                 size_t needleDescriptorSampleCount,
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> device_haystackDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_haystackDescriptors,
                 size_t haystackDescriptorSampleCount,
                 ShapeDescriptor::debug::SCSearchExecutionTimes* executionTimes = nullptr);
     }

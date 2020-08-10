@@ -15,7 +15,7 @@ namespace ShapeDescriptor {
     }
 
     namespace gpu {
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> generateSpinImages(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> generateSpinImages(
                 ShapeDescriptor::gpu::PointCloud device_pointCloud,
                 ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_descriptorOrigins,
                 float supportRadius,

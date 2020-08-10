@@ -16,12 +16,12 @@ namespace ShapeDescriptor {
 
     namespace gpu {
         ShapeDescriptor::cpu::array<SpinImageSearchResults> findSpinImagesInHaystack(
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_needleDescriptors,
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_haystackDescriptors);
+                ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_needleDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_haystackDescriptors);
 
         ShapeDescriptor::cpu::array<unsigned int> computeSpinImageSearchResultRanks(
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_needleDescriptors,
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_haystackDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_needleDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_haystackDescriptors,
                 ShapeDescriptor::debug::SISearchExecutionTimes* executionTimes = nullptr);
     }
 }

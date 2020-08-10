@@ -23,8 +23,8 @@ __inline__ __device__ float warpAllReduceSum(float val) {
 }
 
 __device__ float computeSpinImagePairCorrelationGPU(
-        ShapeDescriptor::gpu::SpinImageDescriptor* descriptors,
-        ShapeDescriptor::gpu::SpinImageDescriptor* otherDescriptors,
+        ShapeDescriptor::SpinImageDescriptor* descriptors,
+        ShapeDescriptor::SpinImageDescriptor* otherDescriptors,
 		size_t spinImageIndex,
 		size_t otherImageIndex,
 		float averageX, float averageY) {
@@ -62,7 +62,7 @@ __device__ float computeSpinImagePairCorrelationGPU(
 	return correlation;
 }
 
-__global__ void calculateImageAverages(ShapeDescriptor::gpu::SpinImageDescriptor* images, float* averages) {
+__global__ void calculateImageAverages(ShapeDescriptor::SpinImageDescriptor* images, float* averages) {
 	size_t imageIndex = blockIdx.x;
 
 	// Only support up to 32 warps
@@ -101,9 +101,9 @@ __global__ void calculateImageAverages(ShapeDescriptor::gpu::SpinImageDescriptor
     }
 }
 
-__global__ void generateSearchResults(ShapeDescriptor::gpu::SpinImageDescriptor* needleDescriptors,
+__global__ void generateSearchResults(ShapeDescriptor::SpinImageDescriptor* needleDescriptors,
 									  size_t needleImageCount,
-                                      ShapeDescriptor::gpu::SpinImageDescriptor* haystackDescriptors,
+                                      ShapeDescriptor::SpinImageDescriptor* haystackDescriptors,
 									  size_t haystackImageCount,
 									  ShapeDescriptor::gpu::SpinImageSearchResults* searchResults,
 									  float* needleImageAverages,
@@ -200,8 +200,8 @@ __global__ void generateSearchResults(ShapeDescriptor::gpu::SpinImageDescriptor*
 }
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SpinImageSearchResults> ShapeDescriptor::gpu::findSpinImagesInHaystack(
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_needleDescriptors,
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_haystackDescriptors) {
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_needleDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_haystackDescriptors) {
 
     // Step 1: Compute image averages, since they're constant and are needed for each comparison
 
@@ -277,8 +277,8 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SpinImageSearchResults> ShapeD
 const int indexBasedWarpCount = 16;
 
 __global__ void computeSpinImageSearchResultIndices(
-        ShapeDescriptor::gpu::SpinImageDescriptor* needleDescriptors,
-        ShapeDescriptor::gpu::SpinImageDescriptor* haystackDescriptors,
+        ShapeDescriptor::SpinImageDescriptor* needleDescriptors,
+        ShapeDescriptor::SpinImageDescriptor* haystackDescriptors,
         size_t haystackImageCount,
         unsigned int* searchResults,
         float* needleImageAverages,
@@ -286,7 +286,7 @@ __global__ void computeSpinImageSearchResultIndices(
 
     size_t needleImageIndex = blockIdx.x;
 
-	__shared__ ShapeDescriptor::gpu::SpinImageDescriptor referenceImage;
+	__shared__ ShapeDescriptor::SpinImageDescriptor referenceImage;
 	for(unsigned int index = threadIdx.x; index < spinImageWidthPixels * spinImageWidthPixels; index += blockDim.x) {
 		referenceImage.contents[index] = needleDescriptors[needleImageIndex].contents[index];
 	}
@@ -340,8 +340,8 @@ __global__ void computeSpinImageSearchResultIndices(
 }
 
 ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeSpinImageSearchResultRanks(
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_needleDescriptors,
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_haystackDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_needleDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_haystackDescriptors,
         ShapeDescriptor::debug::SISearchExecutionTimes* executionTimes) {
 
 	auto executionStart = std::chrono::steady_clock::now();

@@ -7,10 +7,10 @@
 
 void ShapeDescriptor::dump::raw::descriptors(
         const std::experimental::filesystem::path &outputDumpFile,
-        const ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> &images) {
+        const ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> &images) {
     const unsigned int imageWidthPixels = spinImageWidthPixels;
 
-    size_t imageBlockSize = images.length * sizeof(ShapeDescriptor::gpu::QUICCIDescriptor);
+    size_t imageBlockSize = images.length * sizeof(ShapeDescriptor::QUICCIDescriptor);
     size_t outFileBufferSize = 5 + sizeof(size_t) + sizeof(unsigned int) + 2 * imageBlockSize;
     char* outFileBuffer = new char[outFileBufferSize];
     
@@ -21,7 +21,7 @@ void ShapeDescriptor::dump::raw::descriptors(
     *reinterpret_cast<size_t*>(outFileBuffer + 5) = images.length;
     *reinterpret_cast<unsigned int*>(outFileBuffer + 5 + sizeof(size_t)) = imageWidthPixels;
     std::copy(images.content, images.content + images.length,
-            reinterpret_cast<ShapeDescriptor::gpu::QUICCIDescriptor*>(outFileBuffer + 5 + sizeof(size_t) + sizeof(unsigned int)));
+            reinterpret_cast<ShapeDescriptor::QUICCIDescriptor*>(outFileBuffer + 5 + sizeof(size_t) + sizeof(unsigned int)));
 
     ShapeDescriptor::utilities::writeCompressedFile(outFileBuffer, outFileBufferSize, outputDumpFile);
     

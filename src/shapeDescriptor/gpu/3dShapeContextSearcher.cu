@@ -29,8 +29,8 @@ __inline__ __device__ float warpAllReduceMin(float val) {
 }
 
 __device__ float compute3DSCPairDistanceGPU(
-        ShapeDescriptor::gpu::ShapeContextDescriptor &needleDescriptor,
-        ShapeDescriptor::gpu::ShapeContextDescriptor &haystackDescriptor,
+        ShapeDescriptor::ShapeContextDescriptor &needleDescriptor,
+        ShapeDescriptor::ShapeContextDescriptor &haystackDescriptor,
         float* sharedSquaredSums) {
 
 #define sliceOffset threadIdx.y
@@ -69,8 +69,8 @@ __device__ float compute3DSCPairDistanceGPU(
 }
 
 __global__ void computeShapeContextSearchResultIndices(
-        ShapeDescriptor::gpu::ShapeContextDescriptor* needleDescriptors,
-        ShapeDescriptor::gpu::ShapeContextDescriptor* haystackDescriptors,
+        ShapeDescriptor::ShapeContextDescriptor* needleDescriptors,
+        ShapeDescriptor::ShapeContextDescriptor* haystackDescriptors,
         size_t haystackDescriptorCount,
         float haystackScaleFactor,
         unsigned int* searchResults) {
@@ -79,12 +79,12 @@ __global__ void computeShapeContextSearchResultIndices(
     // Since memory is reused a lot, we cache both the needle and haystack image in shared memory
     // Combined this is is approximately (at default settings) the size of a spin or RICI image
 
-    __shared__ ShapeDescriptor::gpu::ShapeContextDescriptor referenceDescriptor;
+    __shared__ ShapeDescriptor::ShapeContextDescriptor referenceDescriptor;
     for(unsigned int index = blockDim.x * threadIdx.y + threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x * blockDim.y) {
         referenceDescriptor.contents[index] = needleDescriptors[needleDescriptorIndex].contents[index];
     }
 
-    __shared__ ShapeDescriptor::gpu::ShapeContextDescriptor haystackDescriptor;
+    __shared__ ShapeDescriptor::ShapeContextDescriptor haystackDescriptor;
     for(unsigned int index = blockDim.x * threadIdx.y + threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x * blockDim.y) {
         haystackDescriptor.contents[index] =
                 haystackDescriptors[needleDescriptorIndex].contents[index] * (1.0f/haystackScaleFactor);
@@ -138,9 +138,9 @@ __global__ void computeShapeContextSearchResultIndices(
 
 
 ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::compute3DSCSearchResultRanks(
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> device_needleDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_needleDescriptors,
         size_t needleDescriptorSampleCount,
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> device_haystackDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_haystackDescriptors,
         size_t haystackDescriptorSampleCount,
         ShapeDescriptor::debug::SCSearchExecutionTimes* executionTimes) {
     static_assert(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT <= 32);

@@ -10,7 +10,7 @@ namespace ShapeDescriptor {
         namespace raw {
             void descriptors(
                 const std::experimental::filesystem::path &outputDumpFile,
-                const ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> &images);
+                const ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> &images);
         }
     }
 

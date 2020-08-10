@@ -45,7 +45,7 @@ __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNo
 __global__ void createDescriptors(
         ShapeDescriptor::gpu::DeviceOrientedPoint* device_spinImageOrigins,
         ShapeDescriptor::gpu::PointCloud pointCloud,
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> descriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> descriptors,
         float oneOverSpinImagePixelWidth,
         float supportAngleCosine)
 {
@@ -56,7 +56,7 @@ __global__ void createDescriptors(
 	const float3 vertex = spinOrigin.vertex;
 	const float3 normal = spinOrigin.normal;
 
-	__shared__ ShapeDescriptor::gpu::SpinImageDescriptor localSpinImage;
+	__shared__ ShapeDescriptor::SpinImageDescriptor localSpinImage;
 	for(int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += blockDim.x) {
 	    localSpinImage.contents[i] = 0;
 	}
@@ -141,7 +141,7 @@ __global__ void createDescriptors(
     }
 }
 
-ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> ShapeDescriptor::gpu::generateSpinImages(
+ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> ShapeDescriptor::gpu::generateSpinImages(
         ShapeDescriptor::gpu::PointCloud device_pointCloud,
         ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_descriptorOrigins,
         float supportRadius,
@@ -152,9 +152,9 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> ShapeDesc
 
     size_t imageCount = device_descriptorOrigins.length;
 
-	size_t descriptorBufferSize = imageCount * sizeof(ShapeDescriptor::gpu::SpinImageDescriptor);
+	size_t descriptorBufferSize = imageCount * sizeof(ShapeDescriptor::SpinImageDescriptor);
 
-	ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::SpinImageDescriptor> device_descriptors;
+	ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_descriptors;
 
 	float supportAngleCosine = float(std::cos(supportAngleDegrees * (M_PI / 180.0)));
 

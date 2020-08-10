@@ -81,7 +81,7 @@ __device__ float absoluteAngle(float y, float x) {
 __global__ void createDescriptors(
         ShapeDescriptor::gpu::DeviceOrientedPoint* device_spinImageOrigins,
         ShapeDescriptor::gpu::PointCloud pointCloud,
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> descriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> descriptors,
         ShapeDescriptor::gpu::array<unsigned int> pointDensityArray,
         size_t sampleCount,
         float minSupportRadius,
@@ -96,7 +96,7 @@ __global__ void createDescriptors(
 
     normal /= length(normal);
 
-    __shared__ ShapeDescriptor::gpu::ShapeContextDescriptor localDescriptor;
+    __shared__ ShapeDescriptor::ShapeContextDescriptor localDescriptor;
     for(int i = threadIdx.x; i < elementsPerShapeContextDescriptor; i += blockDim.x) {
         localDescriptor.contents[i] = 0;
     }
@@ -228,7 +228,7 @@ __global__ void createDescriptors(
 
 }
 
-ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> ShapeDescriptor::gpu::generate3DSCDescriptors(
+ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescriptor::gpu::generate3DSCDescriptors(
         ShapeDescriptor::gpu::PointCloud device_pointCloud,
         ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_spinImageOrigins,
         float pointDensityRadius,
@@ -238,9 +238,9 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> ShapeD
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t descriptorCount = device_spinImageOrigins.length;
-    size_t descriptorBufferSize = sizeof(ShapeDescriptor::gpu::ShapeContextDescriptor) * descriptorCount;
+    size_t descriptorBufferSize = sizeof(ShapeDescriptor::ShapeContextDescriptor) * descriptorCount;
 
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> device_descriptors = {0, nullptr};
+    ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_descriptors = {0, nullptr};
 
     // -- Initialisation --
     auto initialisationStart = std::chrono::steady_clock::now();

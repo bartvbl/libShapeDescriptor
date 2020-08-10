@@ -76,7 +76,7 @@ __host__ __device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInB
 }
 
 __device__ __inline__ void rasteriseTriangle(
-        ShapeDescriptor::gpu::RICIDescriptor* descriptors,
+        ShapeDescriptor::RICIDescriptor* descriptors,
         float3 vertices[3],
         const float3 &spinImageVertex,
         const float3 &spinImageNormal)
@@ -243,7 +243,7 @@ __device__ __inline__ void rasteriseTriangle(
 }
 
 __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateRadialIntersectionCountImage(
-        ShapeDescriptor::gpu::RICIDescriptor* descriptors,
+        ShapeDescriptor::RICIDescriptor* descriptors,
         RICIMesh mesh)
 {
 	// Copying over precalculated values
@@ -263,7 +263,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateRadialInte
 	assert(__activemask() == 0xFFFFFFFF);
 
 	// Creating a copy of the image in shared memory, then copying it into main memory
-	__shared__ ShapeDescriptor::gpu::RICIDescriptor descriptorArrayPointer;
+	__shared__ ShapeDescriptor::RICIDescriptor descriptorArrayPointer;
 
 	// Initialising the values in memory to 0
 	for(int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += RASTERISATION_WARP_SIZE)
@@ -367,7 +367,7 @@ __global__ void redistributeSpinOrigins(ShapeDescriptor::gpu::DeviceOrientedPoin
     riciMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
 
-ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
+ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
         ShapeDescriptor::gpu::Mesh device_mesh,
         ShapeDescriptor::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
         float spinImageWidth,
@@ -421,10 +421,10 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> ShapeDescripto
 
     // -- Descriptor Array Allocation and Initialisation --
 
-    size_t descriptorBufferSize = imageCount * sizeof(ShapeDescriptor::gpu::RICIDescriptor);
+    size_t descriptorBufferSize = imageCount * sizeof(ShapeDescriptor::RICIDescriptor);
 
 
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_descriptors;
+    ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_descriptors;
 	checkCudaErrors(cudaMalloc(&device_descriptors.content, descriptorBufferSize));
 	device_descriptors.length = imageCount;
 

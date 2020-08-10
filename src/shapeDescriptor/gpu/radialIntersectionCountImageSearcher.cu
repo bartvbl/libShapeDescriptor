@@ -28,7 +28,7 @@ __inline__ __device__ int warpAllReduceSum(int val) {
 
 const int indexBasedWarpCount = 16;
 
-__device__ int computeImageSquaredSumGPU(const ShapeDescriptor::gpu::RICIDescriptor &needleImage) {
+__device__ int computeImageSquaredSumGPU(const ShapeDescriptor::RICIDescriptor &needleImage) {
 
     const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
     const int laneIndex = threadIdx.x % 32;
@@ -74,12 +74,11 @@ __device__ int computeImageSquaredSumGPU(const ShapeDescriptor::gpu::RICIDescrip
 }
 
 __device__ size_t compareConstantRadialIntersectionCountImagePairGPU(
-        const ShapeDescriptor::gpu::RICIDescriptor* needleImages,
+        const ShapeDescriptor::RICIDescriptor* needleImages,
         const size_t needleImageIndex,
-        const ShapeDescriptor::gpu::RICIDescriptor* haystackImages,
+        const ShapeDescriptor::RICIDescriptor* haystackImages,
         const size_t haystackImageIndex) {
 
-    const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
     const int laneIndex = threadIdx.x % 32;
 
     // Assumption: there will never be an intersection count over 65535 (which would cause this to overflow)
@@ -121,14 +120,13 @@ __device__ size_t compareConstantRadialIntersectionCountImagePairGPU(
 
 
 __device__ int compareRadialIntersectionCountImagePairGPU(
-        const ShapeDescriptor::gpu::RICIDescriptor* needleImages,
+        const ShapeDescriptor::RICIDescriptor* needleImages,
         const size_t needleImageIndex,
-        const ShapeDescriptor::gpu::RICIDescriptor* haystackImages,
+        const ShapeDescriptor::RICIDescriptor* haystackImages,
         const size_t haystackImageIndex,
         const int distanceToBeat = INT_MAX) {
 
     int threadScore = 0;
-    const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
     const int laneIndex = threadIdx.x % 32;
 
     static_assert(spinImageWidthPixels % 32 == 0);
@@ -218,13 +216,13 @@ __device__ int compareRadialIntersectionCountImagePairGPU(
 }
 
 __global__ void computeRadialIntersectionCountImageSearchResultIndices(
-        const ShapeDescriptor::gpu::RICIDescriptor* needleDescriptors,
-        ShapeDescriptor::gpu::RICIDescriptor* haystackDescriptors,
+        const ShapeDescriptor::RICIDescriptor* needleDescriptors,
+        ShapeDescriptor::RICIDescriptor* haystackDescriptors,
         size_t haystackImageCount,
         unsigned int* searchResults) {
     size_t needleImageIndex = blockIdx.x;
 
-    __shared__ ShapeDescriptor::gpu::RICIDescriptor referenceImage;
+    __shared__ ShapeDescriptor::RICIDescriptor referenceImage;
     for(unsigned int index = threadIdx.x; index < spinImageWidthPixels * spinImageWidthPixels; index += blockDim.x) {
         referenceImage.contents[index] = needleDescriptors[needleImageIndex].contents[index];
     }
@@ -291,8 +289,8 @@ __global__ void computeRadialIntersectionCountImageSearchResultIndices(
 
 
 ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeRadialIntersectionCountImageSearchResultRanks(
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_needleDescriptors,
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_haystackDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_needleDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackDescriptors,
         ShapeDescriptor::debug::RICISearchExecutionTimes* executionTimes) {
 
     auto executionStart = std::chrono::steady_clock::now();
@@ -366,9 +364,9 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeRadialInt
 
 const unsigned int warpCount = 16;
 
-__global__ void generateSearchResults(ShapeDescriptor::gpu::RICIDescriptor* needleDescriptors,
+__global__ void generateSearchResults(ShapeDescriptor::RICIDescriptor* needleDescriptors,
                                       size_t needleImageCount,
-                                      ShapeDescriptor::gpu::RICIDescriptor* haystackDescriptors,
+                                      ShapeDescriptor::RICIDescriptor* haystackDescriptors,
                                       size_t haystackImageCount,
                                       ShapeDescriptor::gpu::RadialIntersectionCountImageSearchResults* searchResults) {
 
@@ -456,8 +454,8 @@ __global__ void generateSearchResults(ShapeDescriptor::gpu::RICIDescriptor* need
 }
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RadialIntersectionCountImageSearchResults> ShapeDescriptor::gpu::findRadialIntersectionCountImagesInHaystack(
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_needleDescriptors,
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_haystackDescriptors) {
+        ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_needleDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackDescriptors) {
 
     size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(RadialIntersectionCountImageSearchResults);
     RadialIntersectionCountImageSearchResults* device_searchResults;

@@ -28,9 +28,6 @@
 // Code is made for unsigned integers. Shorts would require additional logic.
 static_assert(sizeof(radialIntersectionCountImagePixelType) == 4);
 
-const int spinImageElementCount = spinImageWidthPixels * spinImageWidthPixels;
-const int unsignedIntegersPerImage = spinImageElementCount / 32;
-
 #define spinOriginCount gridDim.x
 #define renderedSpinImageIndex blockIdx.x
 
@@ -256,7 +253,7 @@ __device__ __inline__ void rasteriseTriangle(
 
 
 __device__ void writeQUICCImage(
-        ShapeDescriptor::gpu::QUICCIDescriptor* descriptorArray,
+        ShapeDescriptor::QUICCIDescriptor* descriptorArray,
         radialIntersectionCountImagePixelType* RICIDescriptor) {
 
     const int laneIndex = threadIdx.x % 32;
@@ -308,7 +305,7 @@ __device__ void writeQUICCImage(
 }
 
 __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuickIntersectionCountChangeImage(
-        ShapeDescriptor::gpu::QUICCIDescriptor* descriptors,
+        ShapeDescriptor::QUICCIDescriptor* descriptors,
         QUICCIMesh mesh)
 {
     // Copying over precalculated values
@@ -426,7 +423,7 @@ __global__ void redistributeSpinOrigins(ShapeDescriptor::gpu::DeviceOrientedPoin
     quicciMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
 
-ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> ShapeDescriptor::gpu::generateQUICCImages(
+ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::gpu::generateQUICCImages(
         ShapeDescriptor::gpu::Mesh device_mesh,
         ShapeDescriptor::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
         float supportRadius,
@@ -479,12 +476,12 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> ShapeDescrip
     std::chrono::milliseconds redistributeDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - redistributeTimeStart);
 
     // -- Descriptor Array Allocation and Initialisation --
-    size_t imageSequenceSize = imageCount * sizeof(ShapeDescriptor::gpu::QUICCIDescriptor);
+    size_t imageSequenceSize = imageCount * sizeof(ShapeDescriptor::QUICCIDescriptor);
 
-    ShapeDescriptor::gpu::QUICCIDescriptor* device_descriptors;
+    ShapeDescriptor::QUICCIDescriptor* device_descriptors;
     checkCudaErrors(cudaMalloc(&device_descriptors, imageSequenceSize));
 
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> descriptors;
+    ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors;
     descriptors.content = device_descriptors;
     descriptors.length = imageCount;
 

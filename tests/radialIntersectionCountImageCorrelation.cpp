@@ -15,10 +15,10 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
 
     ShapeDescriptor::utilities::createCUDAContext();
 
-    ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RICIDescriptor> imageSequence = generateKnownRadialIntersectionCountImageSequence(
+    ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> imageSequence = generateKnownRadialIntersectionCountImageSequence(
             imageCount, pixelsPerImage);
 
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_haystackImages = ShapeDescriptor::copy::hostArrayToDevice(imageSequence);
+    ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackImages = ShapeDescriptor::copy::hostArrayToDevice(imageSequence);
 
     SECTION("Ranking by generating search results on GPU") {
         ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RadialIntersectionCountImageSearchResults> searchResults = ShapeDescriptor::gpu::findRadialIntersectionCountImagesInHaystack(
@@ -70,7 +70,7 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
     SECTION("Ranking by computing rank indices, reversed image sequence") {
         std::reverse(imageSequence.content, imageSequence.content + imageCount * pixelsPerImage);
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::RICIDescriptor> device_haystackImages_reversed = ShapeDescriptor::copy::hostArrayToDevice(imageSequence);
+        ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackImages_reversed = ShapeDescriptor::copy::hostArrayToDevice(imageSequence);
 
         ShapeDescriptor::cpu::array<unsigned int> results = ShapeDescriptor::gpu::computeRadialIntersectionCountImageSearchResultRanks(
                 device_haystackImages_reversed, device_haystackImages_reversed);

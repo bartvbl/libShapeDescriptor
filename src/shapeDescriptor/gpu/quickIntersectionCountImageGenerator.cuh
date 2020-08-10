@@ -16,7 +16,7 @@ namespace ShapeDescriptor {
     }
 
     namespace gpu {
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> generateQUICCImages(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> generateQUICCImages(
                 Mesh device_mesh,
                 ShapeDescriptor::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
                 float supportRadius,

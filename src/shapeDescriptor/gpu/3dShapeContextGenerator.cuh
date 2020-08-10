@@ -21,7 +21,7 @@ namespace ShapeDescriptor {
 
     namespace gpu {
         // A seed of 0 will cause the implementation to pick one
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::ShapeContextDescriptor> generate3DSCDescriptors(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> generate3DSCDescriptors(
                 ShapeDescriptor::gpu::PointCloud device_pointCloud,
                 ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_descriptorOrigins,
                 float pointDensityRadius,

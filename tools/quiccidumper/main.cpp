@@ -55,8 +55,8 @@ int main(int argc, const char** argv) {
     ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> uniqueVertices =
             ShapeDescriptor::utilities::computeUniqueVertices(deviceMesh);
 
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> images = ShapeDescriptor::gpu::generateQUICCImages(deviceMesh, uniqueVertices, spinImageWidth.value());
-    ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDescriptor> hostImages = ShapeDescriptor::copy::deviceArrayToHost(images);
+    ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> images = ShapeDescriptor::gpu::generateQUICCImages(deviceMesh, uniqueVertices, spinImageWidth.value());
+    ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostImages = ShapeDescriptor::copy::deviceArrayToHost(images);
 
     std::cout << "Writing output file.." << std::endl,
             ShapeDescriptor::dump::raw::descriptors(outputDumpFile.value(), hostImages);

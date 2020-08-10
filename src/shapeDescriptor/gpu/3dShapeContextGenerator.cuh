@@ -3,7 +3,7 @@
 #include <shapeDescriptor/gpu/types/Mesh.h>
 #include <shapeDescriptor/gpu/types/DeviceOrientedPoint.h>
 #include <shapeDescriptor/gpu/types/array.h>
-#include <shapeDescriptor/gpu/types/methods/3DSCDescriptor.h>
+#include <shapeDescriptor/common/types/methods/3DSCDescriptor.h>
 
 namespace SpinImage {
     namespace debug {

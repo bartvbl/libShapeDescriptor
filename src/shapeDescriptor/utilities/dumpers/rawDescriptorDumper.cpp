@@ -2,7 +2,7 @@
 #include <sstream>
 #include "rawDescriptorDumper.h"
 #include <shapeDescriptor/utilities/fileutils.h>
-#include <shapeDescriptor/gpu/types/methods/QUICCIDescriptor.h>
+#include <shapeDescriptor/common/types/methods/QUICCIDescriptor.h>
 #include <shapeDescriptor/cpu/types/array.h>
 
 void SpinImage::dump::raw::descriptors(

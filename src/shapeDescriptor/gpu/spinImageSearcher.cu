@@ -9,7 +9,7 @@
 #include <cfloat>
 #include <chrono>
 #include <typeinfo>
-#include <shapeDescriptor/gpu/types/methods/SpinImageDescriptor.h>
+#include <shapeDescriptor/common/types/methods/SpinImageDescriptor.h>
 #include "nvidia/helper_cuda.h"
 #include "spinImageSearcher.cuh"
 

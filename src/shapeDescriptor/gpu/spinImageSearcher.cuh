@@ -1,7 +1,7 @@
 #pragma once
 
 #include "shapeDescriptor/gpu/types/ImageSearchResults.h"
-#include <shapeDescriptor/gpu/types/methods/SpinImageDescriptor.h>
+#include <shapeDescriptor/common/types/methods/SpinImageDescriptor.h>
 #include <shapeDescriptor/gpu/types/array.h>
 #include <shapeDescriptor/cpu/types/array.h>
 

@@ -6,7 +6,7 @@
 #include <host_defines.h>
 #include <iostream>
 #include <vector_types.h>
-#include <shapeDescriptor/gpu/types/methods/3DSCDescriptor.h>
+#include <shapeDescriptor/common/types/methods/3DSCDescriptor.h>
 #include <shapeDescriptor/cpu/types/array.h>
 #include <shapeDescriptor/gpu/types/array.h>
 

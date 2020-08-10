@@ -2,7 +2,7 @@
 
 #include <string>
 #include <experimental/filesystem>
-#include <shapeDescriptor/gpu/types/methods/QUICCIDescriptor.h>
+#include <shapeDescriptor/common/types/methods/QUICCIDescriptor.h>
 #include <shapeDescriptor/cpu/types/array.h>
 
 namespace SpinImage {

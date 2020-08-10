@@ -9,12 +9,11 @@
 #include <cfloat>
 #include <chrono>
 #include <typeinfo>
-#include <shapeDescriptor/gpu/types/methods/RICIDescriptor.h>
+#include <shapeDescriptor/common/types/methods/RICIDescriptor.h>
 #include <shapeDescriptor/cpu/types/array.h>
 #include <shapeDescriptor/gpu/types/array.h>
 #include "nvidia/helper_cuda.h"
 #include "radialIntersectionCountImageSearcher.cuh"
-#include "types/methods/RICIDescriptor.h"
 #include "types/ImageSearchResults.h"
 
 #ifndef warpSize

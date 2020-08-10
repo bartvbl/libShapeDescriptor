@@ -2,8 +2,8 @@
 #include <shapeDescriptor/libraryBuildSettings.h>
 #include <shapeDescriptor/gpu/types/array.h>
 #include <shapeDescriptor/cpu/types/array.h>
-#include <shapeDescriptor/gpu/types/methods/SpinImageDescriptor.h>
-#include <shapeDescriptor/gpu/types/methods/RICIDescriptor.h>
+#include <shapeDescriptor/common/types/methods/SpinImageDescriptor.h>
+#include <shapeDescriptor/common/types/methods/RICIDescriptor.h>
 
 const int imageCount = spinImageWidthPixels * spinImageWidthPixels + 1 - 2;
 const int pixelsPerImage = spinImageWidthPixels * spinImageWidthPixels;

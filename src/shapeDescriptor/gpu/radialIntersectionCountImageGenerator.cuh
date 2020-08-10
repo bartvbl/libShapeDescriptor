@@ -3,7 +3,7 @@
 #include "types/Mesh.h"
 #include "types/DeviceOrientedPoint.h"
 #include "types/array.h"
-#include "types/methods/RICIDescriptor.h"
+#include "shapeDescriptor/common/types/methods/RICIDescriptor.h"
 
 namespace SpinImage {
     namespace debug {

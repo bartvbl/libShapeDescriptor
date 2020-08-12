@@ -147,26 +147,23 @@ __device__ __inline__ void rasteriseTriangle(
 
 	// Step 8: For each row, do interpolation
 	// And ensure we only rasterise within bounds
-	const short minPixels = clamp(short(floor(minVector.z)), (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
-	const short maxPixels = clamp(short(floor(maxVector.z)), (-spinImageWidthPixels / 2), (spinImageWidthPixels / 2) - 1);
+	const int minPixels = int(floor(minVector.z));
+	const int maxPixels = int(floor(maxVector.z));
 
-	int pixelRowCount = maxPixels - minPixels;
+	const int halfHeight = spinImageWidthPixels / 2;
 
 	// Filter out job batches with no work in them
-	if(pixelRowCount == 0) {
+    if((minPixels < -halfHeight && maxPixels < -halfHeight) ||
+       (minPixels >= halfHeight && maxPixels >= halfHeight)) {
 		return;
 	}
 
-	// + 1 because we go from minPixels to <= maxPixels
-	pixelRowCount++;
+    const int startRowIndex = max(-halfHeight, minPixels);
+	const int endRowIndex = min(halfHeight - 1, maxPixels);
 
-	pixelRowCount = min(minPixels + pixelRowCount, (spinImageWidthPixels / 2)) - minPixels;
-
-	for(short pixelRowID = 0; pixelRowID < pixelRowCount; pixelRowID++)
+	for(int pixelY = startRowIndex; pixelY <= endRowIndex; pixelY++)
 	{
-		const short pixelY = minPixels + pixelRowID;
-
-		// Verified: this should be <=, because it fails for the cube tests case
+	    // Verified: this should be <=, because it fails for the cube tests case
 		const bool isBottomSection = float(pixelY) <= midVector.z;
 
 		// Technically I can rewrite this into two separate loops
@@ -184,7 +181,7 @@ __device__ __inline__ void rasteriseTriangle(
         const float shortInterpolationFactor = (shortDeltaVectorZ == 0) ? 1.0f : shortDistanceInTriangle / shortDeltaVectorZ;
 		// Set value to 1 because we want to avoid a zero division, and we define the job Z level to be at its maximum height
 
-        const unsigned short pixelYCoordinate = (unsigned short)(pixelY + (spinImageWidthPixels / 2));
+        const unsigned short pixelYCoordinate = (unsigned short)(pixelY + halfHeight);
 		// Avoid overlap situations, only rasterise is the interpolation factors are valid
 		if (longDistanceInTriangle > 0 && shortDistanceInTriangle > 0)
 		{

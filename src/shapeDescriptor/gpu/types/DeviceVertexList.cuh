@@ -4,7 +4,7 @@
 
 #include <cuda_runtime_api.h>
 #include <device_launch_parameters.h>
-#include "nvidia/helper_cuda.h"
+#include <nvidia-samples-common/nvidia/helper_cuda.h>
 
 namespace ShapeDescriptor {
     namespace gpu {

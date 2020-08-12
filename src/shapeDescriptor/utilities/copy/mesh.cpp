@@ -39,7 +39,7 @@ ShapeDescriptor::gpu::Mesh ShapeDescriptor::copy::hostMeshToDevice(cpu::Mesh hos
     float* normals_y = new float[normalCount];
     float* normals_z = new float[normalCount];
 
-    for(int i = 0; i < vertexCount; i++) {
+    for(unsigned int i = 0; i < vertexCount; i++) {
         vertices_x[i] = hostMesh.vertices[i].x;
         vertices_y[i] = hostMesh.vertices[i].y;
         vertices_z[i] = hostMesh.vertices[i].z;

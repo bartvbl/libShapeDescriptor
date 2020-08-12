@@ -1,7 +1,7 @@
 #pragma once
 
-#include "float3.h"
-#include "float2.h"
+#include <shapeDescriptor/cpu/types/float3.h>
+#include <shapeDescriptor/cpu/types/float2.h>
 
 
 namespace ShapeDescriptor {

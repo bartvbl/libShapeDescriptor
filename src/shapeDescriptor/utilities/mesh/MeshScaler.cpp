@@ -3,18 +3,6 @@
 #include <limits>
 #include "MeshScaler.h"
 
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::scaleMesh(cpu::Mesh &model, cpu::Mesh &scaledModel, float spinImagePixelSize)
-{
-    assert(model.vertexCount == scaledModel.vertexCount);
-
-    for (size_t i = 0; i < model.vertexCount; i++) {
-        scaledModel.vertices[i].x = model.vertices[i].x / spinImagePixelSize;
-        scaledModel.vertices[i].y = model.vertices[i].y / spinImagePixelSize;
-        scaledModel.vertices[i].z = model.vertices[i].z / spinImagePixelSize;
-    }
-}
-
-
 ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::fitMeshInsideSphereOfRadius(ShapeDescriptor::cpu::Mesh &input, float radius) {
     double averageX = 0;
     double averageY = 0;

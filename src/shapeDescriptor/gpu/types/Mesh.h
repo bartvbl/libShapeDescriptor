@@ -1,6 +1,5 @@
 #pragma once
 #include "PointCloud.h"
-#include <host_defines.h>
 
 namespace ShapeDescriptor {
     namespace gpu {

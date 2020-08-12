@@ -284,6 +284,60 @@ __host__ __device__ static const char *_cudaGetErrorEnum(cudaError_t error)
         /* Since CUDA 8.0*/        
         case cudaErrorNvlinkUncorrectable :   
             return "cudaErrorNvlinkUncorrectable";
+        case cudaErrorDeviceUninitilialized:
+            return "cudaErrorDeviceUninitilialized";
+        case cudaErrorArrayIsMapped:
+            return "cudaErrorArrayIsMapped";
+        case cudaErrorAlreadyMapped:
+            return "cudaErrorAlreadyMapped";
+        case cudaErrorAlreadyAcquired:
+            return "cudaErrorAlreadyAcquired";
+        case cudaErrorNotMapped:
+            return "cudaErrorNotMapped";
+        case cudaErrorNotMappedAsArray:
+            return "cudaErrorNotMappedAsArray";
+        case cudaErrorNotMappedAsPointer:
+            return "cudaErrorNotMappedAsPointer";
+        case cudaErrorJitCompilerNotFound:
+            return "cudaErrorJitCompilerNotFound";
+        case cudaErrorInvalidSource:
+            return "cudaErrorInvalidSource";
+        case cudaErrorFileNotFound:
+            return "cudaErrorFileNotFound";
+        case cudaErrorIllegalState:
+            return "cudaErrorIllegalState";
+        case cudaErrorSymbolNotFound:
+            return "cudaErrorSymbolNotFound";
+        case cudaErrorLaunchIncompatibleTexturing:
+            return "cudaErrorLaunchIncompatibleTexturing";
+        case cudaErrorContextIsDestroyed:
+            return "cudaErrorContextIsDestroyed";
+        case cudaErrorCooperativeLaunchTooLarge:
+            return "cudaErrorCooperativeLaunchTooLarge";
+        case cudaErrorSystemNotReady:
+            return "cudaErrorSystemNotReady";
+        case cudaErrorSystemDriverMismatch:
+            return "cudaErrorSystemDriverMismatch";
+        case cudaErrorCompatNotSupportedOnDevice:
+            return "cudaErrorCompatNotSupportedOnDevice";
+        case cudaErrorStreamCaptureUnsupported:
+            return "cudaErrorStreamCaptureUnsupported";
+        case cudaErrorStreamCaptureInvalidated:
+            return "cudaErrorStreamCaptureInvalidated";
+        case cudaErrorStreamCaptureMerge:
+            return "cudaErrorStreamCaptureMerge";
+        case cudaErrorStreamCaptureUnmatched:
+            return "cudaErrorStreamCaptureUnmatched";
+        case cudaErrorStreamCaptureUnjoined:
+            return "cudaErrorStreamCaptureUnjoined";
+        case cudaErrorStreamCaptureIsolation:
+            return "cudaErrorStreamCaptureIsolation";
+        case cudaErrorStreamCaptureImplicit:
+            return "cudaErrorStreamCaptureImplicit";
+        case cudaErrorCapturedEvent:
+            return "cudaErrorCapturedEvent";
+        case cudaErrorStreamCaptureWrongThread:
+            return "cudaErrorStreamCaptureWrongThread";
     }
 
     return "<unknown>";
@@ -1027,7 +1081,7 @@ __host__ __device__ __inline__ void __getLastCudaError(const char *errorMessage,
 
     if (cudaSuccess != err)
     {
-        fprintf(stderr, "%s(%i) : getLastCudaError() CUDA error : %s : (%d) %s.\n",
+        printf("%s(%i) : getLastCudaError() CUDA error : %s : (%d) %s.\n",
                 file, line, errorMessage, (int)err, cudaGetErrorString(err));
         DEVICE_RESET
 

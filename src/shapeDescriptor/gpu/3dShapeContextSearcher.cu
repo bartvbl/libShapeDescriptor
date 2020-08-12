@@ -3,7 +3,6 @@
 #include "3dShapeContextSearcher.cuh"
 #include <nvidia/helper_cuda.h>
 #include <cfloat>
-#include <host_defines.h>
 #include <iostream>
 #include <vector_types.h>
 #include <shapeDescriptor/common/types/methods/3DSCDescriptor.h>

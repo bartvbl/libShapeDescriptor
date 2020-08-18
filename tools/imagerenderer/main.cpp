@@ -60,14 +60,20 @@ int main(int argc, const char** argv) {
     std::cout << "Loading OBJ file.." << std::endl;
     ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ(inputFile.value());
     ShapeDescriptor::gpu::Mesh deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
+    std::cout << "    Object has " << mesh.vertexCount << " vertices" << std::endl;
 
-    ShapeDescriptor::gpu::PointCloud pointCloud = ShapeDescriptor::utilities::sampleMesh(deviceMesh, spinImageSampleCount.value(), 0);
+    std::cout << "Locating unique vertices.." << std::endl;
 
     ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
-    size_t imageCount = spinOrigins.length;
+
+    if(imageLimit.value() != -1) {
+        spinOrigins.length = std::min<int>(spinOrigins.length, imageLimit.value());
+    }
 
     std::cout << "Generating images.. (this can take a while)" << std::endl;
     if(generationMode.value() == "si") {
+        ShapeDescriptor::gpu::PointCloud pointCloud = ShapeDescriptor::utilities::sampleMesh(deviceMesh, spinImageSampleCount.value(), 0);
+
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> descriptors = ShapeDescriptor::gpu::generateSpinImages(
                 pointCloud,
                 spinOrigins,
@@ -109,6 +115,10 @@ int main(int argc, const char** argv) {
         std::cout << "Dumping results.. " << std::endl;
 
         ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> host_images = ShapeDescriptor::copy::deviceArrayToHost(images);
+
+        if(imageLimit.value() != -1) {
+            host_images.length = std::min<int>(host_images.length, imageLimit.value());
+        }
 
         ShapeDescriptor::dump::descriptors(host_images, outputFile.value(), imagesPerRow.value());
 

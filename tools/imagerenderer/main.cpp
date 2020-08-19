@@ -64,9 +64,15 @@ int main(int argc, const char** argv) {
 
     std::cout << "Locating unique vertices.." << std::endl;
 
+    size_t backupSize = deviceMesh.vertexCount;
+    if(imageLimit.value() != -1) {
+        deviceMesh.vertexCount = 10*imageLimit.value();
+    }
+
     ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
 
     if(imageLimit.value() != -1) {
+        deviceMesh.vertexCount = backupSize;
         spinOrigins.length = std::min<int>(spinOrigins.length, imageLimit.value());
     }
 

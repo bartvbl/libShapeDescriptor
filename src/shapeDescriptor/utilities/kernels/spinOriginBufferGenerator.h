@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shapeDescriptor/gpu/types/OrientedPoint.h>
+#include <shapeDescriptor/common/OrientedPoint.h>
 #include <shapeDescriptor/cpu/types/float3.h>
 #include <shapeDescriptor/gpu/types/Mesh.h>
 #include <shapeDescriptor/cpu/types/Mesh.h>

@@ -17,7 +17,7 @@
 #include <iomanip>
 #include <chrono>
 #include <sstream>
-#include <shapeDescriptor/gpu/types/OrientedPoint.h>
+#include <shapeDescriptor/common/OrientedPoint.h>
 
 #define spinOriginCount gridDim.x
 #define renderedSpinImageIndex blockIdx.x

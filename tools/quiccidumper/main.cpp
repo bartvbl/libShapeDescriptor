@@ -2,7 +2,7 @@
 #include <shapeDescriptor/cpu/types/Mesh.h>
 #include <shapeDescriptor/utilities/mesh/OBJLoader.h>
 #include <shapeDescriptor/gpu/types/Mesh.h>
-#include <shapeDescriptor/gpu/types/OrientedPoint.h>
+#include <shapeDescriptor/common/OrientedPoint.h>
 #include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
 #include <shapeDescriptor/utilities/kernels/duplicateRemoval.cuh>
 #include <cuda_runtime.h>

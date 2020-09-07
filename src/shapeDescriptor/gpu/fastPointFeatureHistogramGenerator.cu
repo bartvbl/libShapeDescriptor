@@ -181,7 +181,7 @@ __global__ void computeSPFHHistograms(
 }
 
 __global__ void computeFPFHHistograms(
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> descriptorOrigins,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> descriptorOrigins,
         ShapeDescriptor::gpu::PointCloud pointCloud,
         const float supportRadius,
         float* histogramOriginHistograms,
@@ -225,21 +225,21 @@ __global__ void computeFPFHHistograms(
 }
 
 __global__ void reformatOrigins(
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> originsArray,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> originsArray,
         ShapeDescriptor::gpu::DeviceVertexList reformattedOriginVerticesList,
         ShapeDescriptor::gpu::DeviceVertexList reformattedOriginNormalsList) {
     unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
     if(index >= originsArray.length) {
         return;
     }
-    ShapeDescriptor::gpu::DeviceOrientedPoint origin = originsArray.content[index];
+    ShapeDescriptor::gpu::OrientedPoint origin = originsArray.content[index];
     reformattedOriginVerticesList.set(index, origin.vertex);
     reformattedOriginNormalsList.set(index, origin.normal);
 }
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> ShapeDescriptor::gpu::generateFPFHHistograms(
         ShapeDescriptor::gpu::PointCloud device_pointCloud,
-        ShapeDescriptor::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
+        ShapeDescriptor::gpu::array<OrientedPoint> device_descriptorOrigins,
         float supportRadius,
         ShapeDescriptor::debug::FPFHExecutionTimes* executionTimes)
 {

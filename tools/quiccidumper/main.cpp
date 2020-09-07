@@ -2,7 +2,7 @@
 #include <shapeDescriptor/cpu/types/Mesh.h>
 #include <shapeDescriptor/utilities/mesh/OBJLoader.h>
 #include <shapeDescriptor/gpu/types/Mesh.h>
-#include <shapeDescriptor/gpu/types/DeviceOrientedPoint.h>
+#include <shapeDescriptor/gpu/types/OrientedPoint.h>
 #include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
 #include <shapeDescriptor/utilities/kernels/duplicateRemoval.cuh>
 #include <cuda_runtime.h>
@@ -52,7 +52,7 @@ int main(int argc, const char** argv) {
     ShapeDescriptor::cpu::freeMesh(hostMesh);
 
     std::cout << "Computing QUICCI images.." << std::endl;
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> uniqueVertices =
+    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> uniqueVertices =
             ShapeDescriptor::utilities::computeUniqueVertices(deviceMesh);
 
     ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> images = ShapeDescriptor::gpu::generateQUICCImages(deviceMesh, uniqueVertices, spinImageWidth.value());

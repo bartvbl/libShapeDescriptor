@@ -43,7 +43,7 @@ __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNo
 
 // Run once for every vertex index
 __global__ void createDescriptors(
-        ShapeDescriptor::gpu::DeviceOrientedPoint* device_spinImageOrigins,
+        ShapeDescriptor::gpu::OrientedPoint* device_spinImageOrigins,
         ShapeDescriptor::gpu::PointCloud pointCloud,
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> descriptors,
         float oneOverSpinImagePixelWidth,
@@ -51,7 +51,7 @@ __global__ void createDescriptors(
 {
 #define spinImageIndex blockIdx.x
 
-	const ShapeDescriptor::gpu::DeviceOrientedPoint spinOrigin = device_spinImageOrigins[spinImageIndex];
+	const ShapeDescriptor::gpu::OrientedPoint spinOrigin = device_spinImageOrigins[spinImageIndex];
 
 	const float3 vertex = spinOrigin.vertex;
 	const float3 normal = spinOrigin.normal;
@@ -143,7 +143,7 @@ __global__ void createDescriptors(
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> ShapeDescriptor::gpu::generateSpinImages(
         ShapeDescriptor::gpu::PointCloud device_pointCloud,
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_descriptorOrigins,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> device_descriptorOrigins,
         float supportRadius,
         float supportAngleDegrees,
         ShapeDescriptor::debug::SIExecutionTimes* executionTimes)

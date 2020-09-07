@@ -79,7 +79,7 @@ __device__ float absoluteAngle(float y, float x) {
 
 // Run once for every vertex index
 __global__ void createDescriptors(
-        ShapeDescriptor::gpu::DeviceOrientedPoint* device_spinImageOrigins,
+        ShapeDescriptor::gpu::OrientedPoint* device_spinImageOrigins,
         ShapeDescriptor::gpu::PointCloud pointCloud,
         ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> descriptors,
         ShapeDescriptor::gpu::array<unsigned int> pointDensityArray,
@@ -89,7 +89,7 @@ __global__ void createDescriptors(
 {
 #define descriptorIndex blockIdx.x
 
-    const ShapeDescriptor::gpu::DeviceOrientedPoint spinOrigin = device_spinImageOrigins[descriptorIndex];
+    const ShapeDescriptor::gpu::OrientedPoint spinOrigin = device_spinImageOrigins[descriptorIndex];
 
     const float3 vertex = spinOrigin.vertex;
     float3 normal = spinOrigin.normal;
@@ -230,7 +230,7 @@ __global__ void createDescriptors(
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescriptor::gpu::generate3DSCDescriptors(
         ShapeDescriptor::gpu::PointCloud device_pointCloud,
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_spinImageOrigins,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> device_spinImageOrigins,
         float pointDensityRadius,
         float minSupportRadius,
         float maxSupportRadius,

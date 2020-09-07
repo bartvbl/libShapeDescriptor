@@ -1,7 +1,7 @@
 #pragma once
 
 #include "types/Mesh.h"
-#include "types/DeviceOrientedPoint.h"
+#include "shapeDescriptor/gpu/types/OrientedPoint.h"
 #include "types/array.h"
 #include "shapeDescriptor/common/types/methods/RICIDescriptor.h"
 
@@ -18,7 +18,7 @@ namespace ShapeDescriptor {
     namespace gpu {
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> generateRadialIntersectionCountImages(
                 ShapeDescriptor::gpu::Mesh device_mesh,
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_descriptorOrigins,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> device_descriptorOrigins,
                 float supportRadius,
                 ShapeDescriptor::debug::RICIExecutionTimes* executionTimes = nullptr);
     }

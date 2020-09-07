@@ -4,7 +4,7 @@
 
 namespace ShapeDescriptor {
     namespace gpu {
-        struct DeviceOrientedPoint {
+        struct OrientedPoint {
             float3 vertex;
             float3 normal;
         };

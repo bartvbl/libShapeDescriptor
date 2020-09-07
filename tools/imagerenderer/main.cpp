@@ -69,7 +69,7 @@ int main(int argc, const char** argv) {
         deviceMesh.vertexCount = 10*imageLimit.value();
     }
 
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
+    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
 
     if(imageLimit.value() != -1) {
         deviceMesh.vertexCount = backupSize;

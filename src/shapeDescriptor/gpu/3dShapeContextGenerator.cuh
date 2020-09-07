@@ -1,7 +1,7 @@
 #pragma once
 
 #include <shapeDescriptor/gpu/types/Mesh.h>
-#include <shapeDescriptor/gpu/types/DeviceOrientedPoint.h>
+#include <shapeDescriptor/gpu/types/OrientedPoint.h>
 #include <shapeDescriptor/gpu/types/array.h>
 #include <shapeDescriptor/common/types/methods/3DSCDescriptor.h>
 
@@ -23,7 +23,7 @@ namespace ShapeDescriptor {
         // A seed of 0 will cause the implementation to pick one
         ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> generate3DSCDescriptors(
                 ShapeDescriptor::gpu::PointCloud device_pointCloud,
-                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> device_descriptorOrigins,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> device_descriptorOrigins,
                 float pointDensityRadius,
                 float minSupportRadius,
                 float maxSupportRadius,

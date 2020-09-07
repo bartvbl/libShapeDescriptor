@@ -17,7 +17,7 @@
 #include <iomanip>
 #include <chrono>
 #include <sstream>
-#include <shapeDescriptor/gpu/types/DeviceOrientedPoint.h>
+#include <shapeDescriptor/gpu/types/OrientedPoint.h>
 
 #define spinOriginCount gridDim.x
 #define renderedSpinImageIndex blockIdx.x
@@ -316,7 +316,7 @@ __global__ void scaleMesh(ShapeDescriptor::gpu::Mesh mesh, float scaleFactor) {
     mesh.vertices_z[vertexIndex] *= scaleFactor;
 }
 
-__global__ void scaleSpinOrigins(ShapeDescriptor::gpu::DeviceOrientedPoint* origins, size_t imageCount, float scaleFactor) {
+__global__ void scaleSpinOrigins(ShapeDescriptor::gpu::OrientedPoint* origins, size_t imageCount, float scaleFactor) {
     size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
 
     if(vertexIndex >= imageCount) {
@@ -347,13 +347,13 @@ __global__ void redistributeMesh(ShapeDescriptor::gpu::Mesh mesh, RICIMesh riciM
     riciMesh.geometryBasePointer[8 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
 }
 
-__global__ void redistributeSpinOrigins(ShapeDescriptor::gpu::DeviceOrientedPoint* spinOrigins, size_t imageCount, RICIMesh riciMesh) {
+__global__ void redistributeSpinOrigins(ShapeDescriptor::gpu::OrientedPoint* spinOrigins, size_t imageCount, RICIMesh riciMesh) {
     assert(imageCount == gridDim.x);
     size_t imageIndex = blockIdx.x;
 
     size_t spinOriginsBlockSize = roundSizeToNearestCacheLine(imageCount);
 
-    ShapeDescriptor::gpu::DeviceOrientedPoint spinOrigin = spinOrigins[imageIndex];
+    ShapeDescriptor::gpu::OrientedPoint spinOrigin = spinOrigins[imageIndex];
 
     riciMesh.spinOriginsBasePointer[0 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.x;
     riciMesh.spinOriginsBasePointer[1 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.y;
@@ -366,7 +366,7 @@ __global__ void redistributeSpinOrigins(ShapeDescriptor::gpu::DeviceOrientedPoin
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
         ShapeDescriptor::gpu::Mesh device_mesh,
-        ShapeDescriptor::gpu::array<DeviceOrientedPoint> device_descriptorOrigins,
+        ShapeDescriptor::gpu::array<OrientedPoint> device_descriptorOrigins,
         float spinImageWidth,
         ShapeDescriptor::debug::RICIExecutionTimes* executionTimes)
 {
@@ -388,9 +388,9 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::gp
 	    scaleMesh<<<(meshVertexCount / 128) + 1, 128>>>(device_editableMeshCopy, scaleFactor);
         checkCudaErrors(cudaDeviceSynchronize());
 
-        DeviceOrientedPoint* device_editableSpinOriginsCopy;
-        checkCudaErrors(cudaMalloc(&device_editableSpinOriginsCopy, imageCount * sizeof(DeviceOrientedPoint)));
-        checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_descriptorOrigins.content, imageCount * sizeof(DeviceOrientedPoint), cudaMemcpyDeviceToDevice));
+        OrientedPoint* device_editableSpinOriginsCopy;
+        checkCudaErrors(cudaMalloc(&device_editableSpinOriginsCopy, imageCount * sizeof(OrientedPoint)));
+        checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_descriptorOrigins.content, imageCount * sizeof(OrientedPoint), cudaMemcpyDeviceToDevice));
         scaleSpinOrigins<<<(imageCount / 128) + 1, 128>>>(device_editableSpinOriginsCopy, imageCount, scaleFactor);
         checkCudaErrors(cudaDeviceSynchronize());
 

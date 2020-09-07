@@ -89,7 +89,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::copy::deviceMeshToHost(gpu::Mesh dev
 {
     size_t vertexCount = deviceMesh.vertexCount;
 
-    cpu::Mesh hostMesh(vertexCount, vertexCount);
+    cpu::Mesh hostMesh(vertexCount);
 
     size_t verticesSize = sizeof(float) * vertexCount;
 
@@ -118,10 +118,6 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::copy::deviceMeshToHost(gpu::Mesh dev
     }
 
     delete[] tempVertexBuffer;
-
-    for(size_t i = 0; i < vertexCount; i++) {
-        hostMesh.indices[i] = i;
-    }
 
     return hostMesh;
 }

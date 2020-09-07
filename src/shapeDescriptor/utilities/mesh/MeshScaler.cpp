@@ -31,10 +31,9 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::fitMeshInsideSphereOfRadi
     }
 
 
-    ShapeDescriptor::cpu::Mesh scaledMesh(input.vertexCount, input.indexCount);
+    ShapeDescriptor::cpu::Mesh scaledMesh(input.vertexCount);
 
     std::copy(input.normals, input.normals + scaledMesh.vertexCount, scaledMesh.normals);
-    std::copy(input.indices, input.indices + scaledMesh.indexCount, scaledMesh.indices);
 
     double scaleFactor = (radius / maxDistance);
 

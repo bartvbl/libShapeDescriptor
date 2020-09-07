@@ -202,10 +202,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::string src, 
 		mesh.vertices = meshVertexBuffer;
 		mesh.normals = meshNormalBuffer;
 
-		mesh.indices = meshIndexBuffer;
-
 		mesh.vertexCount = 3 * faceCount;
-		mesh.indexCount = 3 * faceCount;
 
 		//mesh.boundingBoxMin = boundingBoxMin;
 		//mesh.boundingBoxMax = boundingBoxMax;

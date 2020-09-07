@@ -128,9 +128,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::DeviceOrientedPoint> ShapeDesc
 
     tempHostMesh.vertices = vertexData;
     tempHostMesh.normals = normalData;
-    tempHostMesh.indices = indexBuffer;
     tempHostMesh.vertexCount = vertices.size();
-    tempHostMesh.indexCount = vertices.size();
 
     gpu::Mesh tempDeviceMesh = ShapeDescriptor::copy::hostMeshToDevice(tempHostMesh);
 

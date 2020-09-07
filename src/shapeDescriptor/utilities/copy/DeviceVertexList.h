@@ -1,7 +1,7 @@
 #pragma once
 
 #include <shapeDescriptor/cpu/types/float3.h>
-#include <shapeDescriptor/gpu/types/DeviceVertexList.cuh>
+#include <shapeDescriptor/gpu/types/VertexList.cuh>
 #include <shapeDescriptor/cpu/types/array.h>
 
 namespace ShapeDescriptor {

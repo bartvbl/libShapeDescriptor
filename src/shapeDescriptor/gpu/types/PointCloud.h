@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shapeDescriptor/gpu/types/DeviceVertexList.cuh>
+#include <shapeDescriptor/gpu/types/VertexList.cuh>
 
 namespace ShapeDescriptor {
     namespace gpu {

@@ -17,7 +17,7 @@
 #include <shapeDescriptor/utilities/kernels/meshSampler.cuh>
 #include <shapeDescriptor/utilities/dumpers/descriptors.h>
 #include <shapeDescriptor/gpu/types/PointCloud.h>
-#include <shapeDescriptor/gpu/types/DeviceVertexList.cuh>
+#include <shapeDescriptor/gpu/types/VertexList.cuh>
 #include <shapeDescriptor/gpu/types/SampleBounds.h>
 #include <shapeDescriptor/gpu/types/array.h>
 

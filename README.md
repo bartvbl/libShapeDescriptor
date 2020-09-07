@@ -55,7 +55,9 @@ The folder structure should hopefully be quite easy to understand. However, it's
 // Anything in the 'cpu' namespace lives in RAM and can be accessed directly.
 ShapeDescriptor::cpu::array<unsigned int> cpuArray;
 
-// Any struct with the 'gpu' namespace is stored in GPU RAM (VRAM), and must be transferred back and forth explicitly. See the src/utilities/copy directory for functions which can do this for you:
+// Any struct with the 'gpu' namespace is stored in GPU RAM (VRAM), 
+// and must be transferred back and forth explicitly. 
+// See the src/utilities/copy directory for functions which can do this for you:
 ShapeDescriptor::gpu::array<unsigned int> gpuArray;
 ```
 

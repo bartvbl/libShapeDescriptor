@@ -121,18 +121,20 @@ Here's a complete example for computing a single RICI descriptor:
     descriptorOrigins.content[0].vertex = {0.5, 0.5, 0.5};
     descriptorOrigins.content[0].normal = {0, 0, 1};
     
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> gpuDescriptorOrigins = ShapeDescriptor::copy::hostArrayToDevice(descriptorOrigins);
+    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> gpuDescriptorOrigins = 
+        ShapeDescriptor::copy::hostArrayToDevice(descriptorOrigins);
     
     // Compute the descriptor(s)
     float supportRadius = 1.0;
-    ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> descriptors = generateRadialIntersectionCountImages(
+    ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> descriptors = 
+        ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
                 gpuMesh,
                 gpuDescriptorOrigins,
                 supportRadius);
                 
     // Copy descriptors to RAM
     ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors =
-                    ShapeDescriptor::copy::deviceArrayToHost(descriptors);
+                ShapeDescriptor::copy::deviceArrayToHost(descriptors);
                     
     // Do something with descriptors here
     

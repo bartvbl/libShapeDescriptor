@@ -2,7 +2,7 @@
 #include <iostream>
 #include "DeviceVertexList.h"
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> ShapeDescriptor::copy::deviceVertexListToHost(ShapeDescriptor::gpu::DeviceVertexList vertexList) {
+ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> ShapeDescriptor::copy::deviceVertexListToHost(ShapeDescriptor::gpu::VertexList vertexList) {
     ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> outList;
     outList.length = vertexList.length;
     outList.content = new ShapeDescriptor::cpu::float3[vertexList.length];

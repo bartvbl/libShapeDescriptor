@@ -316,7 +316,7 @@ __global__ void scaleMesh(ShapeDescriptor::gpu::Mesh mesh, float scaleFactor) {
     mesh.vertices_z[vertexIndex] *= scaleFactor;
 }
 
-__global__ void scaleSpinOrigins(ShapeDescriptor::gpu::OrientedPoint* origins, size_t imageCount, float scaleFactor) {
+__global__ void scaleSpinOrigins(ShapeDescriptor::OrientedPoint* origins, size_t imageCount, float scaleFactor) {
     size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
 
     if(vertexIndex >= imageCount) {
@@ -347,13 +347,13 @@ __global__ void redistributeMesh(ShapeDescriptor::gpu::Mesh mesh, RICIMesh riciM
     riciMesh.geometryBasePointer[8 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
 }
 
-__global__ void redistributeSpinOrigins(ShapeDescriptor::gpu::OrientedPoint* spinOrigins, size_t imageCount, RICIMesh riciMesh) {
+__global__ void redistributeSpinOrigins(ShapeDescriptor::OrientedPoint* spinOrigins, size_t imageCount, RICIMesh riciMesh) {
     assert(imageCount == gridDim.x);
     size_t imageIndex = blockIdx.x;
 
     size_t spinOriginsBlockSize = roundSizeToNearestCacheLine(imageCount);
 
-    ShapeDescriptor::gpu::OrientedPoint spinOrigin = spinOrigins[imageIndex];
+    ShapeDescriptor::OrientedPoint spinOrigin = spinOrigins[imageIndex];
 
     riciMesh.spinOriginsBasePointer[0 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.x;
     riciMesh.spinOriginsBasePointer[1 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.y;

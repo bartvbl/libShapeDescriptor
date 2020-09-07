@@ -5,8 +5,8 @@
 namespace ShapeDescriptor {
     namespace gpu {
         struct PointCloud {
-            DeviceVertexList vertices;
-            DeviceVertexList normals;
+            VertexList vertices;
+            VertexList normals;
             size_t pointCount;
 
             PointCloud(size_t pointCount) : vertices(pointCount), normals(pointCount), pointCount(pointCount) {}

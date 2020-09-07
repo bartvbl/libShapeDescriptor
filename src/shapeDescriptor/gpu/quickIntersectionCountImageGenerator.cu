@@ -372,7 +372,7 @@ __global__ void scaleQUICCIMesh(ShapeDescriptor::gpu::Mesh mesh, float scaleFact
     mesh.vertices_z[vertexIndex] *= scaleFactor;
 }
 
-__global__ void scaleQUICCISpinOrigins(ShapeDescriptor::gpu::OrientedPoint* origins, size_t imageCount, float scaleFactor) {
+__global__ void scaleQUICCISpinOrigins(ShapeDescriptor::OrientedPoint* origins, size_t imageCount, float scaleFactor) {
     size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
 
     if(vertexIndex >= imageCount) {
@@ -403,13 +403,13 @@ __global__ void redistributeMesh(ShapeDescriptor::gpu::Mesh mesh, QUICCIMesh qui
     quicciMesh.geometryBasePointer[8 * geometryBlockSize + triangleIndex] = mesh.vertices_z[triangleBaseIndex + 2];
 }
 
-__global__ void redistributeSpinOrigins(ShapeDescriptor::gpu::OrientedPoint* spinOrigins, size_t imageCount, QUICCIMesh quicciMesh) {
+__global__ void redistributeSpinOrigins(ShapeDescriptor::OrientedPoint* spinOrigins, size_t imageCount, QUICCIMesh quicciMesh) {
     assert(imageCount == gridDim.x);
     size_t imageIndex = blockIdx.x;
 
     size_t spinOriginsBlockSize = roundSizeToNearestCacheLine(imageCount);
 
-    ShapeDescriptor::gpu::OrientedPoint spinOrigin = spinOrigins[imageIndex];
+    ShapeDescriptor::OrientedPoint spinOrigin = spinOrigins[imageIndex];
 
     quicciMesh.spinOriginsBasePointer[0 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.x;
     quicciMesh.spinOriginsBasePointer[1 * spinOriginsBlockSize + imageIndex] = spinOrigin.vertex.y;

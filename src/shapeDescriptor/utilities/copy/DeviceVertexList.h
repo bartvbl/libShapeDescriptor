@@ -6,6 +6,6 @@
 
 namespace ShapeDescriptor {
     namespace copy {
-        ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> deviceVertexListToHost(ShapeDescriptor::gpu::DeviceVertexList vertexList);
+        ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> deviceVertexListToHost(ShapeDescriptor::gpu::VertexList vertexList);
     }
 }

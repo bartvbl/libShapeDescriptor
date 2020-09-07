@@ -135,7 +135,7 @@ ShapeDescriptor::gpu::array<signed long long> ShapeDescriptor::utilities::comput
     return device_uniqueIndexMapping;
 }
 
-__global__ void mapVertices(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> origins, ShapeDescriptor::gpu::array<signed long long> mapping) {
+__global__ void mapVertices(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> origins, ShapeDescriptor::gpu::array<signed long long> mapping) {
     size_t vertexIndex = blockIdx.x * blockDim.x + threadIdx.x;
     if(vertexIndex >= boxScene.vertexCount) {
         return;
@@ -153,7 +153,7 @@ __global__ void mapVertices(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor
                 boxScene.normals_y[vertexIndex],
                 boxScene.normals_z[vertexIndex]);
 
-        ShapeDescriptor::gpu::OrientedPoint origin;
+        ShapeDescriptor::OrientedPoint origin;
         origin.vertex = vertex;
         origin.normal = normal;
 
@@ -161,12 +161,12 @@ __global__ void mapVertices(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor
     }
 }
 
-ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> ShapeDescriptor::utilities::applyUniqueMapping(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor::gpu::array<signed long long> device_mapping, size_t totalUniqueVertexCount) {
+ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> ShapeDescriptor::utilities::applyUniqueMapping(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor::gpu::array<signed long long> device_mapping, size_t totalUniqueVertexCount) {
     assert(boxScene.vertexCount == device_mapping.length);
 
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> device_origins;
+    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> device_origins;
     device_origins.length = totalUniqueVertexCount;
-    checkCudaErrors(cudaMalloc(&device_origins.content, totalUniqueVertexCount * sizeof(ShapeDescriptor::gpu::OrientedPoint)));
+    checkCudaErrors(cudaMalloc(&device_origins.content, totalUniqueVertexCount * sizeof(ShapeDescriptor::OrientedPoint)));
 
     mapVertices<<<(boxScene.vertexCount / 256) + 1, 256>>>(boxScene, device_origins, device_mapping);
     checkCudaErrors(cudaDeviceSynchronize());
@@ -174,13 +174,13 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> ShapeDescriptor
     return device_origins;
 }
 
-ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> ShapeDescriptor::utilities::computeUniqueVertices(ShapeDescriptor::gpu::Mesh &mesh) {
+ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> ShapeDescriptor::utilities::computeUniqueVertices(ShapeDescriptor::gpu::Mesh &mesh) {
     std::vector<ShapeDescriptor::gpu::Mesh> deviceMeshes;
     deviceMeshes.push_back(mesh);
     std::vector<size_t> vertexCounts;
     size_t totalUniqueVertexCount;
     ShapeDescriptor::gpu::array<signed long long> device_mapping = computeUniqueIndexMapping(mesh, deviceMeshes, &vertexCounts, totalUniqueVertexCount);
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> device_origins = applyUniqueMapping(mesh, device_mapping, totalUniqueVertexCount);
+    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> device_origins = applyUniqueMapping(mesh, device_mapping, totalUniqueVertexCount);
     checkCudaErrors(cudaFree(device_mapping.content));
     return device_origins;
 }

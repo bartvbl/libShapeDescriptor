@@ -7,8 +7,8 @@
 
 namespace ShapeDescriptor {
     namespace utilities {
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> computeUniqueVertices(ShapeDescriptor::gpu::Mesh &mesh);
+        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> computeUniqueVertices(ShapeDescriptor::gpu::Mesh &mesh);
         ShapeDescriptor::gpu::array<signed long long> computeUniqueIndexMapping(ShapeDescriptor::gpu::Mesh boxScene, std::vector<ShapeDescriptor::gpu::Mesh> deviceMeshes, std::vector<size_t> *uniqueVertexCounts, size_t &totalUniqueVertexCount);
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> applyUniqueMapping(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor::gpu::array<signed long long> mapping, size_t totalUniqueVertexCount);
+        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> applyUniqueMapping(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor::gpu::array<signed long long> mapping, size_t totalUniqueVertexCount);
     }
 }

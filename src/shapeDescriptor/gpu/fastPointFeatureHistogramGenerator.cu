@@ -112,8 +112,8 @@ bool pcl_computePairFeatures (
 }
 
 __global__ void computeSPFHHistograms(
-        ShapeDescriptor::gpu::DeviceVertexList descriptorOriginVertices,
-        ShapeDescriptor::gpu::DeviceVertexList descriptorOriginNormals,
+        ShapeDescriptor::gpu::VertexList descriptorOriginVertices,
+        ShapeDescriptor::gpu::VertexList descriptorOriginNormals,
         ShapeDescriptor::gpu::PointCloud pointCloud,
         const float supportRadius,
         float* histograms) {
@@ -181,7 +181,7 @@ __global__ void computeSPFHHistograms(
 }
 
 __global__ void computeFPFHHistograms(
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> descriptorOrigins,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
         ShapeDescriptor::gpu::PointCloud pointCloud,
         const float supportRadius,
         float* histogramOriginHistograms,
@@ -225,14 +225,14 @@ __global__ void computeFPFHHistograms(
 }
 
 __global__ void reformatOrigins(
-        ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> originsArray,
-        ShapeDescriptor::gpu::DeviceVertexList reformattedOriginVerticesList,
-        ShapeDescriptor::gpu::DeviceVertexList reformattedOriginNormalsList) {
+        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> originsArray,
+        ShapeDescriptor::gpu::VertexList reformattedOriginVerticesList,
+        ShapeDescriptor::gpu::VertexList reformattedOriginNormalsList) {
     unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
     if(index >= originsArray.length) {
         return;
     }
-    ShapeDescriptor::gpu::OrientedPoint origin = originsArray.content[index];
+    ShapeDescriptor::OrientedPoint origin = originsArray.content[index];
     reformattedOriginVerticesList.set(index, origin.vertex);
     reformattedOriginNormalsList.set(index, origin.normal);
 }
@@ -252,8 +252,8 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> ShapeDescriptor::gp
     // Reformat origins to a better buffer format (makes SPFH kernel usable for both input buffers)
     std::cout << "\t\t\tReformatting origins.." << std::endl;
     auto reformatTimeStart = std::chrono::steady_clock::now();
-    DeviceVertexList device_reformattedOriginVerticesList(device_descriptorOrigins.length);
-    DeviceVertexList device_reformattedOriginNormalsList(device_descriptorOrigins.length);
+    VertexList device_reformattedOriginVerticesList(device_descriptorOrigins.length);
+    VertexList device_reformattedOriginNormalsList(device_descriptorOrigins.length);
     reformatOrigins<<<(device_descriptorOrigins.length / 32) + 1, 32>>>(
             device_descriptorOrigins,
             device_reformattedOriginVerticesList,

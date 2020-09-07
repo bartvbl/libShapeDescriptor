@@ -52,7 +52,7 @@ int main(int argc, const char** argv) {
     ShapeDescriptor::cpu::freeMesh(hostMesh);
 
     std::cout << "Computing QUICCI images.." << std::endl;
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> uniqueVertices =
+    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> uniqueVertices =
             ShapeDescriptor::utilities::computeUniqueVertices(deviceMesh);
 
     ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> images = ShapeDescriptor::gpu::generateQUICCImages(deviceMesh, uniqueVertices, spinImageWidth.value());

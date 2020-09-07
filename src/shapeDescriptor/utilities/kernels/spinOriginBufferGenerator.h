@@ -9,7 +9,7 @@
 
 namespace ShapeDescriptor {
     namespace utilities {
-        ShapeDescriptor::gpu::array<gpu::OrientedPoint> generateUniqueSpinOriginBuffer(gpu::Mesh &mesh);
-        ShapeDescriptor::gpu::array<gpu::OrientedPoint> generateUniqueSpinOriginBuffer(std::vector<cpu::float3> &vertices, std::vector<cpu::float3> &normals);
+        ShapeDescriptor::gpu::array<OrientedPoint> generateUniqueSpinOriginBuffer(gpu::Mesh &mesh);
+        ShapeDescriptor::gpu::array<OrientedPoint> generateUniqueSpinOriginBuffer(std::vector<cpu::float3> &vertices, std::vector<cpu::float3> &normals);
     }
 }

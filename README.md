@@ -10,6 +10,8 @@ This library contains efficient GPU implementations for computing and comparing 
 
 Along with a set of useful utility functions surrounding these.
 
+The library also contains some search related implementations, but they were more aimed at satisfying the needs for our Clutterbox experiment implementation.
+
 ## Credits
 
 - Development and implementation: Bart Iver van Blokland, [NTNU Visual Computing Lab](https://www.idi.ntnu.no/grupper/vis/)
@@ -27,7 +29,7 @@ If you use (parts of) this library in your research, we kindly ask you reference
       publisher={Elsevier}
     }
     
-    @article{van2020radial,
+    @article{van2020indexing,
       title={An Indexing Scheme and Descriptor for 3D Object Retrieval Based on Local Shape Querying},
       author={van Blokland, Bart Iver and Theoharis, Theoharis},
       journal={Computers \& Graphics},

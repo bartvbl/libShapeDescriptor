@@ -1,6 +1,6 @@
 #include <cuda_runtime_api.h>
 #include <iostream>
-#include "DeviceVertexList.h"
+#include "VertexList.h"
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> ShapeDescriptor::copy::deviceVertexListToHost(ShapeDescriptor::gpu::VertexList vertexList) {
     ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> outList;

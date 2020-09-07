@@ -52,11 +52,11 @@ This repository contains all necessary libraries to compile the project, except 
 The folder structure should hopefully be quite easy to understand. However, it's worth pointing out that any struct will tell you whether it resides in CPU or GPU memory:
 
 ```c++
-    // Anything in the 'cpu' namespace lives in RAM and can be accessed directly.
-    ShapeDescriptor::cpu::array<unsigned int> cpuArray;
-    
-    // Any struct with the 'gpu' namespace is stored in GPU RAM (VRAM), and must be transferred back and forth explicitly. See the src/utilities/copy directory for functions which can do this for you:
-    ShapeDescriptor::gpu::array<unsigned int> gpuArray;
+// Anything in the 'cpu' namespace lives in RAM and can be accessed directly.
+ShapeDescriptor::cpu::array<unsigned int> cpuArray;
+
+// Any struct with the 'gpu' namespace is stored in GPU RAM (VRAM), and must be transferred back and forth explicitly. See the src/utilities/copy directory for functions which can do this for you:
+ShapeDescriptor::gpu::array<unsigned int> gpuArray;
 ```
 
 A number of constants can only be changed at compile time. All such constants can be found in the file 'src/shapeDescriptor/libraryBuildSettings.h'.
@@ -70,11 +70,11 @@ Here are some code samples to help you get up and running quickly.
 An OBJ loader is included which returns a mesh in the format other functions in the library can understand.
 
 ```c++
-    // Load mesh
-    ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ("path/to/obj/file.obj", false);
-    
-    // Free mesh memory
-    ShapeDescriptor::cpu::freeMesh(mesh);
+// Load mesh
+ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ("path/to/obj/file.obj", false);
+
+// Free mesh memory
+ShapeDescriptor::cpu::freeMesh(mesh);
 ```
 
 #### Copy meshes to and from the GPU
@@ -82,21 +82,21 @@ An OBJ loader is included which returns a mesh in the format other functions in 
 The src/utilities/copy directory contains a number of functions which can copy all relevant data structures to and from the GPU.
 
 ```c++
-    // Load mesh
-    ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ("path/to/obj/file.obj", false);
-    
-    // Copy the mesh to the GPU
-    ShapeDescriptor::gpu::Mesh gpuMesh = hostMeshToDevice(mesh);
-    
-    // And back into CPU memory
-    ShapeDescriptor::cpu::Mesh returnedMesh = deviceMeshToHost(gpuMesh);
+// Load mesh
+ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ("path/to/obj/file.obj", false);
+
+// Copy the mesh to the GPU
+ShapeDescriptor::gpu::Mesh gpuMesh = hostMeshToDevice(mesh);
+
+// And back into CPU memory
+ShapeDescriptor::cpu::Mesh returnedMesh = deviceMeshToHost(gpuMesh);
 ``` 
 
 Note that each copy operation allocates the required memory automatically. You will therefore need to manually free copies separately. For GPU meshes, you can use:
 
 ```c++
-    // Free mesh on the GPU
-    ShapeDescriptor::gpu::freeMesh(gpuMesh);
+// Free mesh on the GPU
+ShapeDescriptor::gpu::freeMesh(gpuMesh);
 ```
 
 #### Uniformly sample a triangle mesh into a point cloud
@@ -104,10 +104,10 @@ Note that each copy operation allocates the required memory automatically. You w
 Many descriptors work on point clouds instead of triangle meshes, so we've implemented a function which uniformly samples them. Note that since the sampling is performed on the GPU, you first need to copy your mesh into GPU memory.
 
 ```c++
-    size_t sampleCount = 1000000;
-    size_t randomSeed = 1189998819991197253;
-    ShapeDescriptor::gpu::Mesh gpuMesh = /* see above */;
-    ShapeDescriptor::gpu::PointCloud sampledPointCloud =  sampleMesh(gpuMesh, sampleCount, randomSeed);
+size_t sampleCount = 1000000;
+size_t randomSeed = 1189998819991197253;
+ShapeDescriptor::gpu::Mesh gpuMesh = /* see above */;
+ShapeDescriptor::gpu::PointCloud sampledPointCloud =  sampleMesh(gpuMesh, sampleCount, randomSeed);
 ```
 
 #### Compute descriptors
@@ -119,41 +119,41 @@ Each function returns a ShapeDescriptor::gpu::array containing the desired descr
 Here's a complete example for computing a single RICI descriptor:
 
 ```c++
-    // Load mesh
-    ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ("path/to/obj/file.obj", false);
-        
-    // Store it on the GPU
-    ShapeDescriptor::gpu::Mesh gpuMesh = hostMeshToDevice(mesh);
+// Load mesh
+ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ("path/to/obj/file.obj", false);
     
-    // Define and upload descriptor origins
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> descriptorOrigins;
-    descriptorOrigins.length = 1;
-    descriptorOrigins.content = new OrientedPoint[1];
-    descriptorOrigins.content[0].vertex = {0.5, 0.5, 0.5};
-    descriptorOrigins.content[0].normal = {0, 0, 1};
-    
-    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> gpuDescriptorOrigins = 
-        ShapeDescriptor::copy::hostArrayToDevice(descriptorOrigins);
-    
-    // Compute the descriptor(s)
-    float supportRadius = 1.0;
-    ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> descriptors = 
-        ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
-                gpuMesh,
-                gpuDescriptorOrigins,
-                supportRadius);
+// Store it on the GPU
+ShapeDescriptor::gpu::Mesh gpuMesh = hostMeshToDevice(mesh);
+
+// Define and upload descriptor origins
+ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> descriptorOrigins;
+descriptorOrigins.length = 1;
+descriptorOrigins.content = new OrientedPoint[1];
+descriptorOrigins.content[0].vertex = {0.5, 0.5, 0.5};
+descriptorOrigins.content[0].normal = {0, 0, 1};
+
+ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> gpuDescriptorOrigins = 
+    ShapeDescriptor::copy::hostArrayToDevice(descriptorOrigins);
+
+// Compute the descriptor(s)
+float supportRadius = 1.0;
+ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> descriptors = 
+    ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
+            gpuMesh,
+            gpuDescriptorOrigins,
+            supportRadius);
+            
+// Copy descriptors to RAM
+ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors =
+            ShapeDescriptor::copy::deviceArrayToHost(descriptors);
                 
-    // Copy descriptors to RAM
-    ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors =
-                ShapeDescriptor::copy::deviceArrayToHost(descriptors);
-                    
-    // Do something with descriptors here
-    
-    // Free memory
-    delete[] descriptorOrigins.content;
-    delete[] hostDesciptors.content;
-    cudaFree(gpuDescriptorOrigins.content);
-    cudaFree(descriptors.content);
-    ShapeDescriptor::cpu::freeMesh(mesh);
-    ShapeDescriptor::gpu::freeMesh(gpuMesh);
+// Do something with descriptors here
+
+// Free memory
+delete[] descriptorOrigins.content;
+delete[] hostDesciptors.content;
+cudaFree(gpuDescriptorOrigins.content);
+cudaFree(descriptors.content);
+ShapeDescriptor::cpu::freeMesh(mesh);
+ShapeDescriptor::gpu::freeMesh(gpuMesh);
 ```

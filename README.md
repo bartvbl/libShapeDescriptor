@@ -127,7 +127,7 @@ Here's a complete example for computing a single RICI descriptor:
 ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ("path/to/obj/file.obj", false);
     
 // Store it on the GPU
-ShapeDescriptor::gpu::Mesh gpuMesh = hostMeshToDevice(mesh);
+ShapeDescriptor::gpu::Mesh gpuMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
 
 // Define and upload descriptor origins
 ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> descriptorOrigins;

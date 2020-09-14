@@ -15,17 +15,8 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOFF(std::string src) 
 
     rewind(offFile);
     fread(fileContents, sizeof(char), size, offFile);
-
-    // Parse file contents
-
-    const unsigned int MAX_NUMBER_LENGTH = 64;
-    char numberBuffer[MAX_NUMBER_LENGTH];
-    unsigned int numberBufferLength = 0;
-
+    
     // Read header
-
-
-
     if(filePointer[0] != 'O' || filePointer[1] != 'F' || filePointer[2] != 'F') {
         throw std::runtime_error("Incorrect file header detected when loading:\n" + src +
         "\nAre you sure the file exists and it's an OFF file?");

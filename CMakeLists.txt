@@ -27,6 +27,7 @@ include_directories (
         lib/json/
         lib/fast-lzma2/src/
         lib/
+        lib/fast-obj
         ${CUDA_INCLUDE_DIRS}
 )
 
@@ -39,7 +40,8 @@ file (GLOB_RECURSE LIBRARY_SOURCES             src/*.cpp
                                                src/*.cxx
                                                src/*.cc
                                                src/*.c
-                                               lib/lodepng/lodepng.cpp)
+                                               lib/lodepng/lodepng.cpp
+                                               lib/fast-obj/fast_obj.cpp)
 file (GLOB_RECURSE TEST_SOURCES                tests/*.cpp)
 file (GLOB_RECURSE RENDER_TOOL_SOURCES         tools/imagerenderer/*.cpp)
 file (GLOB_RECURSE QUICCI_DUMPER_TOOL_SOURCES  tools/quiccidumper/*.cpp)

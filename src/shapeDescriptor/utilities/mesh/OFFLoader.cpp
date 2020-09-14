@@ -3,7 +3,7 @@
 #include "OFFLoader.h"
 #include "MeshLoadUtils.h"
 
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOFF(std::string src, bool recomputeNormals) {
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOFF(std::string src) {
     // Read file contents into a buffer
     FILE* offFile = fopen(src.c_str(), "r");
 
@@ -95,4 +95,11 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOFF(std::string src, 
 
     delete[] raw_vertices;
     delete[] fileContents;
+
+    ShapeDescriptor::cpu::Mesh mesh;
+    mesh.vertexCount = 3 * faceCount;
+    mesh.vertices = vertices;
+    mesh.normals = normals;
+
+    return mesh;
 }

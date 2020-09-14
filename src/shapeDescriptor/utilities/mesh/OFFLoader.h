@@ -3,6 +3,6 @@
 
 namespace ShapeDescriptor {
     namespace utilities {
-        cpu::Mesh loadOFF(std::string src, bool recomputeNormals = false);
+        cpu::Mesh loadOFF(std::string src);
     }
 }

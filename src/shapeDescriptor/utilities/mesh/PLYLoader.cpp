@@ -1,7 +1,3 @@
-//
-// Created by bart on 14.09.2020.
-//
-
 #include "PLYLoader.h"
 #include <fast-obj/fast_obj.h>
 #include <iostream>

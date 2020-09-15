@@ -31,7 +31,8 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src) 
     filePointer += 4;
 
     bool isBinary = false;
-    bool isLittleEndian = true;
+    bool isLittleEndian = false;
+    bool containsNormals = false;
     int vertexCount = 0;
     int faceCount = 0;
 
@@ -71,12 +72,17 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src) 
                 if(formatSpecifier == 'f') {
                     // property float
                     typeSpecifier = *(filePointer + 15);
-                    if(typeSpecifier != 'x' && typeSpecifier != 'y' && typeSpecifier != 'z') {
+                    if(typeSpecifier == 'n') {
+                        typeSpecifier = *(filePointer + 16);
+                        if(typeSpecifier == 'x' || typeSpecifier == 'y' || typeSpecifier == 'z') {
+                            containsNormals = true;
+                        }
+                    } else if(typeSpecifier != 'x' && typeSpecifier != 'y' && typeSpecifier != 'z') {
                         throw std::runtime_error("Unknown type specifier ('" + std::to_string(typeSpecifier) + "') encountered when loading PLY file: " + src + ".\nPlease try to re-export it using a different program.");
                     }
                 } else if(formatSpecifier == 'l') {
-                    // must be property list uchar int vertex_index
-                    if(*(filePointer + 9) != 'l' || *(filePointer + 14) != 'u' || *(filePointer + 20) != 'i' || *(filePointer + 24) != 'v') {
+                    // must be property list uchar (int or uint) vertex_index
+                    if(*(filePointer + 9) != 'l' || *(filePointer + 14) != 'u' || (*(filePointer + 20) != 'i' && *(filePointer + 20) != 'u')) {
                         throw std::runtime_error("Invalid index list types encountered when loading PLY file: " + src + ".\nPlease try to re-export it using a different program.");
                     }
                 } else {
@@ -104,12 +110,8 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src) 
         filePointer = skip_line(filePointer);
     }
 
-    std::cout << "Vertex count: " << vertexCount << std::endl;
-    std::cout << "Face count: " << faceCount << std::endl;
-    std::cout << "Is binary: " << isBinary << std::endl;
-    std::cout << "Is little endian: " << isLittleEndian << std::endl;
-
     ShapeDescriptor::cpu::float3* raw_vertices = new ShapeDescriptor::cpu::float3[vertexCount];
+    ShapeDescriptor::cpu::float3* raw_normals = new ShapeDescriptor::cpu::float3[vertexCount];
     ShapeDescriptor::cpu::float3* vertices = new ShapeDescriptor::cpu::float3[3 * faceCount];
     ShapeDescriptor::cpu::float3* normals = new ShapeDescriptor::cpu::float3[3 * faceCount];
 
@@ -119,6 +121,14 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src) 
         std::copy(vertexArrayStart, vertexArrayStart + vertexCount, raw_vertices);
         size_t vertexArraySize = vertexCount * sizeof(ShapeDescriptor::cpu::float3);
         filePointer += vertexArraySize;
+
+        if(containsNormals) {
+            throw std::runtime_error("PLY file loaded from " + src + " contains normals, which are not supported by this loader.");
+        }
+
+        if(!isLittleEndian) {
+            throw std::runtime_error("Failed to load PLY file from " + src + ".\nReason: this loader only supports little endian files");
+        }
 
         // The second step is to interpret the indices
         for(int i = 0; i < faceCount; i++) {
@@ -145,10 +155,76 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src) 
             normals[3 * i + 2] = normal;
         }
     } else {
-        
+        for(int vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
+            ShapeDescriptor::cpu::float3 vertex;
+            filePointer = parse_float(filePointer, &vertex.x);
+            filePointer = skip_whitespace(filePointer);
+            filePointer = parse_float(filePointer, &vertex.y);
+            filePointer = skip_whitespace(filePointer);
+            filePointer = parse_float(filePointer, &vertex.y);
+            filePointer = skip_whitespace(filePointer);
+
+            raw_vertices[vertexIndex] = vertex;
+
+            ShapeDescriptor::cpu::float3 normal;
+
+            if(containsNormals) {
+                filePointer = parse_float(filePointer, &normal.x);
+                filePointer = skip_whitespace(filePointer);
+                filePointer = parse_float(filePointer, &normal.y);
+                filePointer = skip_whitespace(filePointer);
+                filePointer = parse_float(filePointer, &normal.y);
+                filePointer = skip_whitespace(filePointer);
+
+                raw_normals[vertexIndex] = normal;
+            }
+
+            if(!containsNormals && vertexIndex % 3 == 2) {
+                normal = computeTriangleNormal(
+                        raw_vertices[3 * vertexIndex - 2],
+                        raw_vertices[3 * vertexIndex - 1],
+                        raw_vertices[3 * vertexIndex - 0]);
+
+                raw_normals[3 * vertexIndex - 2] = normal;
+                raw_normals[3 * vertexIndex - 1] = normal;
+                raw_normals[3 * vertexIndex - 0] = normal;
+            }
+
+            filePointer = skip_line(filePointer);
+        }
+
+        for(int faceIndex = 0; faceIndex < faceCount; faceIndex++) {
+            int indexCount;
+            filePointer = parse_int(filePointer, &indexCount);
+            if(indexCount != 3) {
+                throw std::runtime_error("An error occurred while loading the file: " + src + ".\nThe PLY file contains non-triangulated faces. Please re-export the file, making sure you enable face triangulation.");
+            }
+            filePointer++;
+
+            int indexVertex0;
+            int indexVertex1;
+            int indexVertex2;
+
+            filePointer = parse_int(filePointer, &indexVertex0);
+            filePointer = skip_whitespace(filePointer);
+            filePointer = parse_int(filePointer, &indexVertex1);
+            filePointer = skip_whitespace(filePointer);
+            filePointer = parse_int(filePointer, &indexVertex2);
+
+            vertices[3 * faceIndex + 0] = raw_vertices[indexVertex0];
+            vertices[3 * faceIndex + 1] = raw_vertices[indexVertex1];
+            vertices[3 * faceIndex + 2] = raw_vertices[indexVertex2];
+
+            normals[3 * faceIndex + 0] = raw_normals[indexVertex0];
+            normals[3 * faceIndex + 1] = raw_normals[indexVertex1];
+            normals[3 * faceIndex + 2] = raw_normals[indexVertex2];
+
+            filePointer = skip_line(filePointer);
+        }
     }
 
     delete[] raw_vertices;
+    delete[] raw_normals;
     delete[] fileContents;
 
     ShapeDescriptor::cpu::Mesh mesh;

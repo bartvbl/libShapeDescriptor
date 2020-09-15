@@ -71,11 +71,11 @@ Here are some code samples to help you get up and running quickly.
 
 #### Load OBJ files
 
-An OBJ loader is included which returns a mesh in the format other functions in the library can understand.
+Loaders for OBJ, OFF, and PLY are included which return a mesh in the format other functions in the library can understand.
 
 ```c++
 // Load mesh
-ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ("path/to/obj/file.obj", false);
+ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh("path/to/obj/file.obj", false);
 
 // Free mesh memory
 ShapeDescriptor::cpu::freeMesh(mesh);
@@ -87,7 +87,7 @@ The src/utilities/copy directory contains a number of functions which can copy a
 
 ```c++
 // Load mesh
-ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ("path/to/obj/file.obj", false);
+ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh("path/to/obj/file.obj", false);
 
 // Copy the mesh to the GPU
 ShapeDescriptor::gpu::Mesh gpuMesh = hostMeshToDevice(mesh);
@@ -124,7 +124,7 @@ Here's a complete example for computing a single RICI descriptor:
 
 ```c++
 // Load mesh
-ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ("path/to/obj/file.obj", false);
+ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh("path/to/obj/file.obj", false);
     
 // Store it on the GPU
 ShapeDescriptor::gpu::Mesh gpuMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);

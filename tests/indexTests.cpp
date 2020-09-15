@@ -1,6 +1,6 @@
 #include <catch2/catch.hpp>
 #include <shapeDescriptor/libraryBuildSettings.h>
-#include <experimental/filesystem>>
+#include <experimental/filesystem>
 #include <shapeDescriptor/utilities/fileutils.h>
 
 /*TEST_CASE("Reading and writing of compressed files", "[index]" ) {

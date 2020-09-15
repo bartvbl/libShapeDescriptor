@@ -134,9 +134,9 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src, 
             }
             filePointer++;
 
-            int indexVertex0 = *filePointer;
-            int indexVertex1 = *(filePointer + sizeof(int));
-            int indexVertex2 = *(filePointer + 2 * sizeof(int));
+            int indexVertex0 = *reinterpret_cast<const int*>(filePointer);
+            int indexVertex1 = *reinterpret_cast<const int*>(filePointer + sizeof(int));
+            int indexVertex2 = *reinterpret_cast<const int*>(filePointer + 2 * sizeof(int));
 
             filePointer += 3 * sizeof(int);
 

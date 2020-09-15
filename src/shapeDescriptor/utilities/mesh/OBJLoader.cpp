@@ -7,6 +7,7 @@
 
 #include <glm/vec3.hpp>
 #include <glm/geometric.hpp>
+#include <fast-obj/fast_obj.h>
 
 void split(std::vector<std::string>* parts, const std::string &s, char delim) {
 	
@@ -48,169 +49,79 @@ inline ShapeDescriptor::cpu::float3 elementWiseMax(ShapeDescriptor::cpu::float3 
 
 ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::string src, bool recomputeNormals)
 {
-	std::vector<std::string> lineParts;
-	lineParts.reserve(32);
-	std::vector<std::string> faceParts;
-	faceParts.reserve(32);
-	
-	std::vector<cpu::float3> vertices;
-	std::vector<cpu::float3> normals;
-	std::vector<cpu::float2> textureCoordinates;
+    fastObjMesh* temporaryMesh = fast_obj_read(src.c_str());
 
-	std::vector<cpu::float3> vertexBuffer;
-	std::vector<cpu::float2> textureBuffer;
-	std::vector<cpu::float3> normalBuffer;
+    unsigned int faceCount = 0;
 
-	cpu::float3 boundingBoxMin;
-	cpu::float3 boundingBoxMax;
+    for(unsigned int groupIndex = 0; groupIndex < temporaryMesh->group_count; groupIndex++) {
+        faceCount += temporaryMesh->groups[groupIndex].face_count;
+    }
 
-	std::vector<unsigned int> indices;
+    bool hasNormals = temporaryMesh->normal_count != 1;
 
-	std::ifstream objFile(src);
-	std::string line;
 
-	unsigned int currentIndex = 0;
+    ShapeDescriptor::cpu::float3* meshVertexBuffer = new ShapeDescriptor::cpu::float3[3 * faceCount];
+    ShapeDescriptor::cpu::float3* meshNormalBuffer = hasNormals ? new ShapeDescriptor::cpu::float3[3 * faceCount] : nullptr;
+    unsigned int* meshIndexBuffer = new unsigned int[3 * faceCount];
 
-	if (objFile.is_open()) {
-		while (std::getline(objFile, line)) {
-			lineParts.clear();
-			split(&lineParts, line, ' ');
-			deleteEmptyStrings(lineParts);
+    unsigned int nextVertexIndex = 0;
 
-			if (lineParts.size() == 0) {
-				continue;
-			}
+    for(unsigned int groupIndex = 0; groupIndex < temporaryMesh->group_count; groupIndex++) {
+        fastObjGroup group = temporaryMesh->groups[groupIndex];
 
-			if (lineParts.at(0) == "v") {
-				cpu::float3 vertex;
-				vertex.x = std::stof(lineParts.at(1));
-				vertex.y = std::stof(lineParts.at(2));
-				vertex.z = std::stof(lineParts.at(3));
-				vertexBuffer.push_back(vertex);
-			}
+        for (unsigned int faceIndex = 0; faceIndex < group.face_count; faceIndex++) {
+            // Ensure faces are triangles. Can probably fix this at a later date, but for now it gives an error.
+            unsigned int verticesPerFace = temporaryMesh->face_vertices[faceIndex + group.face_offset];
+            if (verticesPerFace != 3) {
+                throw std::runtime_error(
+                        "This OBJ loader only supports 3 vertices per face. The model file " + src +
+                        " contains a face with " + std::to_string(verticesPerFace) + " vertices.\n"
+                        "You can usually solve this problem by re-exporting the object from a 3D model editor, "
+                        "and selecting the OBJ export option that forces triangle faces.");
+            }
 
-			if (lineParts.at(0) == "vn") {
-				cpu::float3 normal;
-				normal.x = std::stof(lineParts.at(1));
-				normal.y = std::stof(lineParts.at(2));
-				normal.z = std::stof(lineParts.at(3));
-				normalBuffer.push_back(normal);
-			}
+            for (unsigned int i = 0; i < 3; i++) {
+                fastObjIndex index = temporaryMesh->indices[3 * faceIndex + i + group.index_offset];
 
-			if (lineParts.at(0) == "vt") {
-				cpu::float2 textureCoordinate;
-				textureCoordinate.x = std::stof(lineParts.at(1));
-				textureCoordinate.y = std::stof(lineParts.at(2));
-				textureBuffer.push_back(textureCoordinate);
-			}
+                meshVertexBuffer[nextVertexIndex] = {
+                        temporaryMesh->positions[3 * index.p + 0],
+                        temporaryMesh->positions[3 * index.p + 1],
+                        temporaryMesh->positions[3 * index.p + 2]};
 
-			if (lineParts.at(0) == "f") {
-				bool normalsFound = false;
-				for (int i = 1; i <= 3; i++) {
-					faceParts.clear();
-					std::string linePart = lineParts.at(i);
-					split(&faceParts, linePart, '/');
+                if (hasNormals && !recomputeNormals) {
+                    meshNormalBuffer[nextVertexIndex] = {
+                            temporaryMesh->normals[3 * index.n + 0],
+                            temporaryMesh->normals[3 * index.n + 1],
+                            temporaryMesh->normals[3 * index.n + 2]};
+                }
 
-					int vertexIndex = std::stoi(faceParts.at(0)) - 1;
-					cpu::float3 vertex = vertexBuffer.at(unsigned(vertexIndex));
-					vertices.push_back(vertex);
+                meshIndexBuffer[nextVertexIndex] = nextVertexIndex;
 
-					if(currentIndex == 0) {
-						boundingBoxMin = vertex;
-						boundingBoxMax = vertex;
-					} else {
-						boundingBoxMin = elementWiseMin(boundingBoxMin, vertex);
-						boundingBoxMax = elementWiseMax(boundingBoxMax, vertex);
-					}
+                nextVertexIndex++;
+            }
 
-					int normalIndex = -1;
+            if(recomputeNormals) {
+                ShapeDescriptor::cpu::float3 normal = computeTriangleNormal(
+                        meshVertexBuffer[nextVertexIndex - 2],
+                        meshVertexBuffer[nextVertexIndex - 1],
+                        meshVertexBuffer[nextVertexIndex - 0]);
 
-					if(faceParts.size() == 2)
-					{
-						normalIndex = std::stoi(faceParts.at(1)) - 1;
-					}
-					else if (faceParts.size() == 3 && faceParts.at(1) == "") {
-						normalIndex = std::stoi(faceParts.at(2)) - 1;
-					}
-					else if (faceParts.size() == 3)
-					{
-						int textureCoordIndex = std::stoi(faceParts.at(1)) - 1;
-					    if(textureBuffer.size() > textureCoordIndex) {
-                            textureCoordinates.push_back(textureBuffer.at(textureCoordIndex));
-                        // This situation can occur when the file format is either invalid
-                        // (does not include texture coordinates at all)
-                        // or has not specified the texture coordinates yet (something this loader does not deal with)
-					    } else {
-					        textureCoordinates.push_back(make_float2_cpu(0, 0));
-					    }
-						normalIndex = std::stoi(faceParts.at(2)) - 1;
-					}
-
-					// (partially) invalid files may contain normals later, or in some cases not at all.
-					// This check accounts for that. If it fails, normals are computed after processing
-					// the contents of the current line in the file
-					if(normalIndex != -1 && normalBuffer.size() > normalIndex) {
-						normals.push_back(normalBuffer.at(normalIndex));
-						normalsFound = true;
-					}
-
-					indices.push_back(currentIndex);
-					currentIndex++;
-				}
-
-				// If the file incorrectly or was missing normals, we compute them here.
-				// Alternatively, we override those present in the file if this was mandated by the use.
-				if(!normalsFound) {
-                    cpu::float3 normal = hostComputeTriangleNormal(vertices, vertices.size() - 3);
-
-                    normals.push_back(normal);
-                    normals.push_back(normal);
-                    normals.push_back(normal);
-				}
-			}
-		}
-
-        if(recomputeNormals) {
-            for(int index = 0; index < indices.size(); index+=3) {
-                cpu::float3 recomputedNormal = hostComputeTriangleNormal(vertices, index);
-                normals.at(index + 0) = recomputedNormal;
-                normals.at(index + 1) = recomputedNormal;
-                normals.at(index + 2) = recomputedNormal;
+                meshNormalBuffer[nextVertexIndex - 2] = normal;
+                meshNormalBuffer[nextVertexIndex - 1] = normal;
+                meshNormalBuffer[nextVertexIndex - 0] = normal;
             }
         }
+    }
 
-        unsigned int faceCount = unsigned(indices.size()) / 3;
+    ShapeDescriptor::cpu::Mesh mesh;
 
-		cpu::float3* meshVertexBuffer = new cpu::float3[vertices.size()];
-		std::copy(vertices.begin(), vertices.end(), meshVertexBuffer);
+    mesh.vertices = meshVertexBuffer;
+    mesh.normals = meshNormalBuffer;
 
-		cpu::float3* meshNormalBuffer = new cpu::float3[normals.size()];
-		std::copy(normals.begin(), normals.end(), meshNormalBuffer);
+    mesh.vertexCount = 3 * faceCount;
 
-		cpu::float2* meshTextureCoordBuffer = new cpu::float2[textureCoordinates.size()];
-		std::copy(textureCoordinates.begin(), textureCoordinates.end(), meshTextureCoordBuffer);
+    fast_obj_destroy(temporaryMesh);
 
-		unsigned int* meshIndexBuffer = new unsigned int[3 * faceCount];
-		std::copy(indices.begin(), indices.end(), meshIndexBuffer);
-
-		objFile.close();
-
-		cpu::Mesh mesh;
-
-		mesh.vertices = meshVertexBuffer;
-		mesh.normals = meshNormalBuffer;
-
-		mesh.vertexCount = 3 * faceCount;
-
-		//mesh.boundingBoxMin = boundingBoxMin;
-		//mesh.boundingBoxMax = boundingBoxMax;
-
-		return mesh;
-	}
-	else {
-		std::cout << "OBJ file at " << src << " failed to load!" << std::endl;
-	}
-
-	return cpu::Mesh();
+    return mesh;
 }
 

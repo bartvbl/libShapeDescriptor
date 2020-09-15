@@ -69,7 +69,7 @@ A number of constants can only be changed at compile time. All such constants ca
 
 Here are some code samples to help you get up and running quickly.
 
-#### Load OBJ files
+#### Load Mesh files
 
 Loaders for OBJ, OFF, and PLY are included which return a mesh in the format other functions in the library can understand.
 

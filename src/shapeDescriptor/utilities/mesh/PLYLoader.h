@@ -7,7 +7,7 @@
 
 namespace ShapeDescriptor {
     namespace utilities {
-        cpu::Mesh loadPLY(std::string src);
+        cpu::Mesh loadPLY(std::string src, bool recomputeNormals = false);
     }
 }
 

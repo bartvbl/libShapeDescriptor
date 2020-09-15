@@ -7,7 +7,7 @@
 #include <iostream>
 #include "MeshLoadUtils.h"
 
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src) {
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src, bool recomputeNormals) {
     // Read file contents into a buffer
     FILE* plyFile = fopen(src.c_str(), "r");
 
@@ -168,7 +168,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src) 
 
             ShapeDescriptor::cpu::float3 normal;
 
-            if(containsNormals) {
+            if(containsNormals && !recomputeNormals) {
                 filePointer = parse_float(filePointer, &normal.x);
                 filePointer = skip_whitespace(filePointer);
                 filePointer = parse_float(filePointer, &normal.y);
@@ -179,7 +179,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src) 
                 raw_normals[vertexIndex] = normal;
             }
 
-            if(!containsNormals && vertexIndex % 3 == 2) {
+            if((!containsNormals || recomputeNormals) && vertexIndex % 3 == 2) {
                 normal = computeTriangleNormal(
                         raw_vertices[3 * vertexIndex - 2],
                         raw_vertices[3 * vertexIndex - 1],

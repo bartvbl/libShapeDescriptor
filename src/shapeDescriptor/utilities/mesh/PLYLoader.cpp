@@ -157,7 +157,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src, 
             filePointer = skip_whitespace(filePointer);
             filePointer = parse_float(filePointer, &vertex.y);
             filePointer = skip_whitespace(filePointer);
-            filePointer = parse_float(filePointer, &vertex.y);
+            filePointer = parse_float(filePointer, &vertex.z);
             filePointer = skip_whitespace(filePointer);
 
             raw_vertices[vertexIndex] = vertex;
@@ -169,7 +169,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src, 
                 filePointer = skip_whitespace(filePointer);
                 filePointer = parse_float(filePointer, &normal.y);
                 filePointer = skip_whitespace(filePointer);
-                filePointer = parse_float(filePointer, &normal.y);
+                filePointer = parse_float(filePointer, &normal.z);
                 filePointer = skip_whitespace(filePointer);
 
                 raw_normals[vertexIndex] = normal;

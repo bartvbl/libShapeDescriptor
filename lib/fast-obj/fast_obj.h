@@ -148,6 +148,7 @@ void                            fast_obj_destroy(fastObjMesh* mesh);
 const char* parse_float(const char* ptr, float* val);
 const char* parse_int(const char* ptr, int* val);
 const char* skip_whitespace(const char* ptr);
+const char* skip_line(const char* ptr);
 
 #ifdef __cplusplus
 }
@@ -451,7 +452,6 @@ const char* skip_whitespace(const char* ptr)
 }
 
 
-static
 const char* skip_line(const char* ptr)
 {
     while (!is_newline(*ptr++))

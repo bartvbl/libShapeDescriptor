@@ -90,10 +90,10 @@ The src/utilities/copy directory contains a number of functions which can copy a
 ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh("path/to/obj/file.obj", false);
 
 // Copy the mesh to the GPU
-ShapeDescriptor::gpu::Mesh gpuMesh = hostMeshToDevice(mesh);
+ShapeDescriptor::gpu::Mesh gpuMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
 
 // And back into CPU memory
-ShapeDescriptor::cpu::Mesh returnedMesh = deviceMeshToHost(gpuMesh);
+ShapeDescriptor::cpu::Mesh returnedMesh = ShapeDescriptor::copy::deviceMeshToHost(gpuMesh);
 ``` 
 
 Note that each copy operation allocates the required memory automatically. You will therefore need to manually free copies separately. For GPU meshes, you can use:
@@ -111,7 +111,7 @@ Many descriptors work on point clouds instead of triangle meshes, so we've imple
 size_t sampleCount = 1000000;
 size_t randomSeed = 1189998819991197253;
 ShapeDescriptor::gpu::Mesh gpuMesh = /* see above */;
-ShapeDescriptor::gpu::PointCloud sampledPointCloud =  sampleMesh(gpuMesh, sampleCount, randomSeed);
+ShapeDescriptor::gpu::PointCloud sampledPointCloud = ShapeDescriptor::utilities::sampleMesh(gpuMesh, sampleCount, randomSeed);
 ```
 
 #### Compute descriptors

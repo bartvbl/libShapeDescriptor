@@ -139,3 +139,36 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> ShapeDescriptor::uti
 
     return spinOrigins;
 }
+
+
+
+__global__ void convertMeshIntoOriginsList(ShapeDescriptor::gpu::Mesh inputMesh, ShapeDescriptor::OrientedPoint* origins) {
+    size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if(vertexIndex >= inputMesh.vertexCount) {
+        return;
+    }
+
+    float3 vertex = make_float3(
+            inputMesh.vertices_x[vertexIndex],
+            inputMesh.vertices_y[vertexIndex],
+            inputMesh.vertices_z[vertexIndex]);
+    float3 normal = make_float3(
+            inputMesh.normals_x[vertexIndex],
+            inputMesh.normals_y[vertexIndex],
+            inputMesh.normals_z[vertexIndex]);
+
+    origins[vertexIndex] = {vertex, normal};
+}
+
+ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint>
+ShapeDescriptor::utilities::generateSpinOriginBuffer(ShapeDescriptor::gpu::Mesh &mesh) {
+    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> device_spinOrigins;
+    checkCudaErrors(cudaMalloc(&device_spinOrigins.content, mesh.vertexCount * sizeof(ShapeDescriptor::OrientedPoint)));
+    device_spinOrigins.length = mesh.vertexCount;
+
+    convertMeshIntoOriginsList<<<(mesh.vertexCount / 32) + 1, 32>>>(mesh, device_spinOrigins.content);
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    return device_spinOrigins;
+}

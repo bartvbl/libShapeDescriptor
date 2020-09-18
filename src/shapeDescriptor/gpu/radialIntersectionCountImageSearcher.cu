@@ -368,7 +368,7 @@ __global__ void generateSearchResults(ShapeDescriptor::RICIDescriptor* needleDes
                                       size_t needleImageCount,
                                       ShapeDescriptor::RICIDescriptor* haystackDescriptors,
                                       size_t haystackImageCount,
-                                      ShapeDescriptor::gpu::RadialIntersectionCountImageSearchResults* searchResults) {
+                                      ShapeDescriptor::gpu::SearchResults<unsigned int>* searchResults) {
 
     size_t needleImageIndex = warpCount * blockIdx.x + (threadIdx.x / 32);
 
@@ -447,18 +447,18 @@ __global__ void generateSearchResults(ShapeDescriptor::RICIDescriptor* needleDes
     const unsigned int laneID = threadIdx.x % 32;
     // Storing search results
     for(int block = 0; block < blockCount; block++) {
-        searchResults[needleImageIndex].resultIndices[block * 32 + laneID] = threadSearchResultImageIndexes[block];
-        searchResults[needleImageIndex].resultScores[block * 32 + laneID] = threadSearchResultScores[block];
+        searchResults[needleImageIndex].indices[block * 32 + laneID] = threadSearchResultImageIndexes[block];
+        searchResults[needleImageIndex].scores[block * 32 + laneID] = threadSearchResultScores[block];
     }
 
 }
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RadialIntersectionCountImageSearchResults> ShapeDescriptor::gpu::findRadialIntersectionCountImagesInHaystack(
+ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> ShapeDescriptor::gpu::findRadialIntersectionCountImagesInHaystack(
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackDescriptors) {
 
-    size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(RadialIntersectionCountImageSearchResults);
-    RadialIntersectionCountImageSearchResults* device_searchResults;
+    size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(ShapeDescriptor::gpu::SearchResults<unsigned int>);
+    ShapeDescriptor::gpu::SearchResults<unsigned int>* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
 
     std::cout << "\t\tPerforming search.." << std::endl;
@@ -477,8 +477,8 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RadialIntersectionCountImageSe
 
     // Step 3: Copying results to CPU
 
-    ShapeDescriptor::cpu::array<RadialIntersectionCountImageSearchResults> searchResults;
-    searchResults.content = new RadialIntersectionCountImageSearchResults[device_needleDescriptors.length];
+    ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> searchResults;
+    searchResults.content = new ShapeDescriptor::gpu::SearchResults<unsigned int>[device_needleDescriptors.length];
     searchResults.length = device_needleDescriptors.length;
 
     checkCudaErrors(cudaMemcpy(searchResults.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));

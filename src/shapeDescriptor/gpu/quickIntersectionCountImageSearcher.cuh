@@ -13,6 +13,10 @@ namespace ShapeDescriptor {
     }
 
     namespace gpu {
+        ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> findQUICCImagesInHaystack(
+                ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_needleDescriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_haystackDescriptors);
+
         ShapeDescriptor::cpu::array<unsigned int> computeQUICCImageSearchResultRanks(
                 ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_needleDescriptors,
                 ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_haystackDescriptors,

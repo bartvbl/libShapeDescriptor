@@ -14,7 +14,7 @@ namespace ShapeDescriptor {
     }
 
     namespace gpu {
-        ShapeDescriptor::cpu::array<RadialIntersectionCountImageSearchResults> findRadialIntersectionCountImagesInHaystack(
+        ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> findRadialIntersectionCountImagesInHaystack(
                 ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_needleDescriptors,
                 ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackDescriptors);
 

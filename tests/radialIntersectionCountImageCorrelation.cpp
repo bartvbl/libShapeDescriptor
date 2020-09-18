@@ -21,10 +21,10 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
     ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackImages = ShapeDescriptor::copy::hostArrayToDevice(imageSequence);
 
     SECTION("Ranking by generating search results on GPU") {
-        ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::RadialIntersectionCountImageSearchResults> searchResults = ShapeDescriptor::gpu::findRadialIntersectionCountImagesInHaystack(
+        ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> searchResults = ShapeDescriptor::gpu::findRadialIntersectionCountImagesInHaystack(
                 device_haystackImages, device_haystackImages);
 
-        ShapeDescriptor::dump::searchResults(searchResults, imageCount, "rici_another_dump.txt");
+        ShapeDescriptor::dump::searchResults<unsigned int>(searchResults, "rici_another_dump.txt");
 
         SECTION("Equivalent images are the top search results") {
             // First and last image are constant, which causes the pearson correlation to be undefined.
@@ -32,23 +32,23 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
             for (int image = 0; image < imageCount; image++) {
                 // Allow for shared first places
                 int resultIndex = 0;
-                while (searchResults.content[image].resultScores[resultIndex] == 0) {
-                    if (searchResults.content[image].resultIndices[resultIndex] == image) {
+                while (searchResults.content[image].scores[resultIndex] == 0) {
+                    if (searchResults.content[image].indices[resultIndex] == image) {
                         break;
                     }
                     resultIndex++;
                 }
                 std::cout << image << std::endl;
-                REQUIRE(searchResults.content[image].resultScores[resultIndex] == 0);
-                REQUIRE(searchResults.content[image].resultIndices[resultIndex] == image);
+                REQUIRE(searchResults.content[image].scores[resultIndex] == 0);
+                REQUIRE(searchResults.content[image].indices[resultIndex] == image);
             }
         }
 
         SECTION("Scores are properly sorted") {
             for(int image = 0; image < imageCount; image++) {
                 for (int i = 0; i < SEARCH_RESULT_COUNT - 1; i++) {
-                    float firstImageCurrentScore = searchResults.content[image].resultScores[i];
-                    float firstImageNextScore = searchResults.content[image].resultScores[i + 1];
+                    float firstImageCurrentScore = searchResults.content[image].scores[i];
+                    float firstImageNextScore = searchResults.content[image].scores[i + 1];
 
                     REQUIRE(firstImageCurrentScore <= firstImageNextScore);
                 }

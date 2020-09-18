@@ -105,7 +105,7 @@ __global__ void generateSearchResults(ShapeDescriptor::SpinImageDescriptor* need
 									  size_t needleImageCount,
                                       ShapeDescriptor::SpinImageDescriptor* haystackDescriptors,
 									  size_t haystackImageCount,
-									  ShapeDescriptor::gpu::SpinImageSearchResults* searchResults,
+                                      ShapeDescriptor::gpu::SearchResults<float>* searchResults,
 									  float* needleImageAverages,
 									  float* haystackImageAverages) {
 
@@ -193,13 +193,13 @@ __global__ void generateSearchResults(ShapeDescriptor::SpinImageDescriptor* need
     const unsigned int laneID = threadIdx.x % 32;
 	// Storing search results
 	for(int block = 0; block < blockCount; block++) {
-        searchResults[needleImageIndex].resultIndices[block * 32 + laneID] = threadSearchResultImageIndexes[block];
-        searchResults[needleImageIndex].resultScores[block * 32 + laneID] = threadSearchResultScores[block];
+        searchResults[needleImageIndex].indices[block * 32 + laneID] = threadSearchResultImageIndexes[block];
+        searchResults[needleImageIndex].scores[block * 32 + laneID] = threadSearchResultScores[block];
     }
 
 }
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SpinImageSearchResults> ShapeDescriptor::gpu::findSpinImagesInHaystack(
+ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<float>> ShapeDescriptor::gpu::findSpinImagesInHaystack(
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_haystackDescriptors) {
 
@@ -218,8 +218,8 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SpinImageSearchResults> ShapeD
 
 	// Step 2: Perform search
 
-	size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(SpinImageSearchResults);
-    SpinImageSearchResults* device_searchResults;
+	size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(ShapeDescriptor::gpu::SearchResults<float>);
+    ShapeDescriptor::gpu::SearchResults<float>* device_searchResults;
 	checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
 
 	std::cout << "\t\tPerforming search.." << std::endl;
@@ -240,8 +240,8 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SpinImageSearchResults> ShapeD
 
     // Step 3: Copying results to CPU
 
-	ShapeDescriptor::cpu::array<SpinImageSearchResults> searchResults;
-	searchResults.content = new SpinImageSearchResults[device_needleDescriptors.length];
+	ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<float>> searchResults;
+	searchResults.content = new ShapeDescriptor::gpu::SearchResults<float>[device_needleDescriptors.length];
 	searchResults.length = device_needleDescriptors.length;
 
 	checkCudaErrors(cudaMemcpy(searchResults.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));

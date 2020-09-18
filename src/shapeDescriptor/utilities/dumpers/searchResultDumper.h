@@ -5,7 +5,7 @@
 
 namespace ShapeDescriptor {
     namespace dump {
-        void searchResults(ShapeDescriptor::cpu::array<gpu::SpinImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath);
-        void searchResults(ShapeDescriptor::cpu::array<gpu::RadialIntersectionCountImageSearchResults> searchResults, size_t imageCount, std::string outputFilePath);
+        template<typename ScoreType>
+        void searchResults(ShapeDescriptor::cpu::array<gpu::SearchResults<ScoreType>> searchResults, std::string outputFilePath);
     }
 }

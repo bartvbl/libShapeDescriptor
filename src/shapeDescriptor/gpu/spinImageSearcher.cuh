@@ -15,7 +15,7 @@ namespace ShapeDescriptor {
     }
 
     namespace gpu {
-        ShapeDescriptor::cpu::array<SpinImageSearchResults> findSpinImagesInHaystack(
+        ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<float>> findSpinImagesInHaystack(
                 ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_needleDescriptors,
                 ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_haystackDescriptors);
 

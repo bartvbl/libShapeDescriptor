@@ -14,18 +14,18 @@ namespace ShapeDescriptor {
         void descriptors(
                 ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
-                bool logarithmicImage,
-                unsigned int imagesPerRow);
+                bool logarithmicImage = true,
+                unsigned int imagesPerRow = 50);
 
         void descriptors(
                 ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
-                bool logarithmicImage,
-                unsigned int imagesPerRow);
+                bool logarithmicImage = true,
+                unsigned int imagesPerRow = 50);
 
         void descriptors(
                 ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
-                unsigned int imagesPerRow);
+                unsigned int imagesPerRow = 50);
     }
 }

@@ -15,8 +15,8 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> readImageLZFile(c
         std::cout << "WARNING: File header does not match expectations, and is thus possibly corrupt." << std::endl;
     }
 
-    size_t imageCount = *reinterpret_cast<const size_t*>(inputBuffer + 4);
-    unsigned int descriptorWidthPixels = *reinterpret_cast<const unsigned int*>(inputBuffer + 4 + sizeof(size_t));
+    size_t imageCount = *reinterpret_cast<const size_t*>(inputBuffer + 5);
+    unsigned int descriptorWidthPixels = *reinterpret_cast<const unsigned int*>(inputBuffer + 5 + sizeof(size_t));
 
     //std::cout << "\tFile has " << imageCount << " images" << std::endl;
     if(descriptorWidthPixels != spinImageWidthPixels) {

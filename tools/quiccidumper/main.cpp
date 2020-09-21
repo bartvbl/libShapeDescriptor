@@ -7,7 +7,7 @@
 #include <shapeDescriptor/utilities/kernels/duplicateRemoval.cuh>
 #include <cuda_runtime.h>
 #include <shapeDescriptor/utilities/mesh/MeshScaler.h>
-#include <shapeDescriptor/utilities/dumpers/rawDescriptorDumper.h>
+#include <shapeDescriptor/utilities/dumpers/QUICCIDescriptors.h>
 #include <shapeDescriptor/utilities/copy/mesh.h>
 #include <shapeDescriptor/utilities/copy/array.h>
 
@@ -59,7 +59,7 @@ int main(int argc, const char** argv) {
     ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostImages = ShapeDescriptor::copy::deviceArrayToHost(images);
 
     std::cout << "Writing output file.." << std::endl,
-            ShapeDescriptor::dump::raw::descriptors(outputDumpFile.value(), hostImages);
+            ShapeDescriptor::dump::raw::QUICCIDescriptors(outputDumpFile.value(), hostImages);
 
     ShapeDescriptor::gpu::freeMesh(deviceMesh);
     cudaFree(uniqueVertices.content);

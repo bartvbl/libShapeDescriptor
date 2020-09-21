@@ -8,7 +8,7 @@
 namespace ShapeDescriptor {
     namespace dump {
         namespace raw {
-            void descriptors(
+            void QUICCIDescriptors(
                 const std::experimental::filesystem::path &outputDumpFile,
                 const ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> &images);
         }

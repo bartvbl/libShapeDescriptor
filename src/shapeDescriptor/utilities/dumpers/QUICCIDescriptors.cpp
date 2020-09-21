@@ -1,11 +1,11 @@
 #include <shapeDescriptor/libraryBuildSettings.h>
 #include <sstream>
-#include "rawDescriptorDumper.h"
 #include <shapeDescriptor/utilities/fileutils.h>
 #include <shapeDescriptor/common/types/methods/QUICCIDescriptor.h>
 #include <shapeDescriptor/cpu/types/array.h>
+#include "QUICCIDescriptors.h"
 
-void ShapeDescriptor::dump::raw::descriptors(
+void ShapeDescriptor::dump::raw::QUICCIDescriptors(
         const std::experimental::filesystem::path &outputDumpFile,
         const ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> &images) {
     const unsigned int imageWidthPixels = spinImageWidthPixels;

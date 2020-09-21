@@ -3,7 +3,7 @@
 #include <shapeDescriptor/gpu/radialIntersectionCountImageGenerator.cuh>
 #include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
 #include <shapeDescriptor/utilities/mesh/OBJLoader.h>
-#include <shapeDescriptor/utilities/dumpers/descriptors.h>
+#include <shapeDescriptor/utilities/dumpers/descriptorImages.h>
 #include <shapeDescriptor/utilities/CUDAContextCreator.h>
 #include <shapeDescriptor/utilities/kernels/spinOriginBufferGenerator.h>
 

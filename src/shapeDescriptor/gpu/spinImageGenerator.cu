@@ -15,7 +15,7 @@
 #include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
 #include <shapeDescriptor/utilities/kernels/setValue.cuh>
 #include <shapeDescriptor/utilities/kernels/meshSampler.cuh>
-#include <shapeDescriptor/utilities/dumpers/descriptors.h>
+#include <shapeDescriptor/utilities/dumpers/descriptorImages.h>
 #include <shapeDescriptor/gpu/types/PointCloud.h>
 #include <shapeDescriptor/gpu/types/VertexList.cuh>
 #include <shapeDescriptor/gpu/types/SampleBounds.h>

@@ -10,12 +10,13 @@
 #include <shapeDescriptor/utilities/dumpers/QUICCIDescriptors.h>
 #include <shapeDescriptor/utilities/copy/mesh.h>
 #include <shapeDescriptor/utilities/copy/array.h>
+#include <shapeDescriptor/utilities/mesh/MeshLoader.h>
 
 const float DEFAULT_SPIN_IMAGE_WIDTH = 0.3;
 
 int main(int argc, const char** argv) {
-    arrrgh::parser parser("quiccidumper", "Render QUICCI images from an input OBJ file, and dump them to a compressed (ZIP) file in binary form.");
-    const auto& inputOBJFile = parser.add<std::string>("input-obj-file", "Location of the OBJ file from which the images should be rendered.", '\0', arrrgh::Required, "");
+    arrrgh::parser parser("quiccidumper", "Render QUICCI images from an input OBJ/OFF/PLY file, and dump them to a compressed (LZMA2) file in binary form.");
+    const auto& inputOBJFile = parser.add<std::string>("input-obj-file", "Location of the OBJ/OFF/PLY file from which the images should be rendered.", '\0', arrrgh::Required, "");
     const auto& outputDumpFile = parser.add<std::string>("output-dump-file", "Location where the generated images should be dumped to.", '\0', arrrgh::Required, "");
     const auto& fitInUnitSphere = parser.add<bool>("fit-object-in-unit-sphere", "Scale the object such that it fits in a unit sphere", '\0', arrrgh::Optional, false);
     const auto& spinImageWidth = parser.add<float>("spin-image-width", "The size of the spin image plane in 3D object space", '\0', arrrgh::Optional, DEFAULT_SPIN_IMAGE_WIDTH);
@@ -38,8 +39,8 @@ int main(int argc, const char** argv) {
         return 0;
     }
 
-    std::cout << "Loading OBJ file: " << inputOBJFile.value() << std::endl;
-    ShapeDescriptor::cpu::Mesh hostMesh = ShapeDescriptor::utilities::loadOBJ(inputOBJFile.value(), true);
+    std::cout << "Loading mesh file: " << inputOBJFile.value() << std::endl;
+    ShapeDescriptor::cpu::Mesh hostMesh = ShapeDescriptor::utilities::loadMesh(inputOBJFile.value(), true);
 
     if(fitInUnitSphere.value()) {
         std::cout << "Fitting object in unit sphere.." << std::endl;

@@ -60,7 +60,7 @@ int main(int argc, const char** argv) {
     ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostImages = ShapeDescriptor::copy::deviceArrayToHost(images);
 
     std::cout << "Writing output file.." << std::endl,
-            ShapeDescriptor::dump::raw::QUICCIDescriptors(outputDumpFile.value(), hostImages);
+            ShapeDescriptor::dump::raw::QUICCIDescriptors(outputDumpFile.value(), hostImages, 0);
 
     ShapeDescriptor::gpu::freeMesh(deviceMesh);
     cudaFree(uniqueVertices.content);

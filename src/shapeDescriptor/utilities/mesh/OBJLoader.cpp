@@ -62,7 +62,6 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::string src, 
 
     ShapeDescriptor::cpu::float3* meshVertexBuffer = new ShapeDescriptor::cpu::float3[3 * faceCount];
     ShapeDescriptor::cpu::float3* meshNormalBuffer = (hasNormals || recomputeNormals) ? new ShapeDescriptor::cpu::float3[3 * faceCount] : nullptr;
-    unsigned int* meshIndexBuffer = new unsigned int[3 * faceCount];
 
     unsigned int nextVertexIndex = 0;
 
@@ -94,8 +93,6 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::string src, 
                             temporaryMesh->normals[3 * index.n + 1],
                             temporaryMesh->normals[3 * index.n + 2]};
                 }
-
-                meshIndexBuffer[nextVertexIndex] = nextVertexIndex;
 
                 nextVertexIndex++;
             }

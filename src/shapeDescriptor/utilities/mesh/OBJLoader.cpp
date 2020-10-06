@@ -99,13 +99,13 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::string src, 
 
             if(recomputeNormals) {
                 ShapeDescriptor::cpu::float3 normal = computeTriangleNormal(
+                        meshVertexBuffer[nextVertexIndex - 3],
                         meshVertexBuffer[nextVertexIndex - 2],
-                        meshVertexBuffer[nextVertexIndex - 1],
-                        meshVertexBuffer[nextVertexIndex - 0]);
+                        meshVertexBuffer[nextVertexIndex - 1]);
 
+                meshNormalBuffer[nextVertexIndex - 3] = normal;
                 meshNormalBuffer[nextVertexIndex - 2] = normal;
                 meshNormalBuffer[nextVertexIndex - 1] = normal;
-                meshNormalBuffer[nextVertexIndex - 0] = normal;
             }
         }
     }

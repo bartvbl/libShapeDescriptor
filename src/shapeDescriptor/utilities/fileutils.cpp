@@ -18,7 +18,7 @@ std::vector<std::experimental::filesystem::path> ShapeDescriptor::utilities::lis
     return foundFiles;
 }
 
-const char *ShapeDescriptor::utilities::readCompressedFile(const std::experimental::filesystem::path &archiveFile, size_t* fileSizeBytes, bool enableMultithreading) {
+const char *ShapeDescriptor::utilities::readCompressedFile(const std::experimental::filesystem::path &archiveFile, size_t* fileSizeBytes, unsigned int threadCount) {
     std::array<char, 5> headerTitle = {0, 0, 0, 0, 0};
     size_t compressedBufferSize;
     size_t decompressedBufferSize;
@@ -53,9 +53,10 @@ const char *ShapeDescriptor::utilities::readCompressedFile(const std::experiment
             //        (void*) decompressedBuffer, decompressedBufferSize,
             //        (void*) compressedBuffer, compressedBufferSize);
         //} else {
-            FL2_decompress(
+            FL2_decompressMt(
                     (void*) decompressedBuffer, decompressedBufferSize,
-                    (void*) compressedBuffer, compressedBufferSize);
+                    (void*) compressedBuffer, compressedBufferSize,
+                    threadCount);
         //}
     }
 
@@ -64,9 +65,9 @@ const char *ShapeDescriptor::utilities::readCompressedFile(const std::experiment
     return decompressedBuffer;
 }
 
-void ShapeDescriptor::utilities::writeCompressedFile(const char *buffer, size_t bufferSize, const std::experimental::filesystem::path &archiveFile) {
+void ShapeDescriptor::utilities::writeCompressedFile(const char *buffer, size_t bufferSize, const std::experimental::filesystem::path &archiveFile, unsigned int threadCount) {
 
-    std::experimental::filesystem::create_directories(archiveFile.parent_path());
+    std::experimental::filesystem::create_directories(std::experimental::filesystem::absolute(archiveFile).parent_path());
 
     const size_t maxCompressedBufferSize = FL2_compressBound(bufferSize);
     char* compressedBuffer = new char[maxCompressedBufferSize];
@@ -74,10 +75,11 @@ void ShapeDescriptor::utilities::writeCompressedFile(const char *buffer, size_t 
  //   #pragma omp critical
     {
         compressedBufferSize =
-                FL2_compress(
+                FL2_compressMt(
+                //FL2_compress(
                         (void*) compressedBuffer, maxCompressedBufferSize,
                         (void*) buffer, bufferSize,
-                        LZMA2_COMPRESSION_LEVEL);
+                        LZMA2_COMPRESSION_LEVEL, threadCount);
     }
 
     const char header[5] = "CDXF";

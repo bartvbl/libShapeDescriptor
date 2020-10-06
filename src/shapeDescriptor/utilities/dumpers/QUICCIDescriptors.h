@@ -10,7 +10,8 @@ namespace ShapeDescriptor {
         namespace raw {
             void QUICCIDescriptors(
                 const std::experimental::filesystem::path &outputDumpFile,
-                const ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> &images);
+                const ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> &images,
+                unsigned int compressionThreadCount = 1);
         }
     }
 

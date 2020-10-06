@@ -6,9 +6,9 @@
 #include <shapeDescriptor/common/types/methods/QUICCIDescriptor.h>
 #include <shapeDescriptor/cpu/types/array.h>
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> readImageLZFile(const std::experimental::filesystem::path &path) {
+ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> readImageLZFile(const std::experimental::filesystem::path &path, unsigned int decompressionThreadCount) {
     size_t bufferSize;
-    const char* inputBuffer = ShapeDescriptor::utilities::readCompressedFile(path, &bufferSize, false);
+    const char* inputBuffer = ShapeDescriptor::utilities::readCompressedFile(path, &bufferSize, decompressionThreadCount);
 
     char header[5] = {inputBuffer[0], inputBuffer[1], inputBuffer[2], inputBuffer[3], '\0'};
     if(std::string(header) != "QUIC") {
@@ -39,8 +39,8 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> readImageLZFile(c
     return images;
 }
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::read::QUICCIDescriptors(const std::experimental::filesystem::path &dumpFileLocation) {
-    return readImageLZFile(dumpFileLocation);
+ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::read::QUICCIDescriptors(const std::experimental::filesystem::path &dumpFileLocation, unsigned int decompressionThreadCount) {
+    return readImageLZFile(dumpFileLocation, decompressionThreadCount);
 }
 
 

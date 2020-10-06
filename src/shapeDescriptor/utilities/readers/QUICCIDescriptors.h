@@ -7,7 +7,7 @@
 
 namespace ShapeDescriptor {
     namespace read {
-        ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> QUICCIDescriptors(const std::experimental::filesystem::path &dumpFileLocation);
+        ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> QUICCIDescriptors(const std::experimental::filesystem::path &dumpFileLocation, unsigned int decompressionThreadCount = 1);
     }
 }
 

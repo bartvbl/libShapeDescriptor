@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shapeDescriptor/common/BoundingBox.h>
+#include <shapeDescriptor/common/types/BoundingBox.h>
 #include <shapeDescriptor/gpu/types/Mesh.h>
 #include <shapeDescriptor/gpu/types/PointCloud.h>
 #include <shapeDescriptor/gpu/types/array.h>

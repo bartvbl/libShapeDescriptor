@@ -1,7 +1,7 @@
 #pragma once
 
 #include "types/Mesh.h"
-#include "shapeDescriptor/common/OrientedPoint.h"
+#include "shapeDescriptor/common/types/OrientedPoint.h"
 #include "types/array.h"
 #include "shapeDescriptor/common/types/methods/RICIDescriptor.h"
 

@@ -6,6 +6,7 @@
 #include <shapeDescriptor/utilities/dumpers/descriptorImages.h>
 #include <shapeDescriptor/utilities/CUDAContextCreator.h>
 #include <shapeDescriptor/utilities/kernels/spinOriginBufferGenerator.h>
+#include <shapeDescriptor/utilities/free/mesh.h>
 
 #include <arrrgh.hpp>
 #include <shapeDescriptor/utilities/copy/mesh.h>
@@ -58,7 +59,7 @@ int main(int argc, const char** argv) {
     }
 
     std::cout << "Loading OBJ file.." << std::endl;
-    ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ(inputFile.value());
+    ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ(inputFile.value(), true);
     ShapeDescriptor::gpu::Mesh deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
     std::cout << "    Object has " << mesh.vertexCount << " vertices" << std::endl;
 
@@ -135,7 +136,7 @@ int main(int argc, const char** argv) {
         std::cerr << "Should be either 'si', 'rici', or 'quicci'." << std::endl;
     }
 
-    ShapeDescriptor::cpu::freeMesh(mesh);
+    ShapeDescriptor::free::mesh(mesh);
     ShapeDescriptor::gpu::freeMesh(deviceMesh);
 
 }

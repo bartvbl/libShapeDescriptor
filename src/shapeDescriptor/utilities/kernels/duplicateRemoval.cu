@@ -4,6 +4,7 @@
 #include <nvidia/helper_cuda.h>
 #include <cassert>
 #include <shapeDescriptor/utilities/copy/mesh.h>
+#include <shapeDescriptor/utilities/free/mesh.h>
 
 __host__ __device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInBytes) {
     return (sizeInBytes + 127u) & ~((size_t) 127);
@@ -122,7 +123,7 @@ ShapeDescriptor::gpu::array<signed long long> ShapeDescriptor::utilities::comput
         uniqueVertexCounts->push_back(meshUniqueVertexCount);
     }
 
-    ShapeDescriptor::cpu::freeMesh(temp_host_boxScene);
+    ShapeDescriptor::free::mesh(temp_host_boxScene);
     delete[] temp_duplicateVertices;
 
     ShapeDescriptor::gpu::array<signed long long> device_uniqueIndexMapping;

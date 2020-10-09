@@ -7,16 +7,12 @@
 namespace ShapeDescriptor {
 	namespace cpu {
         struct Mesh {
-            float3* vertices;
-            float3* normals;
+            float3* vertices = nullptr;
+            float3* normals = nullptr;
 
-            size_t vertexCount;
+            size_t vertexCount = 0;
 
-            Mesh() {
-                vertices = nullptr;
-                normals = nullptr;
-                vertexCount = 0;
-            }
+            Mesh() {}
 
             Mesh(size_t vertCount) {
                 vertices = new float3[vertCount];
@@ -24,8 +20,6 @@ namespace ShapeDescriptor {
                 vertexCount = vertCount;
             }
         };
-
-        void freeMesh(ShapeDescriptor::cpu::Mesh &mesh);
     }
 }
 

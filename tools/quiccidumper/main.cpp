@@ -11,6 +11,7 @@
 #include <shapeDescriptor/utilities/copy/mesh.h>
 #include <shapeDescriptor/utilities/copy/array.h>
 #include <shapeDescriptor/utilities/mesh/MeshLoader.h>
+#include <shapeDescriptor/utilities/free/mesh.h>
 
 const float DEFAULT_SPIN_IMAGE_WIDTH = 0.3;
 
@@ -45,12 +46,12 @@ int main(int argc, const char** argv) {
     if(fitInUnitSphere.value()) {
         std::cout << "Fitting object in unit sphere.." << std::endl;
         ShapeDescriptor::cpu::Mesh scaledMesh = ShapeDescriptor::utilities::fitMeshInsideSphereOfRadius(hostMesh, 1);
-        ShapeDescriptor::cpu::freeMesh(hostMesh);
+        ShapeDescriptor::free::mesh(hostMesh);
         hostMesh = scaledMesh;
     }
 
     ShapeDescriptor::gpu::Mesh deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(hostMesh);
-    ShapeDescriptor::cpu::freeMesh(hostMesh);
+    ShapeDescriptor::free::mesh(hostMesh);
 
     std::cout << "Computing QUICCI images.." << std::endl;
     ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> uniqueVertices =

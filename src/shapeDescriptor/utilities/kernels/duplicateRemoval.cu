@@ -186,8 +186,18 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> ShapeDescriptor::uti
     return device_origins;
 }
 
+__device__ bool isQuicciPairEquivalent(
+        ShapeDescriptor::QUICCIDescriptor* imageA,
+        ShapeDescriptor::QUICCIDescriptor* imageB) {
+    for(unsigned int i = threadIdx.x % 32; i < UINTS_PER_QUICCI; i += 32) {
+        bool isEqual = imageA->contents[i] == imageB->contents[i];
 
-
+        if(__ballot_sync(0xFFFFFFFF, isEqual) != 0xFFFFFFFF) {
+            return false;
+        }
+    }
+    return true;
+}
 
 __global__ void computeDuplicateQUICCIMapping(
         ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors,

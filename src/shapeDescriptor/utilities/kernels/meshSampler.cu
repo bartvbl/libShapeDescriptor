@@ -1,6 +1,6 @@
 #include "meshSampler.cuh"
 
-#include <shapeDescriptor/gpu/types/SampleBounds.h>
+#include <shapeDescriptor/common/SampleBounds.h>
 #include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
 
 #include <cuda_runtime_api.h>

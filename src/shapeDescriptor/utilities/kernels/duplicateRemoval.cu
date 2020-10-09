@@ -185,3 +185,17 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> ShapeDescriptor::uti
     checkCudaErrors(cudaFree(device_mapping.content));
     return device_origins;
 }
+
+
+
+
+__global__ void computeDuplicateQUICCIMapping(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors,
+        ShapeDescriptor::gpu::array<signed long long> mappingIndices) {
+
+}
+
+
+ShapeDescriptor::gpu::array<signed long long> ShapeDescriptor::utilities::computeUniqueIndexMapping(ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors) {
+
+}

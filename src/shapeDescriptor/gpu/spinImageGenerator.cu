@@ -18,7 +18,7 @@
 #include <shapeDescriptor/utilities/dumpers/descriptorImages.h>
 #include <shapeDescriptor/gpu/types/PointCloud.h>
 #include <shapeDescriptor/gpu/types/VertexList.cuh>
-#include <shapeDescriptor/gpu/types/SampleBounds.h>
+#include <shapeDescriptor/common/SampleBounds.h>
 #include <shapeDescriptor/gpu/types/array.h>
 
 __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNormal, float3 point)

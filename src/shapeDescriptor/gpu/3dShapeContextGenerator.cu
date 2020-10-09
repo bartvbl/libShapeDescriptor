@@ -6,7 +6,7 @@
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
 #include <nvidia/helper_math.h>
-#include <shapeDescriptor/gpu/types/BoundingBox.h>
+#include <shapeDescriptor/common/BoundingBox.h>
 #include <shapeDescriptor/utilities/kernels/pointCloudUtils.h>
 #include <iostream>
 #include <shapeDescriptor/gpu/types/array.h>

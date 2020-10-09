@@ -78,7 +78,7 @@ Loaders for OBJ, OFF, and PLY are included which return a mesh in the format oth
 ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh("path/to/obj/file.obj", false);
 
 // Free mesh memory
-ShapeDescriptor::cpu::freeMesh(mesh);
+ShapeDescriptor::free::mesh(mesh);
 ```
 
 #### Copy meshes to and from the GPU
@@ -100,7 +100,7 @@ Note that each copy operation allocates the required memory automatically. You w
 
 ```c++
 // Free mesh on the GPU
-ShapeDescriptor::gpu::freeMesh(gpuMesh);
+ShapeDescriptor::free::mesh(gpuMesh);
 ```
 
 #### Uniformly sample a triangle mesh into a point cloud
@@ -154,10 +154,10 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors =
 // Do something with descriptors here
 
 // Free memory
-delete[] descriptorOrigins.content;
-delete[] hostDesciptors.content;
-cudaFree(gpuDescriptorOrigins.content);
-cudaFree(descriptors.content);
-ShapeDescriptor::cpu::freeMesh(mesh);
-ShapeDescriptor::gpu::freeMesh(gpuMesh);
+ShapeDescriptor::free::array(descriptorOrigins);
+ShapeDescriptor::free::array(hostDesciptors);
+ShapeDescriptor::free::array(gpuDescriptorOrigins);
+ShapeDescriptor::free::array(descriptors);
+ShapeDescriptor::free::mesh(mesh);
+ShapeDescriptor::free::mesh(gpuMesh);
 ```

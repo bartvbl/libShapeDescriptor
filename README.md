@@ -33,8 +33,8 @@ If you use (parts of) this library in your research, we kindly ask you reference
       title={An Indexing Scheme and Descriptor for 3D Object Retrieval Based on Local Shape Querying},
       author={van Blokland, Bart Iver and Theoharis, Theoharis},
       journal={Computers \& Graphics},
-      volume="TBD",
-      pages="TBD",
+      volume="92",
+      pages="55-66",
       year={2020},
       publisher={Elsevier}
     }

@@ -12,9 +12,9 @@ namespace ShapeDescriptor {
 
             __host__ __device__ array() {}
 
-            __host__ __device__ array(size_t length) {
+            __host__ array(size_t length) {
                 this->length = length;
-                cudaMalloc(&content, length * sizeof(TYPE));
+                checkCudaErrors(cudaMalloc(&content, length * sizeof(TYPE)));
             }
 
             __host__ __device__ array(size_t length, TYPE* content)

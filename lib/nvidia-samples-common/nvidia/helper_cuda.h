@@ -284,8 +284,8 @@ __host__ __device__ static const char *_cudaGetErrorEnum(cudaError_t error)
         /* Since CUDA 8.0*/        
         case cudaErrorNvlinkUncorrectable :   
             return "cudaErrorNvlinkUncorrectable";
-        case cudaErrorDeviceUninitilialized:
-            return "cudaErrorDeviceUninitilialized";
+        //case cudaErrorDeviceUninitilialized:
+        //    return "cudaErrorDeviceUninitilialized";
         case cudaErrorArrayIsMapped:
             return "cudaErrorArrayIsMapped";
         case cudaErrorAlreadyMapped:

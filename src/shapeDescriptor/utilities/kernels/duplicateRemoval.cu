@@ -201,11 +201,43 @@ __device__ bool isQuicciPairEquivalent(
 
 __global__ void computeDuplicateQUICCIMapping(
         ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors,
-        ShapeDescriptor::gpu::array<signed long long> mappingIndices) {
+        ShapeDescriptor::gpu::array<signed long long> mappingIndices,
+        unsigned int* uniqueElementCount) {
+#define IMAGE_INDEX blockIdx.x
 
+    __shared__ ShapeDescriptor::QUICCIDescriptor descriptor;
+
+    for(unsigned int i = threadIdx.x; i < ShapeDescriptor::QUICCIDescriptorLength; i += blockDim.x) {
+        descriptor.contents[i] = descriptors.content[IMAGE_INDEX].contents[i];
+    }
+
+    __syncthreads();
+
+    for(size_t i = 0; i < IMAGE_INDEX; i++) {
+        if(isQuicciPairEquivalent(&descriptor, &descriptors.content[i])) {
+            mappingIndices.content[IMAGE_INDEX] = i;
+            if(threadIdx.x == 0) {
+                atomicAdd(uniqueElementCount, 1);
+            }
+            return;
+        }
+    }
+
+    // No duplicate found, mark image as unique
+    mappingIndices.content[IMAGE_INDEX] = IMAGE_INDEX;
 }
 
 
-ShapeDescriptor::gpu::array<signed long long> ShapeDescriptor::utilities::computeUniqueIndexMapping(ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors) {
+ShapeDescriptor::utilities::DuplicateMapping ShapeDescriptor::utilities::computeUniqueIndexMapping(ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors) {
+    ShapeDescriptor::utilities::DuplicateMapping mapping;
+    mapping.mappedIndices = ShapeDescriptor::gpu::array<signed long long>(descriptors.length);
+    checkCudaErrors(cudaMalloc(&mapping.device_uniqueElementCount, sizeof(unsigned int)));
+    checkCudaErrors(cudaMemset(mapping.device_uniqueElementCount, 0, sizeof(unsigned int)));
 
+    computeDuplicateQUICCIMapping<<<descriptors.length, 32>>>(descriptors, mapping.mappedIndices, mapping.device_uniqueElementCount);
+
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    return mapping;
 }
+

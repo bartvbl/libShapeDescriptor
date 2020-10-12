@@ -16,6 +16,10 @@ namespace ShapeDescriptor {
                 this->length = length;
                 cudaMalloc(&content, length * sizeof(TYPE));
             }
+
+            __host__ __device__ array(size_t length, TYPE* content)
+                : length(length),
+                  content(content) {}
         };
     }
 }

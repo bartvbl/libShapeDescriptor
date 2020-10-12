@@ -14,6 +14,10 @@ namespace ShapeDescriptor {
             array(size_t length)
                 : length(length),
                   content(new TYPE[length]) {}
+
+            array(size_t length, TYPE* content)
+                : length(length),
+                  content(content) {}
         };
     }
 }

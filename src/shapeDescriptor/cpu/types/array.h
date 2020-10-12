@@ -8,6 +8,12 @@ namespace ShapeDescriptor {
         {
             size_t length;
             TYPE* content;
+
+            array() {}
+
+            array(size_t length)
+                : length(length),
+                  content(new TYPE[length]) {}
         };
     }
 }

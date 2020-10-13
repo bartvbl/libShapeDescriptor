@@ -9,7 +9,7 @@
 namespace ShapeDescriptor {
     namespace utilities {
         struct DuplicateMapping {
-            unsigned int* device_uniqueElementCount;
+            unsigned int uniqueElementCount;
             ShapeDescriptor::gpu::array<signed long long> mappedIndices;
         };
 
@@ -19,5 +19,9 @@ namespace ShapeDescriptor {
         ShapeDescriptor::utilities::DuplicateMapping computeUniqueIndexMapping(ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors);
 
         ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> applyUniqueMapping(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor::gpu::array<signed long long> mapping, size_t totalUniqueVertexCount);
+
+        ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> applyUniqueMapping(
+                ShapeDescriptor::utilities::DuplicateMapping mapping,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors);
     }
 }

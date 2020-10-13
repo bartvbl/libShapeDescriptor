@@ -5,6 +5,9 @@
 #include <cassert>
 #include <shapeDescriptor/utilities/copy/mesh.h>
 #include <shapeDescriptor/utilities/free/mesh.h>
+#include <shapeDescriptor/cpu/types/array.h>
+#include <shapeDescriptor/utilities/copy/array.h>
+#include <shapeDescriptor/utilities/free/array.h>
 
 __host__ __device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInBytes) {
     return (sizeInBytes + 127u) & ~((size_t) 127);
@@ -216,28 +219,77 @@ __global__ void computeDuplicateQUICCIMapping(
     for(size_t i = 0; i < IMAGE_INDEX; i++) {
         if(isQuicciPairEquivalent(&descriptor, &descriptors.content[i])) {
             mappingIndices.content[IMAGE_INDEX] = i;
-            if(threadIdx.x == 0) {
-                atomicAdd(uniqueElementCount, 1);
-            }
             return;
         }
     }
 
     // No duplicate found, mark image as unique
-    mappingIndices.content[IMAGE_INDEX] = IMAGE_INDEX;
+    mappingIndices.content[IMAGE_INDEX] = -1;
+
+    if(threadIdx.x == 0) {
+        atomicAdd(uniqueElementCount, 1);
+    }
 }
 
 
 ShapeDescriptor::utilities::DuplicateMapping ShapeDescriptor::utilities::computeUniqueIndexMapping(ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors) {
     ShapeDescriptor::utilities::DuplicateMapping mapping;
     mapping.mappedIndices = ShapeDescriptor::gpu::array<signed long long>(descriptors.length);
-    checkCudaErrors(cudaMalloc(&mapping.device_uniqueElementCount, sizeof(unsigned int)));
-    checkCudaErrors(cudaMemset(mapping.device_uniqueElementCount, 0, sizeof(unsigned int)));
+    unsigned int* device_uniqueElementCount;
+    checkCudaErrors(cudaMalloc(&device_uniqueElementCount, sizeof(unsigned int)));
+    checkCudaErrors(cudaMemset(device_uniqueElementCount, 0, sizeof(unsigned int)));
 
-    computeDuplicateQUICCIMapping<<<descriptors.length, 32>>>(descriptors, mapping.mappedIndices, mapping.device_uniqueElementCount);
+    computeDuplicateQUICCIMapping<<<descriptors.length, 32>>>(descriptors, mapping.mappedIndices, device_uniqueElementCount);
 
     checkCudaErrors(cudaDeviceSynchronize());
+
+    checkCudaErrors(cudaMemcpy(&mapping.uniqueElementCount, device_uniqueElementCount, sizeof(unsigned int), cudaMemcpyDeviceToHost));
 
     return mapping;
 }
 
+__global__ void mapImages(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> sourceDescriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> targetDescriptors,
+        ShapeDescriptor::gpu::array<size_t> targetIndices) {
+    // Copies a single image per block
+    size_t targetIndex = targetIndices.content[blockIdx.x];
+    for(unsigned int i = threadIdx.x; i < UINTS_PER_QUICCI; i += blockDim.x) {
+        targetDescriptors.content[targetIndex].contents[i] = sourceDescriptors.content[blockIdx.x].contents[i];
+    }
+}
+
+ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::utilities::applyUniqueMapping(
+        ShapeDescriptor::utilities::DuplicateMapping mapping,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors) {
+    ShapeDescriptor::cpu::array<size_t> targetIndices = ShapeDescriptor::cpu::array<size_t>(descriptors.length);
+    ShapeDescriptor::cpu::array<signed long long> duplicateIndices = ShapeDescriptor::copy::deviceArrayToHost(mapping.mappedIndices);
+
+
+    size_t nextIndex = 0;
+    for(size_t i = 0; i < descriptors.length; i++) {
+        if(duplicateIndices.content[i] == -1) {
+            // image is unique, so we give it a new place in the list.
+            targetIndices.content[i] = nextIndex;
+            nextIndex++;
+        } else {
+            // image is not unique, thus another image must have come before it.
+            // We can therefore use the target index of that other image.
+            targetIndices.content[i] = targetIndices.content[duplicateIndices.content[i]];
+        }
+    }
+
+    ShapeDescriptor::free::array(duplicateIndices);
+
+    ShapeDescriptor::gpu::array<size_t> device_targetIndices = ShapeDescriptor::copy::hostArrayToDevice(targetIndices);
+    ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> targetDescriptors(mapping.uniqueElementCount);
+
+    mapImages<<<descriptors.length, 32>>>(descriptors, targetDescriptors, device_targetIndices);
+
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    ShapeDescriptor::free::array(targetIndices);
+    ShapeDescriptor::free::array(device_targetIndices);
+
+    return targetDescriptors;
+}

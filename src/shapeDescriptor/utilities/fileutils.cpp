@@ -2,6 +2,7 @@
 #include <cassert>
 #include "fileutils.h"
 #include <fast-lzma2.h>
+#include <algorithm>
 
 const int LZMA2_COMPRESSION_LEVEL = 9;
 
@@ -14,6 +15,8 @@ std::vector<std::experimental::filesystem::path> ShapeDescriptor::utilities::lis
     for(auto &path : std::experimental::filesystem::directory_iterator(directory)) {
         foundFiles.emplace_back(path);
     }
+
+    std::sort(foundFiles.begin(), foundFiles.end());
 
     return foundFiles;
 }

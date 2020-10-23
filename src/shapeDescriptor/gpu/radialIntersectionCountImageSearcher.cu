@@ -1,8 +1,6 @@
 #include <shapeDescriptor/gpu/types/Mesh.h>
 #include <shapeDescriptor/libraryBuildSettings.h>
 #include <cuda_runtime.h>
-#include <curand_mtgp32_kernel.h>
-#include <tgmath.h>
 #include <assert.h>
 #include <iostream>
 #include <climits>
@@ -35,7 +33,7 @@ __device__ int computeImageSquaredSumGPU(const ShapeDescriptor::RICIDescriptor &
 
     unsigned int threadSquaredSum = 0;
 
-    static_assert(spinImageWidthPixels % 32 == 0);
+    static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes an image whose width is a multiple of the warp size");
 
     // Scores are computed one row at a time.
     // We differentiate between rows to ensure the final pixel of the previous row does not
@@ -84,7 +82,7 @@ __device__ size_t compareConstantRadialIntersectionCountImagePairGPU(
     // Assumption: there will never be an intersection count over 65535 (which would cause this to overflow)
     size_t threadDeltaSquaredSum = 0;
 
-    static_assert(spinImageWidthPixels % 32 == 0);
+    static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes an image whose width is a multiple of the warp size");
 
 
     // Scores are computed one row at a time.
@@ -129,7 +127,7 @@ __device__ int compareRadialIntersectionCountImagePairGPU(
     int threadScore = 0;
     const int laneIndex = threadIdx.x % 32;
 
-    static_assert(spinImageWidthPixels % 32 == 0);
+    static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes an image whose width is a multiple of the warp size");
 
     // Scores are computed one row at a time.
     // We differentiate between rows to ensure the final pixel of the previous row does not

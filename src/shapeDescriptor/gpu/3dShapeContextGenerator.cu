@@ -214,7 +214,7 @@ __global__ void createDescriptors(
                 binIndex.y * SHAPE_CONTEXT_LAYER_COUNT +
                 binIndex.z;
         assert(index < elementsPerShapeContextDescriptor);
-        assert(!std::isnan(sampleWeight));
+        assert(!isnan(sampleWeight));
         atomicAdd(&localDescriptor.contents[index], sampleWeight);
     }
 

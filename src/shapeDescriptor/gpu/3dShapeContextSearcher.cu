@@ -142,7 +142,7 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::compute3DSCSearc
         ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_haystackDescriptors,
         size_t haystackDescriptorSampleCount,
         ShapeDescriptor::debug::SCSearchExecutionTimes* executionTimes) {
-    static_assert(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT <= 32);
+    static_assert(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT <= 32, "Exceeding this number of slices causes an overflow in the amount of shared memory needed by the kernel");
 
     auto executionStart = std::chrono::steady_clock::now();
 

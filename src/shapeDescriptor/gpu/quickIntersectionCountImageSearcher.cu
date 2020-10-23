@@ -44,7 +44,7 @@ __device__ int computeImageSumGPU(
 
     unsigned int threadSum = 0;
 
-    static_assert(spinImageWidthPixels % 32 == 0);
+    static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes images are multiples of warp size wide");
 
     for (int chunk = laneIndex; chunk < uintsPerQUICCImage; chunk += warpSize) {
         unsigned int needleChunk = getChunkAt(needleImages, imageIndex, chunk);
@@ -64,7 +64,7 @@ __device__ distanceType compareConstantQUICCImagePairGPU(
 
     distanceType threadSum = 0;
 
-    static_assert(spinImageWidthPixels % 32 == 0);
+    static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes the image is a multiple of the warp size wide");
 
     for (int chunk = laneIndex; chunk < uintsPerQUICCImage; chunk += warpSize) {
         unsigned int haystackChunk =
@@ -99,7 +99,7 @@ __device__ distanceType compareQUICCImagePairGPU(
 
     const int laneIndex = threadIdx.x % 32;
 
-    static_assert(spinImageWidthPixels % 32 == 0);
+    static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes the image is a multiple of the warp size wide");
 
     distanceType threadScore = 0;
 
@@ -260,7 +260,7 @@ __global__ void computeElementWiseQUICCIDistances(
         ShapeDescriptor::gpu::QUICCIDistances* distances) {
     const size_t descriptorIndex = blockIdx.x;
     const int laneIndex = threadIdx.x;
-    static_assert(spinImageWidthPixels % 32 == 0);
+    static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes the image is a multiple of the warp size wide");
 
     ShapeDescriptor::gpu::QUICCIDistances imageDistances;
 

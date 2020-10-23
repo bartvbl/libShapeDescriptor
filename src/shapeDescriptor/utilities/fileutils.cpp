@@ -3,6 +3,7 @@
 #include "fileutils.h"
 #include <fast-lzma2.h>
 #include <algorithm>
+#include <array>
 
 const int LZMA2_COMPRESSION_LEVEL = 9;
 

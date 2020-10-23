@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include <sstream>
 
 void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::experimental::filesystem::path &outputFilePath, size_t highlightStartVertex, size_t highlightEndVertex,
         bool useCustomTextureMap, ShapeDescriptor::cpu::array<float2> vertexTextureCoordinates, std::string textureMapPath) {

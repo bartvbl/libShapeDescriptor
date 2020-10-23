@@ -26,7 +26,7 @@
 #endif
 
 // Code is made for unsigned integers. Shorts would require additional logic.
-static_assert(sizeof(radialIntersectionCountImagePixelType) == 4);
+static_assert(sizeof(radialIntersectionCountImagePixelType) == 4, "Code is made for unsigned integers");
 
 #define spinOriginCount gridDim.x
 #define renderedSpinImageIndex blockIdx.x
@@ -254,7 +254,7 @@ __device__ void writeQUICCImage(
         radialIntersectionCountImagePixelType* RICIDescriptor) {
 
     const int laneIndex = threadIdx.x % 32;
-    static_assert(spinImageWidthPixels % 32 == 0);
+    static_assert(spinImageWidthPixels % 32 == 0, "Implementation assumes images are multiples of warps wide");
 
     for(int row = 0; row < spinImageWidthPixels; row++) {
         radialIntersectionCountImagePixelType previousWarpLastNeedlePixelValue = 0;

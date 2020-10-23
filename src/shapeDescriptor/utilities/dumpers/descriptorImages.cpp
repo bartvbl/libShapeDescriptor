@@ -31,7 +31,7 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> descriptors, co
 				if(pixel_value != 0) {
 					nonzeroPixelCount++;
 				}
-				if(!std::isnan(pixel_value) && pixel_value != UINT32_MAX) {
+				if(!std::isnan<float>((float) pixel_value) && pixel_value != UINT32_MAX) {
 					max = std::max(pixel_value, max);
 				}
 			}
@@ -111,7 +111,7 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> descriptors, co
 
 						size_t pixelBaseIndex = 4 * (pixelX + width * pixelY);
 
-						if (!std::isnan(pixelValue)) {
+						if (!std::isnan((float) pixelValue)) {
 							imageData[pixelBaseIndex + 0] = pixelByte;
 							imageData[pixelBaseIndex + 1] = pixelByte;
 							imageData[pixelBaseIndex + 2] = pixelByte;
@@ -132,7 +132,7 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> descriptors, co
 
 	std::cout << "Writing image file.. " << imageDestinationFile << std::endl;
 
-	unsigned error = lodepng::encode(imageDestinationFile, imageData, width, height);
+	unsigned error = lodepng::encode(imageDestinationFile.string(), imageData, width, height);
 
 	if(error)
 	{

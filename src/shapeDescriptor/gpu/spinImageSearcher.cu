@@ -1,8 +1,6 @@
 #include <shapeDescriptor/gpu/types/Mesh.h>
 #include <shapeDescriptor/libraryBuildSettings.h>
-#include <cuda_runtime.h>
-#include <curand_mtgp32_kernel.h>
-#include <tgmath.h>
+#include <cuda_runtime.h> 
 #include <assert.h>
 #include <iostream>
 #include <climits>

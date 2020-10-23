@@ -170,7 +170,7 @@ __global__ void computeSPFHHistograms(
 
     float normalisationFactor = 1.0f / float(neighbourCount);
 
-    if(std::isnan(normalisationFactor)) {
+    if(isnan(normalisationFactor)) {
         normalisationFactor = 0;
     }
 

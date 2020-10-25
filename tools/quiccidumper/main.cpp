@@ -1,16 +1,16 @@
 #include <arrrgh.hpp>
 #include <shapeDescriptor/cpu/types/Mesh.h>
-#include <shapeDescriptor/utilities/mesh/OBJLoader.h>
+#include <shapeDescriptor/utilities/read/OBJLoader.h>
 #include <shapeDescriptor/gpu/types/Mesh.h>
 #include <shapeDescriptor/common/types/OrientedPoint.h>
 #include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
 #include <shapeDescriptor/utilities/kernels/duplicateRemoval.cuh>
 #include <cuda_runtime.h>
 #include <shapeDescriptor/utilities/mesh/MeshScaler.h>
-#include <shapeDescriptor/utilities/dumpers/QUICCIDescriptors.h>
+#include <shapeDescriptor/utilities/dump/QUICCIDescriptors.h>
 #include <shapeDescriptor/utilities/copy/mesh.h>
 #include <shapeDescriptor/utilities/copy/array.h>
-#include <shapeDescriptor/utilities/mesh/MeshLoader.h>
+#include <shapeDescriptor/utilities/read/MeshLoader.h>
 #include <shapeDescriptor/utilities/free/mesh.h>
 
 const float DEFAULT_SPIN_IMAGE_WIDTH = 0.3;

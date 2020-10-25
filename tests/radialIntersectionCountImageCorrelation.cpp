@@ -4,7 +4,7 @@
 #include <shapeDescriptor/gpu/types/ImageSearchResults.h>
 #include <shapeDescriptor/gpu/radialIntersectionCountImageSearcher.cuh>
 #include <iostream>
-#include <shapeDescriptor/utilities/dumpers/searchResultDumper.h>
+#include <shapeDescriptor/utilities/dump/searchResultDumper.h>
 #include <shapeDescriptor/utilities/copy/array.h>
 #include "utilities/spinImageGenerator.h"
 

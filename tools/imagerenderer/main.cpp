@@ -2,8 +2,8 @@
 #include <shapeDescriptor/gpu/spinImageGenerator.cuh>
 #include <shapeDescriptor/gpu/radialIntersectionCountImageGenerator.cuh>
 #include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
-#include <shapeDescriptor/utilities/mesh/OBJLoader.h>
-#include <shapeDescriptor/utilities/dumpers/descriptorImages.h>
+#include <shapeDescriptor/utilities/read/OBJLoader.h>
+#include <shapeDescriptor/utilities/dump/descriptorImages.h>
 #include <shapeDescriptor/utilities/CUDAContextCreator.h>
 #include <shapeDescriptor/utilities/kernels/spinOriginBufferGenerator.h>
 #include <shapeDescriptor/utilities/free/mesh.h>

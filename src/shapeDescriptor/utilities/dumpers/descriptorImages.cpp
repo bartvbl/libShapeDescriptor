@@ -31,7 +31,7 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> descriptors, co
 				if(pixel_value != 0) {
 					nonzeroPixelCount++;
 				}
-				if(!std::isnan<float>((float) pixel_value) && pixel_value != UINT32_MAX) {
+				if(!std::isnan((float) pixel_value) && pixel_value != UINT32_MAX) {
 					max = std::max(pixel_value, max);
 				}
 			}

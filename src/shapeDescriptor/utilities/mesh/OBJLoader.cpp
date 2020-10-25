@@ -8,6 +8,7 @@
 #include <glm/vec3.hpp>
 #include <glm/geometric.hpp>
 #include <fast-obj/fast_obj.h>
+#include <algorithm>
 
 void split(std::vector<std::string>* parts, const std::string &s, char delim) {
 	

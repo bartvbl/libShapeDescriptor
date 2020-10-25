@@ -2,6 +2,7 @@
 #include <cmath>
 #include <limits>
 #include "MeshScaler.h"
+#include <algorithm>
 
 ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::fitMeshInsideSphereOfRadius(ShapeDescriptor::cpu::Mesh &input, float radius) {
     double averageX = 0;

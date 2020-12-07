@@ -155,7 +155,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors =
 
 // Free memory
 ShapeDescriptor::free::array(descriptorOrigins);
-ShapeDescriptor::free::array(hostDesciptors);
+ShapeDescriptor::free::array(hostDescriptors);
 ShapeDescriptor::free::array(gpuDescriptorOrigins);
 ShapeDescriptor::free::array(descriptors);
 ShapeDescriptor::free::mesh(mesh);

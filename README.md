@@ -49,6 +49,8 @@ Also make sure to add "ShapeDescriptor" to the list of linked libraries, and add
 
 This repository contains all necessary libraries to compile the project, except that you need to have the CUDA SDK installed (version 9 or higher).
 
+The library has been tested on Windows and Ubuntu Linux.
+
 ## Design
 
 The folder structure should hopefully be quite easy to understand. However, it's worth pointing out that any struct will tell you whether it resides in CPU or GPU memory:

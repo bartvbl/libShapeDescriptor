@@ -1,14 +1,11 @@
 #include <fstream>
 #include <cassert>
 #include "fileutils.h"
-#include <fast-lzma2.h>
 #include <algorithm>
 #include <array>
+#include <shapeDescriptor/utilities/compress/byteCompressor.h>
 
-const int LZMA2_COMPRESSION_LEVEL = 9;
 
-//static FL2_DCtx* decompressionContext = FL2_createDCtxMt(6);
-//static FL2_CCtx* compressionContext = FL2_createCCtxMt(6);
 
 std::vector<std::experimental::filesystem::path> ShapeDescriptor::utilities::listDirectory(const std::string& directory) {
     std::vector<std::experimental::filesystem::path> foundFiles;
@@ -57,7 +54,7 @@ const char *ShapeDescriptor::utilities::readCompressedFile(const std::experiment
             //        (void*) decompressedBuffer, decompressedBufferSize,
             //        (void*) compressedBuffer, compressedBufferSize);
         //} else {
-            FL2_decompressMt(
+            ShapeDescriptor::utilities::decompressBytesMultithreaded(
                     (void*) decompressedBuffer, decompressedBufferSize,
                     (void*) compressedBuffer, compressedBufferSize,
                     threadCount);
@@ -73,17 +70,15 @@ void ShapeDescriptor::utilities::writeCompressedFile(const char *buffer, size_t 
 
     std::experimental::filesystem::create_directories(std::experimental::filesystem::absolute(archiveFile).parent_path());
 
-    const size_t maxCompressedBufferSize = FL2_compressBound(bufferSize);
+    const size_t maxCompressedBufferSize = ShapeDescriptor::utilities::computeMaxCompressedBufferSize(bufferSize);
     char* compressedBuffer = new char[maxCompressedBufferSize];
     unsigned long compressedBufferSize;
  //   #pragma omp critical
     {
         compressedBufferSize =
-                FL2_compressMt(
-                //FL2_compress(
+                ShapeDescriptor::utilities::compressBytesMultithreaded(
                         (void*) compressedBuffer, maxCompressedBufferSize,
-                        (void*) buffer, bufferSize,
-                        LZMA2_COMPRESSION_LEVEL, threadCount);
+                        (void*) buffer, bufferSize, threadCount);
     }
 
     const char header[5] = "CDXF";

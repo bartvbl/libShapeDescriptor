@@ -12,6 +12,7 @@
 #include <shapeDescriptor/utilities/copy/mesh.h>
 #include <shapeDescriptor/utilities/kernels/meshSampler.cuh>
 #include <shapeDescriptor/utilities/copy/array.h>
+#include <shapeDescriptor/utilities/read/MeshLoader.h>
 
 int main(int argc, const char** argv) {
     arrrgh::parser parser("imagerenderer", "Generate RICI or spin images from an input object and dump them into a PNG file");
@@ -58,8 +59,8 @@ int main(int argc, const char** argv) {
         ShapeDescriptor::utilities::createCUDAContext(forceGPU.value());
     }
 
-    std::cout << "Loading OBJ file.." << std::endl;
-    ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadOBJ(inputFile.value(), true);
+    std::cout << "Loading mesh file.." << std::endl;
+    ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh(inputFile.value(), true);
     ShapeDescriptor::gpu::Mesh deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
     std::cout << "    Object has " << mesh.vertexCount << " vertices" << std::endl;
 

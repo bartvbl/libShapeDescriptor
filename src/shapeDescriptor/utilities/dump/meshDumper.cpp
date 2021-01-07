@@ -100,9 +100,9 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::experimental::filesyst
         }
 
         fileContents << "f "
-           << (i+1) << "/" << (i+1) << "/" << (i+1) << " "
-           << (i+2) << "/" << (i+2) << "/" << (i+2) << " "
-           << (i+3) << "/" << (i+3) << "/" << (i+3) << std::endl;
+           << (i+1) << "/" << (useCustomTextureMap ? std::to_string(i+1) + "/" : "/") << (i+1) << " "
+           << (i+2) << "/" << (useCustomTextureMap ? std::to_string(i+2) + "/" : "/") << (i+2) << " "
+           << (i+3) << "/" << (useCustomTextureMap ? std::to_string(i+3) + "/" : "/") << (i+3) << std::endl;
         lastIterationWasHighlighted = currentIterationIsHighlighted;
     }
 

@@ -54,6 +54,18 @@ namespace ShapeDescriptor {
                         (z == other.z);
             }
 
+            void operator+= (float3 other) {
+                x += other.x;
+                y += other.y;
+                z += other.z;
+            }
+
+            void operator-= (float3 other) {
+                x -= other.x;
+                y -= other.y;
+                z -= other.z;
+            }
+
             std::string to_string() {
                 return "(" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ")";
             }

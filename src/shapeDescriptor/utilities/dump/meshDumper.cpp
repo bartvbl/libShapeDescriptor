@@ -4,6 +4,8 @@
 #include <vector>
 #include <cassert>
 #include <sstream>
+#include <unordered_set>
+#include <unordered_map>
 
 void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::experimental::filesystem::path &outputFilePath, size_t highlightStartVertex, size_t highlightEndVertex,
         bool useCustomTextureMap, ShapeDescriptor::cpu::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
@@ -61,14 +63,54 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::experimental::filesyst
         fileContents << std::endl;
     }
 
+    std::vector<ShapeDescriptor::cpu::float3> condensedVertices;
+    std::vector<unsigned int> vertexIndexBuffer(mesh.vertexCount);
+    std::vector<ShapeDescriptor::cpu::float3> condensedNormals;
+    std::vector<unsigned int> normalIndexBuffer(mesh.vertexCount);
+
+    condensedVertices.reserve(mesh.vertexCount);
+    condensedNormals.reserve(mesh.vertexCount);
+
+    std::unordered_set<ShapeDescriptor::cpu::float3> seenUniqueVertices;
+    std::unordered_map<ShapeDescriptor::cpu::float3, unsigned int> seenVerticesIndex;
+
+    std::unordered_set<ShapeDescriptor::cpu::float3> seenUniqueNormals;
+    std::unordered_map<ShapeDescriptor::cpu::float3, unsigned int> seenNormalsIndex;
+
     for(unsigned int i = 0; i < mesh.vertexCount; i++) {
-        fileContents << "v " << mesh.vertices[i].x << " " << mesh.vertices[i].y << " " <<mesh.vertices[i].z << std::endl;
+        const ShapeDescriptor::cpu::float3 vertex = mesh.vertices[i];
+        if(seenUniqueVertices.find(vertex) == seenUniqueVertices.end()) {
+            // Vertex has not been seen before
+            seenUniqueVertices.insert(vertex);
+            seenVerticesIndex[vertex] = condensedVertices.size();
+            condensedVertices.push_back(vertex);
+        }
+        vertexIndexBuffer.at(i) = seenVerticesIndex.at(vertex);
+    }
+
+    for(unsigned int i = 0; i < mesh.vertexCount; i++) {
+        const ShapeDescriptor::cpu::float3 normal = mesh.normals[i];
+        if(seenUniqueNormals.find(normal) == seenUniqueNormals.end()) {
+            // Normal has not been seen before
+            seenUniqueNormals.insert(normal);
+            seenNormalsIndex[normal] = condensedNormals.size();
+            condensedNormals.push_back(normal);
+        }
+        normalIndexBuffer.at(i) = seenNormalsIndex.at(normal);
+    }
+
+    for(unsigned int i = 0; i < condensedVertices.size(); i++) {
+        fileContents << "v " << condensedVertices[i].x
+                      << " " << condensedVertices[i].y
+                      << " " << condensedVertices[i].z << std::endl;
     }
 
     fileContents << std::endl;
 
-    for(unsigned int i = 0; i < mesh.vertexCount; i++) {
-        fileContents << "vn " << mesh.normals[i].x << " " << mesh.normals[i].y << " " <<mesh.normals[i].z << std::endl;
+    for(unsigned int i = 0; i < condensedNormals.size(); i++) {
+        fileContents << "vn " << condensedNormals[i].x
+                       << " " << condensedNormals[i].y
+                       << " " << condensedNormals[i].z << std::endl;
     }
 
     if(useCustomTextureMap) {
@@ -100,9 +142,9 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::experimental::filesyst
         }
 
         fileContents << "f "
-           << (i+1) << "/" << (useCustomTextureMap ? std::to_string(i+1) + "/" : "/") << (i+1) << " "
-           << (i+2) << "/" << (useCustomTextureMap ? std::to_string(i+2) + "/" : "/") << (i+2) << " "
-           << (i+3) << "/" << (useCustomTextureMap ? std::to_string(i+3) + "/" : "/") << (i+3) << std::endl;
+           << (vertexIndexBuffer.at(i)+1) << "/" << (useCustomTextureMap ? std::to_string(i+1) + "/" : "/") << (normalIndexBuffer.at(i)+1) << " "
+           << (vertexIndexBuffer.at(i)+2) << "/" << (useCustomTextureMap ? std::to_string(i+2) + "/" : "/") << (normalIndexBuffer.at(i)+2) << " "
+           << (vertexIndexBuffer.at(i)+3) << "/" << (useCustomTextureMap ? std::to_string(i+3) + "/" : "/") << (normalIndexBuffer.at(i)+3) << std::endl;
         lastIterationWasHighlighted = currentIterationIsHighlighted;
     }
 

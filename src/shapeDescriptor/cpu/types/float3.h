@@ -47,7 +47,7 @@ namespace ShapeDescriptor {
                 return out;
             }
 
-            bool operator== (float3 other) {
+            bool operator== (const float3 &other) const {
                 return
                         (x == other.x) &&
                         (y == other.y) &&
@@ -71,6 +71,17 @@ namespace ShapeDescriptor {
             }
         };
     }
+}
+
+// Allow inclusion into std::set
+namespace std {
+    template <> struct hash<ShapeDescriptor::cpu::float3>
+    {
+        size_t operator()(const ShapeDescriptor::cpu::float3& p) const
+        {
+            return std::hash<float>()(p.x) ^ std::hash<float>()(p.y) ^ std::hash<float>()(p.z);
+        }
+    };
 }
 
 

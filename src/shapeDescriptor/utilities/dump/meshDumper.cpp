@@ -142,9 +142,18 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::experimental::filesyst
         }
 
         fileContents << "f "
-           << (vertexIndexBuffer.at(i)+1) << "/" << (useCustomTextureMap ? std::to_string(i+1) + "/" : "/") << (normalIndexBuffer.at(i)+1) << " "
-           << (vertexIndexBuffer.at(i)+2) << "/" << (useCustomTextureMap ? std::to_string(i+2) + "/" : "/") << (normalIndexBuffer.at(i)+2) << " "
-           << (vertexIndexBuffer.at(i)+3) << "/" << (useCustomTextureMap ? std::to_string(i+3) + "/" : "/") << (normalIndexBuffer.at(i)+3) << std::endl;
+           << (vertexIndexBuffer.at(i + 0) + 1) << "/"
+           << (useCustomTextureMap ? std::to_string(i + 1) + "/" : "/")
+           << (normalIndexBuffer.at(i + 0) + 1) << " "
+
+           << (vertexIndexBuffer.at(i + 1) + 1) << "/"
+           << (useCustomTextureMap ? std::to_string(i + 2) + "/" : "/")
+           << (normalIndexBuffer.at(i + 1) + 1) << " "
+
+           << (vertexIndexBuffer.at(i + 2) + 1) << "/"
+           << (useCustomTextureMap ? std::to_string(i + 3) + "/" : "/")
+           << (normalIndexBuffer.at(i + 2) + 1) << std::endl;
+
         lastIterationWasHighlighted = currentIterationIsHighlighted;
     }
 

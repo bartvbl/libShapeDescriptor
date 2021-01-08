@@ -176,8 +176,8 @@ __global__ void generateSearchResults(ShapeDescriptor::SpinImageDescriptor* need
 			if(laneID >= foundIndex % 32) {
 				int targetThread = laneID - 1;
 
-				threadSearchResultScores[startBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[startBlock], targetThread);
-				threadSearchResultImageIndexes[startBlock] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[startBlock], targetThread);
+				threadSearchResultScores[startBlock] = __shfl_sync(__activemask(), threadSearchResultScores[startBlock], targetThread);
+				threadSearchResultImageIndexes[startBlock] = __shfl_sync(__activemask(), threadSearchResultImageIndexes[startBlock], targetThread);
 
 				if(laneID == foundIndex % 32) {
 					threadSearchResultScores[startBlock] = correlation;

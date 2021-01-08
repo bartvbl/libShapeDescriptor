@@ -418,20 +418,15 @@ __global__ void generateSearchResults(ShapeDescriptor::QUICCIDescriptor* needleD
 
                 threadSearchResultScores[block] = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[sourceBlock], sourceThread);
                 threadSearchResultImageIndexes[block] = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[sourceBlock], sourceThread);
-
             }
 
             // This shifts over values in the block where we're inserting the new value.
             // As such it requires some more fine-grained control.
-
-            // All threads need to take part in the shuffling due to newer cards executing threads independently
-            int targetThread = laneID - 1;
-            int movedScore = __shfl_sync(0xFFFFFFFF, threadSearchResultScores[startBlock], targetThread);
-            unsigned long movedImageIndex = __shfl_sync(0xFFFFFFFF, threadSearchResultImageIndexes[startBlock], targetThread);
-
             if(laneID >= foundIndex % 32) {
-                threadSearchResultScores[startBlock] = movedScore;
-                threadSearchResultImageIndexes[startBlock] = movedImageIndex;
+                int targetThread = laneID - 1;
+
+                threadSearchResultScores[startBlock] = __shfl_sync(__activemask(), threadSearchResultScores[startBlock], targetThread);
+                threadSearchResultImageIndexes[startBlock] = __shfl_sync(__activemask(), threadSearchResultImageIndexes[startBlock], targetThread);
 
                 if(laneID == foundIndex % 32) {
                     threadSearchResultScores[startBlock] = score;

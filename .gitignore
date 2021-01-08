@@ -35,7 +35,9 @@ lib/*
 build/*
 .idea/*
 cmake-build-debug/*
+cmake-build-debug_/*
 cmake-build-release/*
+build-windows/*
 
 PIXEL_COUNTS/*
 misc/PIXEL_COUNTS/*

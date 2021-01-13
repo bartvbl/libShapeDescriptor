@@ -19,6 +19,8 @@ namespace ShapeDescriptor {
                 normals = new float3[vertCount];
                 vertexCount = vertCount;
             }
+
+            ShapeDescriptor::cpu::Mesh clone() const;
         };
     }
 }

@@ -58,8 +58,6 @@ __global__ void removeDuplicates(ShapeDescriptor::gpu::Mesh inputMesh, ShapeDesc
             }
         }
 
-        __syncthreads();
-
         unsigned int uniqueVerticesInWarp = __ballot_sync(__activemask(), !shouldBeDiscarded);
         unsigned int uniqueVertexCount = __popc(uniqueVerticesInWarp);
 

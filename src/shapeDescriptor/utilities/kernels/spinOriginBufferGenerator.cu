@@ -60,7 +60,7 @@ __global__ void removeDuplicates(ShapeDescriptor::gpu::Mesh inputMesh, ShapeDesc
 
         __syncthreads();
 
-        unsigned int uniqueVerticesInWarp = __ballot_sync(0xFFFFFFFF, !shouldBeDiscarded);
+        unsigned int uniqueVerticesInWarp = __ballot_sync(__activemask(), !shouldBeDiscarded);
         unsigned int uniqueVertexCount = __popc(uniqueVerticesInWarp);
 
         unsigned int indicesBeforeMe = __popc(uniqueVerticesInWarp << (32 - threadIndex));

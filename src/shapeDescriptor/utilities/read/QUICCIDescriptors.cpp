@@ -31,7 +31,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> readImageLZFile(c
     images.content = new ShapeDescriptor::QUICCIDescriptor[imageCount];
 
     const ShapeDescriptor::QUICCIDescriptor* imagesBasePointer
-        = reinterpret_cast<const ShapeDescriptor::QUICCIDescriptor*>(inputBuffer + 4 + sizeof(size_t) + sizeof(unsigned int));
+        = reinterpret_cast<const ShapeDescriptor::QUICCIDescriptor*>(inputBuffer + 5 + sizeof(size_t) + sizeof(unsigned int));
 
     std::copy(imagesBasePointer, imagesBasePointer + imageCount, images.content);
 

@@ -48,6 +48,7 @@ file (GLOB_RECURSE LIBRARY_SOURCES             src/*.cpp
 file (GLOB_RECURSE TEST_SOURCES                tests/*.cpp)
 file (GLOB_RECURSE RENDER_TOOL_SOURCES         tools/imagerenderer/*.cpp)
 file (GLOB_RECURSE QUICCI_DUMPER_TOOL_SOURCES  tools/quiccidumper/*.cpp)
+file (GLOB_RECURSE QUICCI_VIEWER_TOOL_SOURCES  tools/quicciviewer/*.cpp)
 
 cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 
@@ -68,6 +69,9 @@ target_link_libraries(imagerenderer ShapeDescriptor cudadevrt)
 
 add_executable(quiccidumper ${QUICCI_DUMPER_TOOL_SOURCES})
 target_link_libraries(quiccidumper ShapeDescriptor cudadevrt)
+
+add_executable(quicciviewer ${QUICCI_VIEWER_TOOL_SOURCES})
+target_link_libraries(quicciviewer ShapeDescriptor cudadevrt)
 
 if(MSVC)
 	set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)

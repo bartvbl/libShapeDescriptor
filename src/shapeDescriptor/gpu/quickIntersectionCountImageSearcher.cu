@@ -5,6 +5,7 @@
 #include <iostream>
 #include <nvidia/helper_cuda.h>
 #include <shapeDescriptor/utilities/weightedHamming.cuh>
+#include <cfloat>
 
 #ifndef warpSize
 #define warpSize 32
@@ -368,8 +369,11 @@ __global__ void generateSearchResults(ShapeDescriptor::QUICCIDescriptor* needleD
 
     static_assert(SEARCH_RESULT_COUNT == 128, "Array initialisation needs to change if search result count is changed");
     size_t threadSearchResultImageIndexes[SEARCH_RESULT_COUNT / 32] = {UINT_MAX, UINT_MAX, UINT_MAX, UINT_MAX};
+#if QUICCI_DISTANCE_FUNCTION == WEIGHTED_HAMMING_DISTANCE
+    ShapeDescriptor::gpu::quicciDistanceType threadSearchResultScores[SEARCH_RESULT_COUNT / 32] = {FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX};
+#else
     ShapeDescriptor::gpu::quicciDistanceType threadSearchResultScores[SEARCH_RESULT_COUNT / 32] = {INT_MAX, INT_MAX, INT_MAX, INT_MAX};
-
+#endif
     const int blockCount = (SEARCH_RESULT_COUNT / 32);
 
     for(size_t haystackImageIndex = 0; haystackImageIndex < haystackImageCount; haystackImageIndex++) {

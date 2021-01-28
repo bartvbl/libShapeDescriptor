@@ -13,7 +13,13 @@ namespace ShapeDescriptor {
     }
 
     namespace gpu {
-        ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> findQUICCImagesInHaystack(
+        #if QUICCI_DISTANCE_FUNCTION == WEIGHTED_HAMMING_DISTANCE
+                typedef float quicciDistanceType;
+        #else
+                typedef unsigned int quicciDistanceType;
+        #endif
+
+        ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<quicciDistanceType>> findQUICCImagesInHaystack(
                 ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_needleDescriptors,
                 ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_haystackDescriptors);
 

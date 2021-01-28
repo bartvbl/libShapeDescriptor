@@ -10,11 +10,7 @@
 #define warpSize 32
 #endif
 
-#if QUICCI_DISTANCE_FUNCTION == WEIGHTED_HAMMING_DISTANCE
-    typedef float distanceType;
-#else
-    typedef unsigned int distanceType;
-#endif
+
 
 const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
 
@@ -56,13 +52,13 @@ __device__ int computeImageSumGPU(
     return sum;
 }
 
-__device__ distanceType compareConstantQUICCImagePairGPU(
+__device__ ShapeDescriptor::gpu::quicciDistanceType compareConstantQUICCImagePairGPU(
         const ShapeDescriptor::QUICCIDescriptor* haystackImages,
         const size_t haystackImageIndex) {
 
     const int laneIndex = threadIdx.x % 32;
 
-    distanceType threadSum = 0;
+    ShapeDescriptor::gpu::quicciDistanceType threadSum = 0;
 
     static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes the image is a multiple of the warp size wide");
 
@@ -86,7 +82,7 @@ __device__ distanceType compareConstantQUICCImagePairGPU(
     return warpAllReduceSum(threadSum);
 }
 
-__device__ distanceType compareQUICCImagePairGPU(
+__device__ ShapeDescriptor::gpu::quicciDistanceType compareQUICCImagePairGPU(
         const ShapeDescriptor::QUICCIDescriptor* needleImages,
         const size_t needleImageIndex,
         const ShapeDescriptor::QUICCIDescriptor* haystackImages,
@@ -101,7 +97,7 @@ __device__ distanceType compareQUICCImagePairGPU(
 
     static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes the image is a multiple of the warp size wide");
 
-    distanceType threadScore = 0;
+    ShapeDescriptor::gpu::quicciDistanceType threadScore = 0;
 
     for (int chunk = laneIndex; chunk < uintsPerQUICCImage; chunk += warpSize) {
         unsigned int needleChunk = getChunkAt(needleImages, needleImageIndex, chunk);
@@ -116,7 +112,7 @@ __device__ distanceType compareQUICCImagePairGPU(
 #endif
     }
 
-    distanceType imageScore = warpAllReduceSum(threadScore);
+    ShapeDescriptor::gpu::quicciDistanceType imageScore = warpAllReduceSum(threadScore);
 
     return imageScore;
 }
@@ -136,7 +132,7 @@ __global__ void computeQUICCISearchResultIndices(
 
     __syncthreads();
 
-    distanceType referenceScore;
+    ShapeDescriptor::gpu::quicciDistanceType referenceScore;
 
     int referenceImageBitCount = computeImageSumGPU(&referenceImage, 0);
 
@@ -173,7 +169,7 @@ __global__ void computeQUICCISearchResultIndices(
 
         // For the current image pair, compute the distance score
         // This depends on whether the needle image is constant
-        distanceType pairScore;
+        ShapeDescriptor::gpu::quicciDistanceType pairScore;
         if(!needleImageIsConstant) {
             // If there's variation in the image, we'll use the regular distance function
             pairScore = compareQUICCImagePairGPU(
@@ -362,7 +358,7 @@ __global__ void generateSearchResults(ShapeDescriptor::QUICCIDescriptor* needleD
                                       size_t needleImageCount,
                                       ShapeDescriptor::QUICCIDescriptor* haystackDescriptors,
                                       size_t haystackImageCount,
-                                      ShapeDescriptor::gpu::SearchResults<unsigned int>* searchResults) {
+                                      ShapeDescriptor::gpu::SearchResults<ShapeDescriptor::gpu::quicciDistanceType>* searchResults) {
 
     size_t needleImageIndex = warpCount * blockIdx.x + (threadIdx.x / 32);
 
@@ -372,12 +368,12 @@ __global__ void generateSearchResults(ShapeDescriptor::QUICCIDescriptor* needleD
 
     static_assert(SEARCH_RESULT_COUNT == 128, "Array initialisation needs to change if search result count is changed");
     size_t threadSearchResultImageIndexes[SEARCH_RESULT_COUNT / 32] = {UINT_MAX, UINT_MAX, UINT_MAX, UINT_MAX};
-    int threadSearchResultScores[SEARCH_RESULT_COUNT / 32] = {INT_MAX, INT_MAX, INT_MAX, INT_MAX};
+    ShapeDescriptor::gpu::quicciDistanceType threadSearchResultScores[SEARCH_RESULT_COUNT / 32] = {INT_MAX, INT_MAX, INT_MAX, INT_MAX};
 
     const int blockCount = (SEARCH_RESULT_COUNT / 32);
 
     for(size_t haystackImageIndex = 0; haystackImageIndex < haystackImageCount; haystackImageIndex++) {
-        int score = compareQUICCImagePairGPU(
+        ShapeDescriptor::gpu::quicciDistanceType score = compareQUICCImagePairGPU(
                 needleDescriptors,
                 needleImageIndex,
                 haystackDescriptors,
@@ -447,12 +443,12 @@ __global__ void generateSearchResults(ShapeDescriptor::QUICCIDescriptor* needleD
 
 }
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> ShapeDescriptor::gpu::findQUICCImagesInHaystack(
+ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<ShapeDescriptor::gpu::quicciDistanceType>> ShapeDescriptor::gpu::findQUICCImagesInHaystack(
         ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_haystackDescriptors) {
 
-    size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(ShapeDescriptor::gpu::SearchResults<unsigned int>);
-    ShapeDescriptor::gpu::SearchResults<unsigned int>* device_searchResults;
+    size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(ShapeDescriptor::gpu::SearchResults<ShapeDescriptor::gpu::quicciDistanceType>);
+    ShapeDescriptor::gpu::SearchResults<ShapeDescriptor::gpu::quicciDistanceType>* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
 
     std::cout << "\t\tPerforming search.." << std::endl;
@@ -471,8 +467,8 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> S
 
     // Step 3: Copying results to CPU
 
-    ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> searchResults;
-    searchResults.content = new ShapeDescriptor::gpu::SearchResults<unsigned int>[device_needleDescriptors.length];
+    ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<ShapeDescriptor::gpu::quicciDistanceType>> searchResults;
+    searchResults.content = new ShapeDescriptor::gpu::SearchResults<ShapeDescriptor::gpu::quicciDistanceType>[device_needleDescriptors.length];
     searchResults.length = device_needleDescriptors.length;
 
     checkCudaErrors(cudaMemcpy(searchResults.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));

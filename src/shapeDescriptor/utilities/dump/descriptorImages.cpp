@@ -154,7 +154,7 @@ void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescrip
 	// Compute the number of images that should be inserted to separate the two series
 	// If the number of rows fits the images exactly, an extra one is inserted for better clarity.
 	size_t rowRemainder = hostDescriptors.length % imagesPerRow;
-	size_t fillerImageCount = (rowRemainder == 0) ? imagesPerRow : (imagesPerRow - rowRemainder);
+	size_t fillerImageCount = (rowRemainder == 0) ? 0 : (imagesPerRow - rowRemainder);
 
 	size_t totalImageCount = hostDescriptors.length + fillerImageCount;
 
@@ -175,7 +175,7 @@ void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescrip
 
 	unsigned int pixelIndex = hostDescriptors.length * UINTS_PER_QUICCI * 32;
 
-	for(unsigned int emptyImageIndex = 0; emptyImageIndex < fillerImageCount; emptyImageIndex++) {
+	for(unsigned int emptyImageIndex = hostDescriptors.length; emptyImageIndex < totalImageCount; emptyImageIndex++) {
 		for(int i = 0; i < spinImageWidthPixels * spinImageWidthPixels; i++) {
 			decompressedDesciptors.content[emptyImageIndex].contents[i] = UINT32_MAX;
 			pixelIndex++;

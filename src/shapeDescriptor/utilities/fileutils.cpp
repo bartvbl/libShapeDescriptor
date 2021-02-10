@@ -19,7 +19,7 @@ std::vector<std::experimental::filesystem::path> ShapeDescriptor::utilities::lis
     return foundFiles;
 }
 
-const char *ShapeDescriptor::utilities::readCompressedFile(const std::experimental::filesystem::path &archiveFile, size_t* fileSizeBytes, unsigned int threadCount) {
+const char* readLZMAFile(const std::experimental::filesystem::path &archiveFile, size_t* fileSizeBytes, size_t readLimit, unsigned int threadCount) {
     std::array<char, 5> headerTitle = {0, 0, 0, 0, 0};
     size_t compressedBufferSize;
     size_t decompressedBufferSize;
@@ -34,10 +34,12 @@ const char *ShapeDescriptor::utilities::readCompressedFile(const std::experiment
     decompressStream.read((char*) &decompressedBufferSize, sizeof(size_t));
     decompressStream.read((char*) &compressedBufferSize, sizeof(size_t));
 
-    *fileSizeBytes = decompressedBufferSize;
+    size_t numberOfDecompressedBytesToRead = std::min<size_t>(decompressedBufferSize, readLimit);
+
+    *fileSizeBytes = numberOfDecompressedBytesToRead;
 
     char* compressedBuffer = new char[compressedBufferSize];
-    char* decompressedBuffer = new char[decompressedBufferSize];
+    char* decompressedBuffer = new char[numberOfDecompressedBytesToRead];
 
     assert(std::string(headerTitle.data()) == "CDXF");
 
@@ -55,7 +57,7 @@ const char *ShapeDescriptor::utilities::readCompressedFile(const std::experiment
             //        (void*) compressedBuffer, compressedBufferSize);
         //} else {
             ShapeDescriptor::utilities::decompressBytesMultithreaded(
-                    (void*) decompressedBuffer, decompressedBufferSize,
+                    (void*) decompressedBuffer, numberOfDecompressedBytesToRead,
                     (void*) compressedBuffer, compressedBufferSize,
                     threadCount);
         //}
@@ -64,6 +66,10 @@ const char *ShapeDescriptor::utilities::readCompressedFile(const std::experiment
     delete[] compressedBuffer;
 
     return decompressedBuffer;
+}
+
+const char *ShapeDescriptor::utilities::readCompressedFile(const std::experimental::filesystem::path &archiveFile, size_t* fileSizeBytes, unsigned int threadCount) {
+    return readLZMAFile(archiveFile, fileSizeBytes, std::numeric_limits<size_t>::max(), threadCount);
 }
 
 void ShapeDescriptor::utilities::writeCompressedFile(const char *buffer, size_t bufferSize, const std::experimental::filesystem::path &archiveFile, unsigned int threadCount) {
@@ -93,4 +99,12 @@ void ShapeDescriptor::utilities::writeCompressedFile(const char *buffer, size_t 
     outStream.close();
 
     delete[] compressedBuffer;
+}
+
+const char *
+ShapeDescriptor::utilities::readCompressedFileUpToNBytes(const std::experimental::filesystem::path &archiveFile,
+                                                         size_t* readByteCount,
+                                                         size_t decompressedBytesToRead,
+                                                         unsigned int threadCount) {
+    return readLZMAFile(archiveFile, readByteCount, decompressedBytesToRead, threadCount);
 }

@@ -13,6 +13,7 @@ namespace ShapeDescriptor {
         };
 
         #ifdef __CUDACC__
+            __host__
             __device__
         #endif
         inline HammingWeights computeWeightedHammingWeights(
@@ -34,6 +35,19 @@ namespace ShapeDescriptor {
             float missedUnsetBitPenalty = float(totalBitsInBitString) / float(queryImageUnsetBitCount);
 
             return {missedSetBitPenalty, missedUnsetBitPenalty};
+        }
+
+        #ifdef __CUDACC__
+        __host__
+        #endif
+        inline HammingWeights computeWeightedHammingWeights(const ShapeDescriptor::QUICCIDescriptor &descriptor) {
+            unsigned int setBitCount = 0;
+
+            for(unsigned int i = 0; i < ShapeDescriptor::QUICCIDescriptorLength; i++) {
+                setBitCount += std::bitset<32>(descriptor.contents[i]).count();
+            }
+
+            return computeWeightedHammingWeights(setBitCount, ShapeDescriptor::QUICCIDescriptorLength);
         }
 
         #ifdef __CUDACC__

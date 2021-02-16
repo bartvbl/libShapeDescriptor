@@ -47,7 +47,7 @@ namespace ShapeDescriptor {
                 setBitCount += std::bitset<32>(descriptor.contents[i]).count();
             }
 
-            return computeWeightedHammingWeights(setBitCount, ShapeDescriptor::QUICCIDescriptorLength);
+            return computeWeightedHammingWeights(setBitCount, spinImageWidthPixels * spinImageWidthPixels);
         }
 
         #ifdef __CUDACC__

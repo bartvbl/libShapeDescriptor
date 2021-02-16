@@ -7,7 +7,7 @@
 
 namespace ShapeDescriptor {
     struct QUICCIDescriptorFileHeader {
-        std::string fileID;
+        std::array<char, 5> fileID;
         size_t imageCount;
         unsigned int descriptorWidthPixels;
     };

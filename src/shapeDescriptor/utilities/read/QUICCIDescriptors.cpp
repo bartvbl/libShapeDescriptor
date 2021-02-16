@@ -7,16 +7,15 @@
 #include <shapeDescriptor/cpu/types/array.h>
 
 ShapeDescriptor::QUICCIDescriptorFileHeader readHeader(const char* startOfFileBuffer) {
-    char fileID[5] = {startOfFileBuffer[0], startOfFileBuffer[1], startOfFileBuffer[2], startOfFileBuffer[3], '\0'};
-    if(std::string(fileID) != "QUIC") {
+    ShapeDescriptor::QUICCIDescriptorFileHeader header;
+    header.fileID = {startOfFileBuffer[0], startOfFileBuffer[1], startOfFileBuffer[2], startOfFileBuffer[3], '\0'};
+    if(std::string(header.fileID.data()) != "QUIC") {
         std::cout << "WARNING: File header does not match expectations, and is thus possibly corrupt." << std::endl;
     }
 
     size_t imageCount = *reinterpret_cast<const size_t*>(startOfFileBuffer + 5);
     unsigned int descriptorWidthPixels = *reinterpret_cast<const unsigned int*>(startOfFileBuffer + 5 + sizeof(size_t));
 
-    ShapeDescriptor::QUICCIDescriptorFileHeader header;
-    header.fileID = std::string(fileID);
     header.imageCount = imageCount;
     header.descriptorWidthPixels = descriptorWidthPixels;
 

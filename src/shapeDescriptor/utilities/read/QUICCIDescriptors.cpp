@@ -8,7 +8,7 @@
 
 ShapeDescriptor::QUICCIDescriptorFileHeader readHeader(const char* startOfFileBuffer) {
     ShapeDescriptor::QUICCIDescriptorFileHeader header;
-    header.fileID = {startOfFileBuffer[0], startOfFileBuffer[1], startOfFileBuffer[2], startOfFileBuffer[3], '\0'};
+    header.fileID = {startOfFileBuffer[0], startOfFileBuffer[1], startOfFileBuffer[2], startOfFileBuffer[3]};
     if(std::string(header.fileID.data()) != "QUIC") {
         std::cout << "WARNING: File header does not match expectations, and is thus possibly corrupt." << std::endl;
     }
@@ -40,8 +40,9 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> readImageLZFile(c
     images.length = header.imageCount;
     images.content = new ShapeDescriptor::QUICCIDescriptor[header.imageCount];
 
+    const size_t headerSize = 5 * sizeof(char) + sizeof(size_t) + sizeof(unsigned int);
     const ShapeDescriptor::QUICCIDescriptor* imagesBasePointer
-        = reinterpret_cast<const ShapeDescriptor::QUICCIDescriptor*>(inputBuffer + sizeof(ShapeDescriptor::QUICCIDescriptorFileHeader));
+        = reinterpret_cast<const ShapeDescriptor::QUICCIDescriptor*>(inputBuffer + headerSize);
 
     std::copy(imagesBasePointer, imagesBasePointer + header.imageCount, images.content);
 

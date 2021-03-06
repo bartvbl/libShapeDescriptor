@@ -286,6 +286,7 @@ __host__ __device__ static const char *_cudaGetErrorEnum(cudaError_t error)
             return "cudaErrorNvlinkUncorrectable";
         //case cudaErrorDeviceUninitilialized:
         //    return "cudaErrorDeviceUninitilialized";
+#if false
         case cudaErrorArrayIsMapped:
             return "cudaErrorArrayIsMapped";
         case cudaErrorAlreadyMapped:
@@ -338,6 +339,7 @@ __host__ __device__ static const char *_cudaGetErrorEnum(cudaError_t error)
             return "cudaErrorCapturedEvent";
         case cudaErrorStreamCaptureWrongThread:
             return "cudaErrorStreamCaptureWrongThread";
+#endif
     }
 
     return "<unknown>";

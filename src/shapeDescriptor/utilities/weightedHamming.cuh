@@ -5,6 +5,10 @@
 #include <algorithm>
 #include <bitset>
 
+#ifndef __CUDACC__
+    unsigned int __popc(unsigned int x);
+#endif
+
 namespace ShapeDescriptor {
     namespace utilities {
         struct HammingWeights {
@@ -50,6 +54,19 @@ namespace ShapeDescriptor {
             return computeWeightedHammingWeights(setBitCount, spinImageWidthPixels * spinImageWidthPixels);
         }
 
+#ifdef __CUDACC__
+        __device__
+#endif
+        inline HammingWeights computeWeightedHammingWeightsGPU(const ShapeDescriptor::QUICCIDescriptor &descriptor) {
+            unsigned int setBitCount = 0;
+
+            for(unsigned int i = 0; i < ShapeDescriptor::QUICCIDescriptorLength; i++) {
+                setBitCount += __popc(descriptor.contents[i]);
+            }
+
+            return computeWeightedHammingWeights(setBitCount, spinImageWidthPixels * spinImageWidthPixels);
+        }
+
         #ifdef __CUDACC__
                 __device__
         #endif
@@ -69,10 +86,10 @@ namespace ShapeDescriptor {
         #ifdef __CUDACC__
                 __device__
         #endif
-        inline float computeWeightedHammingDistance(HammingWeights hammingWeights, const unsigned int* needle, const unsigned int* haystack, unsigned int length) {
+        inline float computeWeightedHammingDistance(HammingWeights hammingWeights, const unsigned int* needle, const unsigned int* haystack, unsigned int imageWidthBits, unsigned int imageHeightBits) {
             float distanceScore = 0;
 
-            for(unsigned int i = 0; i < length; i++) {
+            for(unsigned int i = 0; i < (imageWidthBits * imageHeightBits) / (8 * sizeof(unsigned int)); i++) {
                 distanceScore += computeChunkWeightedHammingDistance(hammingWeights, needle[i], haystack[i]);
             }
 

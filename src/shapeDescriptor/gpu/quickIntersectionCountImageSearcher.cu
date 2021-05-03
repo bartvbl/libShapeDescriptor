@@ -371,6 +371,7 @@ __global__ void generateSearchResults(ShapeDescriptor::QUICCIDescriptor* needleD
     size_t threadSearchResultImageIndexes[SEARCH_RESULT_COUNT / 32] = {UINT_MAX, UINT_MAX, UINT_MAX, UINT_MAX};
 #if QUICCI_DISTANCE_FUNCTION == WEIGHTED_HAMMING_DISTANCE
     ShapeDescriptor::gpu::quicciDistanceType threadSearchResultScores[SEARCH_RESULT_COUNT / 32] = {FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX};
+    ShapeDescriptor::utilities::HammingWeights hammingWeights = ShapeDescriptor::utilities::computeWeightedHammingWeightsGPU(needleDescriptors[needleImageIndex]);
 #else
     ShapeDescriptor::gpu::quicciDistanceType threadSearchResultScores[SEARCH_RESULT_COUNT / 32] = {INT_MAX, INT_MAX, INT_MAX, INT_MAX};
 #endif
@@ -381,7 +382,11 @@ __global__ void generateSearchResults(ShapeDescriptor::QUICCIDescriptor* needleD
                 needleDescriptors,
                 needleImageIndex,
                 haystackDescriptors,
-                haystackImageIndex);
+                haystackImageIndex
+#if QUICCI_DISTANCE_FUNCTION == WEIGHTED_HAMMING_DISTANCE
+                , hammingWeights
+#endif
+                );
 
         // Since most images will not make it into the top ranking, we do a quick check to avoid a search
         // This saves a few instructions.

@@ -70,7 +70,9 @@ namespace ShapeDescriptor {
         #ifdef __CUDACC__
                 __device__
         #endif
-        inline float computeChunkWeightedHammingDistance(HammingWeights hammingWeights, const unsigned int needle, const unsigned int haystack) {
+        inline float computeChunkWeightedHammingDistance(const HammingWeights hammingWeights,
+                                                         const unsigned int needle,
+                                                         const unsigned int haystack) {
             #ifdef __CUDACC__
                 unsigned int missingSetPixelCount = __popc((needle ^ haystack) & needle);
                 unsigned int missingUnsetPixelCount = __popc((~needle ^ ~haystack) & ~needle);
@@ -86,11 +88,21 @@ namespace ShapeDescriptor {
         #ifdef __CUDACC__
                 __device__
         #endif
-        inline float computeWeightedHammingDistance(HammingWeights hammingWeights, const unsigned int* needle, const unsigned int* haystack, unsigned int imageWidthBits, unsigned int imageHeightBits) {
+        inline float computeWeightedHammingDistance(const HammingWeights hammingWeights,
+                                                    const unsigned int* needle,
+                                                    const unsigned int* haystack,
+                                                    const unsigned int imageWidthBits,
+                                                    const unsigned int imageHeightBits) {
             float distanceScore = 0;
 
-            for(unsigned int i = 0; i < (imageWidthBits * imageHeightBits) / (8 * sizeof(unsigned int)); i++) {
-                distanceScore += computeChunkWeightedHammingDistance(hammingWeights, needle[i], haystack[i]);
+            const unsigned int chunksPerRow = imageWidthBits / (8 * sizeof(unsigned int));
+
+            for(unsigned int row = 0; row < imageHeightBits; row++) {
+                for(unsigned int col = 0; col < chunksPerRow; col++) {
+                    distanceScore += computeChunkWeightedHammingDistance(hammingWeights,
+                                                                         needle[row * chunksPerRow + col],
+                                                                         haystack[row * chunksPerRow + col]);
+                }
             }
 
             return distanceScore;

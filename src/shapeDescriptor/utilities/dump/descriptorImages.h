@@ -27,5 +27,14 @@ namespace ShapeDescriptor {
                 ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors,
                 std::experimental::filesystem::path imageDestinationFile,
                 unsigned int imagesPerRow = 50);
+
+        // Write an image where each channel shows a different descriptor.
+        // Useful for comparing similarity of different QUICCI descriptors
+        void descriptorComparisonImage(
+                std::experimental::filesystem::path imageDestinationFile,
+                ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> blueChannelDescriptors = {0, nullptr},
+                ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> greenChannelDescriptors = {0, nullptr},
+                ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> redChannelDescriptors = {0, nullptr},
+                unsigned int imagesPerRow = 50);
     }
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <string>
 #include <experimental/filesystem>
 #include <shapeDescriptor/common/types/methods/QUICCIDescriptor.h>

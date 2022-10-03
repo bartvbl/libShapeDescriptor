@@ -13,7 +13,9 @@
 // Resolution of the created spin images.
 // Their physical size depends on the size of individual cubes and is thus calculated separately.
 // Limitation: can not be more than 255 due to the array of bytes
+#ifndef spinImageWidthPixels
 #define spinImageWidthPixels 32
+#endif
 
 // In a few places we need to check for equivalence between floating point numbers.
 // This is the maximum difference between two floating numbers such that they are considered equal.

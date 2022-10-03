@@ -7,10 +7,10 @@
 
 
 
-std::vector<std::experimental::filesystem::path> ShapeDescriptor::utilities::listDirectory(const std::string& directory) {
-    std::vector<std::experimental::filesystem::path> foundFiles;
+std::vector<std::filesystem::path> ShapeDescriptor::utilities::listDirectory(const std::string& directory) {
+    std::vector<std::filesystem::path> foundFiles;
 
-    for(auto &path : std::experimental::filesystem::directory_iterator(directory)) {
+    for(auto &path : std::filesystem::directory_iterator(directory)) {
         foundFiles.emplace_back(path);
     }
 
@@ -19,13 +19,13 @@ std::vector<std::experimental::filesystem::path> ShapeDescriptor::utilities::lis
     return foundFiles;
 }
 
-const char* readLZMAFile(const std::experimental::filesystem::path &archiveFile, size_t* fileSizeBytes, size_t readLimit, unsigned int threadCount) {
+const char* readLZMAFile(const std::filesystem::path &archiveFile, size_t* fileSizeBytes, size_t readLimit, unsigned int threadCount) {
     std::array<char, 5> headerTitle = {0, 0, 0, 0, 0};
     size_t compressedBufferSize;
     size_t decompressedBufferSize;
 
-    if(!std::experimental::filesystem::exists(archiveFile)) {
-        throw std::runtime_error("The file " + std::experimental::filesystem::absolute(archiveFile).string() + " was not found.");
+    if(!std::filesystem::exists(archiveFile)) {
+        throw std::runtime_error("The file " + std::filesystem::absolute(archiveFile).string() + " was not found.");
     }
 
     std::ifstream decompressStream(archiveFile.string(), std::ios::in | std::ios::binary);
@@ -68,13 +68,13 @@ const char* readLZMAFile(const std::experimental::filesystem::path &archiveFile,
     return decompressedBuffer;
 }
 
-const char *ShapeDescriptor::utilities::readCompressedFile(const std::experimental::filesystem::path &archiveFile, size_t* fileSizeBytes, unsigned int threadCount) {
+const char *ShapeDescriptor::utilities::readCompressedFile(const std::filesystem::path &archiveFile, size_t* fileSizeBytes, unsigned int threadCount) {
     return readLZMAFile(archiveFile, fileSizeBytes, std::numeric_limits<size_t>::max(), threadCount);
 }
 
-void ShapeDescriptor::utilities::writeCompressedFile(const char *buffer, size_t bufferSize, const std::experimental::filesystem::path &archiveFile, unsigned int threadCount) {
+void ShapeDescriptor::utilities::writeCompressedFile(const char *buffer, size_t bufferSize, const std::filesystem::path &archiveFile, unsigned int threadCount) {
 
-    std::experimental::filesystem::create_directories(std::experimental::filesystem::absolute(archiveFile).parent_path());
+    std::filesystem::create_directories(std::filesystem::absolute(archiveFile).parent_path());
 
     const size_t maxCompressedBufferSize = ShapeDescriptor::utilities::computeMaxCompressedBufferSize(bufferSize);
     char* compressedBuffer = new char[maxCompressedBufferSize];
@@ -102,7 +102,7 @@ void ShapeDescriptor::utilities::writeCompressedFile(const char *buffer, size_t 
 }
 
 const char *
-ShapeDescriptor::utilities::readCompressedFileUpToNBytes(const std::experimental::filesystem::path &archiveFile,
+ShapeDescriptor::utilities::readCompressedFileUpToNBytes(const std::filesystem::path &archiveFile,
                                                          size_t* readByteCount,
                                                          size_t decompressedBytesToRead,
                                                          unsigned int threadCount) {

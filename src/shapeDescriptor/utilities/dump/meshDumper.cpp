@@ -7,7 +7,7 @@
 #include <unordered_set>
 #include <unordered_map>
 
-void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::experimental::filesystem::path &outputFilePath, size_t highlightStartVertex, size_t highlightEndVertex,
+void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::filesystem::path &outputFilePath, size_t highlightStartVertex, size_t highlightEndVertex,
         bool useCustomTextureMap, ShapeDescriptor::cpu::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
 
     bool hasHighlightsEnabled =
@@ -21,7 +21,7 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::experimental::filesyst
     std::stringstream fileContents;
 
     if(hasHighlightsEnabled || useCustomTextureMap) {
-        std::experimental::filesystem::path materialLibPath =
+        std::filesystem::path materialLibPath =
                 outputFilePath.parent_path() / materialLibFileName;
 
         std::ofstream materialFile;
@@ -162,18 +162,18 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::experimental::filesyst
     outputFile.close();
 }
 
-void ShapeDescriptor::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::path outputFilePath) {
+void ShapeDescriptor::dump::mesh(cpu::Mesh mesh, const std::filesystem::path outputFilePath) {
     // Highlight a range that will never be highlighted
     dumpMesh(mesh, outputFilePath, -1, -1, false, {0, nullptr}, "");
 }
 
-void ShapeDescriptor::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::path outputFilePath,
+void ShapeDescriptor::dump::mesh(cpu::Mesh mesh, const std::filesystem::path outputFilePath,
         size_t highlightStartVertex, size_t highlightEndVertex) {
 
     dumpMesh(mesh, outputFilePath, highlightStartVertex, highlightEndVertex, false, {0, nullptr}, "");
 }
 
-void ShapeDescriptor::dump::mesh(cpu::Mesh mesh, const std::experimental::filesystem::path &outputFilePath,
+void ShapeDescriptor::dump::mesh(cpu::Mesh mesh, const std::filesystem::path &outputFilePath,
           ShapeDescriptor::cpu::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
     assert(vertexTextureCoordinates.length == mesh.vertexCount);
     dumpMesh(mesh, outputFilePath, -1, -1, true, vertexTextureCoordinates, textureMapPath);

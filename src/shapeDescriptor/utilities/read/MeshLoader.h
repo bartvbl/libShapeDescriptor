@@ -1,10 +1,10 @@
 #pragma once
 
 #include "shapeDescriptor/cpu/types/Mesh.h"
-#include <experimental/filesystem>
+#include <filesystem>
 
 namespace ShapeDescriptor {
     namespace utilities {
-        cpu::Mesh loadMesh(std::experimental::filesystem::path src, bool recomputeNormals = false);
+        cpu::Mesh loadMesh(std::filesystem::path src, bool recomputeNormals = false);
     }
 }

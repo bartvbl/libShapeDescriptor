@@ -2,7 +2,6 @@
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-
 #include <shapeDescriptor/gpu/types/Mesh.h>
 #include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
 #include <shapeDescriptor/utilities/kernels/setValue.cuh>

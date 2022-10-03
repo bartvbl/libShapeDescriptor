@@ -5,7 +5,7 @@
 #include "OFFLoader.h"
 
 ShapeDescriptor::cpu::Mesh
-ShapeDescriptor::utilities::loadMesh(std::experimental::filesystem::path src, bool recomputeNormals) {
+ShapeDescriptor::utilities::loadMesh(std::filesystem::path src, bool recomputeNormals) {
     if(src.extension() == ".ply" || src.extension() == ".PLY") {
         return ShapeDescriptor::utilities::loadPLY(src.string(), recomputeNormals);
     } else if(src.extension() == ".obj" || src.extension() == ".OBJ") {

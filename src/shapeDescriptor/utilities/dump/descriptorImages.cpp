@@ -27,7 +27,7 @@ template<typename spinPixelType, typename descriptorType>
 void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> redChannelDescriptors,
                      ShapeDescriptor::cpu::array<descriptorType> greenChannelDescriptors,
                      ShapeDescriptor::cpu::array<descriptorType> blueChannelDescriptors,
-                     const std::experimental::filesystem::path &imageDestinationFile,
+                     const std::filesystem::path &imageDestinationFile,
                      bool logarithmicImage,
                      unsigned int imagesPerRow) {
 	size_t rowCount = (redChannelDescriptors.length / imagesPerRow) + ((redChannelDescriptors.length % imagesPerRow == 0) ? 0 : 1);
@@ -171,21 +171,21 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> redChannelDescr
 	}
 }
 
-void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
 	performSpinDump<float, ShapeDescriptor::SpinImageDescriptor>(hostDescriptors, hostDescriptors, hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
 {
 	performSpinDump<unsigned int, ShapeDescriptor::RICIDescriptor> (hostDescriptors, hostDescriptors, hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
 }
 
-void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors, std::experimental::filesystem::path imageDestinationFile, unsigned int imagesPerRow) {
+void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, unsigned int imagesPerRow) {
     descriptorComparisonImage(imageDestinationFile, hostDescriptors, hostDescriptors, hostDescriptors, imagesPerRow);
 }
 
-void ShapeDescriptor::dump::descriptorComparisonImage(std::experimental::filesystem::path imageDestinationFile,
+void ShapeDescriptor::dump::descriptorComparisonImage(std::filesystem::path imageDestinationFile,
                                                       ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> blueChannelDescriptors,
                                                       ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> greenChannelDescriptors,
                                                       ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> redChannelDescriptors,

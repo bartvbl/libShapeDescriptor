@@ -6,7 +6,7 @@
 #include "QUICCIDescriptors.h"
 
 void ShapeDescriptor::dump::raw::QUICCIDescriptors(
-        const std::experimental::filesystem::path &outputDumpFile,
+        const std::filesystem::path &outputDumpFile,
         const ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> &images,
         unsigned int compressionThreadCount) {
     const unsigned int imageWidthPixels = spinImageWidthPixels;

@@ -2,13 +2,13 @@ project(ShapeDescriptor CXX CUDA)
 
 cmake_minimum_required (VERSION 3.0)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 find_package(OpenMP)
 find_package(CUDA REQUIRED)
 
 if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -fopenmp -lpthread -lstdc++fs -Wall -std=c++14")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -fopenmp -lpthread -Wall")
 endif()
 
 if (MSVC)
@@ -17,7 +17,7 @@ endif()
 
 
 
-set(CUDA_NVCC_FLAGS -arch=sm_52 -gencode=arch=compute_52,code=sm_52 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_75,code=compute_75 -lcurand -lineinfo -lcudart -std=c++14)
+set(CUDA_NVCC_FLAGS -arch=sm_52 -gencode=arch=compute_52,code=sm_52 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_75,code=compute_75 -lcurand -lineinfo -lcudart)
 
 add_subdirectory(lib/fast-lzma2 ${CMAKE_CURRENT_BINARY_DIR}/fast-lzma2)
 

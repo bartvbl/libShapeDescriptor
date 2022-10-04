@@ -28,6 +28,8 @@ int main(int argc, const char** argv) {
             "support-radius", "The size of the spin image plane in 3D object space", '\0', arrrgh::Optional, 1.0f);
     const auto& imageLimit = parser.add<int>(
             "image-limit", "The maximum number of images to generate (in order to limit image size)", '\0', arrrgh::Optional, -1);
+    const auto& enableLogarithmicImage = parser.add<bool>(
+            "logarithmic-image", "Apply a logarithmic filter on the image to better show colour variation.", 'l', arrrgh::Optional, false);
     const auto& supportAngle = parser.add<float>(
             "spin-image-support-angle", "The support angle to use for spin image generation", '\0', arrrgh::Optional, 90.0f);
     const auto& spinImageSampleCount = parser.add<int>(
@@ -92,7 +94,7 @@ int main(int argc, const char** argv) {
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
-        ShapeDescriptor::dump::descriptors(hostDescriptors, outputFile.value(), true, imagesPerRow.value());
+        ShapeDescriptor::dump::descriptors(hostDescriptors, outputFile.value(), enableLogarithmicImage.value(), imagesPerRow.value());
 
         cudaFree(descriptors.content);
         delete[] hostDescriptors.content;
@@ -110,7 +112,7 @@ int main(int argc, const char** argv) {
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
-        ShapeDescriptor::dump::descriptors(hostDescriptors, outputFile.value(), true, imagesPerRow.value());
+        ShapeDescriptor::dump::descriptors(hostDescriptors, outputFile.value(), enableLogarithmicImage.value(), imagesPerRow.value());
         delete[] hostDescriptors.content;
 
         cudaFree(descriptors.content);

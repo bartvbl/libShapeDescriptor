@@ -2,6 +2,7 @@
 
 #include <shapeDescriptor/cpu/types/float3.h>
 #include <shapeDescriptor/cpu/types/float2.h>
+#include "uchar4.h"
 
 
 namespace ShapeDescriptor {
@@ -9,6 +10,7 @@ namespace ShapeDescriptor {
         struct Mesh {
             float3* vertices = nullptr;
             float3* normals = nullptr;
+            uchar4* vertexColours = nullptr;
 
             size_t vertexCount = 0;
 
@@ -17,6 +19,7 @@ namespace ShapeDescriptor {
             Mesh(size_t vertCount) {
                 vertices = new float3[vertCount];
                 normals = new float3[vertCount];
+                vertexColours = new uchar4[vertexCount];
                 vertexCount = vertCount;
             }
 

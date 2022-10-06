@@ -5,6 +5,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::cpu::Mesh::clone() const {
 
     std::copy(vertices, vertices + vertexCount, copiedMesh.vertices);
     std::copy(normals, normals + vertexCount, copiedMesh.normals);
+    std::copy(vertexColours, vertexColours + vertexCount, copiedMesh.vertexColours);
 
     return copiedMesh;
 }

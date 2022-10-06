@@ -147,6 +147,7 @@ fastObjMesh*                    fast_obj_read(const char* path);
 void                            fast_obj_destroy(fastObjMesh* mesh);
 const char* parse_float(const char* ptr, float* val);
 const char* parse_int(const char* ptr, int* val);
+const char* parse_uchar(const char* ptr, unsigned char* val);
 const char* skip_whitespace(const char* ptr);
 const char* skip_line(const char* ptr);
 
@@ -519,6 +520,18 @@ const char* parse_int(const char* ptr, int* val)
         num = 10 * num + (*ptr++ - '0');
 
     *val = sign * num;
+
+    return ptr;
+}
+
+const char* parse_uchar(const char* ptr, unsigned char* val)
+{
+    unsigned char num = 0;
+
+    while (is_digit(*ptr))
+        num = 10 * num + (*ptr++ - '0');
+
+    *val = num;
 
     return ptr;
 }

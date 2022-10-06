@@ -14,7 +14,7 @@ namespace ShapeDescriptor {
 
             size_t vertexCount = 0;
 
-            Mesh() {}
+            Mesh() = default;
 
             Mesh(size_t vertCount) {
                 vertices = new float3[vertCount];

@@ -1,6 +1,6 @@
 #include <shapeDescriptor/utilities/free/mesh.h>
 
-void ShapeDescriptor::free::mesh(ShapeDescriptor::cpu::Mesh meshToFree) {
+void ShapeDescriptor::free::mesh(ShapeDescriptor::cpu::Mesh &meshToFree) {
     if(meshToFree.vertices != nullptr) {
         delete[] meshToFree.vertices;
         meshToFree.vertices = nullptr;
@@ -10,9 +10,14 @@ void ShapeDescriptor::free::mesh(ShapeDescriptor::cpu::Mesh meshToFree) {
         delete[] meshToFree.normals;
         meshToFree.normals = nullptr;
     }
+
+    if(meshToFree.vertexColours != nullptr) {
+        delete[] meshToFree.vertexColours;
+        meshToFree.vertexColours = nullptr;
+    }
 }
 
-void ShapeDescriptor::free::mesh(ShapeDescriptor::gpu::Mesh meshToFree) {
+void ShapeDescriptor::free::mesh(ShapeDescriptor::gpu::Mesh &meshToFree) {
     if(meshToFree.vertices_x != nullptr) {
         cudaFree(meshToFree.vertices_x);
         cudaFree(meshToFree.vertices_y);

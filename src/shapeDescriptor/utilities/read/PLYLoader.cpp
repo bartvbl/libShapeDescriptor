@@ -34,6 +34,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src, 
     bool isLittleEndian = false;
     bool containsNormals = false;
     bool containsColours = false;
+    bool containsFaces = false;
     bool coordinatesUseDouble = false;
     bool seenFloatCoordinate = false;
     bool seenDoubleCoordinate = false;
@@ -131,6 +132,8 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src, 
                         filePointer = parse_int(filePointer + 15, &vertexCount);
                     } else if(specification == 'f') {
                         // face
+                        // Point clouds do not contain faces, thus the feature is optional
+                        containsFaces = true;
                         filePointer = parse_int(filePointer + 13, &faceCount);
                     }
                 }
@@ -143,14 +146,19 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src, 
         std::cout << "Warning: PLY file contains coordinates in double format. These will be converted to single precision (float)." << std::endl;
     }
 
-    ShapeDescriptor::cpu::float3* raw_vertices = new ShapeDescriptor::cpu::float3[vertexCount];
-    ShapeDescriptor::cpu::float3* vertices = new ShapeDescriptor::cpu::float3[3 * faceCount];
+    size_t vertexBufferLength = containsFaces ? 3 * faceCount : vertexCount;
 
+    ShapeDescriptor::cpu::float3* raw_vertices = nullptr;
+    ShapeDescriptor::cpu::float3* vertices = nullptr;
+    raw_vertices = new ShapeDescriptor::cpu::float3[vertexCount];
+    vertices = new ShapeDescriptor::cpu::float3[vertexBufferLength];
+
+    // When a mesh has faces, we can compute normals automatically
     ShapeDescriptor::cpu::float3* raw_normals = nullptr;
     ShapeDescriptor::cpu::float3* normals = nullptr;
-    if(containsNormals) {
+    if(containsNormals || containsFaces) {
         raw_normals = new ShapeDescriptor::cpu::float3[vertexCount];
-        normals = new ShapeDescriptor::cpu::float3[3 * faceCount];
+        normals = new ShapeDescriptor::cpu::float3[vertexBufferLength];
     }
 
     ShapeDescriptor::cpu::uchar4* raw_colours = nullptr;
@@ -165,7 +173,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src, 
             throw std::runtime_error("Failed to load PLY file from " + src + ".\nReason: this loader only supports little endian files");
         }
 
-        if(!containsNormals && !containsColours) {
+        if(!containsNormals && !containsColours && !coordinatesUseDouble) {
             // When there are no other properties, vertices are stored in the same way as the struct, so we can simply copy them.
             // This is a shortcut for much faster load times
             const ShapeDescriptor::cpu::float3* vertexArrayStart= reinterpret_cast<const ShapeDescriptor::cpu::float3*>(filePointer);
@@ -176,76 +184,86 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src, 
             // If there are other properties, we need to separate them
             const size_t strideBytes =
                     (coordinatesUseDouble ? sizeof(ShapeDescriptor::cpu::double3) : sizeof(ShapeDescriptor::cpu::float3))
-                    + (containsNormals ? sizeof(ShapeDescriptor::cpu::float3) : 0)
-                    + (containsColours ? sizeof(ShapeDescriptor::cpu::uchar4) : 0);
+                  + (containsNormals ? sizeof(ShapeDescriptor::cpu::float3) : 0)
+                  + (containsColours ? sizeof(ShapeDescriptor::cpu::uchar4) : 0);
             for(size_t i = 0; i < vertexCount; i++) {
                 // Copy vertex
                 const char* rawVertexPointer = filePointer + (strideBytes * i);
                 if(coordinatesUseDouble) {
                     const ShapeDescriptor::cpu::double3* vertexPointer = reinterpret_cast<const ShapeDescriptor::cpu::double3*>(rawVertexPointer);
-                    raw_vertices[i] = (*vertexPointer).as_float3();
+                    ShapeDescriptor::cpu::float3* destination = containsFaces ? &raw_vertices[i] : &vertices[i];
+                    *destination = (*vertexPointer).as_float3();
                 } else {
                     const ShapeDescriptor::cpu::float3* vertexPointer = reinterpret_cast<const ShapeDescriptor::cpu::float3*>(rawVertexPointer);
-                    raw_vertices[i] = *vertexPointer;
+                    ShapeDescriptor::cpu::float3* destination = containsFaces ? &raw_vertices[i] : &vertices[i];
+                    *destination = *vertexPointer;
                 }
 
                 // Copy normal
                 const char* rawNormalPointer = rawVertexPointer + (coordinatesUseDouble ? sizeof(ShapeDescriptor::cpu::double3) : sizeof(ShapeDescriptor::cpu::float3));
                 if(containsNormals) {
                     const ShapeDescriptor::cpu::float3* normalPointer = reinterpret_cast<const ShapeDescriptor::cpu::float3*>(rawNormalPointer);
-                    raw_normals[i] = *normalPointer;
+                    ShapeDescriptor::cpu::float3* destination = containsFaces ? &raw_normals[i] : &normals[i];
+                    *destination = *normalPointer;
                 }
 
                 // Copy colour
-                const char* rawColourPointer = rawNormalPointer + (containsNormals ? sizeof(ShapeDescriptor::cpu::float3) : 0);
-                if(componentsPerColour == 3) {
-                    const ShapeDescriptor::cpu::uchar3* colourPointer = reinterpret_cast<const ShapeDescriptor::cpu::uchar3*>(rawColourPointer);
-                    ShapeDescriptor::cpu::uchar3 colour = *colourPointer;
-                    raw_colours[i] = {colour.r, colour.g, colour.b, 255};
-                } else {
-                    const ShapeDescriptor::cpu::uchar4* colourPointer = reinterpret_cast<const ShapeDescriptor::cpu::uchar4*>(rawColourPointer);
-                    raw_colours[i] = *colourPointer;
+                if(containsColours) {
+                    ShapeDescriptor::cpu::uchar4* destination = containsFaces ? &raw_colours[i] : &colours[i];
+                    const char *rawColourPointer =
+                            rawNormalPointer + (containsNormals ? sizeof(ShapeDescriptor::cpu::float3) : 0);
+                    if (componentsPerColour == 3) {
+                        const ShapeDescriptor::cpu::uchar3 *colourPointer = reinterpret_cast<const ShapeDescriptor::cpu::uchar3 *>(rawColourPointer);
+                        ShapeDescriptor::cpu::uchar3 colour = *colourPointer;
+                        *destination = {colour.r, colour.g, colour.b, 255};
+                    } else {
+                        const ShapeDescriptor::cpu::uchar4 *colourPointer = reinterpret_cast<const ShapeDescriptor::cpu::uchar4 *>(rawColourPointer);
+                        *destination = *colourPointer;
+                    }
                 }
-
             }
         }
 
-        // The second step is to interpret the indices
-        for(int i = 0; i < faceCount; i++) {
-            char indexCount = *filePointer;
-            if(indexCount != 3) {
-                throw std::runtime_error("An error occurred while loading the file: " + src + ".\nThe PLY file contains non-triangulated faces. Please re-export the file, making sure you enable face triangulation.");
+        if(containsFaces) {
+            // The second step is to interpret the indices
+            for (int i = 0; i < faceCount; i++) {
+                char indexCount = *filePointer;
+                if (indexCount != 3) {
+                    throw std::runtime_error("An error occurred while loading the file: " + src +
+                                             ".\nThe PLY file contains non-triangulated faces. Please re-export the file, making sure you enable face triangulation.");
+                }
+                filePointer++;
+
+                int indexVertex0 = *reinterpret_cast<const int *>(filePointer);
+                int indexVertex1 = *reinterpret_cast<const int *>(filePointer + sizeof(int));
+                int indexVertex2 = *reinterpret_cast<const int *>(filePointer + 2 * sizeof(int));
+
+                filePointer += 3 * sizeof(int);
+
+                vertices[3 * i + 0] = raw_vertices[indexVertex0];
+                vertices[3 * i + 1] = raw_vertices[indexVertex1];
+                vertices[3 * i + 2] = raw_vertices[indexVertex2];
+
+                if (containsColours) {
+                    colours[3 * i + 0] = raw_colours[indexVertex0];
+                    colours[3 * i + 1] = raw_colours[indexVertex1];
+                    colours[3 * i + 2] = raw_colours[indexVertex2];
+                }
+
+                if (!containsNormals || recomputeNormals) {
+                    ShapeDescriptor::cpu::float3 normal = computeTriangleNormal(vertices[3 * i + 0],
+                                                                                vertices[3 * i + 1],
+                                                                                vertices[3 * i + 2]);
+
+                    normals[3 * i + 0] = normal;
+                    normals[3 * i + 1] = normal;
+                    normals[3 * i + 2] = normal;
+                } else {
+                    normals[3 * i + 0] = raw_normals[indexVertex0];
+                    normals[3 * i + 1] = raw_normals[indexVertex1];
+                    normals[3 * i + 2] = raw_normals[indexVertex2];
+                }
             }
-            filePointer++;
-
-            int indexVertex0 = *reinterpret_cast<const int*>(filePointer);
-            int indexVertex1 = *reinterpret_cast<const int*>(filePointer + sizeof(int));
-            int indexVertex2 = *reinterpret_cast<const int*>(filePointer + 2 * sizeof(int));
-
-            filePointer += 3 * sizeof(int);
-
-            vertices[3 * i + 0] = raw_vertices[indexVertex0];
-            vertices[3 * i + 1] = raw_vertices[indexVertex1];
-            vertices[3 * i + 2] = raw_vertices[indexVertex2];
-
-            if(containsColours) {
-                colours[3 * i + 0] = raw_colours[indexVertex0];
-                colours[3 * i + 1] = raw_colours[indexVertex1];
-                colours[3 * i + 2] = raw_colours[indexVertex2];
-            }
-
-            if(!containsNormals || recomputeNormals) {
-                ShapeDescriptor::cpu::float3 normal = computeTriangleNormal(vertices[3 * i + 0], vertices[3 * i + 1], vertices[3 * i + 2]);
-
-                normals[3 * i + 0] = normal;
-                normals[3 * i + 1] = normal;
-                normals[3 * i + 2] = normal;
-            } else {
-                normals[3 * i + 0] = raw_normals[indexVertex0];
-                normals[3 * i + 1] = raw_normals[indexVertex1];
-                normals[3 * i + 2] = raw_normals[indexVertex2];
-            }
-
         }
     } else {
         for(int vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
@@ -257,11 +275,11 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src, 
             filePointer = parse_float(filePointer, &vertex.z);
             filePointer = skip_whitespace(filePointer);
 
-            raw_vertices[vertexIndex] = vertex;
-
-            ShapeDescriptor::cpu::float3 normal;
+            ShapeDescriptor::cpu::float3* vertexDestination = containsFaces ? &raw_vertices[vertexIndex] : &vertices[vertexIndex];
+            *vertexDestination = vertex;
 
             // Need to advance pointer in case any colours follow, just in case there are colour definitions that follow
+            ShapeDescriptor::cpu::float3 normal;
             if(containsNormals || containsColours) {
                 filePointer = parse_float(filePointer, &normal.x);
                 filePointer = skip_whitespace(filePointer);
@@ -270,11 +288,14 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src, 
                 filePointer = parse_float(filePointer, &normal.z);
                 filePointer = skip_whitespace(filePointer);
 
-                raw_normals[vertexIndex] = normal;
+                if(containsNormals) {
+                    ShapeDescriptor::cpu::float3* normalDestination = containsFaces ? &raw_normals[vertexIndex] : &normals[vertexIndex];
+                    *normalDestination = normal;
+                }
             }
 
             // Recompute normals if needed or desired, and when vertex information is available
-            if((!containsNormals || recomputeNormals) && vertexIndex % 3 == 2) {
+            if(containsFaces && (!containsNormals || recomputeNormals) && vertexIndex % 3 == 2) {
                 normal = computeTriangleNormal(
                         raw_vertices[3 * vertexIndex - 2],
                         raw_vertices[3 * vertexIndex - 1],
@@ -299,48 +320,58 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src, 
                 } else {
                     colour.a = 255;
                 }
+
+                ShapeDescriptor::cpu::uchar4* destination = containsFaces ? &raw_colours[vertexIndex] : &colours[vertexIndex];
+                *destination = colour;
             }
 
             filePointer = skip_line(filePointer);
         }
 
-        for(int faceIndex = 0; faceIndex < faceCount; faceIndex++) {
-            int indexCount;
-            filePointer = parse_int(filePointer, &indexCount);
-            if(indexCount != 3) {
-                throw std::runtime_error("An error occurred while loading the file: " + src + ".\nThe PLY file contains non-triangulated faces. Please re-export the file, making sure you enable face triangulation.");
+        if(containsFaces) {
+            for (int faceIndex = 0; faceIndex < faceCount; faceIndex++) {
+                int indexCount;
+                filePointer = parse_int(filePointer, &indexCount);
+                if (indexCount != 3) {
+                    throw std::runtime_error("An error occurred while loading the file: " + src +
+                                             ".\nThe PLY file contains non-triangulated faces. Please re-export the file, making sure you enable face triangulation.");
+                }
+                filePointer++;
+
+                int indexVertex0;
+                int indexVertex1;
+                int indexVertex2;
+
+                filePointer = parse_int(filePointer, &indexVertex0);
+                filePointer = skip_whitespace(filePointer);
+                filePointer = parse_int(filePointer, &indexVertex1);
+                filePointer = skip_whitespace(filePointer);
+                filePointer = parse_int(filePointer, &indexVertex2);
+
+                vertices[3 * faceIndex + 0] = raw_vertices[indexVertex0];
+                vertices[3 * faceIndex + 1] = raw_vertices[indexVertex1];
+                vertices[3 * faceIndex + 2] = raw_vertices[indexVertex2];
+
+                normals[3 * faceIndex + 0] = raw_normals[indexVertex0];
+                normals[3 * faceIndex + 1] = raw_normals[indexVertex1];
+                normals[3 * faceIndex + 2] = raw_normals[indexVertex2];
+
+                filePointer = skip_line(filePointer);
             }
-            filePointer++;
-
-            int indexVertex0;
-            int indexVertex1;
-            int indexVertex2;
-
-            filePointer = parse_int(filePointer, &indexVertex0);
-            filePointer = skip_whitespace(filePointer);
-            filePointer = parse_int(filePointer, &indexVertex1);
-            filePointer = skip_whitespace(filePointer);
-            filePointer = parse_int(filePointer, &indexVertex2);
-
-            vertices[3 * faceIndex + 0] = raw_vertices[indexVertex0];
-            vertices[3 * faceIndex + 1] = raw_vertices[indexVertex1];
-            vertices[3 * faceIndex + 2] = raw_vertices[indexVertex2];
-
-            normals[3 * faceIndex + 0] = raw_normals[indexVertex0];
-            normals[3 * faceIndex + 1] = raw_normals[indexVertex1];
-            normals[3 * faceIndex + 2] = raw_normals[indexVertex2];
-
-            filePointer = skip_line(filePointer);
         }
     }
 
     delete[] raw_vertices;
-    delete[] raw_normals;
-    delete[] raw_colours;
+    if(containsNormals) {
+        delete[] raw_normals;
+    }
+    if(containsColours) {
+        delete[] raw_colours;
+    }
     delete[] fileContents;
 
     ShapeDescriptor::cpu::Mesh mesh;
-    mesh.vertexCount = 3 * faceCount;
+    mesh.vertexCount = vertexBufferLength;
     mesh.vertices = vertices;
     mesh.normals = normals;
     mesh.vertexColours = colours;

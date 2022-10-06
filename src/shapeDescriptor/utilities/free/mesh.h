@@ -5,7 +5,7 @@
 
 namespace ShapeDescriptor {
     namespace free {
-        void mesh(ShapeDescriptor::cpu::Mesh meshToFree);
-        void mesh(ShapeDescriptor::gpu::Mesh meshToFree);
+        void mesh(ShapeDescriptor::cpu::Mesh &meshToFree);
+        void mesh(ShapeDescriptor::gpu::Mesh &meshToFree);
     }
 }

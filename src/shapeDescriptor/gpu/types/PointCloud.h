@@ -9,6 +9,7 @@ namespace ShapeDescriptor {
             VertexList normals;
             size_t pointCount;
 
+            PointCloud() = default;
             PointCloud(size_t pointCount) : vertices(pointCount), normals(pointCount), pointCount(pointCount) {}
 
             void free() {

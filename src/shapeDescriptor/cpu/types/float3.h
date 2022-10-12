@@ -15,7 +15,7 @@ namespace ShapeDescriptor {
             float3() = default;
             float3(float x, float y, float z) : x(x), y(y), z(z) {}
 
-            float3 operator- (float3 other) {
+            float3 operator- (float3 other) const {
                 float3 out;
                 out.x = x - other.x;
                 out.y = y - other.y;
@@ -23,7 +23,7 @@ namespace ShapeDescriptor {
                 return out;
             }
 
-            float3 operator+ (float3 other) {
+            float3 operator+ (float3 other) const {
                 float3 out;
                 out.x = x + other.x;
                 out.y = y + other.y;
@@ -31,7 +31,7 @@ namespace ShapeDescriptor {
                 return out;
             }
 
-            float3 operator* (float3 other) {
+            float3 operator* (float3 other) const {
                 float3 out;
                 out.x = other.x * x;
                 out.y = other.y * y;
@@ -39,7 +39,7 @@ namespace ShapeDescriptor {
                 return out;
             }
 
-            float3 operator/ (float divisor) {
+            float3 operator/ (float divisor) const {
                 float3 out;
                 out.x = x / divisor;
                 out.y = y / divisor;

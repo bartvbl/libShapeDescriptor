@@ -9,8 +9,8 @@
 namespace ShapeDescriptor {
     namespace gpu {
         struct VertexList {
-            float* array;
-            size_t length;
+            float* array = nullptr;
+            size_t length = 0;
 
             VertexList(size_t length) {
                 checkCudaErrors(cudaMalloc((void**) &array, 3 * length * sizeof(float)));

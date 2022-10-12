@@ -1,6 +1,7 @@
 #include <cuda_runtime_api.h>
 #include <iostream>
 #include "VertexList.h"
+#include <shapeDescriptor/utilities/free/array.h>
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> ShapeDescriptor::copy::deviceVertexListToHost(ShapeDescriptor::gpu::VertexList vertexList) {
     ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> outList;
@@ -23,4 +24,21 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> ShapeDescriptor::copy:
     delete[] tempVertexBuffer;
 
     return outList;
+}
+
+ShapeDescriptor::gpu::VertexList ShapeDescriptor::copy::hostVertexListToDevice(ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> hostArray) {
+    ShapeDescriptor::gpu::VertexList device_list(hostArray.length);
+    ShapeDescriptor::cpu::array<float> rearrangementArray(3 * hostArray.length);
+
+    for(size_t i = 0; i < hostArray.length; i++) {
+        rearrangementArray.content[i + 0 * hostArray.length] = hostArray.content[i].x;
+        rearrangementArray.content[i + 1 * hostArray.length] = hostArray.content[i].y;
+        rearrangementArray.content[i + 2 * hostArray.length] = hostArray.content[i].z;
+    }
+
+    checkCudaErrors(cudaMemcpy(device_list.array, rearrangementArray.content, 3 * hostArray.length * sizeof(float), cudaMemcpyHostToDevice));
+
+    ShapeDescriptor::free::array(rearrangementArray);
+
+    return device_list;
 }

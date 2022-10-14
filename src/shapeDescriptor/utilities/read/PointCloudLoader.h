@@ -6,6 +6,6 @@
 
 namespace ShapeDescriptor {
     namespace utilities {
-        cpu::PointCloud loadPointCloud(std::filesystem::path src, bool recomputeNormals = false);
+        cpu::PointCloud loadPointCloud(std::filesystem::path src);
     }
 }

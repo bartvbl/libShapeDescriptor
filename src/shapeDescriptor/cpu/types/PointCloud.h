@@ -9,7 +9,10 @@ namespace ShapeDescriptor {
             ShapeDescriptor::cpu::float3 *vertices = nullptr;
             ShapeDescriptor::cpu::float3 *normals = nullptr;
             ShapeDescriptor::cpu::uchar4 *vertexColours = nullptr;
+
             size_t pointCount = 0;
+            bool hasVertexNormals = false;
+            bool hasVertexColours = false;
 
             PointCloud() = default;
 

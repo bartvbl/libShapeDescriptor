@@ -1,10 +1,14 @@
+#include "3dShapeContextSearcher.cuh"
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#include <nvidia/helper_cuda.h>
+#endif
+
+#include <shapeDescriptor/gpu/types/float3.h>
 #include <algorithm>
 #include <chrono>
-#include "3dShapeContextSearcher.cuh"
-#include <nvidia/helper_cuda.h>
 #include <cfloat>
 #include <iostream>
-#include <vector_types.h>
 #include <shapeDescriptor/common/types/methods/3DSCDescriptor.h>
 #include <shapeDescriptor/cpu/types/array.h>
 #include <shapeDescriptor/gpu/types/array.h>
@@ -14,7 +18,7 @@ const size_t elementsPerShapeContextDescriptor =
         SHAPE_CONTEXT_VERTICAL_SLICE_COUNT *
         SHAPE_CONTEXT_LAYER_COUNT;
 
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __inline__ __device__ float warpAllReduceSum(float val) {
     for (int mask = warpSize/2; mask > 0; mask /= 2)
         val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
@@ -133,7 +137,7 @@ __global__ void computeShapeContextSearchResultIndices(
         searchResults[needleDescriptorIndex] = searchResultRank;
     }
 }
-
+#endif
 
 
 ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::compute3DSCSearchResultRanks(
@@ -142,6 +146,7 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::compute3DSCSearc
         ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_haystackDescriptors,
         size_t haystackDescriptorSampleCount,
         ShapeDescriptor::debug::SCSearchExecutionTimes* executionTimes) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     static_assert(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT <= 32, "Exceeding this number of slices causes an overflow in the amount of shared memory needed by the kernel");
 
     auto executionStart = std::chrono::steady_clock::now();
@@ -189,4 +194,7 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::compute3DSCSearc
     }
 
     return resultIndices;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }

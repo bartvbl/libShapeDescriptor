@@ -1,19 +1,23 @@
+#include "spinImageSearcher.cuh"
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#include <cuda_runtime.h>
+#include "nvidia/helper_cuda.h"
+#endif
+
 #include <shapeDescriptor/gpu/types/Mesh.h>
 #include <shapeDescriptor/libraryBuildSettings.h>
-#include <cuda_runtime.h> 
-#include <assert.h>
+#include <cassert>
 #include <iostream>
 #include <climits>
 #include <cfloat>
 #include <chrono>
 #include <typeinfo>
 #include <shapeDescriptor/common/types/methods/SpinImageDescriptor.h>
-#include "nvidia/helper_cuda.h"
-#include "spinImageSearcher.cuh"
 
 const unsigned int warpCount = 16;
 
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __inline__ __device__ float warpAllReduceSum(float val) {
 	for (int mask = warpSize/2; mask > 0; mask /= 2)
 		val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
@@ -197,12 +201,14 @@ __global__ void generateSearchResults(ShapeDescriptor::SpinImageDescriptor* need
 
 }
 
+#endif
+
 ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<float>> ShapeDescriptor::gpu::findSpinImagesInHaystack(
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_haystackDescriptors) {
 
     // Step 1: Compute image averages, since they're constant and are needed for each comparison
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 	float* device_needleImageAverages;
 	float* device_haystackImageAverages;
 	checkCudaErrors(cudaMalloc(&device_needleImageAverages, device_needleDescriptors.length * sizeof(float)));
@@ -251,6 +257,9 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<float>> ShapeDes
 	cudaFree(device_searchResults);
 
 	return searchResults;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
 
@@ -273,7 +282,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<float>> ShapeDes
 
 
 const int indexBasedWarpCount = 16;
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __global__ void computeSpinImageSearchResultIndices(
         ShapeDescriptor::SpinImageDescriptor* needleDescriptors,
         ShapeDescriptor::SpinImageDescriptor* haystackDescriptors,
@@ -336,12 +345,13 @@ __global__ void computeSpinImageSearchResultIndices(
 		atomicAdd(&searchResults[needleImageIndex], searchResultRank);
 	}
 }
+#endif
 
 ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeSpinImageSearchResultRanks(
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_haystackDescriptors,
         ShapeDescriptor::debug::SISearchExecutionTimes* executionTimes) {
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 	auto executionStart = std::chrono::steady_clock::now();
 
 	size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(unsigned int);
@@ -401,6 +411,9 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeSpinImage
 	}
 
 	return resultIndices;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
 

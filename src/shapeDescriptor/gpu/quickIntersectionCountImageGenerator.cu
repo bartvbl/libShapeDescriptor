@@ -1,14 +1,17 @@
 #include "quickIntersectionCountImageGenerator.cuh"
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include "cuda_runtime.h"
+#include "nvidia/helper_math.h"
+#include "nvidia/helper_cuda.h"
 #include "device_launch_parameters.h"
+#endif
+
 #include <shapeDescriptor/gpu/types/Mesh.h>
 #include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
 #include <shapeDescriptor/utilities/kernels/setValue.cuh>
-#include <shapeDescriptor/libraryBuildSettings.h>
 
-#include "nvidia/helper_math.h"
-#include "nvidia/helper_cuda.h"
+#include <shapeDescriptor/libraryBuildSettings.h>
 
 #include <cassert>
 #include <iostream>
@@ -39,6 +42,7 @@ struct QUICCIMesh {
     size_t vertexCount;
 };
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __device__ __inline__ float3 transformCoordinate(const float3 &vertex, const float3 &spinImageVertex, const float3 &spinImageNormal)
 {
     const float2 sineCosineAlpha = normalize(make_float2(spinImageNormal.x, spinImageNormal.y));
@@ -418,6 +422,7 @@ __global__ void redistributeSpinOrigins(ShapeDescriptor::OrientedPoint* spinOrig
     quicciMesh.spinOriginsBasePointer[4 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.y;
     quicciMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
+#endif
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::gpu::generateQUICCImages(
         ShapeDescriptor::gpu::Mesh device_mesh,
@@ -425,6 +430,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::
         float supportRadius,
         ShapeDescriptor::debug::QUICCIExecutionTimes* executionTimes)
 {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t imageCount = device_descriptorOrigins.length;
@@ -509,4 +515,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::
     }
 
     return descriptors;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }

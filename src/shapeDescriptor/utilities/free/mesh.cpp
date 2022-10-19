@@ -18,6 +18,7 @@ void ShapeDescriptor::free::mesh(ShapeDescriptor::cpu::Mesh &meshToFree) {
 }
 
 void ShapeDescriptor::free::mesh(ShapeDescriptor::gpu::Mesh &meshToFree) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     if(meshToFree.vertices_x != nullptr) {
         cudaFree(meshToFree.vertices_x);
         cudaFree(meshToFree.vertices_y);
@@ -37,4 +38,7 @@ void ShapeDescriptor::free::mesh(ShapeDescriptor::gpu::Mesh &meshToFree) {
         meshToFree.normals_y = nullptr;
         meshToFree.normals_z = nullptr;
     }
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }

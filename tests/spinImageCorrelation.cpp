@@ -1,5 +1,6 @@
-#include "utilities/spinImageGenerator.h"
 #include <catch2/catch.hpp>
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#include "utilities/spinImageGenerator.h"
 #include <shapeDescriptor/libraryBuildSettings.h>
 #include <shapeDescriptor/utilities/CUDAContextCreator.h>
 #include <cuda_runtime.h>
@@ -76,3 +77,4 @@ TEST_CASE("Ranking of Spin Images on the GPU") {
     cudaFree(device_haystackImages.content);
 
 }
+#endif

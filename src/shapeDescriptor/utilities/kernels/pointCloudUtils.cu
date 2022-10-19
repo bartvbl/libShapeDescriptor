@@ -1,13 +1,18 @@
+#include "pointCloudUtils.h"
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <nvidia/helper_cuda.h>
 #include <cuda_runtime.h>
 #include <nvidia/helper_math.h>
+#endif
+
 #include <cfloat>
 #include <limits>
 #include <iostream>
-#include "pointCloudUtils.h"
 
 // -- Utility functions --
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __inline__ __device__ float warpAllReduceSum(float val) {
     for (int mask = warpSize/2; mask > 0; mask /= 2)
         val = __shfl_xor_sync(0xFFFFFFFF, val, mask) + val;
@@ -103,8 +108,10 @@ __global__ void computePointCloudBoundingBox(
     }
 
 }
+#endif
 
 ShapeDescriptor::BoundingBox ShapeDescriptor::utilities::computeBoundingBox(ShapeDescriptor::gpu::PointCloud device_pointCloud) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     ShapeDescriptor::BoundingBox host_boundingBox = {
             {std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max()},
             {-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), -std::numeric_limits<float>::max()}};
@@ -120,6 +127,9 @@ ShapeDescriptor::BoundingBox ShapeDescriptor::utilities::computeBoundingBox(Shap
     checkCudaErrors(cudaMemcpy(&host_boundingBox, device_boundingBox, sizeof(ShapeDescriptor::BoundingBox), cudaMemcpyDeviceToHost));
     checkCudaErrors(cudaFree(device_boundingBox));
     return host_boundingBox;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
 
@@ -143,7 +153,7 @@ ShapeDescriptor::BoundingBox ShapeDescriptor::utilities::computeBoundingBox(Shap
 
 
 
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __device__ __inline__ unsigned int computeJumpTableIndex(int3 binIndex, int3 binCounts) {
     return binIndex.z * binCounts.x * binCounts.y + binIndex.y * binCounts.x + binIndex.x;
 }
@@ -302,9 +312,11 @@ __global__ void computePointCounts(
         pointDensityArray.content[pointIndex] = totalPointCount;
     }
 }
+#endif
 
 ShapeDescriptor::gpu::array<unsigned int> ShapeDescriptor::utilities::computePointDensities(
         float pointDensityRadius, ShapeDescriptor::gpu::PointCloud device_pointCloud) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     size_t sampleCount = device_pointCloud.vertices.length;
 
     // 1. Compute bounding box
@@ -372,4 +384,7 @@ ShapeDescriptor::gpu::array<unsigned int> ShapeDescriptor::utilities::computePoi
     cudaFree(device_indexTable);
 
     return device_pointCountArray;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }

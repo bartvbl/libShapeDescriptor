@@ -1,17 +1,24 @@
-#include <shapeDescriptor/gpu/types/PointCloud.h>
-#include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
-#include <shapeDescriptor/utilities/kernels/meshSampler.cuh>
-#include <shapeDescriptor/utilities/kernels/setValue.cuh>
-#include <chrono>
+#include "3dShapeContextGenerator.cuh"
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
 #include <nvidia/helper_math.h>
-#include <shapeDescriptor/common/types/BoundingBox.h>
-#include <shapeDescriptor/utilities/kernels/pointCloudUtils.h>
-#include <iostream>
-#include <shapeDescriptor/gpu/types/array.h>
-#include "3dShapeContextGenerator.cuh"
+#endif
 
+#include <shapeDescriptor/gpu/types/PointCloud.h>
+#include <shapeDescriptor/gpu/types/array.h>
+#include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
+#include <shapeDescriptor/utilities/kernels/meshSampler.cuh>
+#include <shapeDescriptor/utilities/kernels/setValue.cuh>
+#include <shapeDescriptor/utilities/kernels/pointCloudUtils.h>
+#include <shapeDescriptor/common/types/BoundingBox.h>
+
+#include <chrono>
+#include <iostream>
+#include <cmath>
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __device__ bool operator==(float3 &a, float3 &b) {
     return a.x == b.x && a.y == b.y && a.z == b.z;
 }
@@ -28,12 +35,17 @@ __device__ bool operator==(const float2 &a, const float2 &b) {
     return a.x == b.x && a.y == b.y;
 }
 
+
 const size_t elementsPerShapeContextDescriptor =
         SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT *
         SHAPE_CONTEXT_VERTICAL_SLICE_COUNT *
         SHAPE_CONTEXT_LAYER_COUNT;
+#endif
 
-__host__ __device__ __inline__ float computeLayerDistance(float minSupportRadius, float maxSupportRadius, short layerIndex) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+__host__ __device__
+#endif
+__inline__ float computeLayerDistance(float minSupportRadius, float maxSupportRadius, short layerIndex) {
     // Avoiding zero divisions
     if(minSupportRadius == 0) {
         minSupportRadius = 0.000001f;
@@ -44,7 +56,10 @@ __host__ __device__ __inline__ float computeLayerDistance(float minSupportRadius
             * std::log(float(maxSupportRadius) / float(minSupportRadius))));
 }
 
-__host__ __device__ __inline__ float computeWedgeSegmentVolume(short verticalBinIndex, float radius) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+__host__ __device__
+#endif
+__inline__ float computeWedgeSegmentVolume(short verticalBinIndex, float radius) {
     const float verticalAngleStep = 1.0f / float(SHAPE_CONTEXT_VERTICAL_SLICE_COUNT);
     float binStartAngle = float(verticalBinIndex) * verticalAngleStep;
     float binEndAngle = float(verticalBinIndex + 1) * verticalAngleStep;
@@ -54,7 +69,10 @@ __host__ __device__ __inline__ float computeWedgeSegmentVolume(short verticalBin
     return scaleFraction * (std::cos(binStartAngle) - std::cos(binEndAngle));
 }
 
-__host__ __device__ inline float computeSingleBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+__host__ __device__
+#endif
+inline float computeSingleBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius) {
     // The wedge segment computation goes all the way from the center to the edge of the sphere
     // Since we also have a minimum support radius, we need to cut out the volume of the centre part
     float binEndRadius = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex + 1);
@@ -68,9 +86,11 @@ __host__ __device__ inline float computeSingleBinVolume(short verticalBinIndex, 
 
 // Cuda is being dumb. Need to create separate function to allow the linker to figure out that, yes, this function does
 // indeed exist somewhere.
+
 float ShapeDescriptor::internal::computeBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius) {
     return computeSingleBinVolume(verticalBinIndex, layerIndex, minSupportRadius, maxSupportRadius);
 }
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 
 __device__ float absoluteAngle(float y, float x) {
     float absoluteAngle = std::atan2(y, x);
@@ -227,6 +247,7 @@ __global__ void createDescriptors(
     }
 
 }
+#endif
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescriptor::gpu::generate3DSCDescriptors(
         ShapeDescriptor::gpu::PointCloud device_pointCloud,
@@ -235,6 +256,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescri
         float minSupportRadius,
         float maxSupportRadius,
         ShapeDescriptor::debug::SCExecutionTimes* executionTimes) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t descriptorCount = device_spinImageOrigins.length;
@@ -290,6 +312,9 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescri
     }
 
     return device_descriptors;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
 

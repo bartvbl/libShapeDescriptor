@@ -1,9 +1,14 @@
-#include <cuda_runtime_api.h>
-#include <iostream>
 #include "VertexList.h"
+#include <iostream>
 #include <shapeDescriptor/utilities/free/array.h>
+#include <shapeDescriptor/libraryBuildSettings.h>
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#include <cuda_runtime_api.h>
+#endif
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> ShapeDescriptor::copy::deviceVertexListToHost(ShapeDescriptor::gpu::VertexList vertexList) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> outList;
     outList.length = vertexList.length;
     outList.content = new ShapeDescriptor::cpu::float3[vertexList.length];
@@ -24,9 +29,13 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> ShapeDescriptor::copy:
     delete[] tempVertexBuffer;
 
     return outList;
+#else
+    throw std::runtime_error(cudaMissingErrorMessage);
+#endif
 }
 
 ShapeDescriptor::gpu::VertexList ShapeDescriptor::copy::hostVertexListToDevice(ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> hostArray) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     ShapeDescriptor::gpu::VertexList device_list(hostArray.length);
     ShapeDescriptor::cpu::array<float> rearrangementArray(3 * hostArray.length);
 
@@ -41,4 +50,7 @@ ShapeDescriptor::gpu::VertexList ShapeDescriptor::copy::hostVertexListToDevice(S
     ShapeDescriptor::free::array(rearrangementArray);
 
     return device_list;
+#else
+    throw std::runtime_error(cudaMissingErrorMessage);
+#endif
 }

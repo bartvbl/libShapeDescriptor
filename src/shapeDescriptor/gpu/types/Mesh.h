@@ -14,7 +14,10 @@ namespace ShapeDescriptor {
 
             size_t vertexCount;
 
-            __host__ __device__ Mesh() {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+            __host__ __device__
+#endif
+            Mesh() {
                 vertexCount = 0;
             }
         };

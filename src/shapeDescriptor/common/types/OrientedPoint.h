@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vector_types.h>
+#include "shapeDescriptor/gpu/types/float3.h"
 
 namespace ShapeDescriptor {
     struct OrientedPoint {

@@ -5,13 +5,15 @@
 #include <shapeDescriptor/common/types/OrientedPoint.h>
 #include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
 #include <shapeDescriptor/utilities/kernels/duplicateRemoval.cuh>
-#include <cuda_runtime.h>
 #include <shapeDescriptor/utilities/mesh/MeshScaler.h>
 #include <shapeDescriptor/utilities/dump/QUICCIDescriptors.h>
 #include <shapeDescriptor/utilities/copy/mesh.h>
 #include <shapeDescriptor/utilities/copy/array.h>
 #include <shapeDescriptor/utilities/read/MeshLoader.h>
 #include <shapeDescriptor/utilities/free/mesh.h>
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#include <cuda_runtime.h>
+#endif
 
 const float DEFAULT_SPIN_IMAGE_WIDTH = 0.3;
 
@@ -64,8 +66,9 @@ int main(int argc, const char** argv) {
             ShapeDescriptor::dump::raw::QUICCIDescriptors(outputDumpFile.value(), hostImages, 0);
 
     ShapeDescriptor::gpu::freeMesh(deviceMesh);
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     cudaFree(uniqueVertices.content);
     cudaFree(images.content);
-
+#endif
 }
 

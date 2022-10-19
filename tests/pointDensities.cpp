@@ -1,6 +1,8 @@
 #include <catch2/catch.hpp>
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <cuda_runtime.h>
 #include <vector_types.h>
+
 #include <shapeDescriptor/gpu/types/PointCloud.h>
 #include <shapeDescriptor/utilities/kernels/pointCloudUtils.h>
 #include <iostream>
@@ -154,3 +156,4 @@ TEST_CASE("Counting the number of points in the vicinity of others")
         }
     }
 }
+#endif

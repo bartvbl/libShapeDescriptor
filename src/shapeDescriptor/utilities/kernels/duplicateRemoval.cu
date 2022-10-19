@@ -1,7 +1,10 @@
 #include "duplicateRemoval.cuh"
 
-#include <vector>
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <nvidia/helper_cuda.h>
+#endif
+
+#include <vector>
 #include <cassert>
 #include <shapeDescriptor/utilities/copy/mesh.h>
 #include <shapeDescriptor/utilities/free/mesh.h>
@@ -9,6 +12,7 @@
 #include <shapeDescriptor/utilities/copy/array.h>
 #include <shapeDescriptor/utilities/free/array.h>
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __host__ __device__ __inline__ size_t roundSizeToNearestCacheLine(size_t sizeInBytes) {
     return (sizeInBytes + 127u) & ~((size_t) 127);
 }
@@ -79,8 +83,10 @@ __global__ void computeTargetIndices(ShapeDescriptor::gpu::array<signed long lon
 
     targetIndices.content[vertexIndex] = targetIndex;
 }
+#endif
 
 ShapeDescriptor::gpu::array<signed long long> ShapeDescriptor::utilities::computeUniqueIndexMapping(ShapeDescriptor::gpu::Mesh boxScene, std::vector<ShapeDescriptor::gpu::Mesh> deviceMeshes, std::vector<size_t> *uniqueVertexCounts, size_t &totalUniqueVertexCount) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     size_t sceneVertexCount = boxScene.vertexCount;
 
     bool* device_duplicateVertices;
@@ -137,8 +143,12 @@ ShapeDescriptor::gpu::array<signed long long> ShapeDescriptor::utilities::comput
     checkCudaErrors(cudaFree(device_duplicateVertices));
 
     return device_uniqueIndexMapping;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __global__ void mapVertices(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> origins, ShapeDescriptor::gpu::array<signed long long> mapping) {
     size_t vertexIndex = blockIdx.x * blockDim.x + threadIdx.x;
     if(vertexIndex >= boxScene.vertexCount) {
@@ -164,8 +174,10 @@ __global__ void mapVertices(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor
         origins.content[targetIndex] = origin;
     }
 }
+#endif
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> ShapeDescriptor::utilities::applyUniqueMapping(ShapeDescriptor::gpu::Mesh boxScene, ShapeDescriptor::gpu::array<signed long long> device_mapping, size_t totalUniqueVertexCount) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     assert(boxScene.vertexCount == device_mapping.length);
 
     ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> device_origins;
@@ -176,9 +188,13 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> ShapeDescriptor::uti
     checkCudaErrors(cudaDeviceSynchronize());
 
     return device_origins;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> ShapeDescriptor::utilities::computeUniqueVertices(ShapeDescriptor::gpu::Mesh &mesh) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     std::vector<ShapeDescriptor::gpu::Mesh> deviceMeshes;
     deviceMeshes.push_back(mesh);
     std::vector<size_t> vertexCounts;
@@ -187,8 +203,12 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> ShapeDescriptor::uti
     ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> device_origins = applyUniqueMapping(mesh, device_mapping, totalUniqueVertexCount);
     checkCudaErrors(cudaFree(device_mapping.content));
     return device_origins;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __device__ bool isQuicciPairEquivalent(
         ShapeDescriptor::QUICCIDescriptor* imageA,
         ShapeDescriptor::QUICCIDescriptor* imageB) {
@@ -230,9 +250,11 @@ __global__ void computeDuplicateQUICCIMapping(
         atomicAdd(uniqueElementCount, 1);
     }
 }
+#endif
 
 
 ShapeDescriptor::utilities::DuplicateMapping ShapeDescriptor::utilities::computeUniqueIndexMapping(ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     ShapeDescriptor::utilities::DuplicateMapping mapping;
     mapping.mappedIndices = ShapeDescriptor::gpu::array<signed long long>(descriptors.length);
     unsigned int* device_uniqueElementCount;
@@ -246,8 +268,12 @@ ShapeDescriptor::utilities::DuplicateMapping ShapeDescriptor::utilities::compute
     checkCudaErrors(cudaMemcpy(&mapping.uniqueElementCount, device_uniqueElementCount, sizeof(unsigned int), cudaMemcpyDeviceToHost));
 
     return mapping;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __global__ void mapImages(
         ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> sourceDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> targetDescriptors,
@@ -258,10 +284,12 @@ __global__ void mapImages(
         targetDescriptors.content[targetIndex].contents[i] = sourceDescriptors.content[blockIdx.x].contents[i];
     }
 }
+#endif
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::utilities::applyUniqueMapping(
         ShapeDescriptor::utilities::DuplicateMapping mapping,
         ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     ShapeDescriptor::cpu::array<size_t> targetIndices = ShapeDescriptor::cpu::array<size_t>(descriptors.length);
     ShapeDescriptor::cpu::array<signed long long> duplicateIndices = ShapeDescriptor::copy::deviceArrayToHost(mapping.mappedIndices);
 
@@ -292,4 +320,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::
     ShapeDescriptor::free::array(device_targetIndices);
 
     return targetDescriptors;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }

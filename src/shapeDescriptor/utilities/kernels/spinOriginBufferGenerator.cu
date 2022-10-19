@@ -1,11 +1,16 @@
-#include <iostream>
-#include <cuda_runtime.h>
 #include "spinOriginBufferGenerator.h"
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
+#endif
+
+#include <iostream>
 #include <cassert>
 #include <shapeDescriptor/utilities/copy/mesh.h>
 #include <shapeDescriptor/gpu/types/array.h>
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __global__ void removeDuplicates(ShapeDescriptor::gpu::Mesh inputMesh, ShapeDescriptor::OrientedPoint* compactedOrigins, size_t* totalVertexCount) {
     // Only a single warp to avoid complications related to divergence within a block
     // (syncthreads may hang indefinitely if some threads diverged)
@@ -85,8 +90,10 @@ __global__ void removeDuplicates(ShapeDescriptor::gpu::Mesh inputMesh, ShapeDesc
         *totalVertexCount = arrayPointer;
     }
 }
+#endif
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> removeDuplicates(ShapeDescriptor::gpu::Mesh mesh) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     size_t* device_totalVertexCount;
     checkCudaErrors(cudaMalloc(&device_totalVertexCount, sizeof(size_t)));
 
@@ -104,6 +111,9 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> removeDuplicates(Sha
     checkCudaErrors(cudaFree(device_totalVertexCount));
 
     return device_spinOrigins;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(gpu::Mesh &mesh) {
@@ -139,7 +149,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> ShapeDescriptor::uti
 }
 
 
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __global__ void convertMeshIntoOriginsList(ShapeDescriptor::gpu::Mesh inputMesh, ShapeDescriptor::OrientedPoint* origins) {
     size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -158,9 +168,11 @@ __global__ void convertMeshIntoOriginsList(ShapeDescriptor::gpu::Mesh inputMesh,
 
     origins[vertexIndex] = {vertex, normal};
 }
+#endif
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint>
 ShapeDescriptor::utilities::generateSpinOriginBuffer(ShapeDescriptor::gpu::Mesh &mesh) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> device_spinOrigins;
     checkCudaErrors(cudaMalloc(&device_spinOrigins.content, mesh.vertexCount * sizeof(ShapeDescriptor::OrientedPoint)));
     device_spinOrigins.length = mesh.vertexCount;
@@ -169,4 +181,7 @@ ShapeDescriptor::utilities::generateSpinOriginBuffer(ShapeDescriptor::gpu::Mesh 
     checkCudaErrors(cudaDeviceSynchronize());
 
     return device_spinOrigins;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }

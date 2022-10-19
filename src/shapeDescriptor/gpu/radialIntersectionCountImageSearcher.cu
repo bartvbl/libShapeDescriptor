@@ -1,7 +1,13 @@
+#include "radialIntersectionCountImageSearcher.cuh"
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#include <cuda_runtime.h>
+#include "nvidia/helper_cuda.h"
+#endif
+
 #include <shapeDescriptor/gpu/types/Mesh.h>
 #include <shapeDescriptor/libraryBuildSettings.h>
-#include <cuda_runtime.h>
-#include <assert.h>
+#include <cassert>
 #include <iostream>
 #include <climits>
 #include <cfloat>
@@ -10,14 +16,13 @@
 #include <shapeDescriptor/common/types/methods/RICIDescriptor.h>
 #include <shapeDescriptor/cpu/types/array.h>
 #include <shapeDescriptor/gpu/types/array.h>
-#include "nvidia/helper_cuda.h"
-#include "radialIntersectionCountImageSearcher.cuh"
 #include "types/ImageSearchResults.h"
 
 #ifndef warpSize
 #define warpSize 32
 #endif
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __inline__ __device__ int warpAllReduceSum(int val) {
     for (int mask = warpSize/2; mask > 0; mask /= 2)
         val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
@@ -284,13 +289,13 @@ __global__ void computeRadialIntersectionCountImageSearchResultIndices(
         atomicAdd(&searchResults[needleImageIndex], searchResultRank);
     }
 }
-
+#endif
 
 ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeRadialIntersectionCountImageSearchResultRanks(
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackDescriptors,
         ShapeDescriptor::debug::RICISearchExecutionTimes* executionTimes) {
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto executionStart = std::chrono::steady_clock::now();
 
     size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(unsigned int);
@@ -328,6 +333,9 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeRadialInt
     }
 
     return resultIndices;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
 
@@ -361,7 +369,7 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeRadialInt
 
 
 const unsigned int warpCount = 16;
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __global__ void generateSearchResults(ShapeDescriptor::RICIDescriptor* needleDescriptors,
                                       size_t needleImageCount,
                                       ShapeDescriptor::RICIDescriptor* haystackDescriptors,
@@ -450,11 +458,12 @@ __global__ void generateSearchResults(ShapeDescriptor::RICIDescriptor* needleDes
     }
 
 }
+#endif
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> ShapeDescriptor::gpu::findRadialIntersectionCountImagesInHaystack(
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackDescriptors) {
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(ShapeDescriptor::gpu::SearchResults<unsigned int>);
     ShapeDescriptor::gpu::SearchResults<unsigned int>* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
@@ -486,4 +495,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> S
     cudaFree(device_searchResults);
 
     return searchResults;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }

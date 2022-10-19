@@ -1,11 +1,15 @@
 #include "CUDAContextCreator.h"
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include "nvidia/helper_cuda.h"
+#endif
 
+#include <shapeDescriptor/libraryBuildSettings.h>
 #include <iostream>
 
-cudaDeviceProp ShapeDescriptor::utilities::createCUDAContext(int forceGPU)
+int ShapeDescriptor::utilities::createCUDAContext(int forceGPU)
 {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 	int deviceCount;
 	checkCudaErrors(cudaGetDeviceCount(&deviceCount));
 
@@ -36,10 +40,14 @@ cudaDeviceProp ShapeDescriptor::utilities::createCUDAContext(int forceGPU)
 
 	std::cout << "CUDA context created on device " << chosenDeviceIndex << " (" << deviceWithMostMemory.name << ")" << std::endl;
 
-	return deviceWithMostMemory;
+	return chosenDeviceIndex;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
 void ShapeDescriptor::utilities::printGPUProperties(unsigned int deviceIndex) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 	cudaDeviceProp deviceInfo;
 
 	checkCudaErrors(cudaGetDeviceProperties(&deviceInfo, deviceIndex));
@@ -64,4 +72,7 @@ void ShapeDescriptor::utilities::printGPUProperties(unsigned int deviceIndex) {
 	std::cout << "\t- Shared memory per multiprocessor: " << deviceInfo.sharedMemPerMultiprocessor << std::endl;
 	std::cout << "\t- L2 Cache size: " << deviceInfo.l2CacheSize << std::endl;
 	std::cout << std::endl;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }

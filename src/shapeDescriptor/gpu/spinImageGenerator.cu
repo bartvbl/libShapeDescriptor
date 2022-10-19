@@ -1,10 +1,11 @@
 #include "spinImageGenerator.cuh"
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include "nvidia/helper_math.h"
 #include "nvidia/helper_cuda.h"
-
 #include "device_launch_parameters.h"
 #include "cuda_runtime.h"
+#endif
 
 #include <cassert>
 #include <iostream>
@@ -21,6 +22,7 @@
 #include <shapeDescriptor/common/types/SampleBounds.h>
 #include <shapeDescriptor/gpu/types/array.h>
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNormal, float3 point)
 {
 	// Using the projective properties of the dot product, an arbitrary point
@@ -140,14 +142,15 @@ __global__ void createDescriptors(
         descriptors.content[spinImageIndex].contents[i] = localSpinImage.contents[i];
     }
 }
+#endif
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> ShapeDescriptor::gpu::generateSpinImages(
         ShapeDescriptor::gpu::PointCloud device_pointCloud,
         ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> device_descriptorOrigins,
         float supportRadius,
         float supportAngleDegrees,
-        ShapeDescriptor::debug::SIExecutionTimes* executionTimes)
-{
+        ShapeDescriptor::debug::SIExecutionTimes* executionTimes) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t imageCount = device_descriptorOrigins.length;
@@ -193,5 +196,8 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> ShapeDescripto
 	}
 
 	return device_descriptors;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 

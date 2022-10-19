@@ -41,17 +41,21 @@
  */
 
 #include "fastPointFeatureHistogramGenerator.cuh"
-#include <iostream>
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <nvidia/helper_cuda.h>
 #include <nvidia/helper_math.h>
 #include <cuda_runtime.h>
+#endif
+
+#include <iostream>
 #include <shapeDescriptor/gpu/types/PointCloud.h>
 #include <shapeDescriptor/utilities/kernels/meshSampler.cuh>
 #include <chrono>
 #include <shapeDescriptor/libraryBuildSettings.h>
 #include <shapeDescriptor/gpu/types/array.h>
 
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __device__ __host__ __forceinline__
 bool pcl_computePairFeatures (
     const float3& histogramOriginVertex,
@@ -236,6 +240,7 @@ __global__ void reformatOrigins(
     reformattedOriginVerticesList.set(index, origin.vertex);
     reformattedOriginNormalsList.set(index, origin.normal);
 }
+#endif
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> ShapeDescriptor::gpu::generateFPFHHistograms(
         ShapeDescriptor::gpu::PointCloud device_pointCloud,
@@ -243,6 +248,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> ShapeDescriptor::gp
         float supportRadius,
         ShapeDescriptor::debug::FPFHExecutionTimes* executionTimes)
 {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t singleHistogramSizeBytes = sizeof(ShapeDescriptor::FPFHDescriptor);
@@ -327,4 +333,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> ShapeDescriptor::gp
     }
 
     return device_histograms;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }

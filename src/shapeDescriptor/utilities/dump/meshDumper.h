@@ -2,8 +2,8 @@
 
 #include <shapeDescriptor/cpu/types/Mesh.h>
 #include <filesystem>
-#include <vector_types.h>
 #include <shapeDescriptor/cpu/types/array.h>
+#include <shapeDescriptor/gpu/types/float2.h>
 
 namespace ShapeDescriptor {
     namespace dump {

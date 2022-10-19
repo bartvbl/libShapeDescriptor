@@ -3,16 +3,20 @@
 #include <shapeDescriptor/common/types/SampleBounds.h>
 #include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
 
+#include <shapeDescriptor/gpu/types/array.h>
+#include <shapeDescriptor/gpu/types/float3.h>
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#include "nvidia/helper_math.h"
+#include "nvidia/helper_cuda.h"
 #include <cuda_runtime_api.h>
 #include <curand.h>
 #include <curand_kernel.h>
-#include <shapeDescriptor/gpu/types/array.h>
-
-#include "nvidia/helper_math.h"
-#include "nvidia/helper_cuda.h"
+#endif
 
 #define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __device__ __inline__ ShapeDescriptor::SampleBounds calculateSampleBounds(const ShapeDescriptor::gpu::array<float> &areaArray, int triangleIndex, int sampleCount) {
     ShapeDescriptor::SampleBounds sampleBounds;
     float maxArea = areaArray.content[areaArray.length - 1];
@@ -182,7 +186,10 @@ __global__ void sampleMesh(
     }
 }
 
+#endif
+
 ShapeDescriptor::gpu::PointCloud ShapeDescriptor::utilities::sampleMesh(gpu::Mesh device_mesh, size_t sampleCount, size_t randomSamplingSeed, ShapeDescriptor::internal::MeshSamplingBuffers* internalSampleBuffers) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     size_t vertexCount = device_mesh.vertexCount;
     size_t triangleCount = vertexCount / 3;
 
@@ -234,4 +241,7 @@ ShapeDescriptor::gpu::PointCloud ShapeDescriptor::utilities::sampleMesh(gpu::Mes
     cudaFree(device_coefficients.content);
 
     return device_pointCloud;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }

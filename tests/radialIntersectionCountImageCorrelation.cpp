@@ -6,6 +6,7 @@
 #include <iostream>
 #include <shapeDescriptor/utilities/dump/searchResultDumper.h>
 #include <shapeDescriptor/utilities/copy/array.h>
+#include <shapeDescriptor/utilities/free/array.h>
 #include "utilities/spinImageGenerator.h"
 
 const float correlationThreshold = 0.00001f;
@@ -79,9 +80,9 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
             REQUIRE(results.content[i] == 0);
         }
 
-        cudaFree(device_haystackImages_reversed.content);
+        ShapeDescriptor::free::array(device_haystackImages_reversed);
     }
 
-    cudaFree(device_haystackImages.content);
+    ShapeDescriptor::free::array(device_haystackImages);
 
 }

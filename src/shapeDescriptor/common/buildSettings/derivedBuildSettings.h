@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 
 #if RICI_PIXEL_DATATYPE == DATATYPE_UNSIGNED_INT
 typedef unsigned int radialIntersectionCountImagePixelType;
@@ -27,3 +28,7 @@ typedef float shapeContextBinType;
 #endif
 
 #define UINTS_PER_QUICCI ((spinImageWidthPixels * spinImageWidthPixels) / 32)
+
+namespace ShapeDescriptor {
+    const std::string cudaMissingErrorMessage = "CUDA support was not enabled during compilation of libShapeDescriptor. Please use a CPU based implementation or recompile the library with CUDA support enabled.";
+}

@@ -1,9 +1,13 @@
 #include "quickIntersectionCountImageSearcher.cuh"
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#include <cuda_runtime_api.h>
+#include <nvidia/helper_cuda.h>
+#endif
+
 #include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
 #include <chrono>
-#include <cuda_runtime_api.h>
 #include <iostream>
-#include <nvidia/helper_cuda.h>
 #include <shapeDescriptor/utilities/weightedHamming.cuh>
 #include <cfloat>
 
@@ -12,7 +16,7 @@
 #endif
 
 
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
 
 __inline__ __device__ unsigned int warpAllReduceSum(unsigned int val) {
@@ -198,11 +202,13 @@ __global__ void computeQUICCISearchResultIndices(
         atomicAdd(&searchResults[needleImageIndex], searchResultRank);
     }
 }
+#endif
 
 ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeQUICCImageSearchResultRanks(
         ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_haystackDescriptors,
         ShapeDescriptor::debug::QUICCISearchExecutionTimes* executionTimes) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto executionStart = std::chrono::steady_clock::now();
 
     size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(unsigned int);
@@ -241,6 +247,9 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeQUICCImag
     }
 
     return resultIndices;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
 
@@ -250,7 +259,7 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeQUICCImag
 
 
 
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __global__ void computeElementWiseQUICCIDistances(
         ShapeDescriptor::QUICCIDescriptor* descriptors,
         ShapeDescriptor::QUICCIDescriptor* correspondingDescriptors,
@@ -305,11 +314,12 @@ __global__ void computeElementWiseQUICCIDistances(
         distances[descriptorIndex] = imageDistances;
     }
 }
-
+#endif
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDistances>
 ShapeDescriptor::gpu::computeQUICCIElementWiseDistances(ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_descriptors,
                                                   ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_correspondingDescriptors) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     size_t searchResultBufferSize = device_descriptors.length * sizeof(ShapeDescriptor::gpu::QUICCIDistances);
     ShapeDescriptor::gpu::QUICCIDistances* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
@@ -333,6 +343,9 @@ ShapeDescriptor::gpu::computeQUICCIElementWiseDistances(ShapeDescriptor::gpu::ar
     cudaFree(device_searchResults);
 
     return resultDistances;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
 
@@ -354,7 +367,7 @@ ShapeDescriptor::gpu::computeQUICCIElementWiseDistances(ShapeDescriptor::gpu::ar
 
 
 const unsigned int warpCount = 16;
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __global__ void generateSearchResults(ShapeDescriptor::QUICCIDescriptor* needleDescriptors,
                                       size_t needleImageCount,
                                       ShapeDescriptor::QUICCIDescriptor* haystackDescriptors,
@@ -451,10 +464,12 @@ __global__ void generateSearchResults(ShapeDescriptor::QUICCIDescriptor* needleD
     }
 
 }
+#endif
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<ShapeDescriptor::gpu::quicciDistanceType>> ShapeDescriptor::gpu::findQUICCImagesInHaystack(
         ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_haystackDescriptors) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 
     size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(ShapeDescriptor::gpu::SearchResults<ShapeDescriptor::gpu::quicciDistanceType>);
     ShapeDescriptor::gpu::SearchResults<ShapeDescriptor::gpu::quicciDistanceType>* device_searchResults;
@@ -487,4 +502,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<ShapeDescriptor:
     cudaFree(device_searchResults);
 
     return searchResults;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }

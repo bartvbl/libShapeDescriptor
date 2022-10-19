@@ -1,15 +1,17 @@
 #include "radialIntersectionCountImageGenerator.cuh"
 
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-
 #include <shapeDescriptor/gpu/types/Mesh.h>
 #include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
 #include <shapeDescriptor/utilities/kernels/setValue.cuh>
+#include <shapeDescriptor/gpu/types/float2.h>
 #include <shapeDescriptor/libraryBuildSettings.h>
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include "nvidia/helper_math.h"
 #include "nvidia/helper_cuda.h"
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#endif
 
 #include <cassert>
 #include <iostream>
@@ -31,6 +33,7 @@ struct RICIMesh {
     size_t vertexCount;
 };
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __device__ __inline__ float3 transformCoordinate(const float3 &vertex, const float3 &spinImageVertex, const float3 &spinImageNormal)
 {
     const float2 sineCosineAlpha = normalize(make_float2(spinImageNormal.x, spinImageNormal.y));
@@ -363,6 +366,7 @@ __global__ void redistributeSpinOrigins(ShapeDescriptor::OrientedPoint* spinOrig
     riciMesh.spinOriginsBasePointer[4 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.y;
     riciMesh.spinOriginsBasePointer[5 * spinOriginsBlockSize + imageIndex] = spinOrigin.normal.z;
 }
+#endif
 
 ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
         ShapeDescriptor::gpu::Mesh device_mesh,
@@ -370,6 +374,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::gp
         float spinImageWidth,
         ShapeDescriptor::debug::RICIExecutionTimes* executionTimes)
 {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t imageCount = device_descriptorOrigins.length;
@@ -455,4 +460,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::gp
 	}
 
     return device_descriptors;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }

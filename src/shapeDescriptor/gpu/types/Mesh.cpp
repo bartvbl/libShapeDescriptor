@@ -1,8 +1,15 @@
-#include <cuda_runtime.h>
-#include <nvidia/helper_cuda.h>
+#include <stdexcept>
+#include <shapeDescriptor/libraryBuildSettings.h>
 #include "Mesh.h"
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#include <cuda_runtime.h>
+#include <nvidia/helper_cuda.h>
+#endif
+
+
 ShapeDescriptor::gpu::Mesh ShapeDescriptor::gpu::duplicateMesh(Mesh mesh) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     size_t bufferSize = mesh.vertexCount * sizeof(float);
 
     Mesh outMesh;
@@ -26,9 +33,13 @@ ShapeDescriptor::gpu::Mesh ShapeDescriptor::gpu::duplicateMesh(Mesh mesh) {
     checkCudaErrors(cudaMemcpy(outMesh.vertices_z, mesh.vertices_z, bufferSize, cudaMemcpyDeviceToDevice));
 
     return outMesh;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
 void ShapeDescriptor::gpu::freeMesh(Mesh mesh) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     cudaFree(mesh.vertices_x);
     cudaFree(mesh.vertices_y);
     cudaFree(mesh.vertices_z);
@@ -36,4 +47,9 @@ void ShapeDescriptor::gpu::freeMesh(Mesh mesh) {
     cudaFree(mesh.normals_x);
     cudaFree(mesh.normals_y);
     cudaFree(mesh.normals_z);
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
+
+

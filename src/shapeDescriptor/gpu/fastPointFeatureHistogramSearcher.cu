@@ -1,11 +1,16 @@
 #include <iostream>
 #include <chrono>
 #include <cassert>
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <nvidia/helper_cuda.h>
+#endif
+
 #include <shapeDescriptor/cpu/types/array.h>
 #include <shapeDescriptor/gpu/types/array.h>
 #include "fastPointFeatureHistogramSearcher.cuh"
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __inline__ __device__ float warpAllReduceSum(float val) {
     for (int mask = warpSize/2; mask > 0; mask /= 2)
         val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
@@ -121,13 +126,13 @@ __global__ void computeFPFHSearchResultIndices(
         atomicAdd(&searchResults[needleDescriptorIndex], searchResultRank);
     }
 }
-
+#endif
 
 ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeFPFHSearchResultRanks(
         ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_haystackDescriptors,
         ShapeDescriptor::debug::FPFHSearchExecutionTimes* executionTimes) {
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto executionStart = std::chrono::steady_clock::now();
 
     size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(unsigned int);
@@ -166,6 +171,9 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeFPFHSearc
     }
 
     return resultIndices;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }
 
 

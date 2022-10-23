@@ -122,3 +122,7 @@ inline std::ostream & operator<<(std::ostream & os, ShapeDescriptor::cpu::float3
     os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
     return os;
 }
+
+inline float dot(ShapeDescriptor::cpu::float3 a, ShapeDescriptor::cpu::float3 b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}

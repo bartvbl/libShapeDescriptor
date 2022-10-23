@@ -9,14 +9,14 @@ namespace ShapeDescriptor {
             float x;
             float y;
         
-            float2 operator- (float2 other) {
+            float2 operator- (const float2 other) const {
                 float2 out;
                 out.x = x - other.x;
                 out.y = y - other.y;
                 return out;
             }
         
-            float2 operator* (float other) {
+            float2 operator* (float other) const {
                 float2 out;
                 out.x = other * x;
                 out.y = other * y;
@@ -49,5 +49,12 @@ inline ShapeDescriptor::cpu::float2 normalize(ShapeDescriptor::cpu::float2 in) {
     float len = length(in);
     out.x = in.x / len;
     out.y = in.y / len;
+    return out;
+}
+
+inline ShapeDescriptor::cpu::float2 operator* (float other, ShapeDescriptor::cpu::float2 in) {
+    ShapeDescriptor::cpu::float2 out;
+    out.x = other * in.x;
+    out.y = other * in.y;
     return out;
 }

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <chrono>
 #include <map>
+#include <cstring>
 
 #include <shapeDescriptor/cpu/types/Mesh.h>
 #include <shapeDescriptor/cpu/types/PointCloud.h>

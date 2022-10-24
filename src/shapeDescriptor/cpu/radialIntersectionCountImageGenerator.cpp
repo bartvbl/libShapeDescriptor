@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <chrono>
 #include <sstream>
+#include <cstring>
 
 const int RASTERISATION_WARP_SIZE = 1024;
 
@@ -241,7 +242,7 @@ void generateRadialIntersectionCountImage(
 		vertices[1] = mesh.vertices[3 * triangleIndex + 1] * scaleFactor;
 		vertices[2] = mesh.vertices[3 * triangleIndex + 2] * scaleFactor;
 
-		rasteriseTriangle(descriptors, vertices, spinImageVertex, spinImageNormal, imageIndex, );
+		rasteriseTriangle(descriptors, vertices, spinImageVertex, spinImageNormal, imageIndex);
 	}
 }
 

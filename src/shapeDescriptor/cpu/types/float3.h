@@ -4,6 +4,10 @@
 #include <string>
 #include <cmath>
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#include "shapeDescriptor/gpu/types/float3.h"
+#endif
+
 
 namespace ShapeDescriptor {
     namespace cpu {
@@ -14,6 +18,10 @@ namespace ShapeDescriptor {
 
             float3() = default;
             float3(float x, float y, float z) : x(x), y(y), z(z) {}
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+            float3(::float3 const &in) : x(in.x), y(in.y), z(in.z) {}
+#endif
 
             float3 operator- (float3 other) const {
                 float3 out;

@@ -14,8 +14,11 @@
 #include <shapeDescriptor/utilities/copy/array.h>
 #include <shapeDescriptor/utilities/read/MeshLoader.h>
 #include <shapeDescriptor/utilities/free/array.h>
+#include <shapeDescriptor/utilities/CUDAAvailability.h>
 
 int main(int argc, const char** argv) {
+    const std::string defaultExecutionDevice = ShapeDescriptor::isCUDASupportAvailable() ? "gpu" : "cpu";
+
     arrrgh::parser parser("imagerenderer", "Generate RICI or spin images from an input object and dump them into a PNG file");
     const auto& inputFile = parser.add<std::string>(
             "input", "The location of the input OBJ model file.", '\0', arrrgh::Required, "");
@@ -25,6 +28,8 @@ int main(int argc, const char** argv) {
             "image-type", "Which image type to generate. Can either be 'si', 'rici', or 'quicci'.", '\0', arrrgh::Optional, "rici");
     const auto& forceGPU = parser.add<int>(
             "force-gpu", "Force using the GPU with the given ID", 'b', arrrgh::Optional, -1);
+    const auto& generationDevice = parser.add<std::string>(
+            "device", "Determines whether to compute the images on the CPU or GPU, by specifying its value as 'cpu' or 'gpu', respectively.", '\0', arrrgh::Optional, defaultExecutionDevice);
     const auto& spinImageWidth = parser.add<float>(
             "support-radius", "The size of the spin image plane in 3D object space", '\0', arrrgh::Optional, 1.0f);
     const auto& imageLimit = parser.add<int>(
@@ -62,9 +67,16 @@ int main(int argc, const char** argv) {
         ShapeDescriptor::utilities::createCUDAContext(forceGPU.value());
     }
 
+    if(ShapeDescriptor::isCUDASupportAvailable() && generationDevice.value() == "gpu") {
+        throw std::runtime_error("Image generation on the GPU was requested, but libShapeDescriptor was compiled GPU kernels disabled.");
+    }
+
     std::cout << "Loading mesh file.." << std::endl;
     ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh(inputFile.value(), true);
-    ShapeDescriptor::gpu::Mesh deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
+    ShapeDescriptor::gpu::Mesh deviceMesh;
+    if(ShapeDescriptor::isCUDASupportAvailable()) {
+        deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
+    }
     std::cout << "    Object has " << mesh.vertexCount << " vertices" << std::endl;
 
     std::cout << "Locating unique vertices.." << std::endl;
@@ -101,22 +113,27 @@ int main(int argc, const char** argv) {
         delete[] hostDescriptors.content;
 
     } else if(generationMode.value() == "rici") {
-        ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> descriptors =
-                ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
-                deviceMesh,
-                spinOrigins,
-                spinImageWidth.value());
+        ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors;
+        if(generationDevice.value() == "gpu") {
+            ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> descriptors =
+                    ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
+                            deviceMesh,
+                            spinOrigins,
+                            spinImageWidth.value());
+            ShapeDescriptor::free::array(descriptors);
+            hostDescriptors = ShapeDescriptor::copy::deviceArrayToHost(descriptors);
+        }
+
 
         std::cout << "Dumping results.. " << std::endl;
-        ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors =
-                ShapeDescriptor::copy::deviceArrayToHost(descriptors);
+
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
         ShapeDescriptor::dump::descriptors(hostDescriptors, outputFile.value(), enableLogarithmicImage.value(), imagesPerRow.value());
         delete[] hostDescriptors.content;
 
-        ShapeDescriptor::free::array(descriptors);
+
 
     } else if(generationMode.value() == "quicci") {
         ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> images = ShapeDescriptor::gpu::generateQUICCImages(deviceMesh,

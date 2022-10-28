@@ -15,6 +15,7 @@
 #include <shapeDescriptor/utilities/read/MeshLoader.h>
 #include <shapeDescriptor/utilities/free/array.h>
 #include <shapeDescriptor/utilities/CUDAAvailability.h>
+#include <shapeDescriptor/cpu/radialIntersectionCountImageGenerator.h>
 
 int main(int argc, const char** argv) {
     const std::string defaultExecutionDevice = ShapeDescriptor::isCUDASupportAvailable() ? "gpu" : "cpu";
@@ -87,6 +88,8 @@ int main(int argc, const char** argv) {
     }
 
     ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
+    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> tempOrigins = ShapeDescriptor::copy::deviceArrayToHost(spinOrigins);
+    ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::OrientedPoint> origins {tempOrigins.length, reinterpret_cast<ShapeDescriptor::cpu::OrientedPoint*>(tempOrigins.content)};
 
     if(imageLimit.value() != -1) {
         deviceMesh.vertexCount = backupSize;
@@ -120,8 +123,10 @@ int main(int argc, const char** argv) {
                             deviceMesh,
                             spinOrigins,
                             spinImageWidth.value());
-            ShapeDescriptor::free::array(descriptors);
             hostDescriptors = ShapeDescriptor::copy::deviceArrayToHost(descriptors);
+            ShapeDescriptor::free::array(descriptors);
+        } else if(generationDevice.value() == "cpu") {
+            hostDescriptors = ShapeDescriptor::cpu::generateRadialIntersectionCountImages(mesh, origins, spinImageWidth.value());
         }
 
 

@@ -6,20 +6,13 @@
 #include <shapeDescriptor/libraryBuildSettings.h>
 #include <shapeDescriptor/common/types/OrientedPoint.h>
 
-#include <cassert>
-#include <iostream>
-#include <fstream>
-#include <iomanip>
 #include <chrono>
-#include <sstream>
 #include <cstring>
-
-const int RASTERISATION_WARP_SIZE = 1024;
 
 ShapeDescriptor::cpu::float3 transformCoordinate(const ShapeDescriptor::cpu::float3 &vertex, const ShapeDescriptor::cpu::float3 &spinImageVertex, const ShapeDescriptor::cpu::float3 &spinImageNormal) {
     const ShapeDescriptor::cpu::float2 sineCosineAlpha = normalize({spinImageNormal.x, spinImageNormal.y});
 
-    const bool is_n_a_not_zero = !((abs(spinImageNormal.x) < MAX_EQUIVALENCE_ROUNDING_ERROR) && (abs(spinImageNormal.y) < MAX_EQUIVALENCE_ROUNDING_ERROR));
+    const bool is_n_a_not_zero = !((std::abs(spinImageNormal.x) < MAX_EQUIVALENCE_ROUNDING_ERROR) && (std::abs(spinImageNormal.y) < MAX_EQUIVALENCE_ROUNDING_ERROR));
 
     const float alignmentProjection_n_ax = is_n_a_not_zero ? sineCosineAlpha.x : 1;
     const float alignmentProjection_n_ay = is_n_a_not_zero ? sineCosineAlpha.y : 0;
@@ -34,7 +27,7 @@ ShapeDescriptor::cpu::float3 transformCoordinate(const ShapeDescriptor::cpu::flo
 
     const ShapeDescriptor::cpu::float2 sineCosineBeta = normalize({transformedNormalX, spinImageNormal.z});
 
-    const bool is_n_b_not_zero = !((abs(transformedNormalX) < MAX_EQUIVALENCE_ROUNDING_ERROR) && (abs(spinImageNormal.z) < MAX_EQUIVALENCE_ROUNDING_ERROR));
+    const bool is_n_b_not_zero = !((std::abs(transformedNormalX) < MAX_EQUIVALENCE_ROUNDING_ERROR) && (std::abs(spinImageNormal.z) < MAX_EQUIVALENCE_ROUNDING_ERROR));
 
     const float alignmentProjection_n_bx = is_n_b_not_zero ? sineCosineBeta.x : 1;
     const float alignmentProjection_n_bz = is_n_b_not_zero ? sineCosineBeta.y : 0; // discrepancy between axis here is because we are using a 2D vector on 3D axis.
@@ -49,7 +42,7 @@ ShapeDescriptor::cpu::float3 transformCoordinate(const ShapeDescriptor::cpu::flo
 
 ShapeDescriptor::cpu::float2 alignWithPositiveX(const ShapeDescriptor::cpu::float2 &midLineDirection, const ShapeDescriptor::cpu::float2 &vertex)
 {
-	ShapeDescriptor::cpu::float2 transformed;
+	ShapeDescriptor::cpu::float2 transformed {0, 0};
 	transformed.x = midLineDirection.x * vertex.x + midLineDirection.y * vertex.y;
 	transformed.y = -midLineDirection.y * vertex.x + midLineDirection.x * vertex.y;
 	return transformed;
@@ -132,8 +125,8 @@ void rasteriseTriangle(
 
 	// Step 8: For each row, do interpolation
 	// And ensure we only rasterise within bounds
-	const int minPixels = int(floor(minVector.z));
-	const int maxPixels = int(floor(maxVector.z));
+	const int minPixels = int(std::floor(minVector.z));
+	const int maxPixels = int(std::floor(maxVector.z));
 
 	const int halfHeight = spinImageWidthPixels / 2;
 
@@ -186,13 +179,13 @@ void rasteriseTriangle(
 			// If both values are positive or both values are negative, there is no double intersection.
 			// iF the signs of the two values is different, the result will be negative or 0.
 			// Having different signs implies the existence of double intersections.
-            const float doubleIntersectionDistance = abs(intersectionY);
+            const float doubleIntersectionDistance = std::abs(intersectionY);
 
             const float minDistance = intersection1Distance < intersection2Distance ? intersection1Distance : intersection2Distance;
             const float maxDistance = intersection1Distance > intersection2Distance ? intersection1Distance : intersection2Distance;
 
-            unsigned short rowStartPixels = (unsigned short) (floor(minDistance));
-            unsigned short rowEndPixels = (unsigned short) (floor(maxDistance));
+            unsigned short rowStartPixels = (unsigned short) (std::floor(minDistance));
+            unsigned short rowEndPixels = (unsigned short) (std::floor(maxDistance));
 
 			// Ensure we are only rendering within bounds
 			rowStartPixels = std::min<unsigned int>((unsigned int)spinImageWidthPixels, std::max<unsigned int>(0, rowStartPixels));
@@ -202,7 +195,7 @@ void rasteriseTriangle(
 			if (hasDoubleIntersection)
 			{
 				// since this is an absolute value, it can only be 0 or higher.
-				const int jobDoubleIntersectionStartPixels = int(floor(doubleIntersectionDistance));
+				const int jobDoubleIntersectionStartPixels = int(std::floor(doubleIntersectionDistance));
 
 				// rowStartPixels must already be in bounds, and doubleIntersectionStartPixels can not be smaller than 0.
 				// Hence the values in this loop are in-bounds.
@@ -225,18 +218,17 @@ void rasteriseTriangle(
 void generateRadialIntersectionCountImage(
     ShapeDescriptor::RICIDescriptor* descriptors,
     ShapeDescriptor::cpu::Mesh mesh,
+    ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::OrientedPoint> spinOrigins,
 	size_t imageIndex,
 	float scaleFactor)
 {
-	ShapeDescriptor::cpu::float3 spinImageVertex = mesh.vertices[imageIndex] * scaleFactor;
-	ShapeDescriptor::cpu::float3 spinImageNormal = mesh.normals[imageIndex];
+	ShapeDescriptor::cpu::float3 spinImageVertex = spinOrigins.content[imageIndex].vertex * scaleFactor;
+	ShapeDescriptor::cpu::float3 spinImageNormal = spinOrigins.content[imageIndex].normal;
 
 	const size_t triangleCount = mesh.vertexCount / 3;
 	for (int triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++)
 	{
 		ShapeDescriptor::cpu::float3 vertices[3];
-
-        const size_t vertexComponentBlockSize = roundSizeToNearestCacheLine(triangleCount);
 
 		vertices[0] = mesh.vertices[3 * triangleIndex + 0] * scaleFactor;
 		vertices[1] = mesh.vertices[3 * triangleIndex + 1] * scaleFactor;
@@ -246,23 +238,16 @@ void generateRadialIntersectionCountImage(
 	}
 }
 
-void scaleMesh(ShapeDescriptor::cpu::Mesh &mesh, float scaleFactor) {
-	for(size_t i = 0; i < mesh.vertexCount; i++) {
-		mesh.vertices[i] = mesh.vertices[i] * scaleFactor;
-	}    
-}
-
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::cpu::generateRadialIntersectionCountImages(
         ShapeDescriptor::cpu::Mesh mesh,
-        ShapeDescriptor::cpu::array<OrientedPoint> descriptorOrigins,
+        ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::OrientedPoint> descriptorOrigins,
         float spinImageWidth,
         ShapeDescriptor::cpu::RICIExecutionTimes* executionTimes) {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t imageCount = descriptorOrigins.length;
     size_t meshVertexCount = mesh.vertexCount;
-    size_t triangleCount = meshVertexCount / (size_t) 3;
         
     // -- Descriptor Array Allocation and Initialisation --
 
@@ -279,11 +264,10 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::cp
 	// Warning: kernel assumes the grid dimensions are equivalent to imageCount.
     #pragma omp parallel for
 	for(size_t imageIndex = 0; imageIndex < descriptors.length; imageIndex++) {
-		generateRadialIntersectionCountImage(descriptors.content, mesh, imageIndex, scaleFactor);
+		generateRadialIntersectionCountImage(descriptors.content, mesh, descriptorOrigins, imageIndex, scaleFactor);
 	}
 	
 	std::chrono::milliseconds generationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - generationStart);
-
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 

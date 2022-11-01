@@ -96,6 +96,9 @@ int main(int argc, const char** argv) {
         spinOrigins = ShapeDescriptor::copy::deviceArrayToHost(deviceSpinOrigins);
     }
 
+    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
+    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> tempOrigins = ShapeDescriptor::copy::deviceArrayToHost(spinOrigins);
+    ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::OrientedPoint> origins {tempOrigins.length, reinterpret_cast<ShapeDescriptor::cpu::OrientedPoint*>(tempOrigins.content)};
 
 
 
@@ -129,8 +132,8 @@ int main(int argc, const char** argv) {
                             spinImageWidth.value());
             hostDescriptors = ShapeDescriptor::copy::deviceArrayToHost(descriptors);
             ShapeDescriptor::free::array(descriptors);
-        } else {
-            hostDescriptors = ShapeDescriptor::cpu::generateRadialIntersectionCountImages(mesh,spinOrigins,spinImageWidth.value());
+        } else if(generationDevice.value() == "cpu") {
+            hostDescriptors = ShapeDescriptor::cpu::generateRadialIntersectionCountImages(mesh, origins, spinImageWidth.value());
         }
 
 

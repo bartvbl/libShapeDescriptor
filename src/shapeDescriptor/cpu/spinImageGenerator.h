@@ -3,8 +3,8 @@
 #include <shapeDescriptor/cpu/types/array.h>
 #include <shapeDescriptor/cpu/types/Mesh.h>
 #include <shapeDescriptor/cpu/types/PointCloud.h>
-#include <shapeDescriptor/common/types/OrientedPoint.h>
 #include <shapeDescriptor/common/types/methods/SpinImageDescriptor.h>
+#include <shapeDescriptor/cpu/types/OrientedPoint.h>
 
 namespace ShapeDescriptor {
     namespace cpu {
@@ -16,7 +16,7 @@ namespace ShapeDescriptor {
         
         ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> generateSpinImages(
                 ShapeDescriptor::cpu::PointCloud pointCloud,
-                ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
+                ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::OrientedPoint> descriptorOrigins,
                 float supportRadius,
                 float supportAngleDegrees,
                 ShapeDescriptor::cpu::SIExecutionTimes* executionTimes = nullptr);

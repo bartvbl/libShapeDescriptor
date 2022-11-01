@@ -15,6 +15,7 @@
 #include <shapeDescriptor/utilities/read/MeshLoader.h>
 #include <shapeDescriptor/utilities/free/array.h>
 #include <shapeDescriptor/utilities/CUDAAvailability.h>
+#include <shapeDescriptor/cpu/radialIntersectionCountImageGenerator.h>
 
 int main(int argc, const char** argv) {
     const std::string defaultExecutionDevice = ShapeDescriptor::isCUDASupportAvailable() ? "gpu" : "cpu";
@@ -67,31 +68,37 @@ int main(int argc, const char** argv) {
         ShapeDescriptor::utilities::createCUDAContext(forceGPU.value());
     }
 
-    if(ShapeDescriptor::isCUDASupportAvailable() && generationDevice.value() == "gpu") {
+    if(!ShapeDescriptor::isCUDASupportAvailable() && generationDevice.value() == "gpu") {
         throw std::runtime_error("Image generation on the GPU was requested, but libShapeDescriptor was compiled GPU kernels disabled.");
     }
 
     std::cout << "Loading mesh file.." << std::endl;
     ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh(inputFile.value(), true);
-    ShapeDescriptor::gpu::Mesh deviceMesh;
-    if(ShapeDescriptor::isCUDASupportAvailable()) {
-        deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
-    }
     std::cout << "    Object has " << mesh.vertexCount << " vertices" << std::endl;
 
-    std::cout << "Locating unique vertices.." << std::endl;
+    ShapeDescriptor::gpu::Mesh deviceMesh;
+    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOrigins;
+    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOrigins;
+    if(ShapeDescriptor::isCUDASupportAvailable() /*&& generationDevice.value() == "gpu"*/) {
+        deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
+        size_t backupSize = deviceMesh.vertexCount;
+        if(imageLimit.value() != -1) {
+            deviceMesh.vertexCount = 10*imageLimit.value();
+        }
 
-    size_t backupSize = deviceMesh.vertexCount;
-    if(imageLimit.value() != -1) {
-        deviceMesh.vertexCount = 10*imageLimit.value();
+        std::cout << "Locating unique vertices.." << std::endl;
+        deviceSpinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
+
+        if(imageLimit.value() != -1) {
+            deviceMesh.vertexCount = backupSize;
+            deviceSpinOrigins.length = std::min<int>(deviceSpinOrigins.length, imageLimit.value());
+        }
+        spinOrigins = ShapeDescriptor::copy::deviceArrayToHost(deviceSpinOrigins);
     }
 
-    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(deviceMesh);
 
-    if(imageLimit.value() != -1) {
-        deviceMesh.vertexCount = backupSize;
-        spinOrigins.length = std::min<int>(spinOrigins.length, imageLimit.value());
-    }
+
+
 
     std::cout << "Generating images.. (this can take a while)" << std::endl;
     if(generationMode.value() == "si") {
@@ -99,7 +106,7 @@ int main(int argc, const char** argv) {
 
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> descriptors = ShapeDescriptor::gpu::generateSpinImages(
                 pointCloud,
-                spinOrigins,
+                deviceSpinOrigins,
                 spinImageWidth.value(),
                 supportAngle.value());
         std::cout << "Dumping results.. " << std::endl;
@@ -118,10 +125,12 @@ int main(int argc, const char** argv) {
             ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> descriptors =
                     ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
                             deviceMesh,
-                            spinOrigins,
+                            deviceSpinOrigins,
                             spinImageWidth.value());
-            ShapeDescriptor::free::array(descriptors);
             hostDescriptors = ShapeDescriptor::copy::deviceArrayToHost(descriptors);
+            ShapeDescriptor::free::array(descriptors);
+        } else {
+            hostDescriptors = ShapeDescriptor::cpu::generateRadialIntersectionCountImages(mesh,spinOrigins,spinImageWidth.value());
         }
 
 
@@ -137,7 +146,7 @@ int main(int argc, const char** argv) {
 
     } else if(generationMode.value() == "quicci") {
         ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> images = ShapeDescriptor::gpu::generateQUICCImages(deviceMesh,
-                                                                                  spinOrigins,
+                                                                          deviceSpinOrigins,
                                                                                   spinImageWidth.value());
 
         std::cout << "Dumping results.. " << std::endl;

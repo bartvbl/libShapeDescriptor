@@ -164,6 +164,7 @@ int main(int argc, const char** argv) {
     }
 
     ShapeDescriptor::free::mesh(mesh);
-    ShapeDescriptor::gpu::freeMesh(deviceMesh);
-
+    if(generationDevice.value() == "gpu") {
+        ShapeDescriptor::gpu::freeMesh(deviceMesh);
+    }
 }

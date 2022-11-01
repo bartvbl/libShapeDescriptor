@@ -10,11 +10,10 @@
 #include <shapeDescriptor/utilities/copy/array.h>
 #include <shapeDescriptor/utilities/read/MeshLoader.h>
 #include <shapeDescriptor/utilities/free/mesh.h>
-#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
-#include <cuda_runtime.h>
 #include <shapeDescriptor/utilities/spinOriginsGenerator.h>
 #include <shapeDescriptor/utilities/free/array.h>
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#include <cuda_runtime.h>
 #endif
 
 const float DEFAULT_SPIN_IMAGE_WIDTH = 0.3;

@@ -4,7 +4,6 @@
 #include <shapeDescriptor/gpu/types/Mesh.h>
 #include <shapeDescriptor/common/types/OrientedPoint.h>
 #include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
-#include <shapeDescriptor/utilities/kernels/duplicateRemoval.cuh>
 #include <shapeDescriptor/utilities/mesh/MeshScaler.h>
 #include <shapeDescriptor/utilities/dump/QUICCIDescriptors.h>
 #include <shapeDescriptor/utilities/copy/mesh.h>
@@ -13,6 +12,9 @@
 #include <shapeDescriptor/utilities/free/mesh.h>
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <cuda_runtime.h>
+#include <shapeDescriptor/utilities/spinOriginsGenerator.h>
+#include <shapeDescriptor/utilities/free/array.h>
+
 #endif
 
 const float DEFAULT_SPIN_IMAGE_WIDTH = 0.3;
@@ -56,8 +58,10 @@ int main(int argc, const char** argv) {
     ShapeDescriptor::free::mesh(hostMesh);
 
     std::cout << "Computing QUICCI images.." << std::endl;
-    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> uniqueVertices =
-            ShapeDescriptor::utilities::computeUniqueVertices(deviceMesh);
+    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> hostUniqueVertices =
+            ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(hostMesh);
+    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> uniqueVertices = ShapeDescriptor::copy::hostArrayToDevice(hostUniqueVertices);
+    ShapeDescriptor::free::array(hostUniqueVertices);
 
     ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> images = ShapeDescriptor::gpu::generateQUICCImages(deviceMesh, uniqueVertices, spinImageWidth.value());
     ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostImages = ShapeDescriptor::copy::deviceArrayToHost(images);

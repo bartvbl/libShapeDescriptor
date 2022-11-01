@@ -218,7 +218,7 @@ void rasteriseTriangle(
 void generateRadialIntersectionCountImage(
     ShapeDescriptor::RICIDescriptor* descriptors,
     ShapeDescriptor::cpu::Mesh mesh,
-    ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::OrientedPoint> spinOrigins,
+    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOrigins,
 	size_t imageIndex,
 	float scaleFactor)
 {
@@ -241,7 +241,7 @@ void generateRadialIntersectionCountImage(
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::cpu::generateRadialIntersectionCountImages(
         ShapeDescriptor::cpu::Mesh mesh,
-        ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::OrientedPoint> descriptorOrigins,
+        ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
         float spinImageWidth,
         ShapeDescriptor::cpu::RICIExecutionTimes* executionTimes) {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();

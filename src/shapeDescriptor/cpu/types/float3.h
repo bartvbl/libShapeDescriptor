@@ -21,6 +21,10 @@ namespace ShapeDescriptor {
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
             float3(::float3 const &in) : x(in.x), y(in.y), z(in.z) {}
+
+            __host__ __device__ operator ::float3() const {
+                return ::float3{x, y, z};
+            }
 #endif
 
             float3 operator- (float3 other) const {
@@ -126,7 +130,7 @@ inline ShapeDescriptor::cpu::float3 operator*(float other, ShapeDescriptor::cpu:
     return operator*(vec, other);
 }
 
-inline std::ostream & operator<<(std::ostream & os, const ShapeDescriptor::cpu::float3 vec) {
+inline std::ostream & operator<<(std::ostream &os, const ShapeDescriptor::cpu::float3 vec) {
     os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
     return os;
 }

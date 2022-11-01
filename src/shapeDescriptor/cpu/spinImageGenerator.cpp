@@ -34,14 +34,14 @@ ShapeDescriptor::cpu::float2 calculateAlphaBeta(ShapeDescriptor::cpu::float3 spi
 
 // Run once for every vertex index
 void createDescriptors(
-        ShapeDescriptor::cpu::OrientedPoint* device_spinImageOrigins,
+        ShapeDescriptor::OrientedPoint* device_spinImageOrigins,
         ShapeDescriptor::cpu::PointCloud pointCloud,
         ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> descriptors,
         float oneOverSpinImagePixelWidth,
         float supportAngleCosine, 
         size_t spinImageIndex)
 {
-	const ShapeDescriptor::cpu::OrientedPoint spinOrigin = device_spinImageOrigins[spinImageIndex];
+	const ShapeDescriptor::OrientedPoint spinOrigin = device_spinImageOrigins[spinImageIndex];
 
 	const ShapeDescriptor::cpu::float3 vertex = spinOrigin.vertex;
 	const ShapeDescriptor::cpu::float3 normal = spinOrigin.normal;
@@ -118,7 +118,7 @@ void createDescriptors(
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> ShapeDescriptor::cpu::generateSpinImages(
         ShapeDescriptor::cpu::PointCloud pointCloud,
-        ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::OrientedPoint> descriptorOrigins,
+        ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
         float supportRadius,
         float supportAngleDegrees,
         ShapeDescriptor::cpu::SIExecutionTimes* executionTimes) {

@@ -126,7 +126,7 @@ inline ShapeDescriptor::cpu::float3 operator*(float other, ShapeDescriptor::cpu:
     return operator*(vec, other);
 }
 
-inline std::ostream & operator<<(std::ostream & os, ShapeDescriptor::cpu::float3 vec) {
+inline std::ostream & operator<<(std::ostream & os, const ShapeDescriptor::cpu::float3 vec) {
     os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
     return os;
 }

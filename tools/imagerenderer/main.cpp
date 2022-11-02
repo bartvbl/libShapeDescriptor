@@ -16,6 +16,7 @@
 #include <shapeDescriptor/utilities/CUDAAvailability.h>
 #include <shapeDescriptor/cpu/radialIntersectionCountImageGenerator.h>
 #include <shapeDescriptor/utilities/spinOriginsGenerator.h>
+#include <shapeDescriptor/cpu/quickIntersectionCountImageGenerator.h>
 
 int main(int argc, const char** argv) {
     const std::string defaultExecutionDevice = ShapeDescriptor::isCUDASupportAvailable() ? "gpu" : "cpu";
@@ -108,9 +109,6 @@ int main(int argc, const char** argv) {
                 supportAngle.value());
         std::cout << "Dumping results.. " << std::endl;
         ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors = ShapeDescriptor::copy::deviceArrayToHost<ShapeDescriptor::SpinImageDescriptor>(descriptors);
-        if(imageLimit.value() != -1) {
-            hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
-        }
         ShapeDescriptor::dump::descriptors(hostDescriptors, outputFile.value(), enableLogarithmicImage.value(), imagesPerRow.value());
 
         ShapeDescriptor::free::array<ShapeDescriptor::SpinImageDescriptor>(descriptors);
@@ -142,22 +140,28 @@ int main(int argc, const char** argv) {
 
 
     } else if(generationMode.value() == "quicci") {
-        ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> images = ShapeDescriptor::gpu::generateQUICCImages(deviceMesh,
-                                                                          deviceSpinOrigins,
-                                                                                  spinImageWidth.value());
+        ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors;
+
+        if(generationDevice.value() == "gpu") {
+            ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> images = ShapeDescriptor::gpu::generateQUICCImages(
+                    deviceMesh,
+                    deviceSpinOrigins,
+                    spinImageWidth.value());
+            hostDescriptors = ShapeDescriptor::copy::deviceArrayToHost(images);
+            ShapeDescriptor::free::array(images);
+        } else if(generationDevice.value() == "cpu") {
+            hostDescriptors = ShapeDescriptor::cpu::generateQUICCImages(mesh, spinOrigins, spinImageWidth.value());
+        }
 
         std::cout << "Dumping results.. " << std::endl;
 
-        ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> host_images = ShapeDescriptor::copy::deviceArrayToHost(images);
-
         if(imageLimit.value() != -1) {
-            host_images.length = std::min<int>(host_images.length, imageLimit.value());
+            hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
 
-        ShapeDescriptor::dump::descriptors(host_images, outputFile.value(), imagesPerRow.value());
+        ShapeDescriptor::dump::descriptors(hostDescriptors, outputFile.value(), imagesPerRow.value());
 
-        ShapeDescriptor::free::array(images);
-        delete[] host_images.content;
+        ShapeDescriptor::free::array(hostDescriptors);
     } else {
         std::cerr << "Unrecognised image type: " << generationMode.value() << std::endl;
         std::cerr << "Should be either 'si', 'rici', or 'quicci'." << std::endl;

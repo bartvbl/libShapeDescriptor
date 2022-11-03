@@ -13,6 +13,7 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::filesystem::path &outp
     bool hasHighlightsEnabled =
             (highlightStartVertex > 0 && highlightStartVertex <= mesh.vertexCount) ||
             (highlightEndVertex > 0 && highlightEndVertex <= mesh.vertexCount);
+    bool hasNormalsEnabled = mesh.normals != nullptr;
 
     std::ofstream outputFile;
     outputFile.open(outputFilePath);
@@ -88,17 +89,6 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::filesystem::path &outp
         vertexIndexBuffer.at(i) = seenVerticesIndex.at(vertex);
     }
 
-    for(unsigned int i = 0; i < mesh.vertexCount; i++) {
-        const ShapeDescriptor::cpu::float3 normal = mesh.normals[i];
-        if(seenUniqueNormals.find(normal) == seenUniqueNormals.end()) {
-            // Normal has not been seen before
-            seenUniqueNormals.insert(normal);
-            seenNormalsIndex[normal] = condensedNormals.size();
-            condensedNormals.push_back(normal);
-        }
-        normalIndexBuffer.at(i) = seenNormalsIndex.at(normal);
-    }
-
     for(unsigned int i = 0; i < condensedVertices.size(); i++) {
         fileContents << "v " << condensedVertices[i].x
                       << " " << condensedVertices[i].y
@@ -107,10 +97,23 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::filesystem::path &outp
 
     fileContents << std::endl;
 
-    for(unsigned int i = 0; i < condensedNormals.size(); i++) {
-        fileContents << "vn " << condensedNormals[i].x
-                       << " " << condensedNormals[i].y
-                       << " " << condensedNormals[i].z << std::endl;
+    if(hasNormalsEnabled) {
+        for(unsigned int i = 0; i < mesh.vertexCount; i++) {
+            const ShapeDescriptor::cpu::float3 normal = mesh.normals[i];
+            if(seenUniqueNormals.find(normal) == seenUniqueNormals.end()) {
+                // Normal has not been seen before
+                seenUniqueNormals.insert(normal);
+                seenNormalsIndex[normal] = condensedNormals.size();
+                condensedNormals.push_back(normal);
+            }
+            normalIndexBuffer.at(i) = seenNormalsIndex.at(normal);
+        }
+
+        for(unsigned int i = 0; i < condensedNormals.size(); i++) {
+            fileContents << "vn " << condensedNormals[i].x
+                         << " " << condensedNormals[i].y
+                         << " " << condensedNormals[i].z << std::endl;
+        }
     }
 
     if(useCustomTextureMap) {
@@ -143,16 +146,19 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::filesystem::path &outp
 
         fileContents << "f "
            << (vertexIndexBuffer.at(i + 0) + 1) << "/"
-           << (useCustomTextureMap ? std::to_string(i + 1) + "/" : "/")
-           << (normalIndexBuffer.at(i + 0) + 1) << " "
+           << (useCustomTextureMap ? std::to_string(i + 1) : "")
+           << (hasNormalsEnabled ? "/" + std::to_string(normalIndexBuffer.at(i + 0) + 1) : "")
+           << " "
 
            << (vertexIndexBuffer.at(i + 1) + 1) << "/"
-           << (useCustomTextureMap ? std::to_string(i + 2) + "/" : "/")
-           << (normalIndexBuffer.at(i + 1) + 1) << " "
+           << (useCustomTextureMap ? std::to_string(i + 2) : "")
+           << (hasNormalsEnabled ? "/" + std::to_string(normalIndexBuffer.at(i + 1) + 1) : "")
+           << " "
 
            << (vertexIndexBuffer.at(i + 2) + 1) << "/"
-           << (useCustomTextureMap ? std::to_string(i + 3) + "/" : "/")
-           << (normalIndexBuffer.at(i + 2) + 1) << std::endl;
+           << (useCustomTextureMap ? std::to_string(i + 3) : "")
+           << (hasNormalsEnabled ? "/" + std::to_string(normalIndexBuffer.at(i + 2) + 1) : "")
+           << std::endl;
 
         lastIterationWasHighlighted = currentIterationIsHighlighted;
     }

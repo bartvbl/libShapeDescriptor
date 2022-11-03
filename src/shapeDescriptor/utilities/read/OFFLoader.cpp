@@ -3,7 +3,7 @@
 #include "OFFLoader.h"
 #include "MeshLoadUtils.h"
 
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOFF(std::string src) {
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOFF(std::filesystem::path src) {
     // Read file contents into a buffer
     FILE* offFile = fopen(src.c_str(), "r");
 

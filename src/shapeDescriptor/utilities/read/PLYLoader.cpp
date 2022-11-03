@@ -7,7 +7,7 @@
 
 
 
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::string src, bool recomputeNormals) {
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::path src, bool recomputeNormals) {
     // Read file contents into a buffer
     FILE* plyFile = fopen(src.c_str(), "r");
 

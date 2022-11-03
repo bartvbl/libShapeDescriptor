@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include "shapeDescriptor/cpu/types/Mesh.h"
 
 // Note: this is not a complete implementation of the file format.
@@ -7,7 +8,7 @@
 
 namespace ShapeDescriptor {
     namespace utilities {
-        cpu::Mesh loadPLY(std::string src, bool recomputeNormals = false);
+        cpu::Mesh loadPLY(std::filesystem::path src, bool recomputeNormals = false);
     }
 }
 

@@ -9,6 +9,7 @@
 #include <glm/geometric.hpp>
 #include <fast-obj/fast_obj.h>
 #include <algorithm>
+#include <filesystem>
 
 void split(std::vector<std::string>* parts, const std::string &s, char delim) {
 	
@@ -48,7 +49,7 @@ inline ShapeDescriptor::cpu::float3 elementWiseMax(ShapeDescriptor::cpu::float3 
 	return output;
 }
 
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::string src, bool recomputeNormals)
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::filesystem::path src, bool recomputeNormals)
 {
     fastObjMesh* temporaryMesh = fast_obj_read(src.c_str());
 

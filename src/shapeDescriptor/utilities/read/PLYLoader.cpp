@@ -18,7 +18,11 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::
     const char* filePointer = fileContents;
 
     rewind(plyFile);
-    fread(fileContents, sizeof(char), size, plyFile);
+    size_t bytesRead = fread(fileContents, sizeof(char), size, plyFile);
+    if(bytesRead != size) {
+        throw std::runtime_error("Something went wrong while reading the file. Number of read bytes was "
+        + std::to_string(bytesRead) + " where " + std::to_string(size) + " was expected.");
+    }
 
     fclose(plyFile);
 

@@ -150,6 +150,7 @@ const char* parse_int(const char* ptr, int* val);
 const char* parse_uchar(const char* ptr, unsigned char* val);
 const char* skip_whitespace(const char* ptr);
 const char* skip_line(const char* ptr);
+int is_whitespace(char c);
 
 #ifdef __cplusplus
 }
@@ -411,7 +412,7 @@ void string_fix_separators(char* s)
 }
 
 
-static
+
 int is_whitespace(char c)
 {
     return (c == ' ' || c == '\t' || c == '\r');

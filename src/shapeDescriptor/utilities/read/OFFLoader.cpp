@@ -14,7 +14,11 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOFF(std::filesystem::
     const char* filePointer = fileContents;
 
     rewind(offFile);
-    fread(fileContents, sizeof(char), size, offFile);
+    size_t bytesRead = fread(fileContents, sizeof(char), size, offFile);
+    if(bytesRead != size) {
+        throw std::runtime_error("Something went wrong while reading the file. Number of read bytes was "
+                                 + std::to_string(bytesRead) + " where " + std::to_string(size) + " was expected.");
+    }
 
     // Read header
     if(filePointer[0] != 'O' || filePointer[1] != 'F' || filePointer[2] != 'F') {

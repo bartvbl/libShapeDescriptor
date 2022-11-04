@@ -18,7 +18,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOFF(std::filesystem::
 
     // Read header
     if(filePointer[0] != 'O' || filePointer[1] != 'F' || filePointer[2] != 'F') {
-        throw std::runtime_error("Incorrect file header detected when loading:\n" + src +
+        throw std::runtime_error("Incorrect file header detected when loading:\n" + src.string() +
         "\nAre you sure the file exists and it's an OFF file?");
     }
 

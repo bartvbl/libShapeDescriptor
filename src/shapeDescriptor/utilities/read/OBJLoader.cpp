@@ -75,7 +75,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::filesystem::
             unsigned int verticesPerFace = temporaryMesh->face_vertices[faceIndex + group.face_offset];
             if (verticesPerFace != 3) {
                 throw std::runtime_error(
-                        "This OBJ loader only supports 3 vertices per face. The model file " + src +
+                        "This OBJ loader only supports 3 vertices per face. The model file " + src.string() +
                         " contains a face with " + std::to_string(verticesPerFace) + " vertices.\n"
                         "You can usually solve this problem by re-exporting the object from a 3D model editor, "
                         "and selecting the OBJ export option that forces triangle faces.");

@@ -24,7 +24,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::
 
     // Read header
     if(filePointer[0] != 'p' || filePointer[1] != 'l' || filePointer[2] != 'y') {
-        throw std::runtime_error("Incorrect file header detected when loading:\n" + src +
+        throw std::runtime_error("Incorrect file header detected when loading:\n" + src.string() +
                                  "\nAre you sure the file exists and it's an PLY file?");
     }
 
@@ -80,7 +80,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::
                     // property float or property double
                     coordinatesUseDouble = formatSpecifier == 'd';
                     if((seenDoubleCoordinate && !coordinatesUseDouble) || (seenFloatCoordinate && coordinatesUseDouble)) {
-                        throw std::runtime_error("Failed to load the PLY file at: " + src + ".\nReason: The file contains coordinates specified in float and double format. Please re-export the file such that all coordinates use either float or double exclusively.");
+                        throw std::runtime_error("Failed to load the PLY file at: " + src.string() + ".\nReason: The file contains coordinates specified in float and double format. Please re-export the file such that all coordinates use either float or double exclusively.");
                     }
 
                     if(coordinatesUseDouble) {
@@ -96,12 +96,12 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::
                             containsNormals = true;
                         }
                     } else if(typeSpecifier != 'x' && typeSpecifier != 'y' && typeSpecifier != 'z') {
-                        throw std::runtime_error("Unknown type specifier ('" + std::to_string(typeSpecifier) + "') encountered when loading PLY file: " + src + ".\nPlease try to re-export it using a different program.");
+                        throw std::runtime_error("Unknown type specifier ('" + std::to_string(typeSpecifier) + "') encountered when loading PLY file: " + src.string() + ".\nPlease try to re-export it using a different program.");
                     }
                 } else if(formatSpecifier == 'l') {
                     // must be property list uchar (int or uint) vertex_index
                     if(*(filePointer + 9) != 'l' || *(filePointer + 14) != 'u' || (*(filePointer + 20) != 'i' && *(filePointer + 20) != 'u')) {
-                        throw std::runtime_error("Invalid index list types encountered when loading PLY file: " + src + ".\nPlease try to re-export it using a different program.");
+                        throw std::runtime_error("Invalid index list types encountered when loading PLY file: " + src.string() + ".\nPlease try to re-export it using a different program.");
                     }
                 } else if(formatSpecifier == 'u') {
                     // property uchar
@@ -112,10 +112,10 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::
                         }
                         containsColours = true;
                     } else {
-                        throw std::runtime_error("Failed to load the PLY file at: " + src + ".\nReason: Additional properties detected that are not supported by the PLY loader. You can try re-exporting the file, or use the OBJ format instead.");
+                        throw std::runtime_error("Failed to load the PLY file at: " + src.string() + ".\nReason: Additional properties detected that are not supported by the PLY loader. You can try re-exporting the file, or use the OBJ format instead.");
                     }
                 } else {
-                    throw std::runtime_error("Failed to load the PLY file at: " + src + ".\nReason: the PLY loader only supports float type coordinates, and integer indices. You may need to re-export it with correct settings.");
+                    throw std::runtime_error("Failed to load the PLY file at: " + src.string() + ".\nReason: the PLY loader only supports float type coordinates, and integer indices. You may need to re-export it with correct settings.");
                 }
 
                 break;
@@ -170,7 +170,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::
 
     if(isBinary) {
         if(!isLittleEndian) {
-            throw std::runtime_error("Failed to load PLY file from " + src + ".\nReason: this loader only supports little endian files");
+            throw std::runtime_error("Failed to load PLY file from " + src.string() + ".\nReason: this loader only supports little endian files");
         }
 
         if(!containsNormals && !containsColours && !coordinatesUseDouble) {
@@ -229,7 +229,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::
             for (int i = 0; i < faceCount; i++) {
                 char indexCount = *filePointer;
                 if (indexCount != 3) {
-                    throw std::runtime_error("An error occurred while loading the file: " + src +
+                    throw std::runtime_error("An error occurred while loading the file: " + src.string() +
                                              ".\nThe PLY file contains non-triangulated faces. Please re-export the file, making sure you enable face triangulation.");
                 }
                 filePointer++;
@@ -333,7 +333,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::
                 int indexCount;
                 filePointer = parse_int(filePointer, &indexCount);
                 if (indexCount != 3) {
-                    throw std::runtime_error("An error occurred while loading the file: " + src +
+                    throw std::runtime_error("An error occurred while loading the file: " + src.string() +
                                              ".\nThe PLY file contains non-triangulated faces. Please re-export the file, making sure you enable face triangulation.");
                 }
                 filePointer++;

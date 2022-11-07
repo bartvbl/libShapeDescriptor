@@ -47,3 +47,5 @@ include/*
 
 PIXEL_COUNTS/*
 misc/PIXEL_COUNTS/*
+
+.vscode/

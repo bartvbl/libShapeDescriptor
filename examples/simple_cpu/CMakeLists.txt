@@ -23,4 +23,4 @@ file (GLOB_RECURSE LIBRARY_HEADERS             ./*.h ${OPENMP_INCLUDE_DIRS})
 file (GLOB_RECURSE LIBRARY_SOURCES             main.cpp)
 
 add_executable(${PROJECT_NAME} ${LIBRARY_SOURCES} ${LIBRARY_HEADERS})
-target_link_libraries(${PROJECT_NAME} ShapeDescriptor fast-lzma2)
+target_link_libraries(${PROJECT_NAME} ShapeDescriptor fast-lzma2 OpenMP::OpenMP_CXX)

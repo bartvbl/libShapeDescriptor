@@ -1,18 +1,15 @@
-#include <shapeDescriptor/cpu/types/Mesh.h>
-#include <shapeDescriptor/gpu/types/Mesh.h>
-#include <shapeDescriptor/utilities/read/MeshLoader.h>
-#include <shapeDescriptor/utilities/copy/array.h>
-#include <shapeDescriptor/utilities/copy/mesh.h>
 #include <shapeDescriptor/common/types/OrientedPoint.h>
-#include <shapeDescriptor/utilities/spinOriginsGenerator.h>
+#include <shapeDescriptor/cpu/types/Mesh.h>
 #include <shapeDescriptor/cpu/radialIntersectionCountImageGenerator.h>
+#include <shapeDescriptor/utilities/read/MeshLoader.h>
+#include <shapeDescriptor/utilities/spinOriginsGenerator.h>
 #include <shapeDescriptor/utilities/free/array.h>
 #include <shapeDescriptor/utilities/free/mesh.h>
 #include <shapeDescriptor/utilities/dump/descriptorImages.h>
 
 int main(int argc, char** argv) {
     if(argc == 1) {
-        std::cout << "Usage: simple_cpu [file_to_read.obj/ply/off]" << std::endl;
+        std::cout << "Usage: simple_cpu [file_to_read.obj/.ply/.off]" << std::endl;
         return 1;
     }
 

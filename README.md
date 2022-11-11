@@ -45,6 +45,11 @@ The library uses cmake for compilation. You can include it in your project by in
 
     add_subdirectory(../libShapeDescriptor ${CMAKE_CURRENT_BINARY_DIR}/libShapeDescriptor)
     
+It has one configuration option, which defines the resolution of generated spin images, RICI, and QUICCI descriptors:
+
+    add_definitions ( -DspinImageWidthPixels=64 )
+    add_subdirectory(../libShapeDescriptor ${CMAKE_CURRENT_BINARY_DIR}/libShapeDescriptor)
+    
 Also make sure to add "ShapeDescriptor" to the list of linked libraries, and add the 'src' directory to the include path.
 
 This repository contains all necessary libraries to compile the project, except that you need to have the CUDA SDK installed (version 9 or higher).
@@ -77,7 +82,8 @@ Loaders for OBJ, OFF, and PLY are included which return a mesh in the format oth
 
 ```c++
 // Load mesh
-ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh("path/to/obj/file.obj", false);
+const bool recomputeNormals = false;
+ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh("path/to/obj/file.obj", recomputeNormals);
 
 // Free mesh memory
 ShapeDescriptor::free::mesh(mesh);
@@ -89,7 +95,8 @@ The src/utilities/copy directory contains a number of functions which can copy a
 
 ```c++
 // Load mesh
-ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh("path/to/obj/file.obj", false);
+const bool recomputeNormals = false;
+ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh("path/to/obj/file.obj", recomputeNormals);
 
 // Copy the mesh to the GPU
 ShapeDescriptor::gpu::Mesh gpuMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
@@ -98,11 +105,13 @@ ShapeDescriptor::gpu::Mesh gpuMesh = ShapeDescriptor::copy::hostMeshToDevice(mes
 ShapeDescriptor::cpu::Mesh returnedMesh = ShapeDescriptor::copy::deviceMeshToHost(gpuMesh);
 ``` 
 
-Note that each copy operation allocates the required memory automatically. You will therefore need to manually free copies separately. For GPU meshes, you can use:
+Note that each copy operation allocates the required memory automatically. You will therefore need to manually free copies separately. For all meshes, wither they are allocated in CPU or GPU memory you can use:
 
 ```c++
-// Free mesh on the GPU
+// Free all allocated meshes
 ShapeDescriptor::free::mesh(gpuMesh);
+ShapeDescriptor::free::mesh(mesh);
+ShapeDescriptor::free::mesh(returnedMesh);
 ```
 
 #### Uniformly sample a triangle mesh into a point cloud

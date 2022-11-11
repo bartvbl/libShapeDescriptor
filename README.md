@@ -131,44 +131,4 @@ All descriptors implemented by the library follow the same API. Their parameters
 
 Each function returns a ShapeDescriptor::gpu::array containing the desired descriptor. There's a function in the src/shapeDescriptor/utilities/copy directory for transferring them to CPU memory.
 
-Here's a complete example for computing a single RICI descriptor:
-
-```c++
-// Load mesh
-ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh("path/to/obj/file.obj", false);
-    
-// Store it on the GPU
-ShapeDescriptor::gpu::Mesh gpuMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
-
-// Define and upload descriptor origins
-ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> descriptorOrigins;
-descriptorOrigins.length = 1;
-descriptorOrigins.content = new OrientedPoint[1];
-descriptorOrigins.content[0].vertex = {0.5, 0.5, 0.5};
-descriptorOrigins.content[0].normal = {0, 0, 1};
-
-ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::OrientedPoint> gpuDescriptorOrigins = 
-    ShapeDescriptor::copy::hostArrayToDevice(descriptorOrigins);
-
-// Compute the descriptor(s)
-float supportRadius = 1.0;
-ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> descriptors = 
-    ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
-            gpuMesh,
-            gpuDescriptorOrigins,
-            supportRadius);
-            
-// Copy descriptors to RAM
-ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors =
-            ShapeDescriptor::copy::deviceArrayToHost(descriptors);
-                
-// Do something with descriptors here
-
-// Free memory
-ShapeDescriptor::free::array(descriptorOrigins);
-ShapeDescriptor::free::array(hostDescriptors);
-ShapeDescriptor::free::array(gpuDescriptorOrigins);
-ShapeDescriptor::free::array(descriptors);
-ShapeDescriptor::free::mesh(mesh);
-ShapeDescriptor::free::mesh(gpuMesh);
-```
+For a set of complete example projects, please refer to the [example directory]([examples directory](https://github.com/bartvbl/libShapeDescriptor/tree/master/examples).

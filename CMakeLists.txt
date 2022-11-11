@@ -75,7 +75,7 @@ endif()
 target_link_libraries(${PROJECT_NAME} fast-lzma2)
 
 
-target_include_directories(${PROJECT_NAME} PUBLIC src/)
+target_include_directories(${PROJECT_NAME} PUBLIC src/ lib/nvidia-samples-common)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
 
 add_executable(runTests ${TEST_SOURCES})

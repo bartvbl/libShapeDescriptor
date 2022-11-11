@@ -131,4 +131,4 @@ All descriptors implemented by the library follow the same API. Their parameters
 
 Each function returns a ShapeDescriptor::gpu::array containing the desired descriptor. There's a function in the src/shapeDescriptor/utilities/copy directory for transferring them to CPU memory.
 
-For a set of complete example projects, please refer to the [example directory]([examples directory](https://github.com/bartvbl/libShapeDescriptor/tree/master/examples).
+For a set of complete example projects, please refer to the [examples directory](https://github.com/bartvbl/libShapeDescriptor/tree/master/examples).

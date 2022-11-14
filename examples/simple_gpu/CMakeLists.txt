@@ -26,5 +26,5 @@ file (GLOB_RECURSE LIBRARY_HEADERS             ./*.h)
 file (GLOB_RECURSE LIBRARY_SOURCES             main.cpp)
 
 add_executable(${PROJECT_NAME} ${LIBRARY_SOURCES} ${LIBRARY_HEADERS})
-target_link_libraries(${PROJECT_NAME} ShapeDescriptor fast-lzma2)
+target_link_libraries(${PROJECT_NAME} ShapeDescriptor fast-lzma2 OpenMP::OpenMP_CXX)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)

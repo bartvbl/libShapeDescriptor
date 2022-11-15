@@ -9,7 +9,7 @@
 #include <shapeDescriptor/gpu/types/PointCloud.h>
 #include <shapeDescriptor/gpu/types/array.h>
 #include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
-#include <shapeDescriptor/utilities/kernels/meshSampler.cuh>
+#include <shapeDescriptor/utilities/kernels/gpuMeshSampler.cuh>
 #include <shapeDescriptor/utilities/kernels/setValue.cuh>
 #include <shapeDescriptor/utilities/kernels/pointCloudUtils.h>
 #include <shapeDescriptor/common/types/BoundingBox.h>

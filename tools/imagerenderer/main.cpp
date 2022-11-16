@@ -17,6 +17,7 @@
 #include <shapeDescriptor/cpu/radialIntersectionCountImageGenerator.h>
 #include <shapeDescriptor/utilities/spinOriginsGenerator.h>
 #include <shapeDescriptor/cpu/quickIntersectionCountImageGenerator.h>
+#include <shapeDescriptor/utilities/meshSampler.h>
 
 int main(int argc, const char** argv) {
     const std::string defaultExecutionDevice = ShapeDescriptor::isCUDASupportAvailable() ? "gpu" : "cpu";

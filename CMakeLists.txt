@@ -4,7 +4,7 @@ check_language(CUDA)
 if (CMAKE_CUDA_COMPILER)
 	message(STATUS "CUDA support was detected, GPU kernels enabled")
 	project(ShapeDescriptor CXX CUDA)
-	set(CUDA_NVCC_FLAGS -arch=sm_52 -gencode=arch=compute_52,code=sm_52 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_75,code=compute_75 -lcurand -lineinfo -lcudart)
+	set(CUDA_NVCC_FLAGS -lcurand -lineinfo -lcudart)
 	include_directories(
 		lib/nvidia-samples-common/
 		${CUDA_INCLUDE_DIRS}

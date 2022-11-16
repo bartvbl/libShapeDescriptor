@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstddef>
+#include <shapeDescriptor/gpu/types/array.h>
+#include <shapeDescriptor/utilities/copy/array.h>
 
 namespace ShapeDescriptor {
     namespace cpu {
@@ -18,6 +20,12 @@ namespace ShapeDescriptor {
             array(size_t length, TYPE* content)
                 : length(length),
                   content(content) {}
+
+            ShapeDescriptor::gpu::array<TYPE> toGPU() {
+                return ShapeDescriptor::copy::hostArrayToDevice(this);
+            }
         };
+
+
     }
 }

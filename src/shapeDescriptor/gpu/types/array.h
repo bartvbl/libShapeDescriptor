@@ -15,16 +15,7 @@ namespace ShapeDescriptor {
 #include <shapeDescriptor/utilities/kernels/setValue.cuh>
 #include <cstddef>
 
-#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
-#include <cuda_runtime.h>
-#else
-#ifndef __host__
-#define __host__
-#endif
-#ifndef __device__
-#define __device__
-#endif
-#endif
+#include <shapeDescriptor/gpu/gpuCommon.h>
 
 namespace ShapeDescriptor {
     namespace gpu {
@@ -42,15 +33,15 @@ namespace ShapeDescriptor {
 
             __host__ __device__ array(size_t length, TYPE* content) : length(length), content(content) {}
 
-            ShapeDescriptor::cpu::array<TYPE> toCPU() {
+            __host__ ShapeDescriptor::cpu::array<TYPE> toCPU() {
                 return ShapeDescriptor::copy::deviceArrayToHost<TYPE>({length, content});
             }
 
-            void setValue(TYPE &value) {
+            __host__ void setValue(TYPE &value) {
                 ShapeDescriptor::gpu::setValue<TYPE>(content, length, value);
             }
 
-            TYPE operator[](size_t index) {
+            __device__ TYPE operator[](size_t index) {
                 return content[index];
             }
         };

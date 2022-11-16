@@ -57,9 +57,9 @@ void ShapeDescriptor::internal::gpuMemsetMultibyte(char *array, size_t length, c
         default:
             char* gpuValue;
             checkCudaErrors(cudaMalloc(&gpuValue, valueSize));
-            cudaMemcpy(gpuValue, value, valueSize, cudaMemcpyHostToDevice);
+            checkCudaErrors(cudaMemcpy(gpuValue, value, valueSize, cudaMemcpyHostToDevice));
             setByteArrayValue<<<count, batchSize>>>(array, length, gpuValue, valueSize);
-            cudaFree(gpuValue);
+            checkCudaErrors(cudaFree(gpuValue));
     }
 #else
     throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);

@@ -10,7 +10,7 @@
 #include <cstring>
 
 ShapeDescriptor::cpu::float3 transformCoordinate(const ShapeDescriptor::cpu::float3 &vertex, const ShapeDescriptor::cpu::float3 &spinImageVertex, const ShapeDescriptor::cpu::float3 &spinImageNormal) {
-    const ShapeDescriptor::cpu::float2 sineCosineAlpha = normalize({spinImageNormal.x, spinImageNormal.y});
+    const ShapeDescriptor::cpu::float2 sineCosineAlpha = normalize(ShapeDescriptor::cpu::float2{spinImageNormal.x, spinImageNormal.y});
 
     const bool is_n_a_not_zero = !((std::abs(spinImageNormal.x) < MAX_EQUIVALENCE_ROUNDING_ERROR) && (std::abs(spinImageNormal.y) < MAX_EQUIVALENCE_ROUNDING_ERROR));
 
@@ -25,7 +25,7 @@ ShapeDescriptor::cpu::float3 transformCoordinate(const ShapeDescriptor::cpu::flo
 
     const float transformedNormalX = alignmentProjection_n_ax * spinImageNormal.x + alignmentProjection_n_ay * spinImageNormal.y;
 
-    const ShapeDescriptor::cpu::float2 sineCosineBeta = normalize({transformedNormalX, spinImageNormal.z});
+    const ShapeDescriptor::cpu::float2 sineCosineBeta = normalize(ShapeDescriptor::cpu::float2{transformedNormalX, spinImageNormal.z});
 
     const bool is_n_b_not_zero = !((std::abs(transformedNormalX) < MAX_EQUIVALENCE_ROUNDING_ERROR) && (std::abs(spinImageNormal.z) < MAX_EQUIVALENCE_ROUNDING_ERROR));
 

@@ -47,18 +47,25 @@ void ShapeDescriptor::internal::gpuMemsetMultibyte(char *array, size_t length, c
         case 4:
             copiedValue4 = {*reinterpret_cast<const unsigned int*>(value)};
             setValue<chunk4><<<count, batchSize>>>(reinterpret_cast<chunk4*>(array), length, copiedValue4);
+            checkCudaErrors(cudaDeviceSynchronize());
+            break;
         case 8:
             copiedValue8 = {*reinterpret_cast<const unsigned long long*>(value)};
             setValue<chunk8><<<count, batchSize>>>(reinterpret_cast<chunk8*>(array), length, copiedValue8);
+            checkCudaErrors(cudaDeviceSynchronize());
+            break;
         case 16:
             copiedValue16 = {*reinterpret_cast<const unsigned long long*>(value),
                              *(reinterpret_cast<const unsigned long long*>(value) + 1)};
             setValue<chunk16><<<count, batchSize>>>(reinterpret_cast<chunk16*>(array), length, copiedValue16);
+            checkCudaErrors(cudaDeviceSynchronize());
+            break;
         default:
             char* gpuValue;
             checkCudaErrors(cudaMalloc(&gpuValue, valueSize));
             checkCudaErrors(cudaMemcpy(gpuValue, value, valueSize, cudaMemcpyHostToDevice));
             setByteArrayValue<<<count, batchSize>>>(array, length, gpuValue, valueSize);
+            checkCudaErrors(cudaDeviceSynchronize());
             checkCudaErrors(cudaFree(gpuValue));
     }
 #else

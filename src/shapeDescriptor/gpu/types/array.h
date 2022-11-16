@@ -33,7 +33,7 @@ namespace ShapeDescriptor {
 
             __host__ __device__ array(size_t length, TYPE* content) : length(length), content(content) {}
 
-            __host__ ShapeDescriptor::cpu::array<TYPE> toCPU() {
+            __host__ ShapeDescriptor::cpu::array<TYPE> copyToCPU() {
                 return ShapeDescriptor::copy::deviceArrayToHost<TYPE>({length, content});
             }
 

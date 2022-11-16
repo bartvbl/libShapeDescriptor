@@ -21,7 +21,7 @@ namespace ShapeDescriptor {
                 : length(length),
                   content(content) {}
 
-            ShapeDescriptor::gpu::array<TYPE> toGPU() {
+            ShapeDescriptor::gpu::array<TYPE> copyToGPU() {
                 return ShapeDescriptor::copy::hostArrayToDevice<TYPE>({length, content});
             }
 

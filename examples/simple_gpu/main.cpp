@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
     // Define and upload descriptor origins
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(mesh);
 
-    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> gpuDescriptorOrigins = descriptorOrigins.toGPU();
+    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> gpuDescriptorOrigins = descriptorOrigins.copyToGPU();
 
     // Compute the descriptor(s)
     float supportRadius = 1.0;
@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
                 supportRadius);
                 
     // Copy descriptors to RAM
-    ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors = descriptors.toCPU();
+    ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors = descriptors.copyToCPU();
                     
     // Do something with descriptors here, for example write the first 5000 to an image file
     descriptors.length = std::min<size_t>(hostDescriptors.length, 5000);

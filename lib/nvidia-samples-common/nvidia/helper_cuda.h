@@ -582,11 +582,12 @@ static const char *_cudaGetErrorEnum(NppStatus error) {
 template <typename T>
 void check(T result, char const *const func, const char *const file,
            int const line) {
-    if (result) {
-        fprintf(stderr, "CUDA error at %s:%d code=%d(%s) \"%s\" \n", file, line,
-                static_cast<unsigned int>(result), _cudaGetErrorEnum(result), func);
-        exit(EXIT_FAILURE);
+    if (result)
+    {
+        throw std::runtime_error("CUDA error at " + std::string(file) + ":" + std::to_string(line)
+                                 + " code=" + std::to_string(static_cast<unsigned int>(result)) + "(" + std::string(_cudaGetErrorEnum(result)) + ") \"" + std::string(func) + "\"");
     }
+
 }
 
 #ifdef __DRIVER_TYPES_H__

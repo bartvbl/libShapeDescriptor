@@ -22,7 +22,11 @@ namespace ShapeDescriptor {
                   content(content) {}
 
             ShapeDescriptor::gpu::array<TYPE> toGPU() {
-                return ShapeDescriptor::copy::hostArrayToDevice(this);
+                return ShapeDescriptor::copy::hostArrayToDevice<TYPE>({length, content});
+            }
+
+            void setValue(TYPE &value) {
+                std::fill_n(content, length, value);
             }
         };
 

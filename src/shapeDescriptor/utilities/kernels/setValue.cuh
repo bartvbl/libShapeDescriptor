@@ -1,15 +1,20 @@
 #pragma once
 
-#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
-#include <cuda_runtime.h>
+namespace ShapeDescriptor {
+    namespace internal {
+        void gpuMemsetMultibyte(char* array, size_t length, const char* value, size_t valueSize);
+    }
 
-template<typename valueType>
-__global__ void setValue(valueType* target, size_t length, valueType value)
-{
-    size_t index = blockDim.x * blockIdx.x + threadIdx.x;
-    if (index < length)
-    {
-        target[index] = value;
+    namespace gpu {
+        template<typename TYPE>
+        void setValue(TYPE* array, size_t length, TYPE value) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+            // A function boundary is necessary to ensure the associated GPU kernel can be called when this template is
+            // included from a regular non-CUDA source file
+            internal::gpuMemsetMultibyte(reinterpret_cast<char*>(array), length, reinterpret_cast<char*>(&value), sizeof(value));
+#else
+            throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
+        }
     }
 }
-#endif

@@ -12,6 +12,7 @@ namespace ShapeDescriptor {
 
 #include <shapeDescriptor/cpu/types/array.h>
 #include <shapeDescriptor/utilities/copy/array.h>
+#include <shapeDescriptor/utilities/kernels/setValue.cuh>
 #include <cstddef>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
@@ -42,7 +43,11 @@ namespace ShapeDescriptor {
             __host__ __device__ array(size_t length, TYPE* content) : length(length), content(content) {}
 
             ShapeDescriptor::cpu::array<TYPE> toCPU() {
-                return ShapeDescriptor::copy::deviceArrayToHost(this);
+                return ShapeDescriptor::copy::deviceArrayToHost<TYPE>({length, content});
+            }
+
+            void setValue(TYPE &value) {
+                ShapeDescriptor::gpu::setValue<TYPE>(content, length, value);
             }
         };
 

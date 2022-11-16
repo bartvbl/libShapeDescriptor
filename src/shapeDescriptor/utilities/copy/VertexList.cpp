@@ -5,6 +5,8 @@
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <cuda_runtime_api.h>
+#include <shapeDescriptor/gpu/types/VertexList.cuh>
+
 #endif
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> ShapeDescriptor::copy::deviceVertexListToHost(ShapeDescriptor::gpu::VertexList vertexList) {
@@ -54,3 +56,5 @@ ShapeDescriptor::gpu::VertexList ShapeDescriptor::copy::hostVertexListToDevice(S
     throw std::runtime_error(cudaMissingErrorMessage);
 #endif
 }
+
+

@@ -49,6 +49,10 @@ namespace ShapeDescriptor {
             void setValue(TYPE &value) {
                 ShapeDescriptor::gpu::setValue<TYPE>(content, length, value);
             }
+
+            TYPE operator[](size_t index) {
+                return content[index];
+            }
         };
 
 

@@ -29,8 +29,8 @@ namespace ShapeDescriptor {
                 std::fill_n(content, length, value);
             }
 
-            TYPE operator[](size_t index) {
-                return content[index];
+            TYPE& operator[](size_t index) {
+                return *(content + index);
             }
         };
 

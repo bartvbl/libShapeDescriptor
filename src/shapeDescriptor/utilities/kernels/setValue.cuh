@@ -1,4 +1,6 @@
 #pragma once
+#include <shapeDescriptor/libraryBuildSettings.h>
+#include <stdexcept>
 
 namespace ShapeDescriptor {
     namespace internal {

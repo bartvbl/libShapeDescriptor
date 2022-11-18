@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
     ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh(fileToRead, recomputeNormals);
         
     // Store it on the GPU
-    ShapeDescriptor::gpu::Mesh gpuMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
+    ShapeDescriptor::gpu::Mesh gpuMesh = mesh.copyToGPU();
 
     // Define and upload descriptor origins
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(mesh);

@@ -1,5 +1,6 @@
 #pragma once
 #include "PointCloud.h"
+#include <shapeDescriptor/cpu/types/Mesh.h>
 
 namespace ShapeDescriptor {
     namespace gpu {
@@ -20,6 +21,8 @@ namespace ShapeDescriptor {
             Mesh() {
                 vertexCount = 0;
             }
+
+            ShapeDescriptor::cpu::Mesh copyToCPU();
         };
 
         Mesh duplicateMesh(Mesh mesh);

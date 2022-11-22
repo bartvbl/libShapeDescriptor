@@ -1,4 +1,4 @@
-#include "meshSampler.cuh"
+#include "gpuMeshSampler.cuh"
 
 #include <shapeDescriptor/common/types/SampleBounds.h>
 #include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
@@ -188,7 +188,7 @@ __global__ void sampleMesh(
 
 #endif
 
-ShapeDescriptor::gpu::PointCloud ShapeDescriptor::utilities::sampleMesh(gpu::Mesh device_mesh, size_t sampleCount, size_t randomSamplingSeed, ShapeDescriptor::internal::MeshSamplingBuffers* internalSampleBuffers) {
+ShapeDescriptor::gpu::PointCloud ShapeDescriptor::internal::sampleMesh(gpu::Mesh device_mesh, size_t sampleCount, size_t randomSamplingSeed, ShapeDescriptor::internal::MeshSamplingBuffers* internalSampleBuffers) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     size_t vertexCount = device_mesh.vertexCount;
     size_t triangleCount = vertexCount / 3;

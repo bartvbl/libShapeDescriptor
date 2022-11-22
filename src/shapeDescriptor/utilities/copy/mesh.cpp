@@ -132,3 +132,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::copy::deviceMeshToHost(gpu::Mesh dev
     throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
 #endif
 }
+
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::gpu::Mesh::copyToCPU() {
+    return ShapeDescriptor::copy::deviceMeshToHost(*this);
+}

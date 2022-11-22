@@ -1,5 +1,15 @@
 #pragma once
 
+namespace ShapeDescriptor {
+    namespace gpu {
+        struct Mesh;
+    }
+    namespace cpu {
+        struct Mesh;
+    }
+}
+
+#include <shapeDescriptor/gpu/types/Mesh.h>
 #include <shapeDescriptor/cpu/types/float3.h>
 #include <shapeDescriptor/cpu/types/float2.h>
 #include "uchar4.h"
@@ -22,6 +32,8 @@ namespace ShapeDescriptor {
                 vertexColours = new ShapeDescriptor::cpu::uchar4[vertexCount];
                 vertexCount = vertCount;
             }
+
+            ShapeDescriptor::gpu::Mesh copyToGPU();
 
             ShapeDescriptor::cpu::Mesh clone() const;
         };

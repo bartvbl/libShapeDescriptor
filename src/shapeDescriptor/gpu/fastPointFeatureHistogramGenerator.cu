@@ -50,7 +50,7 @@
 
 #include <iostream>
 #include <shapeDescriptor/gpu/types/PointCloud.h>
-#include <shapeDescriptor/utilities/kernels/meshSampler.cuh>
+#include <shapeDescriptor/utilities/kernels/gpuMeshSampler.cuh>
 #include <chrono>
 #include <shapeDescriptor/libraryBuildSettings.h>
 #include <shapeDescriptor/gpu/types/array.h>

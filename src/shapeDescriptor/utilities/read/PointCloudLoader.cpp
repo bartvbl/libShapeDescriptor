@@ -21,6 +21,6 @@ ShapeDescriptor::utilities::loadPointCloud(std::filesystem::path src) {
     } else if(src.extension() == ".xyzrgb" || src.extension() == ".XYZRGB") {
         return ShapeDescriptor::utilities::loadXYZ(src, false, true);
     } else {
-        throw std::runtime_error("Failed to load file: " + src.string() + "\nReason: extension was not recognised as a supported 3D object file format.");
+        throw std::runtime_error("Failed to load point cloud file: " + src.string() + "\nReason: extension was not recognised as a supported 3D object file format.");
     }
 }

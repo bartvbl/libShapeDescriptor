@@ -4,7 +4,7 @@ check_language(CUDA)
 if (CMAKE_CUDA_COMPILER)
 	message(STATUS "CUDA support was detected, GPU kernels enabled")
 	project(ShapeDescriptor CXX CUDA)
-	set(CUDA_NVCC_FLAGS -arch=sm_52 -gencode=arch=compute_52,code=sm_52 -gencode=arch=compute_60,code=sm_60 -gencode=arch=compute_61,code=sm_61 -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_75,code=compute_75 -lcurand -lineinfo -lcudart)
+	set(CUDA_NVCC_FLAGS -lcurand -lineinfo -lcudart)
 	include_directories(
 		lib/nvidia-samples-common/
 		${CUDA_INCLUDE_DIRS}
@@ -66,6 +66,7 @@ file (GLOB_RECURSE BENCHMARK tools/benchmarking/*.cpp)
 if (CMAKE_CUDA_COMPILER)
 	cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 	target_compile_definitions(${PROJECT_NAME} PUBLIC DESCRIPTOR_CUDA_KERNELS_ENABLED)
+	target_include_directories(${PROJECT_NAME} PUBLIC ${CUDA_INCLUDE_DIRS})
 else()
 	add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS} ${BENCHMARK})
 	# Ensures .cu files are compiled using the regular C++ compiler
@@ -77,7 +78,7 @@ endif()
 target_link_libraries(${PROJECT_NAME} fast-lzma2)
 
 
-target_include_directories(${PROJECT_NAME} PUBLIC src/)
+target_include_directories(${PROJECT_NAME} PUBLIC src/ lib/nvidia-samples-common)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
 
 add_executable(runTests ${TEST_SOURCES})

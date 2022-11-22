@@ -1,8 +1,10 @@
 #pragma once
-
+#include <shapeDescriptor/libraryBuildSettings.h>
+#include <stdexcept>
 #include <shapeDescriptor/cpu/types/array.h>
 #include <shapeDescriptor/gpu/types/array.h>
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
 #endif
 

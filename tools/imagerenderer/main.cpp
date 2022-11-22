@@ -9,7 +9,7 @@
 
 #include <arrrgh.hpp>
 #include <shapeDescriptor/utilities/copy/mesh.h>
-#include <shapeDescriptor/utilities/kernels/meshSampler.cuh>
+#include <shapeDescriptor/utilities/kernels/gpuMeshSampler.cuh>
 #include <shapeDescriptor/utilities/copy/array.h>
 #include <shapeDescriptor/utilities/read/MeshLoader.h>
 #include <shapeDescriptor/utilities/free/array.h>
@@ -17,6 +17,7 @@
 #include <shapeDescriptor/cpu/radialIntersectionCountImageGenerator.h>
 #include <shapeDescriptor/utilities/spinOriginsGenerator.h>
 #include <shapeDescriptor/cpu/quickIntersectionCountImageGenerator.h>
+#include <shapeDescriptor/utilities/meshSampler.h>
 
 int main(int argc, const char** argv) {
     const std::string defaultExecutionDevice = ShapeDescriptor::isCUDASupportAvailable() ? "gpu" : "cpu";

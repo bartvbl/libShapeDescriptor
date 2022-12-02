@@ -59,7 +59,7 @@ int main(int argc, const char **argv)
         similarity = Benchmarking::utilities::similarity::similarityBetweenTwoObjectsWithRICI(meshOne, meshTwo, distance);
         break;
     default:
-        similarity = 0;
+        similarity = Benchmarking::utilities::similarity::similarityBetweenTwoObjectsWithRICI(meshOne, meshTwo, distance);
     };
 
     std::cout << similarity << std::endl;

@@ -12,8 +12,8 @@
 int main(int argc, const char **argv)
 {
     arrrgh::parser parser("benchmarking", "Compare how similar two objects are (only OBJ file support)");
-    const auto &originalObject = parser.add<std::string>("original-object", "Original object.", '\0', arrrgh::Required, "");
-    const auto &comparisonObject = parser.add<std::string>("comparison-object", "Object to compare to the original.", '\0', arrrgh::Required, "");
+    const auto &originalObject = parser.add<std::string>("original-object", "Original object.", 'o', arrrgh::Required, "");
+    const auto &comparisonObject = parser.add<std::string>("comparison-object", "Object to compare to the original.", 'c', arrrgh::Required, "");
     const auto &descriptorAlgorithm = parser.add<int>("descriptor-algorithm", "Which descriptor algorithm to use [0 for radial-intersection-count-images, ...will add more:)]", 'a', arrrgh::Optional, 0);
     const auto &distanceAlgorithm = parser.add<int>("distance-algorithm", "Which distance algorithm to use [0 for euclidian, ...will add more:)]", 'd', arrrgh::Optional, 0);
     const auto &help = parser.add<bool>("help", "Show help", 'h', arrrgh::Optional, false);

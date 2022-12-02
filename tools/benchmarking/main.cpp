@@ -4,60 +4,66 @@
 #include <shapeDescriptor/cpu/radialIntersectionCountImageGenerator.h>
 #include <shapeDescriptor/utilities/free/mesh.h>
 #include <shapeDescriptor/utilities/free/array.h>
+#include <benchmarking/utilities/similarity/RICI.h>
+#include <benchmarking/utilities/distance/cosine.h>
 #include <iostream>
-
-double cosineSimilarityBetweenTwoDescriptors(ShapeDescriptor::RICIDescriptor dOne, ShapeDescriptor::RICIDescriptor dTwo)
-{
-    double dot = 0;
-    double denominationA = 0;
-    double denominationB = 0;
-
-    for (int i = 0; i < 1024; i++)
-    {
-        dot += dOne.contents[i] * dTwo.contents[i];
-        denominationA += pow(dOne.contents[i], 2);
-        denominationB += pow(dTwo.contents[i], 2);
-    }
-
-    double similarity = dot / sqrt(denominationA * denominationB);
-
-    return isnan(similarity) ? 0 : similarity;
-}
+#include <arrrgh.hpp>
 
 int main(int argc, const char **argv)
 {
-    float supportRadius = 1;
+    arrrgh::parser parser("benchmarking", "Compare how similar two objects are (only OBJ file support)");
+    const auto &originalObject = parser.add<std::string>("original-object", "Original object.", '\0', arrrgh::Required, "");
+    const auto &comparisonObject = parser.add<std::string>("comparison-object", "Object to compare to the original.", '\0', arrrgh::Required, "");
+    const auto &descriptorAlgorithm = parser.add<int>("descriptor-algorithm", "Which descriptor algorithm to use [0 for radial-intersection-count-images, ...will add more:)]", 'a', arrrgh::Optional, 0);
+    const auto &distanceAlgorithm = parser.add<int>("distance-algorithm", "Which distance algorithm to use [0 for euclidian, ...will add more:)]", 'd', arrrgh::Optional, 0);
+    const auto &help = parser.add<bool>("help", "Show help", 'h', arrrgh::Optional, false);
 
-    std::filesystem::path objectOne = "/Users/jonathanbrooks/masteroppgaven/objects/shark.obj";
-    std::filesystem::path objectTwo = "/Users/jonathanbrooks/masteroppgaven/objects/model.obj";
+    try
+    {
+        parser.parse(argc, argv);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error parsing arguments: " << e.what() << std::endl;
+        parser.show_usage(std::cerr);
+        exit(1);
+    }
+
+    if (help.value())
+    {
+        return 0;
+    }
+
+    std::filesystem::path objectOne = originalObject.value();
+    std::filesystem::path objectTwo = comparisonObject.value();
 
     ShapeDescriptor::cpu::Mesh meshOne = ShapeDescriptor::utilities::loadMesh(objectOne, true);
     ShapeDescriptor::cpu::Mesh meshTwo = ShapeDescriptor::utilities::loadMesh(objectTwo, true);
 
-    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOriginsOne = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(meshOne);
-    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOriginsTwo = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(meshTwo);
+    double (*distance)(ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor>, ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor>);
 
-    ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> descriptorsOne = ShapeDescriptor::cpu::generateRadialIntersectionCountImages(meshOne, spinOriginsOne, supportRadius);
-    ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> descriptorsTwo = ShapeDescriptor::cpu::generateRadialIntersectionCountImages(meshTwo, spinOriginsTwo, supportRadius);
-
-    int index = 0;
-    double sumOfSimilarities = 0;
-
-    while (index < descriptorsOne.length && index < descriptorsTwo.length)
+    switch (distanceAlgorithm)
     {
-        sumOfSimilarities += cosineSimilarityBetweenTwoDescriptors(descriptorsOne.content[index], descriptorsTwo.content[index]);
-        index++;
+    case 0:
+        distance = &Benchmarking::utilities::distance::cosineSimilarityBetweenTwoDescriptors;
+        break;
+    default:
+        distance = &Benchmarking::utilities::distance::cosineSimilarityBetweenTwoDescriptors;
     }
 
-    int longestLength = (descriptorsOne.length > descriptorsTwo.length) ? descriptorsOne.length : descriptorsTwo.length;
-    double averageSimilarity = sumOfSimilarities / longestLength;
+    double similarity;
 
-    std::cout << averageSimilarity * 100 << "%" << std::endl;
+    switch (descriptorAlgorithm.value())
+    {
+    case 0:
+        similarity = Benchmarking::utilities::similarity::similarityBetweenTwoObjectsWithRICI(meshOne, meshTwo, distance);
+        break;
+    default:
+        similarity = 0;
+    };
+
+    std::cout << similarity << std::endl;
 
     ShapeDescriptor::free::mesh(meshOne);
     ShapeDescriptor::free::mesh(meshTwo);
-    ShapeDescriptor::free::array(spinOriginsOne);
-    ShapeDescriptor::free::array(spinOriginsTwo);
-    ShapeDescriptor::free::array(descriptorsOne);
-    ShapeDescriptor::free::array(descriptorsTwo);
 }

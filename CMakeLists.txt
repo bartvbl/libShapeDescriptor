@@ -43,6 +43,10 @@ include_directories (
 		lib/fast-lzma2/src/
 		lib/
 		lib/fast-obj
+		${CMAKE_SOURCE_DIR}/tools
+		${CMAKE_SOURCE_DIR}/tools/benchmarking
+		${CMAKE_SOURCE_DIR}/tools/benchmarking/distance
+		${CMAKE_SOURCE_DIR}/tools/benchmarking/similarity
 )
 
 file (GLOB_RECURSE LIBRARY_HEADERS             src/*.hpp
@@ -61,14 +65,15 @@ file (GLOB_RECURSE TEST_SOURCES                tests/*.cpp)
 file (GLOB_RECURSE RENDER_TOOL_SOURCES         tools/imagerenderer/*.cpp)
 file (GLOB_RECURSE QUICCI_DUMPER_TOOL_SOURCES  tools/quiccidumper/*.cpp)
 file (GLOB_RECURSE QUICCI_VIEWER_TOOL_SOURCES  tools/quicciviewer/*.cpp)
-file (GLOB_RECURSE BENCHMARK tools/benchmarking/*.cpp)
+file (GLOB_RECURSE BENCHMARK 				   tools/benchmarking/*.cpp)
+file (GLOB_RECURSE BENCHMARK_HEADERS 		   tools/benchmarking/*.h)
 
 if (CMAKE_CUDA_COMPILER)
 	cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 	target_compile_definitions(${PROJECT_NAME} PUBLIC DESCRIPTOR_CUDA_KERNELS_ENABLED)
 	target_include_directories(${PROJECT_NAME} PUBLIC ${CUDA_INCLUDE_DIRS})
 else()
-	add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS} ${BENCHMARK})
+	add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 	# Ensures .cu files are compiled using the regular C++ compiler
 	set_source_files_properties(${LIBRARY_KERNELS} PROPERTIES LANGUAGE CXX)
 	set_source_files_properties(${LIBRARY_KERNELS} PROPERTIES COMPILE_OPTIONS -xc++)
@@ -93,10 +98,9 @@ add_executable(quiccidumper ${QUICCI_DUMPER_TOOL_SOURCES})
 target_link_libraries(quiccidumper ShapeDescriptor)
 set_property(TARGET quiccidumper PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
 
-add_executable(benchmarking ${BENCHMARK})
-target_link_libraries(benchmarking ShapeDescriptor) 
+add_executable(benchmarking ${BENCHMARK} ${BENCHMARK_HEADERS})
+target_link_libraries(benchmarking ShapeDescriptor)
 set_property(TARGET benchmarking PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
 
 add_executable(quicciviewer ${QUICCI_VIEWER_TOOL_SOURCES})
 target_link_libraries(quicciviewer ShapeDescriptor)
-

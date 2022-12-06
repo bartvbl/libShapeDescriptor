@@ -1,6 +1,8 @@
 #include "cosine.h"
 #include <shapeDescriptor/cpu/radialIntersectionCountImageGenerator.h>
+#include <benchmarking/utilities/distance/generateFakeMetadata.h>
 #include <math.h>
+#include <vector>
 
 double cosineSimilarity(ShapeDescriptor::RICIDescriptor dOne, ShapeDescriptor::RICIDescriptor dTwo)
 {
@@ -20,19 +22,28 @@ double cosineSimilarity(ShapeDescriptor::RICIDescriptor dOne, ShapeDescriptor::R
     return isnan(similarity) ? 0 : similarity;
 }
 
-double Benchmarking::utilities::distance::cosineSimilarityBetweenTwoDescriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> descriptorsOne, ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> descriptorsTwo)
+double Benchmarking::utilities::distance::cosineSimilarityBetweenTwoDescriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> descriptorsOne, ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> descriptorsTwo, std::vector<std::variant<int, std::string>> metadata)
 {
-    int index = 0;
     double sumOfSimilarities = 0;
-
-    while (index < descriptorsOne.length && index < descriptorsTwo.length)
+    if (metadata.size() == 0)
     {
-        sumOfSimilarities += cosineSimilarity(descriptorsOne.content[1], descriptorsTwo.content[1]);
-        index++;
+        metadata = generateFakeMetadata(descriptorsOne.length);
     }
 
-    int longestLength = (descriptorsOne.length > descriptorsTwo.length) ? descriptorsOne.length : descriptorsTwo.length;
-    double averageSimilarity = sumOfSimilarities / longestLength;
+    for (int i = 0; i < metadata.size(); i++)
+    {
+        try
+        {
+            int index = std::get<int>(metadata.at(i));
+            sumOfSimilarities += cosineSimilarity(descriptorsOne.content[i], descriptorsTwo.content[index]);
+        }
+        catch (std::exception e)
+        {
+            continue;
+        }
+    }
+
+    double averageSimilarity = sumOfSimilarities / metadata.size();
 
     return averageSimilarity;
 }

@@ -29,7 +29,12 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> redChannelDescr
                      ShapeDescriptor::cpu::array<descriptorType> blueChannelDescriptors,
                      const std::filesystem::path &imageDestinationFile,
                      bool logarithmicImage,
-                     unsigned int imagesPerRow) {
+                     unsigned int imagesPerRow,
+                     unsigned int imageLimit) {
+    redChannelDescriptors.length = std::min<size_t>(redChannelDescriptors.length, imageLimit);
+    greenChannelDescriptors.length = std::min<size_t>(greenChannelDescriptors.length, imageLimit);
+    blueChannelDescriptors.length = std::min<size_t>(blueChannelDescriptors.length, imageLimit);
+
 	size_t rowCount = (redChannelDescriptors.length / imagesPerRow) + ((redChannelDescriptors.length % imagesPerRow == 0) ? 0 : 1);
 	std::cout << "Dumping " << rowCount << " rows containing " << redChannelDescriptors.length << " images." << std::endl;
 
@@ -171,29 +176,30 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> redChannelDescr
 	}
 }
 
-void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow, unsigned int imageLimit)
 {
-	performSpinDump<float, ShapeDescriptor::SpinImageDescriptor>(hostDescriptors, hostDescriptors, hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
+	performSpinDump<float, ShapeDescriptor::SpinImageDescriptor>(hostDescriptors, hostDescriptors, hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow, imageLimit);
 }
 
-void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow)
+void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow, unsigned int imageLimit)
 {
-	performSpinDump<unsigned int, ShapeDescriptor::RICIDescriptor> (hostDescriptors, hostDescriptors, hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow);
+	performSpinDump<unsigned int, ShapeDescriptor::RICIDescriptor> (hostDescriptors, hostDescriptors, hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow, imageLimit);
 }
 
-void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, unsigned int imagesPerRow) {
-    descriptorComparisonImage(imageDestinationFile, hostDescriptors, hostDescriptors, hostDescriptors, imagesPerRow);
+void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, unsigned int imagesPerRow, unsigned int imageLimit) {
+    descriptorComparisonImage(imageDestinationFile, hostDescriptors, hostDescriptors, hostDescriptors, imagesPerRow, imageLimit);
 }
 
 void ShapeDescriptor::dump::descriptorComparisonImage(std::filesystem::path imageDestinationFile,
                                                       ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> blueChannelDescriptors,
                                                       ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> greenChannelDescriptors,
                                                       ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> redChannelDescriptors,
-                                                      unsigned int imagesPerRow) {
+                                                      unsigned int imagesPerRow,
+                                                      unsigned int imageLimit) {
 
-    unsigned int redCount = redChannelDescriptors.length;
-    unsigned int greenCount = greenChannelDescriptors.length;
-    unsigned int blueCount = blueChannelDescriptors.length;
+    unsigned int redCount = std::min<unsigned int>(redChannelDescriptors.length, imageLimit);
+    unsigned int greenCount = std::min<unsigned int>(greenChannelDescriptors.length, imageLimit);
+    unsigned int blueCount = std::min<unsigned int>(blueChannelDescriptors.length, imageLimit);
     unsigned int totalDescriptorCount = std::max(redCount, std::max(greenCount, blueCount));
     bool redCountValid = redChannelDescriptors.content == nullptr || redCount == totalDescriptorCount;
     bool greenCountValid = greenChannelDescriptors.content == nullptr || greenCount == totalDescriptorCount;
@@ -202,7 +208,7 @@ void ShapeDescriptor::dump::descriptorComparisonImage(std::filesystem::path imag
         std::cerr << "For this image type you must provide arrays with equal numbers of images. Make sure the array lengths are the same!" << std::endl;
     }
 
-    unsigned int descriptorCount = blueChannelDescriptors.length;
+    unsigned int descriptorCount = std::min<unsigned int>(blueChannelDescriptors.length, imageLimit);
 
     // Compute the number of images that should be inserted to separate the two series
     // If the number of rows fits the images exactly, an extra one is inserted for better clarity.
@@ -248,7 +254,8 @@ void ShapeDescriptor::dump::descriptorComparisonImage(std::filesystem::path imag
                                                                    blueDecompressedDescriptors,
                                                                    imageDestinationFile,
                                                                    false,
-                                                                   imagesPerRow);
+                                                                   imagesPerRow,
+                                                                   imageLimit);
 
     ShapeDescriptor::free::array(redDecompressedDescriptors);
     ShapeDescriptor::free::array(blueDecompressedDescriptors);

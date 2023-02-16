@@ -15,18 +15,21 @@ namespace ShapeDescriptor {
                 ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors,
                 std::filesystem::path imageDestinationFile,
                 bool logarithmicImage = true,
-                unsigned int imagesPerRow = 50);
+                unsigned int imagesPerRow = 50,
+                unsigned int imageLimit = 2000);
 
         void descriptors(
                 ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors,
                 std::filesystem::path imageDestinationFile,
                 bool logarithmicImage = true,
-                unsigned int imagesPerRow = 50);
+                unsigned int imagesPerRow = 50,
+                unsigned int imageLimit = 2000);
 
         void descriptors(
                 ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors,
                 std::filesystem::path imageDestinationFile,
-                unsigned int imagesPerRow = 50);
+                unsigned int imagesPerRow = 50,
+                unsigned int imageLimit = 2000);
 
         // Write an image where each channel shows a different descriptor.
         // Useful for comparing similarity of different QUICCI descriptors
@@ -35,6 +38,7 @@ namespace ShapeDescriptor {
                 ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> blueChannelDescriptors = {0, nullptr},
                 ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> greenChannelDescriptors = {0, nullptr},
                 ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> redChannelDescriptors = {0, nullptr},
-                unsigned int imagesPerRow = 50);
+                unsigned int imagesPerRow = 50,
+                unsigned int imageLimit = 2000);
     }
 }

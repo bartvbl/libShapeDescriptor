@@ -6,6 +6,7 @@
 #include <math.h>
 #include <vector>
 #include <iostream>
+#include <variant>
 
 // RICI
 double cosineSimilarity(ShapeDescriptor::RICIDescriptor dOne, ShapeDescriptor::RICIDescriptor dTwo)
@@ -45,8 +46,6 @@ double Benchmarking::utilities::distance::cosineSimilarityBetweenTwoDescriptors(
             continue;
         }
     }
-
-    std::cout << std::endl;
 
     double averageSimilarity = sumOfSimilarities / metadata.size();
 
@@ -91,8 +90,6 @@ double Benchmarking::utilities::distance::cosineSimilarityBetweenTwoDescriptors(
             continue;
         }
     }
-
-    std::cout << std::endl;
 
     double averageSimilarity = sumOfSimilarities / metadata.size();
 

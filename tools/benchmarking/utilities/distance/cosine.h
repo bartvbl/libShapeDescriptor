@@ -3,6 +3,8 @@
 #include <shapeDescriptor/cpu/quickIntersectionCountImageGenerator.h>
 #include <shapeDescriptor/cpu/spinImageGenerator.h>
 #include <vector>
+#include <variant>
+#include <shapeDescriptor/cpu/types/array.h>
 
 namespace Benchmarking
 {

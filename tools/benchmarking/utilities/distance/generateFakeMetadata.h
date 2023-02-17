@@ -1,5 +1,7 @@
 #pragma once
 #include <vector>
+#include <variant>
+#include <string>
 
 namespace Benchmarking
 {

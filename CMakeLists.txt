@@ -31,9 +31,6 @@ if (MSVC)
     add_definitions(-D_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING)
 endif()
 
-
-
-
 include_directories (
         src/
         lib/glm/
@@ -43,10 +40,7 @@ include_directories (
 		lib/fast-lzma2/src/
 		lib/
 		lib/fast-obj
-		${CMAKE_SOURCE_DIR}/tools
-		${CMAKE_SOURCE_DIR}/tools/benchmarking
-		${CMAKE_SOURCE_DIR}/tools/benchmarking/distance
-		${CMAKE_SOURCE_DIR}/tools/benchmarking/similarity
+		tools/
 )
 
 file (GLOB_RECURSE LIBRARY_HEADERS             src/*.hpp

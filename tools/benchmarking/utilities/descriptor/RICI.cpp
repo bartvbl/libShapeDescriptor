@@ -11,8 +11,8 @@
 
 std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor>> Benchmarking::utilities::descriptor::generateRICIDescriptors(ShapeDescriptor::cpu::Mesh meshOne, ShapeDescriptor::cpu::Mesh meshTwo, std::vector<std::variant<int, std::string>> metadata, std::string hardware)
 {
-    float supportRadius = 1;
-    std::cout << "Generating Radial Intersection Count Images" << std::endl;
+    std::cout << "Generating Radial Intersection Count Images Descriptors" << std::endl;
+    float supportRadius = 0.3f;
 
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOriginsOne = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(meshOne);
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOriginsTwo = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(meshTwo);

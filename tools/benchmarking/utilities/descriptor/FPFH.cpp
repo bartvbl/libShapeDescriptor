@@ -1,18 +1,22 @@
-#include "QUICCI.h"
+#include "FPFH.h"
 #include <shapeDescriptor/cpu/types/Mesh.h>
-#include <shapeDescriptor/utilities/free/array.h>
-#include <shapeDescriptor/utilities/spinOriginsGenerator.h>
-#include <shapeDescriptor/cpu/quickIntersectionCountImageGenerator.h>
-#include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
-#include <benchmarking/utilities/distance/cosine.h>
+#include <shapeDescriptor/gpu/types/Mesh.h>
+#include <shapeDescriptor/gpu/fastPointFeatureHistogramGenerator.cuh>
 #include <shapeDescriptor/utilities/copy/mesh.h>
+#include <shapeDescriptor/utilities/meshSampler.h>
+#include <shapeDescriptor/utilities/spinOriginsGenerator.h>
+#include <shapeDescriptor/utilities/free/array.h>
+#include <shapeDescriptor/utilities/free/pointCloud.h>
 #include <vector>
+#include <map>
 #include <variant>
 
-std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor>> Benchmarking::utilities::descriptor::generateQUICCIDescriptors(ShapeDescriptor::cpu::Mesh meshOne, ShapeDescriptor::cpu::Mesh meshTwo, std::vector<std::variant<int, std::string>> metadata, std::string hardware)
+std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor>> Benchmarking::utilities::descriptor::generateFPFHDescriptors(ShapeDescriptor::cpu::Mesh meshOne, ShapeDescriptor::cpu::Mesh meshTwo, std::vector<std::variant<int, std::string>> metadata, std::string hardware)
 {
+    std::cout << "Generating Fast Point Feature Histogram Descriptors" << std::endl;
+    size_t sampleCount = 1000000;
+    size_t randomSeed = 5553580318008;
     float supportRadius = 0.3f;
-    std::cout << "Generating Quick Intersection Count Change Images" << std::endl;
 
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOriginsOne = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(meshOne);
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOriginsTwo = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(meshTwo);
@@ -22,8 +26,8 @@ std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor>> Be
     ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOriginsOne;
     ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOriginsTwo;
 
-    ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> descriptorsOne;
-    ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> descriptorsTwo;
+    ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor> descriptorsOne;
+    ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor> descriptorsTwo;
 
     if (hardware == "gpu")
     {
@@ -36,26 +40,29 @@ std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor>> Be
         ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> tempOriginsTwo = ShapeDescriptor::copy::hostArrayToDevice(spinOriginsTwo);
         deviceSpinOriginsTwo = {tempOriginsTwo.length, reinterpret_cast<ShapeDescriptor::OrientedPoint *>(tempOriginsTwo.content)};
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> dOne =
-            ShapeDescriptor::gpu::generateQUICCImages(deviceMeshOne, deviceSpinOriginsOne, supportRadius);
+        ShapeDescriptor::gpu::PointCloud pointCloudOne = ShapeDescriptor::utilities::sampleMesh(deviceMeshOne, sampleCount, randomSeed);
+        ShapeDescriptor::gpu::PointCloud pointCloudTwo = ShapeDescriptor::utilities::sampleMesh(deviceMeshTwo, sampleCount, randomSeed);
 
+        ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> dOne =
+            ShapeDescriptor::gpu::generateFPFHHistograms(pointCloudOne, deviceSpinOriginsOne, supportRadius);
         descriptorsOne = ShapeDescriptor::copy::deviceArrayToHost(dOne);
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> dTwo =
-            ShapeDescriptor::gpu::generateQUICCImages(deviceMeshTwo, deviceSpinOriginsTwo, supportRadius);
-
+        ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> dTwo =
+            ShapeDescriptor::gpu::generateFPFHHistograms(pointCloudTwo, deviceSpinOriginsTwo, supportRadius);
         descriptorsTwo = ShapeDescriptor::copy::deviceArrayToHost(dTwo);
 
         ShapeDescriptor::free::array(dOne);
         ShapeDescriptor::free::array(dTwo);
+        ShapeDescriptor::free::pointCloud(pointCloudOne);
+        ShapeDescriptor::free::pointCloud(pointCloudTwo);
     }
     else
     {
-        descriptorsOne = ShapeDescriptor::cpu::generateQUICCImages(meshOne, spinOriginsOne, 0.3f);
-        descriptorsTwo = ShapeDescriptor::cpu::generateQUICCImages(meshOne, spinOriginsOne, 0.3f);
+        descriptorsOne = NULL;
+        descriptorsTwo = NULL;
     }
 
-    std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor>> descriptors;
+    std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor>> descriptors;
     descriptors[0] = descriptorsOne;
     descriptors[1] = descriptorsTwo;
 

@@ -9,7 +9,9 @@
 #include <benchmarking/utilities/descriptor/RICI.h>
 #include <benchmarking/utilities/descriptor/QUICCI.h>
 #include <benchmarking/utilities/descriptor/spinImage.h>
-#include <benchmarking/utilities/distance/cosine.h>
+#include <benchmarking/utilities/descriptor/3dShapeContext.h>
+#include <benchmarking/utilities/descriptor/FPFH.h>
+#include <benchmarking/utilities/distance/similarity.h>
 #include <iostream>
 #include <fstream>
 #include <arrrgh.hpp>
@@ -32,7 +34,20 @@ using json = nlohmann::basic_json<ordered_map>;
 using descriptorType = std::variant<
     std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor>>,
     std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor>>,
-    std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor>>>;
+    std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor>>,
+    std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor>>,
+    std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor>>>;
+
+std::map<int, std::string> descriptorAlgorithms = {
+    {0, "RICI"},
+    {1, "QUICCI"},
+    {2, "SI"},
+    {3, "3DSC"},
+    {4, "FPFH"}};
+
+std::map<int, std::string> distanceFunctions = {
+    {0, "Cosine"},
+    {1, "Euclidian"}};
 
 std::vector<std::variant<int, std::string>> generateMetadata(std::filesystem::path metadataPath)
 {
@@ -73,7 +88,12 @@ std::vector<std::variant<int, std::string>> prepareMetadata(std::filesystem::pat
     return std::vector<std::variant<int, std::string>>();
 }
 
-double singleObjectBenchmark(ShapeDescriptor::cpu::Mesh meshOne, ShapeDescriptor::cpu::Mesh meshTwo, std::vector<std::variant<int, std::string>> metadata, int algorithm, std::string hardware)
+double singleObjectBenchmark(ShapeDescriptor::cpu::Mesh meshOne,
+                             ShapeDescriptor::cpu::Mesh meshTwo,
+                             std::vector<std::variant<int, std::string>> metadata,
+                             int algorithm,
+                             int distance,
+                             std::string hardware)
 {
     descriptorType descriptors;
     double similarity = 0;
@@ -87,7 +107,7 @@ double singleObjectBenchmark(ShapeDescriptor::cpu::Mesh meshOne, ShapeDescriptor
         ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> dOne = std::get<std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor>>>(descriptors)[0];
         ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> dTwo = std::get<std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor>>>(descriptors)[1];
 
-        similarity = Benchmarking::utilities::distance::cosineSimilarityBetweenTwoDescriptors(dOne, dTwo, metadata);
+        similarity = Benchmarking::utilities::distance::similarityBetweenTwoDescriptors(dOne, dTwo, metadata, distance);
 
         ShapeDescriptor::free::array(dOne);
         ShapeDescriptor::free::array(dTwo);
@@ -101,7 +121,7 @@ double singleObjectBenchmark(ShapeDescriptor::cpu::Mesh meshOne, ShapeDescriptor
         ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> dOne = std::get<std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor>>>(descriptors)[0];
         ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> dTwo = std::get<std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor>>>(descriptors)[1];
 
-        similarity = Benchmarking::utilities::distance::cosineSimilarityBetweenTwoDescriptors(dOne, dTwo, metadata);
+        similarity = Benchmarking::utilities::distance::similarityBetweenTwoDescriptors(dOne, dTwo, metadata, distance);
 
         ShapeDescriptor::free::array(dOne);
         ShapeDescriptor::free::array(dTwo);
@@ -110,12 +130,40 @@ double singleObjectBenchmark(ShapeDescriptor::cpu::Mesh meshOne, ShapeDescriptor
     }
     case 2:
     {
-        descriptors = Benchmarking::utilities::descriptor::generateSpinImageDescriptors(meshOne, meshTwo, metadata);
+        descriptors = Benchmarking::utilities::descriptor::generateSpinImageDescriptors(meshOne, meshTwo, metadata, hardware);
 
         ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> dOne = std::get<std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor>>>(descriptors)[0];
         ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> dTwo = std::get<std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor>>>(descriptors)[1];
 
-        similarity = Benchmarking::utilities::distance::cosineSimilarityBetweenTwoDescriptors(dOne, dTwo, metadata);
+        similarity = Benchmarking::utilities::distance::similarityBetweenTwoDescriptors(dOne, dTwo, metadata, distance);
+
+        ShapeDescriptor::free::array(dOne);
+        ShapeDescriptor::free::array(dTwo);
+
+        break;
+    }
+    case 3:
+    {
+        descriptors = Benchmarking::utilities::descriptor::generate3DShapeContextDescriptors(meshOne, meshTwo, metadata, hardware);
+
+        ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> dOne = std::get<std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor>>>(descriptors)[0];
+        ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> dTwo = std::get<std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor>>>(descriptors)[1];
+
+        similarity = Benchmarking::utilities::distance::similarityBetweenTwoDescriptors(dOne, dTwo, metadata, distance);
+
+        ShapeDescriptor::free::array(dOne);
+        ShapeDescriptor::free::array(dTwo);
+
+        break;
+    }
+    case 4:
+    {
+        descriptors = Benchmarking::utilities::descriptor::generateFPFHDescriptors(meshOne, meshTwo, metadata, hardware);
+
+        ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor> dOne = std::get<std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor>>>(descriptors)[0];
+        ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor> dTwo = std::get<std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor>>>(descriptors)[1];
+
+        similarity = Benchmarking::utilities::distance::similarityBetweenTwoDescriptors(dOne, dTwo, metadata, distance);
 
         ShapeDescriptor::free::array(dOne);
         ShapeDescriptor::free::array(dTwo);
@@ -129,7 +177,7 @@ double singleObjectBenchmark(ShapeDescriptor::cpu::Mesh meshOne, ShapeDescriptor
         ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> dOne = std::get<std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor>>>(descriptors)[0];
         ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> dTwo = std::get<std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor>>>(descriptors)[1];
 
-        similarity = Benchmarking::utilities::distance::cosineSimilarityBetweenTwoDescriptors(dOne, dTwo, metadata);
+        similarity = Benchmarking::utilities::distance::similarityBetweenTwoDescriptors(dOne, dTwo, metadata, distance);
 
         ShapeDescriptor::free::array(dOne);
         ShapeDescriptor::free::array(dTwo);
@@ -144,7 +192,10 @@ json multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
     std::vector<std::string> folders;
     std::string originalObjectFolderPath;
 
+    int timeStart = std::time(0);
+
     jsonOutput["runDate"] = std::time(0);
+    jsonOutput["hardware"] = hardware;
 
     for (auto &p : std::filesystem::directory_iterator(objectsFolder))
     {
@@ -161,10 +212,6 @@ json multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
         }
     }
 
-    std::map<int, std::string> descriptorAlgorithms; // Expand later
-    descriptorAlgorithms[0] = "RICI";
-    descriptorAlgorithms[1] = "QUICCI";
-
     for (auto &folder : std::filesystem::directory_iterator(originalObjectFolderPath))
     {
         std::string file = folder.path().string().substr(folder.path().string().find_last_of("/") + 1);
@@ -174,7 +221,6 @@ json multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
 
         if (fileType == "obj")
         {
-            std::cout << fileName << std::endl; // Might have to be changed if the folder ends up consisting of folders
             for (std::string folder : folders)
             {
                 std::filesystem::path originalObjectPath;
@@ -185,7 +231,7 @@ json multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                 ShapeDescriptor::cpu::Mesh meshTwo;
 
                 std::string comparisonFolder = folder + "/" + fileName;
-
+                std::string comparisonFolderName = folder.substr(folder.find_last_of("/") + 1);
                 try
                 {
                     originalObjectPath = originalObjectFolderPath + "/" + fileName + ".obj";
@@ -201,15 +247,18 @@ json multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                     continue;
                 }
 
-                for (auto d : descriptorAlgorithms)
+                for (auto a : descriptorAlgorithms)
                 {
-                    int start = std::time(0);
-                    double sim = singleObjectBenchmark(meshOne, meshTwo, metadata, d.first, hardware);
-                    int end = std::time(0);
+                    for (auto d : distanceFunctions)
+                    {
+                        int start = std::time(0);
+                        double sim = singleObjectBenchmark(meshOne, meshTwo, metadata, a.first, d.first, hardware);
+                        int end = std::time(0);
 
-                    std::cout << "Similarity: " << sim << std::endl;
-                    jsonOutput["results"][fileName][d.second]["similarity"] = sim;
-                    jsonOutput["results"][fileName][d.second]["time"] = end - start;
+                        std::setprecision(15);
+                        jsonOutput["results"][a.second][comparisonFolderName][fileName][d.second]["similarity"] = sim;
+                        jsonOutput["results"][a.second][comparisonFolderName][fileName][d.second]["time"] = end - start;
+                    }
                 }
 
                 ShapeDescriptor::free::mesh(meshOne);
@@ -217,6 +266,9 @@ json multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
             }
         }
     }
+
+    int timeAfter = std::time(0);
+    jsonOutput["runTime"] = timeAfter - timeStart;
 
     return jsonOutput;
 }
@@ -264,7 +316,7 @@ int main(int argc, const char **argv)
         ShapeDescriptor::cpu::Mesh meshOne = ShapeDescriptor::utilities::loadMesh(objectOne, true);
         ShapeDescriptor::cpu::Mesh meshTwo = ShapeDescriptor::utilities::loadMesh(objectTwo, true);
 
-        double similarity = singleObjectBenchmark(meshOne, meshTwo, metadata, descriptorAlgorithm.value(), hardware.value());
+        double similarity = singleObjectBenchmark(meshOne, meshTwo, metadata, descriptorAlgorithm.value(), 0, hardware.value());
 
         std::cout << similarity << std::endl;
 
@@ -276,12 +328,14 @@ int main(int argc, const char **argv)
         std::cout << "Comparing all objects in folder..." << std::endl;
         jsonOutput = multipleObjectsBenchmark(objectsFolder.value(), originalsFolderName.value(), jsonOutput, hardware.value());
 
-        std::ofstream outFile(outputPath.value());
+        std::string outputFilePath = outputPath.value() + "similarities.json";
+
+        std::ofstream outFile(outputFilePath);
         outFile << jsonOutput.dump(4);
         outFile.close();
 
         std::cout
-            << "Results stored to file" << std::endl;
+            << "Results stored to " << outputFilePath << std::endl;
     }
     else
     {

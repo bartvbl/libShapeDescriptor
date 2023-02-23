@@ -63,7 +63,7 @@ file (GLOB_RECURSE BENCHMARK 				   tools/benchmarking/*.cpp)
 file (GLOB_RECURSE BENCHMARK_HEADERS 		   tools/benchmarking/*.h)
 
 if (CMAKE_CUDA_COMPILER)
-	cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
+	add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 	target_compile_definitions(${PROJECT_NAME} PUBLIC DESCRIPTOR_CUDA_KERNELS_ENABLED)
 	target_include_directories(${PROJECT_NAME} PUBLIC ${CUDA_INCLUDE_DIRS})
 else()

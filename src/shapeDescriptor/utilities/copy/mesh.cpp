@@ -14,13 +14,13 @@ ShapeDescriptor::gpu::Mesh ShapeDescriptor::copy::hostMeshToDevice(cpu::Mesh hos
     size_t vertexCount = hostMesh.vertexCount;
     size_t normalCount = hostMesh.vertexCount;
 
-    float* device_vertices_x;
-    float* device_vertices_y;
-    float* device_vertices_z;
+    float* device_vertices_x = nullptr;
+    float* device_vertices_y = nullptr;
+    float* device_vertices_z = nullptr;
 
-    float* device_normals_x;
-    float* device_normals_y;
-    float* device_normals_z;
+    float* device_normals_x = nullptr;
+    float* device_normals_y = nullptr;
+    float* device_normals_z = nullptr;
 
     size_t verticesSize = sizeof(float) * vertexCount;
     size_t normalsSize = sizeof(float) * normalCount;

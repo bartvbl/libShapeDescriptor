@@ -5,6 +5,7 @@
 
 #include <shapeDescriptor/gpu/types/array.h>
 #include <shapeDescriptor/gpu/types/float3.h>
+#include <iostream>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include "nvidia/helper_math.h"

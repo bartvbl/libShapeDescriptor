@@ -227,6 +227,11 @@ void ShapeDescriptor::dump::descriptorComparisonImage(std::filesystem::path imag
             unsigned int redChunk = redChannelDescriptors.content == nullptr ? 0 : redChannelDescriptors.content[imageIndex].contents[chunkIndex];
             unsigned int blueChunk = blueChannelDescriptors.content == nullptr ? 0 : blueChannelDescriptors.content[imageIndex].contents[chunkIndex];
             unsigned int greenChunk = greenChannelDescriptors.content == nullptr ? 0 : greenChannelDescriptors.content[imageIndex].contents[chunkIndex];
+
+            if(redChannelDescriptors.content == nullptr) {
+                redChunk = blueChunk & greenChunk;
+            }
+
             std::bitset<32> redEntryBits(redChunk);
             std::bitset<32> greenEntryBits(greenChunk);
             std::bitset<32> blueEntryBits(blueChunk);

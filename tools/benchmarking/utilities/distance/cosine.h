@@ -1,5 +1,13 @@
 #pragma once
 #include <shapeDescriptor/cpu/radialIntersectionCountImageGenerator.h>
+#include <shapeDescriptor/cpu/quickIntersectionCountImageGenerator.h>
+#include <shapeDescriptor/cpu/spinImageGenerator.h>
+#include <shapeDescriptor/gpu/fastPointFeatureHistogramGenerator.cuh>
+#include <shapeDescriptor/gpu/3dShapeContextSearcher.cuh>
+#include <benchmarking/utilities/distance/generateFakeMetadata.h>
+#include <vector>
+#include <variant>
+#include <shapeDescriptor/cpu/types/array.h>
 
 namespace Benchmarking
 {
@@ -7,7 +15,11 @@ namespace Benchmarking
     {
         namespace distance
         {
-            double cosineSimilarityBetweenTwoDescriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> descriptorsOne, ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> descriptorsTwo);
+            double cosineSimilarity(ShapeDescriptor::RICIDescriptor dOne, ShapeDescriptor::RICIDescriptor dTwo);
+            double cosineSimilarity(ShapeDescriptor::QUICCIDescriptor dOne, ShapeDescriptor::QUICCIDescriptor dTwo);
+            double cosineSimilarity(ShapeDescriptor::SpinImageDescriptor dOne, ShapeDescriptor::SpinImageDescriptor dTwo);
+            double cosineSimilarity(ShapeDescriptor::ShapeContextDescriptor dOne, ShapeDescriptor::ShapeContextDescriptor dTwo);
+            double cosineSimilarity(ShapeDescriptor::FPFHDescriptor dOne, ShapeDescriptor::FPFHDescriptor dTwo);
         }
     }
 }

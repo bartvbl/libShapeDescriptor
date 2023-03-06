@@ -1,0 +1,3 @@
+/*
+    EMPTY FILE, DO NOT KNOW IF I SHOULD REMOVE. ALL CODE IS IN similarity.h
+*/

@@ -31,9 +31,6 @@ if (MSVC)
     add_definitions(-D_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING)
 endif()
 
-
-
-
 include_directories (
         src/
         lib/glm/
@@ -43,10 +40,7 @@ include_directories (
 		lib/fast-lzma2/src/
 		lib/
 		lib/fast-obj
-		${CMAKE_SOURCE_DIR}/tools
-		${CMAKE_SOURCE_DIR}/tools/benchmarking
-		${CMAKE_SOURCE_DIR}/tools/benchmarking/distance
-		${CMAKE_SOURCE_DIR}/tools/benchmarking/similarity
+		tools/
 )
 
 file (GLOB_RECURSE LIBRARY_HEADERS             src/*.hpp
@@ -69,7 +63,7 @@ file (GLOB_RECURSE BENCHMARK 				   tools/benchmarking/*.cpp)
 file (GLOB_RECURSE BENCHMARK_HEADERS 		   tools/benchmarking/*.h)
 
 if (CMAKE_CUDA_COMPILER)
-	cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
+	add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 	target_compile_definitions(${PROJECT_NAME} PUBLIC DESCRIPTOR_CUDA_KERNELS_ENABLED)
 	target_include_directories(${PROJECT_NAME} PUBLIC ${CUDA_INCLUDE_DIRS})
 else()

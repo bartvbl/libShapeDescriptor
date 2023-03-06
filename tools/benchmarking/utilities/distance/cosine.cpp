@@ -5,6 +5,7 @@
 #include <shapeDescriptor/gpu/3dShapeContextGenerator.cuh>
 #include <shapeDescriptor/gpu/fastPointFeatureHistogramGenerator.cuh>
 #include <benchmarking/utilities/distance/generateFakeMetadata.h>
+#include <benchmarking/utilities/distance/euclidian.h>
 #include <math.h>
 #include <vector>
 #include <iostream>
@@ -17,7 +18,7 @@ double Benchmarking::utilities::distance::cosineSimilarity(ShapeDescriptor::RICI
     double denominationA = 0;
     double denominationB = 0;
 
-    for (int i = 0; i < (int)(spinImageWidthPixels * spinImageWidthPixels); i++)
+    for (int i = 0; i < radialIntersectionLength; i++)
     {
         dot += dOne.contents[i] * dTwo.contents[i];
         denominationA += pow(dOne.contents[i], 2);
@@ -36,7 +37,7 @@ double Benchmarking::utilities::distance::cosineSimilarity(ShapeDescriptor::QUIC
     double denominationA = 0;
     double denominationB = 0;
 
-    for (int i = 0; i < (int)(ShapeDescriptor::QUICCIDescriptorLength); i++)
+    for (int i = 0; i < quickIntersectionLength; i++)
     {
         dot += (double)dOne.contents[i] * (double)dTwo.contents[i];
         denominationA += pow((double)dOne.contents[i], 2);
@@ -55,7 +56,7 @@ double Benchmarking::utilities::distance::cosineSimilarity(ShapeDescriptor::Spin
     double denominationA = 0;
     double denominationB = 0;
 
-    for (int i = 0; i < (int)(spinImageWidthPixels * spinImageWidthPixels); i++)
+    for (int i = 0; i < spinImageLength; i++)
     {
         dot += (double)dOne.contents[i] * (double)dTwo.contents[i];
         denominationA += pow((double)dOne.contents[i], 2);
@@ -74,7 +75,7 @@ double Benchmarking::utilities::distance::cosineSimilarity(ShapeDescriptor::Shap
     double denominationA = 0;
     double denominationB = 0;
 
-    for (int i = 0; i < (int)(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT * SHAPE_CONTEXT_LAYER_COUNT); i++)
+    for (int i = 0; i < shapeContextLength; i++)
     {
         dot += (double)dOne.contents[i] * (double)dTwo.contents[i];
         denominationA += pow((double)dOne.contents[i], 2);
@@ -93,7 +94,7 @@ double Benchmarking::utilities::distance::cosineSimilarity(ShapeDescriptor::FPFH
     double denominationA = 0;
     double denominationB = 0;
 
-    for (int i = 0; i < (int)(3 * FPFH_BINS_PER_FEATURE); i++)
+    for (int i = 0; i < fpfhLength; i++)
     {
         dot += (double)dOne.contents[i] * (double)dTwo.contents[i];
         denominationA += pow((double)dOne.contents[i], 2);

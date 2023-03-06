@@ -7,6 +7,12 @@
 #include <benchmarking/utilities/distance/generateFakeMetadata.h>
 #include <shapeDescriptor/cpu/types/array.h>
 
+extern int radialIntersectionLength;
+extern int quickIntersectionLength;
+extern int spinImageLength;
+extern int shapeContextLength;
+extern int fpfhLength;
+
 namespace Benchmarking
 {
     namespace utilities

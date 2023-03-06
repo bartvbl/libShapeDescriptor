@@ -1,6 +1,7 @@
 #include "spinImage.h"
 #include <shapeDescriptor/cpu/types/Mesh.h>
 #include <shapeDescriptor/utilities/free/array.h>
+#include <shapeDescriptor/utilities/free/mesh.h>
 #include <shapeDescriptor/utilities/free/pointCloud.h>
 #include <shapeDescriptor/utilities/spinOriginsGenerator.h>
 #include <shapeDescriptor/cpu/spinImageGenerator.h>
@@ -10,58 +11,52 @@
 #include <vector>
 #include <variant>
 #include <map>
+#include <ctime>
+#include <chrono>
 
-std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor>> Benchmarking::utilities::descriptor::generateSpinImageDescriptors(ShapeDescriptor::cpu::Mesh meshOne, ShapeDescriptor::cpu::Mesh meshTwo, std::vector<std::variant<int, std::string>> metadata, std::string hardware)
+ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> Benchmarking::utilities::descriptor::generateSpinImageDescriptor(
+    ShapeDescriptor::cpu::Mesh mesh,
+    std::string hardware,
+    float supportRadius,
+    float supportAngleDegrees,
+    size_t sampleCount,
+    size_t randomSeed,
+    std::chrono::duration<double> &elapsedTime)
 {
-    std::cout << "Generating Spin Images Descriptors" << std::endl;
-    size_t sampleCount = 1000000;
-    size_t randomSeed = 5553580318008;
-    float supportRadius = 0.3f;
-    float supportAngleDegrees = 10.0f;
+    std::cout << "Generating Spin Images Descriptor" << std::endl;
 
-    ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> descriptorsOne;
-    ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> descriptorsTwo;
-
-    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOriginsOne = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(meshOne);
-    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOriginsTwo = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(meshTwo);
+    ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> descriptor;
+    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(mesh);
+    ;
 
     if (hardware == "gpu")
     {
-        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> tempOriginsOne = ShapeDescriptor::copy::hostArrayToDevice(spinOriginsOne);
-        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOriginsOne = {tempOriginsOne.length, reinterpret_cast<ShapeDescriptor::OrientedPoint *>(tempOriginsOne.content)};
+        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> tempOrigins = ShapeDescriptor::copy::hostArrayToDevice(spinOrigins);
+        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOrigins = {tempOrigins.length, reinterpret_cast<ShapeDescriptor::OrientedPoint *>(tempOrigins.content)};
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> tempOriginsTwo = ShapeDescriptor::copy::hostArrayToDevice(spinOriginsTwo);
-        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOriginsTwo = {tempOriginsTwo.length, reinterpret_cast<ShapeDescriptor::OrientedPoint *>(tempOriginsTwo.content)};
+        ShapeDescriptor::gpu::Mesh deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
 
-        ShapeDescriptor::gpu::Mesh deviceMeshOne = ShapeDescriptor::copy::hostMeshToDevice(meshOne);
-        ShapeDescriptor::gpu::Mesh deviceMeshTwo = ShapeDescriptor::copy::hostMeshToDevice(meshTwo);
+        ShapeDescriptor::gpu::PointCloud pointCloud = ShapeDescriptor::utilities::sampleMesh(deviceMesh, sampleCount, randomSeed);
 
-        ShapeDescriptor::gpu::PointCloud pointCloudOne = ShapeDescriptor::utilities::sampleMesh(deviceMeshOne, sampleCount, randomSeed);
-        ShapeDescriptor::gpu::PointCloud pointCloudTwo = ShapeDescriptor::utilities::sampleMesh(deviceMeshTwo, sampleCount, randomSeed);
+        std::chrono::steady_clock::time_point descriptorTimeStart = std::chrono::steady_clock::now();
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> descriptorGPU = ShapeDescriptor::gpu::generateSpinImages(
+            pointCloud, deviceSpinOrigins, supportRadius, supportAngleDegrees);
+        std::chrono::steady_clock::time_point descriptorTimeEnd = std::chrono::steady_clock::now();
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> dOne = ShapeDescriptor::gpu::generateSpinImages(pointCloudOne, deviceSpinOriginsOne, supportRadius, supportAngleDegrees);
-        descriptorsOne = ShapeDescriptor::copy::deviceArrayToHost(dOne);
+        elapsedTime = descriptorTimeEnd - descriptorTimeStart;
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> dTwo = ShapeDescriptor::gpu::generateSpinImages(pointCloudTwo, deviceSpinOriginsTwo, supportRadius, supportAngleDegrees);
-        descriptorsTwo = ShapeDescriptor::copy::deviceArrayToHost(dOne);
+        descriptor = ShapeDescriptor::copy::deviceArrayToHost(descriptorGPU);
 
-        ShapeDescriptor::free::array(dOne);
-        ShapeDescriptor::free::array(dTwo);
-        ShapeDescriptor::free::pointCloud(pointCloudOne);
-        ShapeDescriptor::free::pointCloud(pointCloudTwo);
+        ShapeDescriptor::free::array(descriptorGPU);
+        ShapeDescriptor::free::mesh(deviceMesh);
+        ShapeDescriptor::free::pointCloud(pointCloud);
     }
     else
     {
-        descriptorsOne = NULL;
-        descriptorsTwo = NULL;
+        descriptor = NULL;
     }
 
-    std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor>> descriptors;
-    descriptors[0] = descriptorsOne;
-    descriptors[1] = descriptorsTwo;
+    ShapeDescriptor::free::array(spinOrigins);
 
-    ShapeDescriptor::free::array(spinOriginsOne);
-    ShapeDescriptor::free::array(spinOriginsTwo);
-
-    return descriptors;
+    return descriptor;
 }

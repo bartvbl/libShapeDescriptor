@@ -26,6 +26,32 @@ namespace Benchmarking
                 std::cout << "Calculating the similarity of the two objects" << std::endl
                           << std::flush;
 
+                if (distanceFunction == 1)
+                {
+                    if constexpr (std::is_same_v<T, ShapeDescriptor::ShapeContextDescriptor>)
+                    {
+                        double bestSimilarity = 0;
+
+                        for (int i = 0; i < descriptorsOne.length; i++)
+                        {
+                            ShapeDescriptor::ShapeContextDescriptor dOne = descriptorsOne.content[i];
+                            int comparisonIndex = std::get<int>(metadata.at(i));
+
+                            for (int sliceOffset = 0; sliceOffset < SHAPE_CONTEXT_VERTICAL_SLICE_COUNT; sliceOffset++)
+                            {
+                                int sliceIndex = comparisonIndex + (sliceOffset * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT) % descriptorsTwo.length;
+                                ShapeDescriptor::ShapeContextDescriptor dTwo = descriptorsTwo.content[sliceIndex];
+
+                                double similarity = Benchmarking::utilities::distance::euclidianSimilarity(dOne, dTwo);
+
+                                bestSimilarity = std::max(bestSimilarity, similarity);
+                            }
+                        }
+
+                        return bestSimilarity;
+                    }
+                }
+
                 double sumOfSimilarities = 0;
 
                 double (*similarityFunction)(T, T);
@@ -51,7 +77,7 @@ namespace Benchmarking
                 }
                 }
 
-                for (int i = 0; i < metadata.size(); i++)
+                for (int i = 0; i < descriptorsOne.length; i++)
                 {
                     try
                     {

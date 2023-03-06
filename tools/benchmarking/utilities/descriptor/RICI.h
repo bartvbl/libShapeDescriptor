@@ -7,6 +7,8 @@
 #include <vector>
 #include <map>
 #include <variant>
+#include <ctime>
+#include <chrono>
 
 namespace Benchmarking
 {
@@ -14,7 +16,11 @@ namespace Benchmarking
     {
         namespace descriptor
         {
-            std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor>> generateRICIDescriptors(ShapeDescriptor::cpu::Mesh meshOne, ShapeDescriptor::cpu::Mesh meshTwo, std::vector<std::variant<int, std::string>> metadata, std::string hardware);
+            ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> generateRICIDescriptor(
+                ShapeDescriptor::cpu::Mesh mesh,
+                std::string hardware,
+                float supportRadius,
+                std::chrono::duration<double> &elapsedTime);
         }
     }
 }

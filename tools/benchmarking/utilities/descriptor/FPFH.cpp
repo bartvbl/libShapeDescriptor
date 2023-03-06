@@ -6,68 +6,57 @@
 #include <shapeDescriptor/utilities/meshSampler.h>
 #include <shapeDescriptor/utilities/spinOriginsGenerator.h>
 #include <shapeDescriptor/utilities/free/array.h>
+#include <shapeDescriptor/utilities/free/mesh.h>
 #include <shapeDescriptor/utilities/free/pointCloud.h>
 #include <vector>
 #include <map>
 #include <variant>
+#include <ctime>
+#include <chrono>
 
-std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor>> Benchmarking::utilities::descriptor::generateFPFHDescriptors(ShapeDescriptor::cpu::Mesh meshOne, ShapeDescriptor::cpu::Mesh meshTwo, std::vector<std::variant<int, std::string>> metadata, std::string hardware)
+ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor> Benchmarking::utilities::descriptor::generateFPFHDescriptor(
+    ShapeDescriptor::cpu::Mesh mesh,
+    std::string hardware,
+    float supportRadius,
+    size_t sampleCount,
+    size_t randomSeed,
+    std::chrono::duration<double> &elapsedTime)
 {
-    std::cout << "Generating Fast Point Feature Histogram Descriptors" << std::endl;
-    size_t sampleCount = 1000000;
-    size_t randomSeed = 5553580318008;
-    float supportRadius = 0.3f;
+    std::cout << "Generating Fast Point Feature Histogram Descriptor" << std::endl;
 
-    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOriginsOne = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(meshOne);
-    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOriginsTwo = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(meshTwo);
-
-    ShapeDescriptor::gpu::Mesh deviceMeshOne;
-    ShapeDescriptor::gpu::Mesh deviceMeshTwo;
-    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOriginsOne;
-    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOriginsTwo;
-
-    ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor> descriptorsOne;
-    ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor> descriptorsTwo;
+    ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor> descriptor;
+    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(mesh);
+    ShapeDescriptor::gpu::Mesh deviceMesh;
+    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOrigins;
 
     if (hardware == "gpu")
     {
-        deviceMeshOne = ShapeDescriptor::copy::hostMeshToDevice(meshOne);
-        deviceMeshTwo = ShapeDescriptor::copy::hostMeshToDevice(meshTwo);
+        deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> tempOriginsOne = ShapeDescriptor::copy::hostArrayToDevice(spinOriginsOne);
-        deviceSpinOriginsOne = {tempOriginsOne.length, reinterpret_cast<ShapeDescriptor::OrientedPoint *>(tempOriginsOne.content)};
+        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> tempOrigins = ShapeDescriptor::copy::hostArrayToDevice(spinOrigins);
+        deviceSpinOrigins = {tempOrigins.length, reinterpret_cast<ShapeDescriptor::OrientedPoint *>(tempOrigins.content)};
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> tempOriginsTwo = ShapeDescriptor::copy::hostArrayToDevice(spinOriginsTwo);
-        deviceSpinOriginsTwo = {tempOriginsTwo.length, reinterpret_cast<ShapeDescriptor::OrientedPoint *>(tempOriginsTwo.content)};
+        ShapeDescriptor::gpu::PointCloud pointCloud = ShapeDescriptor::utilities::sampleMesh(deviceMesh, sampleCount, randomSeed);
 
-        ShapeDescriptor::gpu::PointCloud pointCloudOne = ShapeDescriptor::utilities::sampleMesh(deviceMeshOne, sampleCount, randomSeed);
-        ShapeDescriptor::gpu::PointCloud pointCloudTwo = ShapeDescriptor::utilities::sampleMesh(deviceMeshTwo, sampleCount, randomSeed);
+        std::chrono::steady_clock::time_point descriptorTimeStart = std::chrono::steady_clock::now();
+        ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> descriptorGPU =
+            ShapeDescriptor::gpu::generateFPFHHistograms(pointCloud, deviceSpinOrigins, supportRadius);
+        std::chrono::steady_clock::time_point descriptorTimeEnd = std::chrono::steady_clock::now();
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> dOne =
-            ShapeDescriptor::gpu::generateFPFHHistograms(pointCloudOne, deviceSpinOriginsOne, supportRadius);
-        descriptorsOne = ShapeDescriptor::copy::deviceArrayToHost(dOne);
+        elapsedTime = descriptorTimeEnd - descriptorTimeStart;
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> dTwo =
-            ShapeDescriptor::gpu::generateFPFHHistograms(pointCloudTwo, deviceSpinOriginsTwo, supportRadius);
-        descriptorsTwo = ShapeDescriptor::copy::deviceArrayToHost(dTwo);
+        descriptor = ShapeDescriptor::copy::deviceArrayToHost(descriptorGPU);
 
-        ShapeDescriptor::free::array(dOne);
-        ShapeDescriptor::free::array(dTwo);
-        ShapeDescriptor::free::pointCloud(pointCloudOne);
-        ShapeDescriptor::free::pointCloud(pointCloudTwo);
+        ShapeDescriptor::free::array(descriptorGPU);
+        ShapeDescriptor::free::mesh(deviceMesh);
+        ShapeDescriptor::free::pointCloud(pointCloud);
     }
     else
     {
-        descriptorsOne = NULL;
-        descriptorsTwo = NULL;
+        descriptor = NULL;
     }
 
-    std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor>> descriptors;
-    descriptors[0] = descriptorsOne;
-    descriptors[1] = descriptorsTwo;
+    ShapeDescriptor::free::array(spinOrigins);
 
-    ShapeDescriptor::free::array(spinOriginsOne);
-    ShapeDescriptor::free::array(spinOriginsTwo);
-
-    return descriptors;
+    return descriptor;
 }

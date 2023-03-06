@@ -8,12 +8,18 @@
 #include <shapeDescriptor/cpu/types/array.h>
 #include <math.h>
 
+int radialIntersectionLength = (int)(spinImageWidthPixels * spinImageWidthPixels);
+int quickIntersectionLength = (int)(ShapeDescriptor::QUICCIDescriptorLength);
+int spinImageLength = (int)(spinImageWidthPixels * spinImageWidthPixels);
+int shapeContextLength = (int)(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT * SHAPE_CONTEXT_LAYER_COUNT);
+int fpfhLength = (int)(3 * FPFH_BINS_PER_FEATURE);
+
 // RICI
 double Benchmarking::utilities::distance::euclidianSimilarity(ShapeDescriptor::RICIDescriptor dOne, ShapeDescriptor::RICIDescriptor dTwo)
 {
     double distance = 0;
 
-    for (int i = 0; i < (int)(spinImageWidthPixels * spinImageWidthPixels); i++)
+    for (int i = 0; i < radialIntersectionLength; i++)
     {
         double diff = (double)dOne.contents[i] - (double)dTwo.contents[i];
         distance += pow(diff, 2);
@@ -21,7 +27,7 @@ double Benchmarking::utilities::distance::euclidianSimilarity(ShapeDescriptor::R
 
     double similarity = 1.0 / (1.0 + sqrt(distance));
 
-    return similarity;
+    return isnan(similarity) ? 0 : similarity;
 }
 
 // QUICCI
@@ -29,7 +35,7 @@ double Benchmarking::utilities::distance::euclidianSimilarity(ShapeDescriptor::Q
 {
     double distance = 0;
 
-    for (int i = 0; i < (int)(ShapeDescriptor::QUICCIDescriptorLength); i++)
+    for (int i = 0; i < quickIntersectionLength; i++)
     {
         double diff = (double)dOne.contents[i] - (double)dTwo.contents[i];
         distance += pow(diff, 2);
@@ -37,7 +43,7 @@ double Benchmarking::utilities::distance::euclidianSimilarity(ShapeDescriptor::Q
 
     double similarity = 1.0 / (1.0 + sqrt(distance));
 
-    return similarity;
+    return isnan(similarity) ? 0 : similarity;
 }
 
 // Spin Image
@@ -45,7 +51,7 @@ double Benchmarking::utilities::distance::euclidianSimilarity(ShapeDescriptor::S
 {
     double distance = 0;
 
-    for (int i = 0; i < (int)(spinImageWidthPixels * spinImageWidthPixels); i++)
+    for (int i = 0; i < spinImageLength; i++)
     {
         double diff = (double)dOne.contents[i] - (double)dTwo.contents[i];
         distance += pow(diff, 2);
@@ -53,7 +59,7 @@ double Benchmarking::utilities::distance::euclidianSimilarity(ShapeDescriptor::S
 
     double similarity = 1.0 / (1.0 + sqrt(distance));
 
-    return similarity;
+    return isnan(similarity) ? 0 : similarity;
 }
 
 // 3D Shape Context
@@ -61,15 +67,16 @@ double Benchmarking::utilities::distance::euclidianSimilarity(ShapeDescriptor::S
 {
     double distance = 0;
 
-    for (int i = 0; i < (int)(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT * SHAPE_CONTEXT_LAYER_COUNT); i++)
+    for (int i = 0; i < shapeContextLength; i++)
     {
-        double diff = (double)dOne.contents[i] - (double)dTwo.contents[i];
+        int comparisonIndex = (i + (SHAPE_CONTEXT_VERTICAL_SLICE_COUNT * SHAPE_CONTEXT_LAYER_COUNT)) % shapeContextLength;
+        double diff = (double)dOne.contents[i] - (double)dTwo.contents[comparisonIndex];
         distance += pow(diff, 2);
     }
 
     double similarity = 1.0 / (1.0 + sqrt(distance));
 
-    return similarity;
+    return isnan(similarity) ? 0 : similarity;
 }
 
 // FPFH
@@ -77,7 +84,7 @@ double Benchmarking::utilities::distance::euclidianSimilarity(ShapeDescriptor::F
 {
     double distance = 0;
 
-    for (int i = 0; i < (int)(3 * FPFH_BINS_PER_FEATURE); i++)
+    for (int i = 0; i < fpfhLength; i++)
     {
         double diff = (double)dOne.contents[i] - (double)dTwo.contents[i];
         distance += pow(diff, 2);
@@ -85,5 +92,5 @@ double Benchmarking::utilities::distance::euclidianSimilarity(ShapeDescriptor::F
 
     double similarity = 1.0 / (1.0 + sqrt(distance));
 
-    return similarity;
+    return isnan(similarity) ? 0 : similarity;
 }

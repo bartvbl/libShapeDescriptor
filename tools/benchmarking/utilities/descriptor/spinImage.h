@@ -4,6 +4,8 @@
 #include <vector>
 #include <variant>
 #include <map>
+#include <ctime>
+#include <chrono>
 
 namespace Benchmarking
 {
@@ -11,7 +13,14 @@ namespace Benchmarking
     {
         namespace descriptor
         {
-            std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor>> generateSpinImageDescriptors(ShapeDescriptor::cpu::Mesh meshOne, ShapeDescriptor::cpu::Mesh meshTwo, std::vector<std::variant<int, std::string>> metadata, std::string hardware);
+            ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> generateSpinImageDescriptor(
+                ShapeDescriptor::cpu::Mesh mesh,
+                std::string hardware,
+                float supportRadius,
+                float supportAngleDegrees,
+                size_t sampleCount,
+                size_t randomSeed,
+                std::chrono::duration<double> &elapsedTime);
         }
     }
 }

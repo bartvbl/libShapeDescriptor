@@ -6,6 +6,8 @@
 #include <vector>
 #include <map>
 #include <variant>
+#include <ctime>
+#include <chrono>
 
 namespace Benchmarking
 {
@@ -13,7 +15,15 @@ namespace Benchmarking
     {
         namespace descriptor
         {
-            std::map<int, ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor>> generate3DShapeContextDescriptors(ShapeDescriptor::cpu::Mesh meshOne, ShapeDescriptor::cpu::Mesh meshTwo, std::vector<std::variant<int, std::string>> metadata, std::string hardware);
+            ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> generate3DShapeContextDescriptor(
+                ShapeDescriptor::cpu::Mesh mesh,
+                std::string hardware,
+                size_t sampleCount,
+                size_t randomSeed,
+                float pointDensityRadius,
+                float minSupportRadius,
+                float maxSupportRadius,
+                std::chrono::duration<double> &elapsedTime);
         }
     }
 }

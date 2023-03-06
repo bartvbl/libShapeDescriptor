@@ -29,7 +29,7 @@ namespace ShapeDescriptor {
             Mesh(size_t vertCount) {
                 vertices = new ShapeDescriptor::cpu::float3[vertCount];
                 normals = new ShapeDescriptor::cpu::float3[vertCount];
-                vertexColours = new ShapeDescriptor::cpu::uchar4[vertexCount];
+                vertexColours = new ShapeDescriptor::cpu::uchar4[vertCount];
                 vertexCount = vertCount;
             }
 

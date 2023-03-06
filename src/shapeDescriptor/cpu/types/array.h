@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cassert>
 #include <shapeDescriptor/gpu/types/array.h>
 #include <shapeDescriptor/utilities/copy/array.h>
 
@@ -30,6 +31,8 @@ namespace ShapeDescriptor {
             }
 
             TYPE& operator[](size_t index) {
+                assert(index); // >= 0
+                assert(index < length);
                 return *(content + index);
             }
         };

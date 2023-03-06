@@ -5,6 +5,7 @@
 
 #include <shapeDescriptor/gpu/types/array.h>
 #include <shapeDescriptor/gpu/types/float3.h>
+#include <iostream>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include "nvidia/helper_math.h"
@@ -38,6 +39,11 @@ __device__ __inline__ ShapeDescriptor::SampleBounds calculateSampleBounds(const 
 
     sampleBounds.sampleCount = lastIndexInRange - firstIndexInRange + 1; // Offset is needed to ensure bounds are correct
     sampleBounds.sampleStartIndex = firstIndexInRange - 1;
+
+    // Bump up sample count to include any loose ends
+    if(triangleIndex == areaArray.length - 1) {
+        sampleBounds.sampleCount = sampleCount - sampleBounds.sampleStartIndex;
+    }
 
     return sampleBounds;
 }

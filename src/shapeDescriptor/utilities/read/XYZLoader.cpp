@@ -68,7 +68,7 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::utilities::loadXYZ(std::filesy
             colour.r = (unsigned char) ((floatColour.x) * 255.0);
             colour.g = (unsigned char) ((floatColour.y) * 255.0);
             colour.b = (unsigned char) ((floatColour.z) * 255.0);
-            colour.a = 1;
+            colour.a = 255;
             colours.emplace_back(colour);
         }
 

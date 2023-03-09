@@ -3,7 +3,7 @@
 #include <vector>
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint>
-ShapeDescriptor::utilities::generateSpinOriginBuffer(ShapeDescriptor::cpu::Mesh &mesh) {
+ShapeDescriptor::utilities::generateSpinOriginBuffer(const ShapeDescriptor::cpu::Mesh &mesh) {
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> originBuffer(mesh.vertexCount);
     for(size_t i = 0; i < mesh.vertexCount; i++) {
         originBuffer.content[i] = ShapeDescriptor::OrientedPoint{mesh.vertices[i], mesh.normals[i]};
@@ -12,7 +12,7 @@ ShapeDescriptor::utilities::generateSpinOriginBuffer(ShapeDescriptor::cpu::Mesh 
 }
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint>
-ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(ShapeDescriptor::cpu::Mesh &mesh) {
+ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(const ShapeDescriptor::cpu::Mesh &mesh) {
     std::vector<ShapeDescriptor::OrientedPoint> originBuffer;
     originBuffer.reserve(mesh.vertexCount);
     std::unordered_set<ShapeDescriptor::OrientedPoint> seenSet;

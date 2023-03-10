@@ -286,9 +286,15 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                 for (auto a : descriptorAlgorithms)
                 {
                     std::chrono::duration<double> elapsedSecondsDescriptorComparison;
+                    std::chrono::duration<double> elapsedSecondsDescriptorOriginal;
 
                     descriptorType comparisonObject = generateDescriptorsForObject(
                         meshComparison, a.first, hardware, elapsedSecondsDescriptorComparison,
+                        supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
+                        pointCloudSampleCount, randomSeed);
+
+                    descriptorType originalObject = generateDescriptorsForObject(
+                        meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
                         pointCloudSampleCount, randomSeed);
 
@@ -296,8 +302,6 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                     {
                         bool freeArray = d.first == distanceFunctions.size() - 1;
                         double sim = 0;
-
-                        std::chrono::duration<double> elapsedSecondsDescriptorOriginal;
 
                         std::chrono::steady_clock::time_point distanceTimeStart;
                         std::chrono::steady_clock::time_point distanceTimeEnd;
@@ -307,9 +311,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         case 0:
                         {
                             ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> original =
-                                std::get<0>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
-                                                                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
-                                                                         pointCloudSampleCount, randomSeed));
+                                std::get<0>(originalObject);
 
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
@@ -327,9 +329,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         case 1:
                         {
                             ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> original =
-                                std::get<1>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
-                                                                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
-                                                                         pointCloudSampleCount, randomSeed));
+                                std::get<1>(originalObject);
 
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
@@ -347,9 +347,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         case 2:
                         {
                             ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> original =
-                                std::get<2>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
-                                                                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
-                                                                         pointCloudSampleCount, randomSeed));
+                                std::get<2>(originalObject);
 
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
@@ -367,9 +365,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         case 3:
                         {
                             ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> original =
-                                std::get<3>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
-                                                                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
-                                                                         pointCloudSampleCount, randomSeed));
+                                std::get<3>(originalObject);
 
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
@@ -387,9 +383,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         case 4:
                         {
                             ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor> original =
-                                std::get<4>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
-                                                                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
-                                                                         pointCloudSampleCount, randomSeed));
+                                std::get<4>(originalObject);
 
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
@@ -406,9 +400,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         default:
                         {
                             ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> original =
-                                std::get<0>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
-                                                                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
-                                                                         pointCloudSampleCount, randomSeed));
+                                std::get<0>(originalObject);
 
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {

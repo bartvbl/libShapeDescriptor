@@ -55,7 +55,7 @@ struct
     int memory;
 } GPUInfo;
 
-double runDate;
+auto runDate = std::chrono::steady_clock::now().time_since_epoch().count();
 
 std::vector<std::variant<int, std::string>> generateMetadata(std::filesystem::path metadataPath)
 {
@@ -174,7 +174,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
     // This is hard coded for now, as this fits how we have structured the folder. Should be edited if you want the code more dynamic:^)
     std::string originalObjectCategory = "0-100";
 
-    std::string outputDirectory = jsonPath + std::to_string((int)runDate);
+    std::string outputDirectory = jsonPath + "/" + std::to_string((int)runDate);
     std::filesystem::create_directory(outputDirectory);
 
     float supportRadius = 1.5f;
@@ -531,7 +531,6 @@ int main(int argc, const char **argv)
     }
     else if (objectsFolder.value() != "" && originalsFolderName.value() != "" && (originalObject.value() == "" && comparisonObject.value() == ""))
     {
-        runDate = std::chrono::steady_clock::now().time_since_epoch().count();
         std::cout << "Comparing all objects in folder..." << std::endl;
         multipleObjectsBenchmark(objectsFolder.value(), originalsFolderName.value(), outputPath.value(), hardware.value(), compareFolder.value());
 

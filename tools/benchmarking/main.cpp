@@ -174,11 +174,8 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
     // This is hard coded for now, as this fits how we have structured the folder. Should be edited if you want the code more dynamic:^)
     std::string originalObjectCategory = "0-100";
 
-    std::map<std::string, ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor>> originalDescriptorsRICI;
-    std::map<std::string, ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor>> originalDescriptorsQUICCI;
-    std::map<std::string, ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor>> originalDescriptorsSI;
-    std::map<std::string, ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor>> originalDescriptors3DSC;
-    std::map<std::string, ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor>> originalDescriptorsFPFH;
+    std::string outputDirectory = jsonPath + std::to_string((int)runDate);
+    std::filesystem::create_directory(outputDirectory);
 
     float supportRadius = 1.5f;
     float supportAngleDegrees = 10.0f;
@@ -309,17 +306,13 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         {
                         case 0:
                         {
-                            ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> original;
-                            auto search = originalDescriptorsRICI.find(fileName);
+                            ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> original =
+                                std::get<0>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
+                                                                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
+                                                                         pointCloudSampleCount, randomSeed));
 
-                            if (search != originalDescriptorsRICI.end())
-                                original = search->second;
-                            else
+                            if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
-                                original = std::get<0>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
-                                                                                    supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
-                                                                                    pointCloudSampleCount, randomSeed));
-                                originalDescriptorsRICI.insert({fileName, original});
                                 originalObjectsData["results"][fileName][a.second]["generationTime"] = elapsedSecondsDescriptorOriginal.count();
                                 // The length of the descriptor is the exact number of verticies
                                 // While the vertex count in the mesh class is just faces * 3, which is can sometimes be not accurate
@@ -333,18 +326,16 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         }
                         case 1:
                         {
-                            ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> original;
-                            auto search = originalDescriptorsQUICCI.find(fileName);
+                            ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> original =
+                                std::get<1>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
+                                                                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
+                                                                         pointCloudSampleCount, randomSeed));
 
-                            if (search != originalDescriptorsQUICCI.end())
-                                original = search->second;
-                            else
+                            if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
-                                original = std::get<1>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
-                                                                                    supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
-                                                                                    pointCloudSampleCount, randomSeed));
-                                originalDescriptorsQUICCI.insert({fileName, original});
                                 originalObjectsData["results"][fileName][a.second]["generationTime"] = elapsedSecondsDescriptorOriginal.count();
+                                // The length of the descriptor is the exact number of verticies
+                                // While the vertex count in the mesh class is just faces * 3, which is can sometimes be not accurate
                                 originalObjectsData["results"][fileName]["vertexCount"] = original.length;
                             }
 
@@ -355,18 +346,16 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         }
                         case 2:
                         {
-                            ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> original;
-                            auto search = originalDescriptorsSI.find(fileName);
+                            ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> original =
+                                std::get<2>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
+                                                                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
+                                                                         pointCloudSampleCount, randomSeed));
 
-                            if (search != originalDescriptorsSI.end())
-                                original = search->second;
-                            else
+                            if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
-                                original = std::get<2>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
-                                                                                    supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
-                                                                                    pointCloudSampleCount, randomSeed));
-                                originalDescriptorsSI.insert({fileName, original});
                                 originalObjectsData["results"][fileName][a.second]["generationTime"] = elapsedSecondsDescriptorOriginal.count();
+                                // The length of the descriptor is the exact number of verticies
+                                // While the vertex count in the mesh class is just faces * 3, which is can sometimes be not accurate
                                 originalObjectsData["results"][fileName]["vertexCount"] = original.length;
                             }
 
@@ -377,18 +366,16 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         }
                         case 3:
                         {
-                            ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> original;
-                            auto search = originalDescriptors3DSC.find(fileName);
+                            ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> original =
+                                std::get<3>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
+                                                                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
+                                                                         pointCloudSampleCount, randomSeed));
 
-                            if (search != originalDescriptors3DSC.end())
-                                original = search->second;
-                            else
+                            if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
-                                original = std::get<3>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
-                                                                                    supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
-                                                                                    pointCloudSampleCount, randomSeed));
-                                originalDescriptors3DSC[fileName] = original;
                                 originalObjectsData["results"][fileName][a.second]["generationTime"] = elapsedSecondsDescriptorOriginal.count();
+                                // The length of the descriptor is the exact number of verticies
+                                // While the vertex count in the mesh class is just faces * 3, which is can sometimes be not accurate
                                 originalObjectsData["results"][fileName]["vertexCount"] = original.length;
                             }
 
@@ -399,21 +386,18 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         }
                         case 4:
                         {
-                            ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor> original;
-                            auto search = originalDescriptorsFPFH.find(fileName);
+                            ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor> original =
+                                std::get<4>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
+                                                                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
+                                                                         pointCloudSampleCount, randomSeed));
 
-                            if (search != originalDescriptorsFPFH.end())
-                                original = search->second;
-                            else
+                            if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
-                                original = std::get<4>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
-                                                                                    supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
-                                                                                    pointCloudSampleCount, randomSeed));
-                                originalDescriptorsFPFH.insert({fileName, original});
                                 originalObjectsData["results"][fileName][a.second]["generationTime"] = elapsedSecondsDescriptorOriginal.count();
+                                // The length of the descriptor is the exact number of verticies
+                                // While the vertex count in the mesh class is just faces * 3, which is can sometimes be not accurate
                                 originalObjectsData["results"][fileName]["vertexCount"] = original.length;
                             }
-
                             distanceTimeStart = std::chrono::steady_clock::now();
                             sim = calculateSimilarity<ShapeDescriptor::FPFHDescriptor>(original, std::get<4>(comparisonObject), metadata, d.first, freeArray);
                             distanceTimeEnd = std::chrono::steady_clock::now();
@@ -421,18 +405,16 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         }
                         default:
                         {
-                            ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> original;
-                            auto search = originalDescriptorsRICI.find(fileName);
+                            ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> original =
+                                std::get<0>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
+                                                                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
+                                                                         pointCloudSampleCount, randomSeed));
 
-                            if (search != originalDescriptorsRICI.end())
-                                original = search->second;
-                            else
+                            if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
-                                original = std::get<0>(generateDescriptorsForObject(meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
-                                                                                    supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
-                                                                                    pointCloudSampleCount, randomSeed));
-                                originalDescriptorsRICI.insert({fileName, original});
                                 originalObjectsData["results"][fileName][a.second]["generationTime"] = elapsedSecondsDescriptorOriginal.count();
+                                // The length of the descriptor is the exact number of verticies
+                                // While the vertex count in the mesh class is just faces * 3, which is can sometimes be not accurate
                                 originalObjectsData["results"][fileName]["vertexCount"] = original.length;
                             }
 
@@ -452,24 +434,20 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                 }
                 ShapeDescriptor::free::mesh(meshOriginal);
                 ShapeDescriptor::free::mesh(meshComparison);
-                break;
+
+                std::chrono::steady_clock::time_point timeAfter = std::chrono::steady_clock::now();
+                std::chrono::duration<double> currentTotalRunTime = timeAfter - timeStart;
+
+                jsonOutput["runTime"] = currentTotalRunTime.count();
+
+                std::string outputFilePath = outputDirectory + "/" + comparisonFolderName + ".json";
+                std::ofstream outFile(outputFilePath);
+                outFile << jsonOutput.dump(4);
+                outFile.close();
+
+                std::cout << "Results stored to " << outputFilePath << std::endl;
             }
         }
-        std::chrono::steady_clock::time_point timeAfter = std::chrono::steady_clock::now();
-        std::chrono::duration<double> totalRunTime = timeAfter - timeStart;
-
-        jsonOutput["runTime"] = totalRunTime.count();
-
-        std::string outputDirectory = jsonPath + std::to_string((int)runDate);
-
-        std::filesystem::create_directory(outputDirectory);
-
-        std::string outputFilePath = outputDirectory + "/" + comparisonFolderName + ".json";
-        std::ofstream outFile(outputFilePath);
-        outFile << jsonOutput.dump(4);
-        outFile.close();
-
-        std::cout << "Results stored to " << outputFilePath << std::endl;
     }
 }
 

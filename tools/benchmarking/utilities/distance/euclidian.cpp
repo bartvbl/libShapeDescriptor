@@ -63,6 +63,22 @@ double Benchmarking::utilities::distance::euclidianSimilarity(ShapeDescriptor::S
 }
 
 // 3D Shape Context
+double Benchmarking::utilities::distance::euclidianSimilarityOffset(ShapeDescriptor::ShapeContextDescriptor dOne, ShapeDescriptor::ShapeContextDescriptor dTwo, int sliceOffset = 0)
+{
+    double distance = 0;
+
+    for (int i = 0; i < shapeContextLength; i++)
+    {
+        int comparisonIndex = (i + (sliceOffset * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT * SHAPE_CONTEXT_LAYER_COUNT)) % shapeContextLength;
+        double diff = (double)dOne.contents[i] - (double)dTwo.contents[comparisonIndex];
+        distance += pow(diff, 2);
+    }
+
+    double similarity = 1.0 / (1.0 + sqrt(distance));
+
+    return isnan(similarity) ? 0 : similarity;
+}
+
 double Benchmarking::utilities::distance::euclidianSimilarity(ShapeDescriptor::ShapeContextDescriptor dOne, ShapeDescriptor::ShapeContextDescriptor dTwo)
 {
     double distance = 0;

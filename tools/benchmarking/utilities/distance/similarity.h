@@ -32,20 +32,30 @@ namespace Benchmarking
                     {
                         double bestSimilarity = 0;
 
-                        for (int i = 0; i < descriptorsOne.length; i++)
+                        for (int sliceOffset = 0; sliceOffset < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT - 1; sliceOffset++)
                         {
-                            ShapeDescriptor::ShapeContextDescriptor dOne = descriptorsOne.content[i];
-                            int comparisonIndex = std::get<int>(metadata.at(i));
+                            double similaritySum = 0;
 
-                            for (int sliceOffset = 0; sliceOffset < SHAPE_CONTEXT_VERTICAL_SLICE_COUNT; sliceOffset++)
+                            for (int i = 0; i < descriptorsOne.length; i++)
                             {
-                                int sliceIndex = comparisonIndex + (sliceOffset * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT) % descriptorsTwo.length;
-                                ShapeDescriptor::ShapeContextDescriptor dTwo = descriptorsTwo.content[sliceIndex];
+                                try
+                                {
+                                    int comparisonIndex = std::get<int>(metadata.at(i));
 
-                                double similarity = Benchmarking::utilities::distance::euclidianSimilarity(dOne, dTwo);
+                                    ShapeDescriptor::ShapeContextDescriptor dOne = descriptorsOne.content[i];
+                                    ShapeDescriptor::ShapeContextDescriptor dTwo = descriptorsTwo.content[comparisonIndex];
 
-                                bestSimilarity = std::max(bestSimilarity, similarity);
+                                    similaritySum += Benchmarking::utilities::distance::euclidianSimilarityOffset(dOne, dTwo, sliceOffset);
+                                }
+                                catch (std::exception e)
+                                {
+                                    continue;
+                                }
                             }
+
+                            double avgSimilarity = similaritySum / descriptorsOne.length;
+
+                            bestSimilarity = std::max(bestSimilarity, avgSimilarity);
                         }
 
                         return bestSimilarity;
@@ -90,7 +100,7 @@ namespace Benchmarking
                     }
                 }
 
-                double averageSimilarity = sumOfSimilarities / metadata.size();
+                double averageSimilarity = sumOfSimilarities / descriptorsOne.length;
 
                 return averageSimilarity;
             }

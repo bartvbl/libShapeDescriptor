@@ -19,6 +19,14 @@ cmake_minimum_required (VERSION 3.0)
 
 set(CMAKE_CXX_STANDARD 17)
 
+# Utility for baking in the current git commit into source code
+set(PRE_CONFIGURE_FILE "lib/cmake-repo-info/git.cc.in")
+set(POST_CONFIGURE_FILE "${CMAKE_CURRENT_BINARY_DIR}/git.cc")
+include(lib/cmake-repo-info/git_watcher.cmake)
+add_library(gitinfo STATIC ${POST_CONFIGURE_FILE})
+target_include_directories(gitinfo PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+add_dependencies(gitinfo check_git)
+
 find_package(OpenMP)
 add_subdirectory(lib/Catch2)
 add_subdirectory(lib/fast-lzma2 ${CMAKE_CURRENT_BINARY_DIR}/fast-lzma2)
@@ -38,10 +46,12 @@ include_directories (
 		lib/arrrgh/
 		lib/json/
 		lib/fast-lzma2/src/
+		lib/cmake-repo-info/
 		lib/
 		lib/fast-obj
 		tools/
 )
+
 
 file (GLOB_RECURSE LIBRARY_HEADERS             src/*.hpp
                                                src/*.h
@@ -94,6 +104,7 @@ set_property(TARGET quiccidumper PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
 
 add_executable(benchmarking ${BENCHMARK} ${BENCHMARK_HEADERS})
 target_link_libraries(benchmarking ShapeDescriptor)
+target_link_libraries(benchmarking gitinfo)
 set_property(TARGET benchmarking PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
 
 add_executable(quicciviewer ${QUICCI_VIEWER_TOOL_SOURCES})

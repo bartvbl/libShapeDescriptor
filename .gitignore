@@ -39,6 +39,8 @@ cmake-build-debug_/*
 cmake-build-release/*
 build-windows/*
 
+!lib/cmake-repo-info
+
 PIXEL_COUNTS/*
 misc/PIXEL_COUNTS/*
 

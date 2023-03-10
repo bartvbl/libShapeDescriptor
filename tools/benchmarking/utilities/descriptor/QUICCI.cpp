@@ -42,6 +42,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> Benchmarking::uti
         descriptor = ShapeDescriptor::copy::deviceArrayToHost(descriptorGPU);
 
         ShapeDescriptor::free::array(descriptorGPU);
+        ShapeDescriptor::free::array(tempOrigins);
         ShapeDescriptor::free::mesh(deviceMesh);
     }
     else

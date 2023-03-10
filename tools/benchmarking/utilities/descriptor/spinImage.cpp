@@ -48,6 +48,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> Benchmarking::
         descriptor = ShapeDescriptor::copy::deviceArrayToHost(descriptorGPU);
 
         ShapeDescriptor::free::array(descriptorGPU);
+        ShapeDescriptor::free::array(tempOrigins);
         ShapeDescriptor::free::mesh(deviceMesh);
         ShapeDescriptor::free::pointCloud(pointCloud);
     }

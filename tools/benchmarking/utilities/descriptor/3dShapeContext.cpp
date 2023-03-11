@@ -28,15 +28,12 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> Benchmarkin
 
     ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> descriptor;
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(mesh);
-    ShapeDescriptor::gpu::Mesh deviceMesh;
-    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOrigins;
 
     if (hardware == "gpu")
     {
-        deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
+        ShapeDescriptor::gpu::Mesh deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> tempOrigins = ShapeDescriptor::copy::hostArrayToDevice(spinOrigins);
-        deviceSpinOrigins = {tempOrigins.length, reinterpret_cast<ShapeDescriptor::OrientedPoint *>(tempOrigins.content)};
+        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOrigins = spinOrigins.copyToGPU();
 
         ShapeDescriptor::gpu::PointCloud pointCloud = ShapeDescriptor::utilities::sampleMesh(deviceMesh, sampleCount, randomSeed);
 
@@ -50,7 +47,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> Benchmarkin
         descriptor = ShapeDescriptor::copy::deviceArrayToHost(descriptorGPU);
 
         ShapeDescriptor::free::array(descriptorGPU);
-        ShapeDescriptor::free::array(tempOrigins);
+        ShapeDescriptor::free::array(deviceSpinOrigins);
         ShapeDescriptor::free::mesh(deviceMesh);
         ShapeDescriptor::free::pointCloud(pointCloud);
     }

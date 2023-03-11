@@ -22,15 +22,12 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> Benchmarking::utili
 
     ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> descriptor;
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(mesh);
-    ShapeDescriptor::gpu::Mesh deviceMesh;
-    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOrigins;
 
     if (hardware == "gpu")
     {
-        deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
+        ShapeDescriptor::gpu::Mesh deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> tempOrigins = ShapeDescriptor::copy::hostArrayToDevice(spinOrigins);
-        deviceSpinOrigins = {tempOrigins.length, reinterpret_cast<ShapeDescriptor::OrientedPoint *>(tempOrigins.content)};
+        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOrigins = spinOrigins.copyToGPU();
 
         std::chrono::steady_clock::time_point descriptorTimeStart = std::chrono::steady_clock::now();
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> descriptorGPU =
@@ -41,8 +38,8 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> Benchmarking::utili
 
         descriptor = ShapeDescriptor::copy::deviceArrayToHost(descriptorGPU);
 
+        ShapeDescriptor::free::array(deviceSpinOrigins);
         ShapeDescriptor::free::array(descriptorGPU);
-        ShapeDescriptor::free::array(tempOrigins);
         ShapeDescriptor::free::mesh(deviceMesh);
     }
     else

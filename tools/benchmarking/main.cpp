@@ -55,7 +55,7 @@ struct
     int memory;
 } GPUInfo;
 
-auto runDate = std::chrono::steady_clock::now().time_since_epoch().count();
+std::chrono::duration<double> runDate = std::chrono::steady_clock::now().time_since_epoch();
 
 std::vector<std::variant<int, std::string>> generateMetadata(std::filesystem::path metadataPath)
 {
@@ -160,6 +160,7 @@ double calculateSimilarity(ShapeDescriptor::cpu::array<T> dOriginal, ShapeDescri
 
     if (freeArray)
     {
+        ShapeDescriptor::free::array(dOriginal);
         ShapeDescriptor::free::array(dComparison);
     }
 
@@ -174,7 +175,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
     // This is hard coded for now, as this fits how we have structured the folder. Should be edited if you want the code more dynamic:^)
     std::string originalObjectCategory = "0-100";
 
-    std::string outputDirectory = jsonPath + "/" + std::to_string((int)runDate);
+    std::string outputDirectory = jsonPath + "/" + std::to_string(runDate.count());
     std::filesystem::create_directory(outputDirectory);
 
     float supportRadius = 1.5f;
@@ -210,7 +211,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
         json jsonOutput;
         std::string comparisonFolderName = folder.substr(folder.find_last_of("/") + 1);
 
-        jsonOutput["runDate"] = runDate;
+        jsonOutput["runDate"] = runDate.count();
         jsonOutput["hardware"]["type"] = hardware;
 
         jsonOutput["buildInfo"] = {};
@@ -262,16 +263,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                     comparisonObjectPath = comparisonFolder + "/" + fileName + ".obj";
 
                     meshOriginal = ShapeDescriptor::utilities::loadMesh(originalObjectPath);
-
-                    // Our GoogleDataset objects do not include any normals
-                    if (comparisonFolderName == "GoogleDataset")
-                    {
-                        meshComparison = ShapeDescriptor::utilities::loadMesh(comparisonObjectPath, true);
-                    }
-                    else
-                    {
-                        meshComparison = ShapeDescriptor::utilities::loadMesh(comparisonObjectPath);
-                    }
+                    meshComparison = ShapeDescriptor::utilities::loadMesh(comparisonObjectPath);
 
                     metadata = prepareMetadata(comparisonFolder + "/" + fileName + ".txt", meshOriginal.vertexCount);
                 }
@@ -426,6 +418,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                 }
                 ShapeDescriptor::free::mesh(meshOriginal);
                 ShapeDescriptor::free::mesh(meshComparison);
+                metadata.clear();
 
                 std::chrono::steady_clock::time_point timeAfter = std::chrono::steady_clock::now();
                 std::chrono::duration<double> currentTotalRunTime = timeAfter - timeStart;
@@ -484,49 +477,44 @@ int main(int argc, const char **argv)
 
     if (originalObject.value() != "" && comparisonObject.value() != "")
     {
-        float densities[6] = {0.05f, 0.1f, 0.5f, 1.0f, 5.0f, 10.0f};
 
-        for (float density : densities)
+        int timeStart = std::time(0);
+        std::filesystem::path objectOne = originalObject.value();
+        std::filesystem::path objectTwo = comparisonObject.value();
+
+        ShapeDescriptor::cpu::Mesh meshOne = ShapeDescriptor::utilities::loadMesh(objectOne);
+        ShapeDescriptor::cpu::Mesh meshTwo = ShapeDescriptor::utilities::loadMesh(objectTwo);
+
+        std::vector<std::variant<int, std::string>> metadata;
+
+        if (metadataPath.value() == "")
         {
-            std::cout << "Running with density " << density << std::endl;
-            int timeStart = std::time(0);
-            std::filesystem::path objectOne = originalObject.value();
-            std::filesystem::path objectTwo = comparisonObject.value();
-
-            ShapeDescriptor::cpu::Mesh meshOne = ShapeDescriptor::utilities::loadMesh(objectOne);
-            ShapeDescriptor::cpu::Mesh meshTwo = ShapeDescriptor::utilities::loadMesh(objectTwo);
-
-            std::vector<std::variant<int, std::string>> metadata;
-
-            if (metadataPath.value() == "")
-            {
-                metadata = prepareMetadata("", meshOne.vertexCount);
-            }
-            else
-            {
-                metadata = prepareMetadata(metadataPath.value());
-            }
-
-            std::chrono::duration<double> elapsedTimeOne;
-            std::chrono::duration<double> elapsedTimeTwo;
-
-            descriptorType descriptorOne = generateDescriptorsForObject(meshOne, 3, hardware.value(), elapsedTimeOne, 1.5f, 10.0f, density);
-            descriptorType descriptorTwo = generateDescriptorsForObject(meshTwo, 3, hardware.value(), elapsedTimeTwo);
-
-            double similarity = calculateSimilarity<ShapeDescriptor::ShapeContextDescriptor>(std::get<3>(descriptorOne), std::get<3>(descriptorTwo), metadata, 0, true);
-
-            std::cout << "Similarity: " << similarity << std::endl;
-
-            ShapeDescriptor::free::mesh(meshOne);
-            ShapeDescriptor::free::mesh(meshTwo);
+            metadata = prepareMetadata("", meshOne.vertexCount);
         }
+        else
+        {
+            metadata = prepareMetadata(metadataPath.value());
+        }
+
+        std::chrono::duration<double> elapsedTimeOne;
+        std::chrono::duration<double> elapsedTimeTwo;
+
+        descriptorType descriptorOne = generateDescriptorsForObject(meshOne, 0, hardware.value(), elapsedTimeOne);
+        descriptorType descriptorTwo = generateDescriptorsForObject(meshTwo, 0, hardware.value(), elapsedTimeTwo);
+
+        double similarity = calculateSimilarity<ShapeDescriptor::RICIDescriptor>(std::get<0>(descriptorOne), std::get<0>(descriptorTwo), metadata, 0, true);
+
+        std::cout << "Similarity: " << similarity << std::endl;
+
+        ShapeDescriptor::free::mesh(meshOne);
+        ShapeDescriptor::free::mesh(meshTwo);
     }
     else if (objectsFolder.value() != "" && originalsFolderName.value() != "" && (originalObject.value() == "" && comparisonObject.value() == ""))
     {
         std::cout << "Comparing all objects in folder..." << std::endl;
         multipleObjectsBenchmark(objectsFolder.value(), originalsFolderName.value(), outputPath.value(), hardware.value(), compareFolder.value());
 
-        std::string originalObjectsDataPath = outputPath.value() + std::to_string(runDate) + "/" + originalsFolderName.value() + ".json";
+        std::string originalObjectsDataPath = outputPath.value() + std::to_string(runDate.count()) + "/" + originalsFolderName.value() + ".json";
 
         std::ofstream outFile(originalObjectsDataPath);
         outFile << originalObjectsData.dump(4);

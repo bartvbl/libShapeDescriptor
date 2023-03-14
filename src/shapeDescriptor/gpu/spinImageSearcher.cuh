@@ -23,5 +23,13 @@ namespace ShapeDescriptor {
                 ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_needleDescriptors,
                 ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_haystackDescriptors,
                 ShapeDescriptor::debug::SISearchExecutionTimes* executionTimes = nullptr);
+
+        ShapeDescriptor::cpu::array<float> computeSIElementWiseEuclideanDistances(
+                ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_descriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_correspondingDescriptors);
+
+        ShapeDescriptor::cpu::array<float> computeSIElementWisePearsonCorrelations(
+                ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_descriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_correspondingDescriptors);
     }
 }

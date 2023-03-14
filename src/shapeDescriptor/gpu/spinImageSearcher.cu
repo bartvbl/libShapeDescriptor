@@ -14,6 +14,7 @@
 #include <chrono>
 #include <typeinfo>
 #include <shapeDescriptor/common/types/methods/SpinImageDescriptor.h>
+#include <shapeDescriptor/utilities/free/array.h>
 
 const unsigned int warpCount = 16;
 
@@ -419,5 +420,106 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeSpinImage
 
 
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+__global__ void computeElementWiseSIEuclideanDistances(
+        ShapeDescriptor::SpinImageDescriptor* descriptors,
+        ShapeDescriptor::SpinImageDescriptor* correspondingDescriptors,
+        float* distances) {
+    const size_t descriptorIndex = blockIdx.x;
 
+    static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes the image is a multiple of the warp size wide");
 
+    size_t needleImageIndex = blockIdx.x;
+
+    float threadSquaredSum = 0;
+
+    for(unsigned int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += blockDim.x) {
+        spinImagePixelType descriptorPixelValue = descriptors[needleImageIndex].contents[i];
+        spinImagePixelType correspondingPixelValue = correspondingDescriptors[needleImageIndex].contents[i];
+        spinImagePixelType pixelDelta = descriptorPixelValue - correspondingPixelValue;
+        threadSquaredSum += pixelDelta * pixelDelta;
+    }
+
+    float totalSquaredSum = warpAllReduceSum(threadSquaredSum);
+
+    if(threadIdx.x == 0) {
+        distances[descriptorIndex] = sqrt(totalSquaredSum);
+    }
+}
+#endif
+
+ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::computeSIElementWiseEuclideanDistances(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_descriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_correspondingDescriptors) {
+
+    ShapeDescriptor::gpu::array<float> device_distances(device_descriptors.length);
+
+    computeElementWiseSIEuclideanDistances<<<device_descriptors.length, 32>>>(
+            device_descriptors.content,
+            device_correspondingDescriptors.content,
+            device_distances.content);
+
+    checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+
+    ShapeDescriptor::cpu::array<float> distances = device_distances.copyToCPU();
+
+    ShapeDescriptor::free::array(device_distances);
+
+    return distances;
+}
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+__global__ void computeElementWiseSIPearsonCorrelations(
+        ShapeDescriptor::SpinImageDescriptor* descriptors,
+        ShapeDescriptor::SpinImageDescriptor* correspondingDescriptors,
+        const float* descriptorAverages,
+        const float* correspondingDescriptorAverages,
+        float* distances) {
+    const size_t descriptorIndex = blockIdx.x;
+
+    static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes the image is a multiple of the warp size wide");
+
+    size_t needleImageIndex = blockIdx.x;
+    float descriptorAverage = descriptorAverages[needleImageIndex];
+    float correspondingAverage = correspondingDescriptorAverages[needleImageIndex];
+
+    float distanceScore = computeSpinImagePairCorrelationGPU(
+            descriptors, correspondingDescriptors,
+            needleImageIndex, needleImageIndex,
+            descriptorAverage, correspondingAverage);
+
+    if(threadIdx.x == 0) {
+        distances[descriptorIndex] = distanceScore;
+    }
+}
+#endif
+
+ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::computeSIElementWisePearsonCorrelations(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_descriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_correspondingDescriptors) {
+    ShapeDescriptor::gpu::array<float> descriptorAverages(device_descriptors.length);
+    ShapeDescriptor::gpu::array<float> correspondingAverages(device_correspondingDescriptors.length);
+
+    calculateImageAverages<<<device_descriptors.length, 32>>>(device_descriptors.content, descriptorAverages.content);
+    calculateImageAverages<<<device_descriptors.length, 32>>>(device_correspondingDescriptors.content, correspondingAverages.content);
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    ShapeDescriptor::gpu::array<float> device_distances(device_descriptors.length);
+
+    computeElementWiseSIPearsonCorrelations<<<device_descriptors.length, 32>>>(
+            device_descriptors.content,
+            device_correspondingDescriptors.content,
+            descriptorAverages.content, correspondingAverages.content, device_distances.content);
+
+    checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+
+    ShapeDescriptor::cpu::array<float> distances = device_distances.copyToCPU();
+
+    ShapeDescriptor::free::array(device_distances);
+    ShapeDescriptor::free::array(descriptorAverages);
+    ShapeDescriptor::free::array(correspondingAverages);
+
+    return distances;
+}

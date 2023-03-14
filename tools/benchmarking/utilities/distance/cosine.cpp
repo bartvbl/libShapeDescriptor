@@ -69,6 +69,26 @@ double Benchmarking::utilities::distance::cosineSimilarity(ShapeDescriptor::Spin
 }
 
 // 3D Shape Context
+double Benchmarking::utilities::distance::cosineSimilarityOffset(ShapeDescriptor::ShapeContextDescriptor dOne, ShapeDescriptor::ShapeContextDescriptor dTwo, int sliceOffset)
+{
+    double dot = 0;
+    double denominationA = 0;
+    double denominationB = 0;
+
+    for (int i = 0; i < shapeContextLength; i++)
+    {
+        int comparisonIndex = (i + (sliceOffset * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT * SHAPE_CONTEXT_LAYER_COUNT)) % shapeContextLength;
+
+        dot += (double)dOne.contents[i] * (double)dTwo.contents[comparisonIndex];
+        denominationA += pow((double)dOne.contents[i], 2);
+        denominationB += pow((double)dTwo.contents[comparisonIndex], 2);
+    }
+
+    double similarity = dot / sqrt(denominationA * denominationB);
+
+    return isnan(similarity) ? 0 : similarity;
+}
+
 double Benchmarking::utilities::distance::cosineSimilarity(ShapeDescriptor::ShapeContextDescriptor dOne, ShapeDescriptor::ShapeContextDescriptor dTwo)
 {
     double dot = 0;

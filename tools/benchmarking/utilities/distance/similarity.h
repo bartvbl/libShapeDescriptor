@@ -26,40 +26,61 @@ namespace Benchmarking
                 std::cout << "Calculating the similarity of the two objects" << std::endl
                           << std::flush;
 
-                if (distanceFunction == 1)
+                if constexpr (std::is_same_v<T, ShapeDescriptor::ShapeContextDescriptor>)
                 {
-                    if constexpr (std::is_same_v<T, ShapeDescriptor::ShapeContextDescriptor>)
+                    double bestSimilarity = 0;
+
+                    double (*similarityFunctionOffset)(T, T, int);
+
+                    switch (distanceFunction)
                     {
-                        double bestSimilarity = 0;
+                    case 0:
+                    {
+                        similarityFunctionOffset = &cosineSimilarityOffset;
+                        std::cout << "Using Cosine Similarity" << std::endl;
+                        break;
+                    }
+                    case 1:
+                    {
+                        similarityFunctionOffset = &euclidianSimilarityOffset;
+                        std::cout << "Using Euclidian Similarity" << std::endl;
+                        break;
+                    }
+                    default:
+                    {
+                        std::cout << "Invalid distance function specified. Defaulting to Euclidian Similarity" << std::endl;
+                        similarityFunctionOffset = &euclidianSimilarityOffset;
+                        break;
+                    }
+                    }
 
-                        for (int sliceOffset = 0; sliceOffset < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT - 1; sliceOffset++)
+                    for (int sliceOffset = 0; sliceOffset < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT - 1; sliceOffset++)
+                    {
+                        double similaritySum = 0;
+
+                        for (int i = 0; i < descriptorsOne.length; i++)
                         {
-                            double similaritySum = 0;
-
-                            for (int i = 0; i < descriptorsOne.length; i++)
+                            try
                             {
-                                try
-                                {
-                                    int comparisonIndex = std::get<int>(metadata.at(i));
+                                int comparisonIndex = std::get<int>(metadata.at(i));
 
-                                    ShapeDescriptor::ShapeContextDescriptor dOne = descriptorsOne.content[i];
-                                    ShapeDescriptor::ShapeContextDescriptor dTwo = descriptorsTwo.content[comparisonIndex];
+                                ShapeDescriptor::ShapeContextDescriptor dOne = descriptorsOne.content[i];
+                                ShapeDescriptor::ShapeContextDescriptor dTwo = descriptorsTwo.content[comparisonIndex];
 
-                                    similaritySum += Benchmarking::utilities::distance::euclidianSimilarityOffset(dOne, dTwo, sliceOffset);
-                                }
-                                catch (std::exception e)
-                                {
-                                    continue;
-                                }
+                                similaritySum += similarityFunctionOffset(dOne, dTwo, sliceOffset);
                             }
-
-                            double avgSimilarity = similaritySum / descriptorsOne.length;
-
-                            bestSimilarity = std::max(bestSimilarity, avgSimilarity);
+                            catch (std::exception e)
+                            {
+                                continue;
+                            }
                         }
 
-                        return bestSimilarity;
+                        double avgSimilarity = similaritySum / descriptorsOne.length;
+
+                        bestSimilarity = std::max(bestSimilarity, avgSimilarity);
                     }
+
+                    return bestSimilarity;
                 }
 
                 double sumOfSimilarities = 0;

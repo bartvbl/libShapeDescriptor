@@ -55,9 +55,10 @@ struct
     int memory;
 } GPUInfo;
 
-std::chrono::duration<double> runDate = std::chrono::steady_clock::now().time_since_epoch();
+const auto runDate = std::chrono::system_clock::now();
 
-std::vector<std::variant<int, std::string>> generateMetadata(std::filesystem::path metadataPath)
+std::vector<std::variant<int, std::string>>
+generateMetadata(std::filesystem::path metadataPath)
 {
     std::vector<std::variant<int, std::string>> metadata;
     std::ifstream metadataFile;
@@ -84,6 +85,14 @@ std::vector<std::variant<int, std::string>> generateMetadata(std::filesystem::pa
     }
 
     return metadata;
+}
+
+std::string getRunDate()
+{
+    auto in_time_t = std::chrono::system_clock::to_time_t(runDate);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d-%H:%M:%S");
+    return ss.str();
 }
 
 std::vector<std::variant<int, std::string>> prepareMetadata(std::filesystem::path metadataPath, int length = 0)
@@ -167,6 +176,17 @@ double calculateSimilarity(ShapeDescriptor::cpu::array<T> dOriginal, ShapeDescri
     return sim;
 }
 
+int getNumberOfFilesInFolder(std::string folderPath)
+{
+    int numberOfFiles = 0;
+    for (const auto &entry : std::filesystem::directory_iterator(folderPath))
+    {
+        numberOfFiles++;
+    }
+
+    return numberOfFiles;
+}
+
 void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFolderName, std::string jsonPath, std::string hardware, std::string compareFolder)
 {
     std::vector<std::string> folders;
@@ -175,7 +195,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
     // This is hard coded for now, as this fits how we have structured the folder. Should be edited if you want the code more dynamic:^)
     std::string originalObjectCategory = "0-100";
 
-    std::string outputDirectory = jsonPath + "/" + std::to_string(runDate.count());
+    std::string outputDirectory = jsonPath + "/" + getRunDate();
     std::filesystem::create_directory(outputDirectory);
 
     float supportRadius = 1.5f;
@@ -211,7 +231,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
         json jsonOutput;
         std::string comparisonFolderName = folder.substr(folder.find_last_of("/") + 1);
 
-        jsonOutput["runDate"] = runDate.count();
+        jsonOutput["runDate"] = getRunDate();
         jsonOutput["hardware"]["type"] = hardware;
 
         jsonOutput["buildInfo"] = {};
@@ -326,8 +346,6 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
                                 originalObjectsData["results"][fileName][a.second]["generationTime"] = elapsedSecondsDescriptorOriginal.count();
-                                // The length of the descriptor is the exact number of verticies
-                                // While the vertex count in the mesh class is just faces * 3, which is can sometimes be not accurate
                                 originalObjectsData["results"][fileName]["vertexCount"] = original.length;
                             }
 
@@ -344,8 +362,6 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
                                 originalObjectsData["results"][fileName][a.second]["generationTime"] = elapsedSecondsDescriptorOriginal.count();
-                                // The length of the descriptor is the exact number of verticies
-                                // While the vertex count in the mesh class is just faces * 3, which is can sometimes be not accurate
                                 originalObjectsData["results"][fileName]["vertexCount"] = original.length;
                             }
 
@@ -362,8 +378,6 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
                                 originalObjectsData["results"][fileName][a.second]["generationTime"] = elapsedSecondsDescriptorOriginal.count();
-                                // The length of the descriptor is the exact number of verticies
-                                // While the vertex count in the mesh class is just faces * 3, which is can sometimes be not accurate
                                 originalObjectsData["results"][fileName]["vertexCount"] = original.length;
                             }
 
@@ -380,8 +394,6 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
                                 originalObjectsData["results"][fileName][a.second]["generationTime"] = elapsedSecondsDescriptorOriginal.count();
-                                // The length of the descriptor is the exact number of verticies
-                                // While the vertex count in the mesh class is just faces * 3, which is can sometimes be not accurate
                                 originalObjectsData["results"][fileName]["vertexCount"] = original.length;
                             }
                             distanceTimeStart = std::chrono::steady_clock::now();
@@ -397,8 +409,6 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
                                 originalObjectsData["results"][fileName][a.second]["generationTime"] = elapsedSecondsDescriptorOriginal.count();
-                                // The length of the descriptor is the exact number of verticies
-                                // While the vertex count in the mesh class is just faces * 3, which is can sometimes be not accurate
                                 originalObjectsData["results"][fileName]["vertexCount"] = original.length;
                             }
 
@@ -477,6 +487,7 @@ int main(int argc, const char **argv)
 
     if (originalObject.value() != "" && comparisonObject.value() != "")
     {
+        std::cout << "runDate " << getRunDate() << std::endl;
 
         int timeStart = std::time(0);
         std::filesystem::path objectOne = originalObject.value();
@@ -499,22 +510,22 @@ int main(int argc, const char **argv)
         std::chrono::duration<double> elapsedTimeOne;
         std::chrono::duration<double> elapsedTimeTwo;
 
-        descriptorType descriptorOne = generateDescriptorsForObject(meshOne, 0, hardware.value(), elapsedTimeOne);
-        descriptorType descriptorTwo = generateDescriptorsForObject(meshTwo, 0, hardware.value(), elapsedTimeTwo);
-
-        double similarity = calculateSimilarity<ShapeDescriptor::RICIDescriptor>(std::get<0>(descriptorOne), std::get<0>(descriptorTwo), metadata, 0, true);
-
-        std::cout << "Similarity: " << similarity << std::endl;
+        descriptorType descriptorOne = generateDescriptorsForObject(meshOne, 3, hardware.value(), elapsedTimeOne);
+        descriptorType descriptorTwo = generateDescriptorsForObject(meshTwo, 3, hardware.value(), elapsedTimeTwo);
 
         ShapeDescriptor::free::mesh(meshOne);
         ShapeDescriptor::free::mesh(meshTwo);
+
+        double similarity = calculateSimilarity<ShapeDescriptor::ShapeContextDescriptor>(std::get<3>(descriptorOne), std::get<3>(descriptorTwo), metadata, 0, true);
+
+        std::cout << "Similarity: " << similarity << std::endl;
     }
     else if (objectsFolder.value() != "" && originalsFolderName.value() != "" && (originalObject.value() == "" && comparisonObject.value() == ""))
     {
         std::cout << "Comparing all objects in folder..." << std::endl;
         multipleObjectsBenchmark(objectsFolder.value(), originalsFolderName.value(), outputPath.value(), hardware.value(), compareFolder.value());
 
-        std::string originalObjectsDataPath = outputPath.value() + std::to_string(runDate.count()) + "/" + originalsFolderName.value() + ".json";
+        std::string originalObjectsDataPath = outputPath.value() + getRunDate() + "/" + originalsFolderName.value() + ".json";
 
         std::ofstream outFile(originalObjectsDataPath);
         outFile << originalObjectsData.dump(4);

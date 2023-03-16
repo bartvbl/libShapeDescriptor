@@ -87,14 +87,6 @@ generateMetadata(std::filesystem::path metadataPath)
     return metadata;
 }
 
-std::string getRunDate()
-{
-    auto in_time_t = std::chrono::system_clock::to_time_t(runDate);
-    std::stringstream ss;
-    ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d-%H:%M:%S");
-    return ss.str();
-}
-
 std::vector<std::variant<int, std::string>> prepareMetadata(std::filesystem::path metadataPath, int length = 0)
 {
     if (std::filesystem::exists(metadataPath))
@@ -103,6 +95,14 @@ std::vector<std::variant<int, std::string>> prepareMetadata(std::filesystem::pat
     }
 
     return Benchmarking::utilities::distance::generateFakeMetadata(length);
+}
+
+std::string getRunDate()
+{
+    auto in_time_t = std::chrono::system_clock::to_time_t(runDate);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d-%H:%M:%S");
+    return ss.str();
 }
 
 descriptorType generateDescriptorsForObject(ShapeDescriptor::cpu::Mesh mesh,
@@ -187,10 +187,17 @@ int getNumberOfFilesInFolder(std::string folderPath)
     return numberOfFiles;
 }
 
-void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFolderName, std::string jsonPath, std::string hardware, std::string compareFolder)
+void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFolderName, std::string jsonPath, std::string hardware, std::string compareFolder, std::string previousRunPath)
 {
     std::vector<std::string> folders;
     std::string originalObjectFolderPath;
+
+    json previousRun;
+    if (std::filesystem::exists(previousRunPath))
+    {
+        std::ifstream jsonFile(previousRunPath);
+        previousRun = json::parse(jsonFile);
+    }
 
     // This is hard coded for now, as this fits how we have structured the folder. Should be edited if you want the code more dynamic:^)
     std::string originalObjectCategory = "0-100";
@@ -234,10 +241,9 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
         jsonOutput["runDate"] = getRunDate();
         jsonOutput["hardware"]["type"] = hardware;
 
-        jsonOutput["buildInfo"] = {};
-        jsonOutput["buildinfo"]["commit"] = GitMetadata::CommitSHA1();
-        jsonOutput["buildinfo"]["commit_author"] = GitMetadata::AuthorEmail();
-        jsonOutput["buildinfo"]["commit_date"] = GitMetadata::CommitSubject();
+        jsonOutput["buildInfo"]["commit"] = GitMetadata::CommitSHA1();
+        jsonOutput["buildInfo"]["commit_author"] = GitMetadata::AuthorEmail();
+        jsonOutput["buildInfo"]["commit_date"] = GitMetadata::CommitSubject();
 
         jsonOutput["static"] = {};
         jsonOutput["static"]["supportRadius"] = supportRadius;
@@ -293,12 +299,18 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                     continue;
                 }
 
-                jsonOutput["results"][fileName][comparisonFolderName]["vertexCount"] = meshComparison.vertexCount;
+                jsonOutput["results"][fileName][comparisonFolderName][category]["vertexCount"] = meshComparison.vertexCount;
 
                 for (auto a : descriptorAlgorithms)
                 {
                     std::chrono::duration<double> elapsedSecondsDescriptorComparison;
                     std::chrono::duration<double> elapsedSecondsDescriptorOriginal;
+
+                    if (previousRun["results"][fileName][comparisonFolderName][a.second][category].size() > 0)
+                    {
+                        jsonOutput["results"][fileName][comparisonFolderName][a.second][category] = previousRun["results"][fileName][comparisonFolderName][a.second][category];
+                        continue;
+                    }
 
                     descriptorType comparisonObject = generateDescriptorsForObject(
                         meshComparison, a.first, hardware, elapsedSecondsDescriptorComparison,
@@ -454,6 +466,7 @@ int main(int argc, const char **argv)
     const auto &objectsFolder = parser.add<std::string>("objects-folder", "Folder consisting of sub-directories with all the different objects and their metadata", 'f', arrrgh::Optional, "");
     const auto &originalsFolderName = parser.add<std::string>("originals-folder", "Folder name with all the original objects (for example, RecalculatedNormals)", 'n', arrrgh::Optional, "RecalculatedNormals");
     const auto &compareFolder = parser.add<std::string>("compare-folder", "If you only want to compare the originals to a specific folder (for example, ObjectsWithHoles)", 'F', arrrgh::Optional, "");
+    const auto &previousRunFile = parser.add<std::string>("previous-run", "Path to a JSON file containing data from a previous run", 'P', arrrgh::Optional, "");
     const auto &metadataPath = parser.add<std::string>("metadata", "Path to metadata describing which vertecies that are changed", 'm', arrrgh::Optional, "");
     const auto &outputPath = parser.add<std::string>("output-path", "Path to the output", 'p', arrrgh::Optional, "");
     const auto &descriptorAlgorithm = parser.add<int>("descriptor-algorithm", "Which descriptor algorithm to use [0 for radial-intersection-count-images, 1 for quick-intersection-count-change-images ...will add more:)]", 'a', arrrgh::Optional, 0);
@@ -523,9 +536,11 @@ int main(int argc, const char **argv)
     else if (objectsFolder.value() != "" && originalsFolderName.value() != "" && (originalObject.value() == "" && comparisonObject.value() == ""))
     {
         std::cout << "Comparing all objects in folder..." << std::endl;
-        multipleObjectsBenchmark(objectsFolder.value(), originalsFolderName.value(), outputPath.value(), hardware.value(), compareFolder.value());
+        multipleObjectsBenchmark(objectsFolder.value(), originalsFolderName.value(), outputPath.value(), hardware.value(), compareFolder.value(), previousRunFile.value());
 
-        std::string originalObjectsDataPath = outputPath.value() + getRunDate() + "/" + originalsFolderName.value() + ".json";
+        std::string originalObjectsDataPath = outputPath.value() + "/" + getRunDate() + "/" + originalsFolderName.value() + ".json";
+
+        std::cout << "Writing original objects data to " << originalObjectsDataPath << std::endl;
 
         std::ofstream outFile(originalObjectsDataPath);
         outFile << originalObjectsData.dump(4);

@@ -8,6 +8,7 @@
 
 #include <shapeDescriptor/cpu/types/array.h>
 #include <shapeDescriptor/gpu/types/array.h>
+#include <shapeDescriptor/utilities/free/array.h>
 #include "fastPointFeatureHistogramSearcher.cuh"
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
@@ -178,3 +179,54 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeFPFHSearc
 
 
 
+
+
+
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+__global__ void computeElementWiseFPFHEuclideanDistances(
+        ShapeDescriptor::FPFHDescriptor* descriptors,
+        ShapeDescriptor::FPFHDescriptor* correspondingDescriptors,
+        float* distances) {
+    const size_t descriptorIndex = blockIdx.x;
+
+    static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes the image is a multiple of the warp size wide");
+
+    size_t needleImageIndex = blockIdx.x;
+
+    float threadSquaredSum = 0;
+
+    for(unsigned int i = threadIdx.x; i < 3 * FPFH_BINS_PER_FEATURE; i += blockDim.x) {
+        float descriptorPixelValue = descriptors[needleImageIndex].contents[i];
+        float correspondingPixelValue = correspondingDescriptors[needleImageIndex].contents[i];
+        float pixelDelta = descriptorPixelValue - correspondingPixelValue;
+        threadSquaredSum += pixelDelta * pixelDelta;
+    }
+
+    float totalSquaredSum = warpAllReduceSum(threadSquaredSum);
+
+    if(threadIdx.x == 0) {
+        distances[descriptorIndex] = sqrt(totalSquaredSum);
+    }
+}
+#endif
+
+ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::computeFPFHElementWiseEuclideanDistances(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_descriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_correspondingDescriptors) {
+    ShapeDescriptor::gpu::array<float> device_distances(device_descriptors.length);
+
+    computeElementWiseFPFHEuclideanDistances<<<device_descriptors.length, 32>>>(
+            device_descriptors.content,
+            device_correspondingDescriptors.content,
+            device_distances.content);
+
+    checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+
+    ShapeDescriptor::cpu::array<float> distances = device_distances.copyToCPU();
+
+    ShapeDescriptor::free::array(device_distances);
+
+    return distances;
+}

@@ -203,7 +203,6 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
     std::string originalObjectCategory = "0-100";
 
     std::string outputDirectory = jsonPath + "/" + getRunDate();
-    std::filesystem::create_directory(outputDirectory);
 
     float supportRadius = 1.5f;
     float supportAngleDegrees = 60.0f;
@@ -211,7 +210,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
     float minSupportRadius = 0.1f;
     float maxSupportRadius = 2.5f;
     size_t pointCloudSampleCount = 200000;
-    size_t randomSeed = 133713375318008;
+    size_t randomSeed = 4917133789385064;
 
     for (auto &p : std::filesystem::directory_iterator(objectsFolder))
     {
@@ -237,6 +236,11 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
         std::chrono::steady_clock::time_point timeStart = std::chrono::steady_clock::now();
         json jsonOutput;
         std::string comparisonFolderName = folder.substr(folder.find_last_of("/") + 1);
+
+        if (!std::filesystem::exists(outputDirectory + "-" + comparisonFolderName))
+        {
+            std::filesystem::create_directory(outputDirectory + "-" + comparisonFolderName);
+        }
 
         jsonOutput["runDate"] = getRunDate();
         jsonOutput["hardware"]["type"] = hardware;
@@ -447,7 +451,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
 
                 jsonOutput["runTime"] = currentTotalRunTime.count();
 
-                std::string outputFilePath = outputDirectory + "/" + comparisonFolderName + ".json";
+                std::string outputFilePath = outputDirectory + "-" + comparisonFolderName + "/" + comparisonFolderName + ".json";
                 std::ofstream outFile(outputFilePath);
                 outFile << jsonOutput.dump(4);
                 outFile.close();
@@ -538,7 +542,7 @@ int main(int argc, const char **argv)
         std::cout << "Comparing all objects in folder..." << std::endl;
         multipleObjectsBenchmark(objectsFolder.value(), originalsFolderName.value(), outputPath.value(), hardware.value(), compareFolder.value(), previousRunFile.value());
 
-        std::string originalObjectsDataPath = outputPath.value() + "/" + getRunDate() + "/" + originalsFolderName.value() + ".json";
+        std::string originalObjectsDataPath = outputPath.value() + "/" + getRunDate() + "-" + originalsFolderName.value() + "/" + originalsFolderName.value() + ".json";
 
         std::cout << "Writing original objects data to " << originalObjectsDataPath << std::endl;
 

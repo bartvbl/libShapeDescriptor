@@ -110,7 +110,7 @@ descriptorType generateDescriptorsForObject(ShapeDescriptor::cpu::Mesh mesh,
                                             std::string hardware,
                                             std::chrono::duration<double> &elapsedTime,
                                             float supportRadius = 2.5f,
-                                            float supportAngleDegrees = 10.0f,
+                                            float supportAngleDegrees = 60.0f,
                                             float pointDensityRadius = 0.2f,
                                             float minSupportRadius = 0.1f,
                                             float maxSupportRadius = 2.5f,
@@ -206,7 +206,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
     std::filesystem::create_directory(outputDirectory);
 
     float supportRadius = 1.5f;
-    float supportAngleDegrees = 10.0f;
+    float supportAngleDegrees = 60.0f;
     float pointDensityRadius = 0.2f;
     float minSupportRadius = 0.1f;
     float maxSupportRadius = 2.5f;
@@ -299,7 +299,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                     continue;
                 }
 
-                jsonOutput["results"][fileName][comparisonFolderName][category]["vertexCount"] = meshComparison.vertexCount;
+                jsonOutput["results"][fileName][comparisonFolderName]["vertexCounts"][category]["vertexCount"] = meshComparison.vertexCount;
 
                 for (auto a : descriptorAlgorithms)
                 {

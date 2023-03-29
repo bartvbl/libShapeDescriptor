@@ -205,7 +205,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
     std::string outputDirectory = jsonPath + "/" + getRunDate();
 
     float supportRadius = 1.5f;
-    float supportAngleDegrees = 60.0f;
+    float supportAngleDegrees = 0.0f;
     float pointDensityRadius = 0.2f;
     float minSupportRadius = 0.1f;
     float maxSupportRadius = 2.5f;

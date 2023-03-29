@@ -3,6 +3,7 @@
 #include "fileutils.h"
 #include <algorithm>
 #include <array>
+#include <random>
 #include <shapeDescriptor/utilities/compress/byteCompressor.h>
 
 
@@ -107,4 +108,14 @@ ShapeDescriptor::utilities::readCompressedFileUpToNBytes(const std::filesystem::
                                                          size_t decompressedBytesToRead,
                                                          unsigned int threadCount) {
     return readLZMAFile(archiveFile, readByteCount, decompressedBytesToRead, threadCount);
+}
+
+std::string ShapeDescriptor::utilities::generateUniqueFilenameString() {
+    time_t currentTime = std::time(nullptr);
+    tm convertedTime = *std::localtime(&currentTime);
+
+    std::stringstream stream;
+    // Probably should include milliseconds too
+    stream << std::put_time(&convertedTime, "%Y%m%d-%H%M%S");
+    return stream.str();
 }

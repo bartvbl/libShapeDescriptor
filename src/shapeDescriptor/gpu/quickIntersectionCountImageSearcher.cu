@@ -6,6 +6,7 @@
 #endif
 
 #include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
+#include <shapeDescriptor/utilities/free/array.h>
 #include <chrono>
 #include <iostream>
 #include <shapeDescriptor/utilities/weightedHamming.cuh>
@@ -316,31 +317,89 @@ __global__ void computeElementWiseQUICCIDistances(
 }
 #endif
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+__global__ void computeElementWiseQUICCIWeightedHammingDistances(
+        ShapeDescriptor::QUICCIDescriptor* descriptors,
+        ShapeDescriptor::QUICCIDescriptor* correspondingDescriptors,
+        float* distances) {
+    const size_t descriptorIndex = blockIdx.x;
+    const int laneIndex = threadIdx.x;
+    static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes the image is a multiple of the warp size wide");
+
+    int referenceImageBitCount = computeImageSumGPU(descriptors, descriptorIndex);
+
+    ShapeDescriptor::utilities::HammingWeights hammingWeights = ShapeDescriptor::utilities::computeWeightedHammingWeights(referenceImageBitCount, spinImageWidthPixels * spinImageWidthPixels);
+
+    bool needleImageIsConstant = referenceImageBitCount == 0;
+
+    float threadWeightedHammingDistance = 0;
+
+    if(!needleImageIsConstant) {
+        for (int chunk = laneIndex; chunk < uintsPerQUICCImage; chunk += warpSize) {
+            unsigned int needleChunk = getChunkAt(descriptors, descriptorIndex, chunk);
+            unsigned int haystackChunk = getChunkAt(correspondingDescriptors, descriptorIndex, chunk);
+            threadWeightedHammingDistance += ShapeDescriptor::utilities::computeChunkWeightedHammingDistance(hammingWeights, needleChunk, haystackChunk);
+        }
+    } else {
+        for (int chunk = laneIndex; chunk < uintsPerQUICCImage; chunk += warpSize) {
+            unsigned int haystackChunk =
+                    getChunkAt(correspondingDescriptors, descriptorIndex, chunk);
+
+            // Constant image is empty. Hence we only need to look at the haystack side of things.
+            // Since a constant needle image will always use this function for ranking, and due to avoiding zero
+            // division errors the weight of a missed unset bit is always 1, we can use the same ranking function
+            // for weighted hamming as the other ranking functions.
+            threadWeightedHammingDistance += float(__popc(haystackChunk));
+        }
+    }
+
+    float weightedHammingDistance = warpAllReduceSum(threadWeightedHammingDistance);
+
+    if(threadIdx.x == 0) {
+        distances[descriptorIndex] = weightedHammingDistance;
+    }
+}
+#endif
+
 ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDistances>
 ShapeDescriptor::gpu::computeQUICCIElementWiseDistances(ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_descriptors,
                                                   ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_correspondingDescriptors) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
-    size_t searchResultBufferSize = device_descriptors.length * sizeof(ShapeDescriptor::gpu::QUICCIDistances);
-    ShapeDescriptor::gpu::QUICCIDistances* device_searchResults;
-    checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
-    checkCudaErrors(cudaMemset(device_searchResults, 0, searchResultBufferSize));
+    ShapeDescriptor::gpu::array<ShapeDescriptor::gpu::QUICCIDistances> distances(device_descriptors.length);
 
     computeElementWiseQUICCIDistances<<<device_descriptors.length, 32>>>(
         device_descriptors.content,
         device_correspondingDescriptors.content,
-        device_searchResults);
+        distances.content);
 
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 
-    ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDistances> resultDistances;
-    resultDistances.content = new ShapeDescriptor::gpu::QUICCIDistances[device_descriptors.length];
-    resultDistances.length = device_descriptors.length;
+    ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDistances> resultDistances = distances.copyToCPU();
+    ShapeDescriptor::free::array(distances);
 
-    checkCudaErrors(cudaMemcpy(resultDistances.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));
+    return resultDistances;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
+}
 
-    // Cleanup
-    cudaFree(device_searchResults);
+ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::computeQUICCIElementWiseWeightedHammingDistances(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_descriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_correspondingDescriptors) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+    ShapeDescriptor::gpu::array<float> distances(device_descriptors.length);
+
+    computeElementWiseQUICCIWeightedHammingDistances<<<device_descriptors.length, 32>>>(
+            device_descriptors.content,
+            device_correspondingDescriptors.content,
+            distances.content);
+
+    checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+
+    ShapeDescriptor::cpu::array<float> resultDistances = distances.copyToCPU();
+    ShapeDescriptor::free::array(distances);
 
     return resultDistances;
 #else

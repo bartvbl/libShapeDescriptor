@@ -38,5 +38,9 @@ namespace ShapeDescriptor {
         ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::QUICCIDistances> computeQUICCIElementWiseDistances(
                 ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_descriptors,
                 ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_correspondingDescriptors);
+
+        ShapeDescriptor::cpu::array<float> computeQUICCIElementWiseWeightedHammingDistances(
+                ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_descriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> device_correspondingDescriptors);
     }
 }

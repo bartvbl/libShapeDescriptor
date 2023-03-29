@@ -14,5 +14,9 @@ namespace ShapeDescriptor {
                 ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_needleDescriptors,
                 ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_haystackDescriptors,
                 ShapeDescriptor::debug::FPFHSearchExecutionTimes* executionTimes = nullptr);
+
+        ShapeDescriptor::cpu::array<float> computeFPFHElementWiseEuclideanDistances(
+                ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_descriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_correspondingDescriptors);
     }
 }

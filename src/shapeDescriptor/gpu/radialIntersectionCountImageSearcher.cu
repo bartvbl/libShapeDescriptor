@@ -14,6 +14,7 @@
 #include <chrono>
 #include <typeinfo>
 #include <shapeDescriptor/common/types/methods/RICIDescriptor.h>
+#include <shapeDescriptor/utilities/free/array.h>
 #include <shapeDescriptor/cpu/types/array.h>
 #include <shapeDescriptor/gpu/types/array.h>
 #include "types/ImageSearchResults.h"
@@ -495,6 +496,76 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> S
     cudaFree(device_searchResults);
 
     return searchResults;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+__global__ void computeElementWiseRICIDistances(
+        ShapeDescriptor::RICIDescriptor* descriptors,
+        ShapeDescriptor::RICIDescriptor* correspondingDescriptors,
+        int* distances) {
+    const size_t descriptorIndex = blockIdx.x;
+
+    static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes the image is a multiple of the warp size wide");
+
+    int distanceScore;
+    size_t needleImageIndex = blockIdx.x;
+    int needleSquaredSum = computeImageSquaredSumGPU(descriptors[needleImageIndex]);
+    bool needleImageIsConstant = needleSquaredSum == 0;
+
+    if(!needleImageIsConstant) {
+        distanceScore = compareRadialIntersectionCountImagePairGPU(
+                descriptors, needleImageIndex,
+                correspondingDescriptors, needleImageIndex);
+    } else {
+        distanceScore = compareConstantRadialIntersectionCountImagePairGPU(
+                descriptors, needleImageIndex,
+                correspondingDescriptors, needleImageIndex);
+    }
+
+    if(threadIdx.x == 0) {
+        distances[descriptorIndex] = distanceScore;
+    }
+}
+#endif
+
+ShapeDescriptor::cpu::array<int> ShapeDescriptor::gpu::computeRICIElementWiseModifiedSquareSumDistances(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_descriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_correspondingDescriptors) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+    ShapeDescriptor::gpu::array<int> device_distances(device_descriptors.length);
+
+    computeElementWiseRICIDistances<<<device_descriptors.length, 32>>>(
+            device_descriptors.content,
+            device_correspondingDescriptors.content,
+            device_distances.content);
+
+    checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+
+    ShapeDescriptor::cpu::array<int> resultDistances = device_distances.copyToCPU();
+    ShapeDescriptor::free::array(device_distances);
+
+    return resultDistances;
 #else
     throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
 #endif

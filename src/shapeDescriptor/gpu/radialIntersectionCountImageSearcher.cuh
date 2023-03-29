@@ -22,5 +22,9 @@ namespace ShapeDescriptor {
                 ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_needleDescriptors,
                 ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackDescriptors,
                 ShapeDescriptor::debug::RICISearchExecutionTimes* executionTimes = nullptr);
+
+        ShapeDescriptor::cpu::array<int> computeRICIElementWiseModifiedSquareSumDistances(
+                ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_descriptors,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_correspondingDescriptors);
     }
 }

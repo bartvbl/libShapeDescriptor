@@ -1,9 +1,10 @@
 #include "spinOriginsGenerator.h"
 #include <unordered_set>
 #include <vector>
+#include <unordered_map>
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint>
-ShapeDescriptor::utilities::generateSpinOriginBuffer(ShapeDescriptor::cpu::Mesh &mesh) {
+ShapeDescriptor::utilities::generateSpinOriginBuffer(const ShapeDescriptor::cpu::Mesh &mesh) {
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> originBuffer(mesh.vertexCount);
     for(size_t i = 0; i < mesh.vertexCount; i++) {
         originBuffer.content[i] = ShapeDescriptor::OrientedPoint{mesh.vertices[i], mesh.normals[i]};
@@ -12,7 +13,11 @@ ShapeDescriptor::utilities::generateSpinOriginBuffer(ShapeDescriptor::cpu::Mesh 
 }
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint>
-ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(ShapeDescriptor::cpu::Mesh &mesh) {
+ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(const ShapeDescriptor::cpu::Mesh &mesh, std::vector<size_t>* mapping) {
+    std::unordered_map<ShapeDescriptor::OrientedPoint, size_t> indexMapping;
+    if(mapping != nullptr) {
+        mapping->resize(mesh.vertexCount);
+    }
     std::vector<ShapeDescriptor::OrientedPoint> originBuffer;
     originBuffer.reserve(mesh.vertexCount);
     std::unordered_set<ShapeDescriptor::OrientedPoint> seenSet;
@@ -21,6 +26,14 @@ ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(ShapeDescriptor::cpu:
         if(seenSet.count(currentPoint) == 0) {
             seenSet.insert(currentPoint);
             originBuffer.emplace_back(currentPoint);
+            if(mapping != nullptr) {
+                mapping->at(i) = originBuffer.size() - 1;
+                indexMapping.insert({currentPoint, originBuffer.size()});
+            }
+        } else {
+            if(mapping != nullptr) {
+                mapping->at(i) = indexMapping.at(currentPoint);
+            }
         }
     }
 

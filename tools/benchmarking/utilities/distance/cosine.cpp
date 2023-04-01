@@ -4,7 +4,6 @@
 #include <shapeDescriptor/cpu/spinImageGenerator.h>
 #include <shapeDescriptor/gpu/3dShapeContextGenerator.cuh>
 #include <shapeDescriptor/gpu/fastPointFeatureHistogramGenerator.cuh>
-#include <benchmarking/utilities/distance/generateFakeMetadata.h>
 #include <benchmarking/utilities/distance/euclidian.h>
 #include <math.h>
 #include <vector>

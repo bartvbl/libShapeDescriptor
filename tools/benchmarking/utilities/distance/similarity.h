@@ -4,7 +4,6 @@
 #include <benchmarking/utilities/descriptor/spinImage.h>
 #include <benchmarking/utilities/descriptor/3dShapeContext.h>
 #include <benchmarking/utilities/descriptor/FPFH.h>
-#include <benchmarking/utilities/distance/generateFakeMetadata.h>
 #include <benchmarking/utilities/distance/cosine.h>
 #include <benchmarking/utilities/distance/euclidian.h>
 #include <vector>
@@ -20,12 +19,12 @@ namespace Benchmarking
             template <typename T>
             double similarityBetweenTwoDescriptors(ShapeDescriptor::cpu::array<T> descriptorsOne,
                                                    ShapeDescriptor::cpu::array<T> descriptorsTwo,
-                                                   std::vector<std::variant<int, std::string>> metadata,
                                                    int distanceFunction)
             {
                 std::cout << "Calculating the similarity of the two objects" << std::endl
                           << std::flush;
 
+                // For rotatating shape contexts
                 if constexpr (std::is_same_v<T, ShapeDescriptor::ShapeContextDescriptor>)
                 {
                     double bestSimilarity = 0;
@@ -60,19 +59,10 @@ namespace Benchmarking
 
                         for (int i = 0; i < descriptorsOne.length; i++)
                         {
-                            try
-                            {
-                                int comparisonIndex = std::get<int>(metadata.at(i));
+                            ShapeDescriptor::ShapeContextDescriptor dOne = descriptorsOne.content[i];
+                            ShapeDescriptor::ShapeContextDescriptor dTwo = descriptorsTwo.content[i];
 
-                                ShapeDescriptor::ShapeContextDescriptor dOne = descriptorsOne.content[i];
-                                ShapeDescriptor::ShapeContextDescriptor dTwo = descriptorsTwo.content[comparisonIndex];
-
-                                similaritySum += similarityFunctionOffset(dOne, dTwo, sliceOffset);
-                            }
-                            catch (std::exception e)
-                            {
-                                continue;
-                            }
+                            similaritySum += similarityFunctionOffset(dOne, dTwo, sliceOffset);
                         }
 
                         double avgSimilarity = similaritySum / descriptorsOne.length;
@@ -83,6 +73,7 @@ namespace Benchmarking
                     return bestSimilarity;
                 }
 
+                // Rest of the descriptors
                 double sumOfSimilarities = 0;
 
                 double (*similarityFunction)(T, T);
@@ -110,15 +101,7 @@ namespace Benchmarking
 
                 for (int i = 0; i < descriptorsOne.length; i++)
                 {
-                    try
-                    {
-                        int index = std::get<int>(metadata.at(i));
-                        sumOfSimilarities += similarityFunction(descriptorsOne.content[i], descriptorsTwo.content[index]);
-                    }
-                    catch (std::exception e)
-                    {
-                        continue;
-                    }
+                    sumOfSimilarities += similarityFunction(descriptorsOne.content[i], descriptorsTwo.content[i]);
                 }
 
                 double averageSimilarity = sumOfSimilarities / descriptorsOne.length;

@@ -28,6 +28,10 @@ namespace ShapeDescriptor {
                 ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_descriptors,
                 ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_correspondingDescriptors);
 
+        ShapeDescriptor::cpu::array<float> computeSIElementWiseCosineSimilarity(
+            ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_descriptors,
+            ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_correspondingDescriptors);
+
         ShapeDescriptor::cpu::array<float> computeSIElementWisePearsonCorrelations(
                 ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_descriptors,
                 ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_correspondingDescriptors);

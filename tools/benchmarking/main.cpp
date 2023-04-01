@@ -6,13 +6,18 @@
 #include <shapeDescriptor/cpu/spinImageGenerator.h>
 #include <shapeDescriptor/utilities/free/mesh.h>
 #include <shapeDescriptor/utilities/free/array.h>
+#include <shapeDescriptor/gpu/spinImageSearcher.cuh>
+#include <shapeDescriptor/common/types/methods/SpinImageDescriptor.h>
 #include <benchmarking/utilities/descriptor/RICI.h>
 #include <benchmarking/utilities/descriptor/QUICCI.h>
 #include <benchmarking/utilities/descriptor/spinImage.h>
 #include <benchmarking/utilities/descriptor/3dShapeContext.h>
 #include <benchmarking/utilities/descriptor/FPFH.h>
 #include <benchmarking/utilities/distance/similarity.h>
-#include <benchmarking/utilities/distance/generateFakeMetadata.h>
+#include <benchmarking/utilities/metadata/generateFakeMetadata.h>
+#include <benchmarking/utilities/metadata/prepareMetadata.h>
+#include <benchmarking/utilities/metadata/transformDescriptor.h>
+#include <tuple>
 #include <iostream>
 #include <fstream>
 #include <arrrgh.hpp>
@@ -56,46 +61,6 @@ struct
 } GPUInfo;
 
 const auto runDate = std::chrono::system_clock::now();
-
-std::vector<std::variant<int, std::string>>
-generateMetadata(std::filesystem::path metadataPath)
-{
-    std::vector<std::variant<int, std::string>> metadata;
-    std::ifstream metadataFile;
-    std::string line;
-
-    metadataFile.open(metadataPath);
-    if (metadataFile.is_open())
-    {
-        while (getline(metadataFile, line))
-        {
-            try
-            {
-                metadata.push_back(stoi(line));
-            }
-            catch (std::exception e)
-            {
-                if (line != "")
-                {
-                    metadata.push_back(line);
-                }
-            }
-        }
-        metadataFile.close();
-    }
-
-    return metadata;
-}
-
-std::vector<std::variant<int, std::string>> prepareMetadata(std::filesystem::path metadataPath, int length = 0)
-{
-    if (std::filesystem::exists(metadataPath))
-    {
-        return generateMetadata(metadataPath);
-    }
-
-    return Benchmarking::utilities::distance::generateFakeMetadata(length);
-}
 
 std::string getRunDate()
 {
@@ -163,9 +128,40 @@ descriptorType generateDescriptorsForObject(ShapeDescriptor::cpu::Mesh mesh,
 }
 
 template <typename T>
-double calculateSimilarity(ShapeDescriptor::cpu::array<T> dOriginal, ShapeDescriptor::cpu::array<T> dComparison, std::vector<std::variant<int, std::string>> metadata, int distanceFunction, bool freeArray)
+float calculateAverageSimilartyFromDistancesArray(ShapeDescriptor::cpu::array<T> distances)
 {
-    double sim = Benchmarking::utilities::distance::similarityBetweenTwoDescriptors<T>(dOriginal, dComparison, metadata, distanceFunction);
+    float simSum = 0;
+
+    for (int i = 0; i < distances.length; i++)
+    {
+        float sim = 1 / (1 + distances[i]);
+        if (!isnan(sim))
+            simSum += sim;
+    }
+    float avgSim = simSum / distances.length;
+
+    return avgSim;
+}
+
+template <typename T>
+float calculateAverageSimilarity(ShapeDescriptor::cpu::array<T> distances)
+{
+    float simSum = 0;
+
+    for (int i = 0; i < distances.length; i++)
+    {
+        simSum += isnan(distances[i]) ? 0 : distances[i];
+    }
+
+    float avgSim = simSum / distances.length;
+
+    return avgSim;
+}
+
+template <typename T>
+double calculateSimilarity(ShapeDescriptor::cpu::array<T> dOriginal, ShapeDescriptor::cpu::array<T> dComparison, int distanceFunction, bool freeArray)
+{
+    double sim = Benchmarking::utilities::distance::similarityBetweenTwoDescriptors<T>(dOriginal, dComparison, distanceFunction);
 
     if (freeArray)
     {
@@ -174,6 +170,12 @@ double calculateSimilarity(ShapeDescriptor::cpu::array<T> dOriginal, ShapeDescri
     }
 
     return sim;
+}
+
+template <typename T>
+void freeDescriptorType(ShapeDescriptor::cpu::array<T> descriptor)
+{
+    ShapeDescriptor::free::array(descriptor);
 }
 
 int getNumberOfFilesInFolder(std::string folderPath)
@@ -295,7 +297,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                     meshOriginal = ShapeDescriptor::utilities::loadMesh(originalObjectPath);
                     meshComparison = ShapeDescriptor::utilities::loadMesh(comparisonObjectPath);
 
-                    metadata = prepareMetadata(comparisonFolder + "/" + fileName + ".txt", meshOriginal.vertexCount);
+                    metadata = Benchmarking::utilities::metadata::prepareMetadata(comparisonFolder + "/" + fileName + ".txt", meshOriginal.vertexCount);
                 }
                 catch (const std::exception e)
                 {
@@ -316,15 +318,94 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         continue;
                     }
 
+                    descriptorType originalObject = generateDescriptorsForObject(
+                        meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
+                        supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
+                        pointCloudSampleCount, randomSeed);
+
                     descriptorType comparisonObject = generateDescriptorsForObject(
                         meshComparison, a.first, hardware, elapsedSecondsDescriptorComparison,
                         supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
                         pointCloudSampleCount, randomSeed);
 
-                    descriptorType originalObject = generateDescriptorsForObject(
-                        meshOriginal, a.first, hardware, elapsedSecondsDescriptorOriginal,
-                        supportRadius, supportAngleDegrees, pointDensityRadius, minSupportRadius, maxSupportRadius,
-                        pointCloudSampleCount, randomSeed);
+                    descriptorType transformedOriginalObject;
+                    descriptorType transformedComparisonObject;
+
+                    switch (a.first)
+                    {
+                    case 0:
+                    {
+                        std::vector<ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor>> transformed =
+                            Benchmarking::utilities::metadata::transformDescriptorsToMatchMetadata(std::get<0>(originalObject), std::get<0>(comparisonObject), metadata);
+
+                        transformedOriginalObject = transformed.at(0);
+                        transformedComparisonObject = transformed.at(1);
+
+                        freeDescriptorType(std::get<0>(originalObject));
+                        freeDescriptorType(std::get<0>(comparisonObject));
+                        break;
+                    }
+                    case 1:
+                    {
+                        std::vector<ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor>> transformed =
+                            Benchmarking::utilities::metadata::transformDescriptorsToMatchMetadata(std::get<1>(originalObject), std::get<1>(comparisonObject), metadata);
+
+                        transformedOriginalObject = transformed.at(0);
+                        transformedComparisonObject = transformed.at(1);
+
+                        freeDescriptorType(std::get<1>(originalObject));
+                        freeDescriptorType(std::get<1>(comparisonObject));
+                        break;
+                    }
+                    case 2:
+                    {
+                        std::vector<ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor>> transformed =
+                            Benchmarking::utilities::metadata::transformDescriptorsToMatchMetadata(std::get<2>(originalObject), std::get<2>(comparisonObject), metadata);
+
+                        transformedOriginalObject = transformed.at(0);
+                        transformedComparisonObject = transformed.at(1);
+
+                        freeDescriptorType(std::get<2>(originalObject));
+                        freeDescriptorType(std::get<2>(comparisonObject));
+                        break;
+                    }
+                    case 3:
+                    {
+                        std::vector<ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor>> transformed =
+                            Benchmarking::utilities::metadata::transformDescriptorsToMatchMetadata(std::get<3>(originalObject), std::get<3>(comparisonObject), metadata);
+
+                        transformedOriginalObject = transformed.at(0);
+                        transformedComparisonObject = transformed.at(1);
+
+                        freeDescriptorType(std::get<3>(originalObject));
+                        freeDescriptorType(std::get<3>(comparisonObject));
+                        break;
+                    }
+                    case 4:
+                    {
+                        std::vector<ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor>> transformed =
+                            Benchmarking::utilities::metadata::transformDescriptorsToMatchMetadata(std::get<4>(originalObject), std::get<4>(comparisonObject), metadata);
+
+                        transformedOriginalObject = transformed.at(0);
+                        transformedComparisonObject = transformed.at(1);
+
+                        freeDescriptorType(std::get<4>(originalObject));
+                        freeDescriptorType(std::get<4>(comparisonObject));
+                        break;
+                    }
+                    default:
+                    {
+                        std::vector<ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor>> transformed =
+                            Benchmarking::utilities::metadata::transformDescriptorsToMatchMetadata(std::get<0>(originalObject), std::get<0>(comparisonObject), metadata);
+
+                        transformedOriginalObject = transformed.at(0);
+                        transformedComparisonObject = transformed.at(1);
+
+                        freeDescriptorType(std::get<0>(originalObject));
+                        freeDescriptorType(std::get<0>(comparisonObject));
+                        break;
+                    }
+                    }
 
                     for (auto d : distanceFunctions)
                     {
@@ -339,7 +420,10 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                         case 0:
                         {
                             ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> original =
-                                std::get<0>(originalObject);
+                                std::get<0>(transformedOriginalObject);
+
+                            ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> comparison =
+                                std::get<0>(transformedComparisonObject);
 
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
@@ -350,14 +434,17 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                             }
 
                             distanceTimeStart = std::chrono::steady_clock::now();
-                            sim = calculateSimilarity<ShapeDescriptor::RICIDescriptor>(original, std::get<0>(comparisonObject), metadata, d.first, freeArray);
+                            sim = calculateSimilarity<ShapeDescriptor::RICIDescriptor>(original, comparison, d.first, freeArray);
                             distanceTimeEnd = std::chrono::steady_clock::now();
                             break;
                         }
                         case 1:
                         {
                             ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> original =
-                                std::get<1>(originalObject);
+                                std::get<1>(transformedOriginalObject);
+
+                            ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> comparison =
+                                std::get<1>(transformedComparisonObject);
 
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
@@ -366,14 +453,17 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                             }
 
                             distanceTimeStart = std::chrono::steady_clock::now();
-                            sim = calculateSimilarity<ShapeDescriptor::QUICCIDescriptor>(original, std::get<1>(comparisonObject), metadata, d.first, freeArray);
+                            sim = calculateSimilarity<ShapeDescriptor::QUICCIDescriptor>(original, comparison, d.first, freeArray);
                             distanceTimeEnd = std::chrono::steady_clock::now();
                             break;
                         }
                         case 2:
                         {
                             ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> original =
-                                std::get<2>(originalObject);
+                                std::get<2>(transformedOriginalObject);
+
+                            ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> comparison =
+                                std::get<2>(transformedComparisonObject);
 
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
@@ -382,14 +472,17 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                             }
 
                             distanceTimeStart = std::chrono::steady_clock::now();
-                            sim = calculateSimilarity<ShapeDescriptor::SpinImageDescriptor>(original, std::get<2>(comparisonObject), metadata, d.first, freeArray);
+                            sim = calculateSimilarity<ShapeDescriptor::SpinImageDescriptor>(original, comparison, d.first, freeArray);
                             distanceTimeEnd = std::chrono::steady_clock::now();
                             break;
                         }
                         case 3:
                         {
                             ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> original =
-                                std::get<3>(originalObject);
+                                std::get<3>(transformedOriginalObject);
+
+                            ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> comparison =
+                                std::get<3>(transformedComparisonObject);
 
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
@@ -398,14 +491,17 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                             }
 
                             distanceTimeStart = std::chrono::steady_clock::now();
-                            sim = calculateSimilarity<ShapeDescriptor::ShapeContextDescriptor>(original, std::get<3>(comparisonObject), metadata, d.first, freeArray);
+                            sim = calculateSimilarity<ShapeDescriptor::ShapeContextDescriptor>(original, comparison, d.first, freeArray);
                             distanceTimeEnd = std::chrono::steady_clock::now();
                             break;
                         }
                         case 4:
                         {
                             ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor> original =
-                                std::get<4>(originalObject);
+                                std::get<4>(transformedOriginalObject);
+
+                            ShapeDescriptor::cpu::array<ShapeDescriptor::FPFHDescriptor> comparison =
+                                std::get<4>(transformedComparisonObject);
 
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
@@ -413,14 +509,17 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                                 originalObjectsData["results"][fileName]["vertexCount"] = original.length;
                             }
                             distanceTimeStart = std::chrono::steady_clock::now();
-                            sim = calculateSimilarity<ShapeDescriptor::FPFHDescriptor>(original, std::get<4>(comparisonObject), metadata, d.first, freeArray);
+                            sim = calculateSimilarity<ShapeDescriptor::FPFHDescriptor>(original, comparison, d.first, freeArray);
                             distanceTimeEnd = std::chrono::steady_clock::now();
                             break;
                         }
                         default:
                         {
                             ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> original =
-                                std::get<0>(originalObject);
+                                std::get<0>(transformedOriginalObject);
+
+                            ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> comparison =
+                                std::get<0>(transformedComparisonObject);
 
                             if (originalObjectsData["results"].find(fileName) == originalObjectsData["results"].end())
                             {
@@ -429,7 +528,7 @@ void multipleObjectsBenchmark(std::string objectsFolder, std::string originalsFo
                             }
 
                             distanceTimeStart = std::chrono::steady_clock::now();
-                            sim = calculateSimilarity<ShapeDescriptor::RICIDescriptor>(original, std::get<0>(comparisonObject), metadata, d.first, freeArray);
+                            sim = calculateSimilarity<ShapeDescriptor::RICIDescriptor>(original, comparison, d.first, freeArray);
                             distanceTimeEnd = std::chrono::steady_clock::now();
                             break;
                         }
@@ -502,40 +601,91 @@ int main(int argc, const char **argv)
     GPUInfo.memory = device_information.totalGlobalMem / (1024 * 1024);
 #endif
 
-    if (originalObject.value() != "" && comparisonObject.value() != "")
+    if (originalObject.value() != "")
     {
-        std::cout << "runDate " << getRunDate() << std::endl;
+        json spinImageTest;
 
-        int timeStart = std::time(0);
-        std::filesystem::path objectOne = originalObject.value();
-        std::filesystem::path objectTwo = comparisonObject.value();
+        int numberOfObjects = 1000;
+        std::string originalObjectsPath = "/mnt/VOID/projects/shape_descriptors_benchmark/Dataset/NewRecalculatedNormals/0-100/";
+        std::string comparisonObjectsPath = "/mnt/VOID/projects/shape_descriptors_benchmark/Dataset/OverlappingObjects/15.1-25.0/";
 
-        ShapeDescriptor::cpu::Mesh meshOne = ShapeDescriptor::utilities::loadMesh(objectOne);
-        ShapeDescriptor::cpu::Mesh meshTwo = ShapeDescriptor::utilities::loadMesh(objectTwo);
+        std::string outPath = "/mnt/VOID/projects/shape_descriptors_benchmark/Output/spinImageDistancetest";
+        std::filesystem::create_directory(outPath);
 
-        std::vector<std::variant<int, std::string>> metadata;
+        std::string output = "dataset,object,descriptor,category,distanceFunction,similarity,time\n";
 
-        if (metadataPath.value() == "")
+        for (int objectNumber = 0; objectNumber < numberOfObjects; objectNumber++)
         {
-            metadata = prepareMetadata("", meshOne.vertexCount);
+            std::cout << "Testing object " << objectNumber << std::endl;
+
+            std::string objectStr = std::to_string(objectNumber);
+            std::string objectName = std::string(4 - objectStr.length(), '0') + objectStr;
+
+            std::string metadataFile = comparisonObjectsPath + objectName + "/" + objectName + ".txt";
+            std::vector<std::variant<int, std::string>> metadata = Benchmarking::utilities::metadata::prepareMetadata(metadataFile);
+
+            std::filesystem::path objectOne = originalObjectsPath + objectName + "/" + objectName + ".obj";
+            std::filesystem::path objectTwo = comparisonObjectsPath + objectName + "/" + objectName + ".obj";
+
+            ShapeDescriptor::cpu::Mesh meshOne = ShapeDescriptor::utilities::loadMesh(objectOne);
+            ShapeDescriptor::cpu::Mesh meshTwo = ShapeDescriptor::utilities::loadMesh(objectTwo);
+
+            std::chrono::duration<double> elapsedTimeOne;
+            std::chrono::duration<double> elapsedTimeTwo;
+
+            ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> descriptorOne =
+                std::get<2>(generateDescriptorsForObject(meshOne, 2, hardware.value(), elapsedTimeOne));
+            ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> descriptorTwo =
+                std::get<2>(generateDescriptorsForObject(meshTwo, 2, hardware.value(), elapsedTimeTwo));
+
+            std::vector<ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor>>
+                transformedDescriptors = Benchmarking::utilities::metadata::transformDescriptorsToMatchMetadata(descriptorOne, descriptorTwo, metadata);
+
+            ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> transformedOriginal = transformedDescriptors.at(0);
+            ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> transformedComparison = transformedDescriptors.at(1);
+
+            ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> descriptorOneGPU = transformedOriginal.copyToGPU();
+            ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> descriptorTwoGPU = transformedComparison.copyToGPU();
+
+            std::chrono::steady_clock::time_point cosineTimeStart = std::chrono::steady_clock::now();
+            ShapeDescriptor::cpu::array<float> similaritesCosine =
+                ShapeDescriptor::gpu::computeSIElementWiseCosineSimilarity(descriptorOneGPU, descriptorTwoGPU);
+            float cosineSim = calculateAverageSimilarity(similaritesCosine);
+            std::chrono::steady_clock::time_point cosineTimeEnd = std::chrono::steady_clock::now();
+
+            std::chrono::duration<double> cosineTime = cosineTimeEnd - cosineTimeStart;
+
+            std::chrono::steady_clock::time_point pearsonTimeStart = std::chrono::steady_clock::now();
+            ShapeDescriptor::cpu::array<float> distancesPearson =
+                ShapeDescriptor::gpu::computeSIElementWisePearsonCorrelations(descriptorOneGPU, descriptorTwoGPU);
+            float pearsonSim = calculateAverageSimilarity(distancesPearson);
+            std::chrono::steady_clock::time_point pearsonTimeEnd = std::chrono::steady_clock::now();
+
+            std::chrono::duration<double> pearsonTime = pearsonTimeEnd - pearsonTimeStart;
+
+            std::cout << "Cosine similarity: " << cosineSim << std::endl;
+            std::cout << "Pearson similarity: " << pearsonSim << std::endl;
+
+            output += "OverlappingObjects," + objectName + ",SI,15.1-25.0,Cosine," + std::to_string(cosineSim) + "," + std::to_string(cosineTime.count()) + "\n";
+            output += "OverlappingObjects," + objectName + ",SI,15.1-25.0,Pearson," + std::to_string(pearsonSim) + "," + std::to_string(pearsonTime.count()) + "\n";
+
+            metadata.clear();
+
+            ShapeDescriptor::free::array(similaritesCosine);
+            ShapeDescriptor::free::array(distancesPearson);
+            ShapeDescriptor::free::array(descriptorOne);
+            ShapeDescriptor::free::array(descriptorTwo);
+            ShapeDescriptor::free::array(transformedOriginal);
+            ShapeDescriptor::free::array(transformedComparison);
+            ShapeDescriptor::free::array(descriptorOneGPU);
+            ShapeDescriptor::free::array(descriptorTwoGPU);
+            ShapeDescriptor::free::mesh(meshOne);
+            ShapeDescriptor::free::mesh(meshTwo);
         }
-        else
-        {
-            metadata = prepareMetadata(metadataPath.value());
-        }
 
-        std::chrono::duration<double> elapsedTimeOne;
-        std::chrono::duration<double> elapsedTimeTwo;
-
-        descriptorType descriptorOne = generateDescriptorsForObject(meshOne, 3, hardware.value(), elapsedTimeOne);
-        descriptorType descriptorTwo = generateDescriptorsForObject(meshTwo, 3, hardware.value(), elapsedTimeTwo);
-
-        ShapeDescriptor::free::mesh(meshOne);
-        ShapeDescriptor::free::mesh(meshTwo);
-
-        double similarity = calculateSimilarity<ShapeDescriptor::ShapeContextDescriptor>(std::get<3>(descriptorOne), std::get<3>(descriptorTwo), metadata, 0, true);
-
-        std::cout << "Similarity: " << similarity << std::endl;
+        std::ofstream outFile(outPath + "/spinImageDistanceTest.csv");
+        outFile << output;
+        outFile.close();
     }
     else if (objectsFolder.value() != "" && originalsFolderName.value() != "" && (originalObject.value() == "" && comparisonObject.value() == ""))
     {

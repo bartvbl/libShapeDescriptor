@@ -470,6 +470,58 @@ ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::computeSIElementWiseEuc
 }
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+__global__ void computeElementWiseSICosineSimilarity(
+        ShapeDescriptor::SpinImageDescriptor* descriptors,
+        ShapeDescriptor::SpinImageDescriptor* correspondingDescriptors,
+        float* distances) {
+    const size_t descriptorIndex = blockIdx.x;
+
+    static_assert(spinImageWidthPixels % 32 == 0, "This kernel assumes the image is a multiple of the warp size wide");
+
+    size_t needleImageIndex = blockIdx.x;
+
+    float threadDot = 0;
+    float threadDenominationA = 0;
+    float threadDenominationB = 0;
+
+    for(unsigned int i = threadIdx.x; i < spinImageWidthPixels * spinImageWidthPixels; i += blockDim.x) {
+        threadDot += descriptors[needleImageIndex].contents[i] * correspondingDescriptors[needleImageIndex].contents[i];
+        threadDenominationA += pow(descriptors[needleImageIndex].contents[i], 2);
+        threadDenominationB += pow(correspondingDescriptors[needleImageIndex].contents[i], 2);
+    }
+
+    float dotSum = warpAllReduceSum(threadDot);
+    float denominationASum = warpAllReduceSum(threadDenominationA);
+    float denominationBSum = warpAllReduceSum(threadDenominationB);
+
+    if(threadIdx.x == 0) {
+        distances[descriptorIndex] = dotSum/sqrt(denominationASum*denominationBSum);
+    }
+}
+#endif
+
+ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::computeSIElementWiseCosineSimilarity(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_descriptors,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_correspondingDescriptors) {
+
+    ShapeDescriptor::gpu::array<float> device_distances(device_descriptors.length);
+
+    computeElementWiseSICosineSimilarity<<<device_descriptors.length, 32>>>(
+            device_descriptors.content,
+            device_correspondingDescriptors.content,
+            device_distances.content);
+
+    checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+
+    ShapeDescriptor::cpu::array<float> distances = device_distances.copyToCPU();
+
+    ShapeDescriptor::free::array(device_distances);
+
+    return distances;
+}
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __global__ void computeElementWiseSIPearsonCorrelations(
         ShapeDescriptor::SpinImageDescriptor* descriptors,
         ShapeDescriptor::SpinImageDescriptor* correspondingDescriptors,

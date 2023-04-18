@@ -19,5 +19,11 @@ namespace ShapeDescriptor {
                 ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_haystackDescriptors,
                 size_t haystackDescriptorSampleCount,
                 ShapeDescriptor::debug::SCSearchExecutionTimes* executionTimes = nullptr);
+
+        ShapeDescriptor::cpu::array<float> compute3DSCElementWiseSquaredDistances(
+                ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_descriptors,
+                size_t descriptorSampleCount,
+                ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_correspondingDescriptors,
+                size_t correspondingDescriptorsSampleCount);
     }
 }

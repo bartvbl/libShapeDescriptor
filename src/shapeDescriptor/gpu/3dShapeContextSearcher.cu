@@ -12,6 +12,7 @@
 #include <shapeDescriptor/common/types/methods/3DSCDescriptor.h>
 #include <shapeDescriptor/cpu/types/array.h>
 #include <shapeDescriptor/gpu/types/array.h>
+#include <shapeDescriptor/utilities/free/array.h>
 
 const size_t elementsPerShapeContextDescriptor =
         SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT *
@@ -194,6 +195,87 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::compute3DSCSearc
     }
 
     return resultIndices;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
+}
+
+
+
+
+
+
+
+
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+__global__ void computeElementWiseDistances3DSC(
+        ShapeDescriptor::ShapeContextDescriptor* descriptors,
+        ShapeDescriptor::ShapeContextDescriptor* correspondingDescriptors,
+        size_t descriptorCount,
+        float haystackScaleFactor,
+        float* distances) {
+#define needleDescriptorIndex blockIdx.x
+
+    // Since memory is reused a lot, we cache both the needle and haystack image in shared memory
+    // Combined this is is approximately (at default settings) the size of a spin or RICI image
+
+    __shared__ ShapeDescriptor::ShapeContextDescriptor descriptor;
+    for(unsigned int index = blockDim.x * threadIdx.y + threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x * blockDim.y) {
+        descriptor.contents[index] = descriptors[needleDescriptorIndex].contents[index];
+    }
+
+    __shared__ ShapeDescriptor::ShapeContextDescriptor correspondingDescriptor;
+    for(unsigned int index = blockDim.x * threadIdx.y + threadIdx.x; index < elementsPerShapeContextDescriptor; index += blockDim.x * blockDim.y) {
+        correspondingDescriptor.contents[index] =
+                correspondingDescriptors[needleDescriptorIndex].contents[index] * (1.0f/haystackScaleFactor);
+    }
+
+    __shared__ float squaredSums[SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT];
+
+    __syncthreads();
+
+    float distance = compute3DSCPairDistanceGPU(
+            descriptor,
+            correspondingDescriptor,
+            squaredSums);
+
+    if(threadIdx.x == 0) {
+        distances[needleDescriptorIndex] = distance;
+    }
+}
+#endif
+
+
+ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::compute3DSCElementWiseSquaredDistances(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_descriptors,
+        size_t descriptorSampleCount,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_correspondingDescriptors,
+        size_t correspondingDescriptorsSampleCount) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+    static_assert(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT <= 32, "Exceeding this number of slices causes an overflow in the amount of shared memory needed by the kernel");
+    assert(device_descriptors.length == device_correspondingDescriptors.length);
+
+    ShapeDescriptor::gpu::array<float> device_results(device_descriptors.length);
+
+    float haystackScaleFactor = float(double(descriptorSampleCount) / double(correspondingDescriptorsSampleCount));
+
+    dim3 blockDimensions = {
+            32, SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT, 1
+    };
+    computeElementWiseDistances3DSC<<<device_descriptors.length, blockDimensions>>>(
+            device_descriptors.content,
+            device_correspondingDescriptors.content,
+            device_descriptors.length,
+            haystackScaleFactor,
+            device_results.content);
+
+    checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+
+    ShapeDescriptor::cpu::array<float> distances = device_results.copyToCPU();
+    ShapeDescriptor::free::array(device_results);
+
+    return distances;
 #else
     throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
 #endif

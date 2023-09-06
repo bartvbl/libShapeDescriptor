@@ -7,7 +7,7 @@ if (CMAKE_CUDA_COMPILER)
 	set(CUDA_NVCC_FLAGS -lcurand -lineinfo -lcudart)
 	include_directories(
 		lib/nvidia-samples-common/
-		${CUDA_INCLUDE_DIRS}
+		${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
 	)
 	enable_language(CUDA)
 else()

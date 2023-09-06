@@ -9,7 +9,7 @@ if (CMAKE_CUDA_COMPILER)
 		lib/nvidia-samples-common/
 		${CUDA_INCLUDE_DIRS}
 	)
-	find_package(CUDA REQUIRED)
+	enable_language(CUDA)
 else()
 	message(STATUS "No CUDA support was detected, GPU kernels disabled")
 	project(ShapeDescriptor CXX)
@@ -62,7 +62,7 @@ file (GLOB_RECURSE QUICCI_DUMPER_TOOL_SOURCES  tools/quiccidumper/*.cpp)
 file (GLOB_RECURSE QUICCI_VIEWER_TOOL_SOURCES  tools/quicciviewer/*.cpp)
 
 if (CMAKE_CUDA_COMPILER)
-	cuda_add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
+	add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 	target_compile_definitions(${PROJECT_NAME} PUBLIC DESCRIPTOR_CUDA_KERNELS_ENABLED)
 	target_include_directories(${PROJECT_NAME} PUBLIC ${CUDA_INCLUDE_DIRS})
 else()

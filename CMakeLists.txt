@@ -17,10 +17,11 @@ endif()
 
 cmake_minimum_required (VERSION 3.0)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 find_package(OpenMP)
 add_subdirectory(lib/Catch2)
+add_subdirectory(lib/tinygltf tinygltf)
 add_subdirectory(lib/fast-lzma2 ${CMAKE_CURRENT_BINARY_DIR}/fast-lzma2)
 
 if (CMAKE_COMPILER_IS_GNUCC)
@@ -40,6 +41,7 @@ include_directories (
         lib/lodepng/
 		lib/arrrgh/
 		lib/json/
+		lib/tinygltf
 		lib/fast-lzma2/src/
 		lib/
 		lib/fast-obj

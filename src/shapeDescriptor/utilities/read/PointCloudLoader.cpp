@@ -6,7 +6,7 @@
 ShapeDescriptor::cpu::PointCloud
 ShapeDescriptor::utilities::loadPointCloud(std::filesystem::path src) {
     if(src.extension() == ".ply" || src.extension() == ".PLY") {
-        ShapeDescriptor::cpu::Mesh loadedMesh = ShapeDescriptor::utilities::loadPLY(src.string(), false);
+        ShapeDescriptor::cpu::Mesh loadedMesh = ShapeDescriptor::utilities::loadPLY(src.string(), RecomputeNormals::DO_NOT_RECOMPUTE);
         ShapeDescriptor::cpu::PointCloud cloud(loadedMesh.vertexCount);
         cloud.vertices = loadedMesh.vertices;
         cloud.normals = loadedMesh.normals;

@@ -3,6 +3,7 @@
 #include "PLYLoader.h"
 #include "OBJLoader.h"
 #include "OFFLoader.h"
+#include "GLTFLoader.h"
 
 ShapeDescriptor::cpu::Mesh
 ShapeDescriptor::utilities::loadMesh(std::filesystem::path src, RecomputeNormals recomputeNormals) {
@@ -15,7 +16,10 @@ ShapeDescriptor::utilities::loadMesh(std::filesystem::path src, RecomputeNormals
         return ShapeDescriptor::utilities::loadOBJ(src.string(), recomputeNormals);
     } else if(src.extension() == ".off" || src.extension() == ".OFF") {
         return ShapeDescriptor::utilities::loadOFF(src.string());
+    } else if(src.extension() == ".gltf" || src.extension() == ".GLTF" || src.extension() == ".glb" || src.extension() == ".GLB") {
+        return ShapeDescriptor::utilities::loadGLTFMesh(src, recomputeNormals);
     } else {
         throw std::runtime_error("Failed to load file: " + src.string() + "\nReason: extension was not recognised as a supported 3D object file format.");
     }
+
 }

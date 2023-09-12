@@ -4,10 +4,10 @@
 #include <shapeDescriptor/cpu/types/double3.h>
 #include <shapeDescriptor/cpu/types/uchar3.h>
 #include "MeshLoadUtils.h"
+#include "RecomputeNormals.h"
 
 
-
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::path src, bool recomputeNormals) {
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::path src, RecomputeNormals recomputeNormals) {
     // Read file contents into a buffer
     FILE* plyFile = fopen(src.c_str(), "r");
 
@@ -164,6 +164,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::
         raw_normals = new ShapeDescriptor::cpu::float3[vertexCount];
         normals = new ShapeDescriptor::cpu::float3[vertexBufferLength];
     }
+    bool shouldRecomputeNormals = (!containsNormals && recomputeNormals == RecomputeNormals::RECOMPUTE_IF_MISSING) || recomputeNormals == RecomputeNormals::ALWAYS_RECOMPUTE;
 
     ShapeDescriptor::cpu::uchar4* raw_colours = nullptr;
     ShapeDescriptor::cpu::uchar4* colours = nullptr;
@@ -228,6 +229,8 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::
             }
         }
 
+
+
         if(containsFaces) {
             // The second step is to interpret the indices
             for (int i = 0; i < faceCount; i++) {
@@ -254,7 +257,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::
                     colours[3 * i + 2] = raw_colours[indexVertex2];
                 }
 
-                if (!containsNormals || recomputeNormals) {
+                if (shouldRecomputeNormals) {
                     ShapeDescriptor::cpu::float3 normal = computeTriangleNormal(vertices[3 * i + 0],
                                                                                 vertices[3 * i + 1],
                                                                                 vertices[3 * i + 2]);
@@ -299,7 +302,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::
             }
 
             // Recompute normals if needed or desired, and when vertex information is available
-            if(containsFaces && (!containsNormals || recomputeNormals) && vertexIndex % 3 == 2) {
+            if(containsFaces && shouldRecomputeNormals && vertexIndex % 3 == 2) {
                 normal = computeTriangleNormal(
                         raw_vertices[3 * vertexIndex - 2],
                         raw_vertices[3 * vertexIndex - 1],

@@ -5,7 +5,7 @@
 #include "OFFLoader.h"
 
 ShapeDescriptor::cpu::Mesh
-ShapeDescriptor::utilities::loadMesh(std::filesystem::path src, bool recomputeNormals) {
+ShapeDescriptor::utilities::loadMesh(std::filesystem::path src, RecomputeNormals recomputeNormals) {
     if(!std::filesystem::exists(src)) {
         throw std::runtime_error("The file \"" + src.string() + "\" was not found, and could therefore not be loaded.");
     }

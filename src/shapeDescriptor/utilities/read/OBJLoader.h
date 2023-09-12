@@ -2,9 +2,10 @@
 
 #include <filesystem>
 #include "shapeDescriptor/cpu/types/Mesh.h"
+#include "RecomputeNormals.h"
 
 namespace ShapeDescriptor {
     namespace utilities {
-        cpu::Mesh loadOBJ(std::filesystem::path, bool recomputeNormals = false);
+        cpu::Mesh loadOBJ(std::filesystem::path, ShapeDescriptor::RecomputeNormals recomputeNormals = RecomputeNormals::DO_NOT_RECOMPUTE);
     }
 }

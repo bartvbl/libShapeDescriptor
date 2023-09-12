@@ -49,7 +49,7 @@ inline ShapeDescriptor::cpu::float3 elementWiseMax(ShapeDescriptor::cpu::float3 
 	return output;
 }
 
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::filesystem::path src, bool recomputeNormals)
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::filesystem::path src, RecomputeNormals recomputeNormals)
 {
     fastObjMesh* temporaryMesh = fast_obj_read(src.c_str());
 
@@ -60,10 +60,12 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::filesystem::
     }
 
     bool hasNormals = temporaryMesh->normal_count != 1;
+    bool shouldRecomputeNormals = (!hasNormals && recomputeNormals == RecomputeNormals::RECOMPUTE_IF_MISSING) || recomputeNormals == RecomputeNormals::ALWAYS_RECOMPUTE;
+
 
 
     ShapeDescriptor::cpu::float3* meshVertexBuffer = new ShapeDescriptor::cpu::float3[3 * faceCount];
-    ShapeDescriptor::cpu::float3* meshNormalBuffer = (hasNormals || recomputeNormals) ? new ShapeDescriptor::cpu::float3[3 * faceCount] : nullptr;
+    ShapeDescriptor::cpu::float3* meshNormalBuffer = (hasNormals || shouldRecomputeNormals) ? new ShapeDescriptor::cpu::float3[3 * faceCount] : nullptr;
 
     unsigned int nextVertexIndex = 0;
 
@@ -89,7 +91,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::filesystem::
                         temporaryMesh->positions[3 * index.p + 1],
                         temporaryMesh->positions[3 * index.p + 2]};
 
-                if (hasNormals && !recomputeNormals) {
+                if (hasNormals && !shouldRecomputeNormals) {
                     meshNormalBuffer[nextVertexIndex] = {
                             temporaryMesh->normals[3 * index.n + 0],
                             temporaryMesh->normals[3 * index.n + 1],
@@ -99,7 +101,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::filesystem::
                 nextVertexIndex++;
             }
 
-            if(recomputeNormals) {
+            if(shouldRecomputeNormals) {
                 ShapeDescriptor::cpu::float3 normal = computeTriangleNormal(
                         meshVertexBuffer[nextVertexIndex - 3],
                         meshVertexBuffer[nextVertexIndex - 2],

@@ -31,7 +31,7 @@ namespace ShapeDescriptor {
             }
 
             TYPE& operator[](size_t index) {
-                assert(index >= 0); // >= 0
+                //assert(index >= 0); // >= 0
                 assert(index < length);
                 return *(content + index);
             }

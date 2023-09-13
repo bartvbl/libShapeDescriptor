@@ -44,7 +44,7 @@ int main(int argc, const char** argv) {
     }
 
     std::cout << "Loading mesh file: " << inputOBJFile.value() << std::endl;
-    ShapeDescriptor::cpu::Mesh hostMesh = ShapeDescriptor::utilities::loadMesh(inputOBJFile.value(), true);
+    ShapeDescriptor::cpu::Mesh hostMesh = ShapeDescriptor::utilities::loadMesh(inputOBJFile.value(), ShapeDescriptor::RecomputeNormals::ALWAYS_RECOMPUTE);
 
     if(fitInUnitSphere.value()) {
         std::cout << "Fitting object in unit sphere.." << std::endl;

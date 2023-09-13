@@ -75,7 +75,7 @@ int main(int argc, const char** argv) {
     }
 
     std::cout << "Loading mesh file.." << std::endl;
-    ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh(inputFile.value(), true);
+    ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh(inputFile.value(), ShapeDescriptor::RecomputeNormals::DO_NOT_RECOMPUTE);
     std::cout << "    Object has " << mesh.vertexCount << " vertices" << std::endl;
 
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(mesh);

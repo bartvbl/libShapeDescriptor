@@ -1,4 +1,5 @@
 #include <iostream>
+#include <shapeDescriptor/cpu/types/float4.h>
 #include "GLTFLoader.h"
 
 #define TINYGLTF_IMPLEMENTATION
@@ -7,6 +8,7 @@
 // #define TINYGLTF_NOEXCEPTION // optional. disable exception handling.
 #include "tiny_gltf.h"
 #include "RecomputeNormals.h"
+#include "MeshLoadUtils.h"
 
 enum class GLTFDrawMode {
     POINTS = 0,
@@ -35,8 +37,6 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
         asciiSuccess = loader.LoadASCIIFromFile(&model, &asciiParseErrorMessage, &asciiParseWarningMessage, filePath);
     }
 
-
-
     // Binary load failed
     if(!binarySuccess && !asciiSuccess) {
         std::string errorMessage = "Failed to load GLTF file.";
@@ -63,7 +63,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
 
     size_t vertexCount = 0;
     bool readNormals = true;
-    bool readTextureCoordinates = true;
+    bool readVertexColours = true;
 
     for(const tinygltf::Mesh& mesh : model.meshes) {
         for(const tinygltf::Primitive& primitive : mesh.primitives) {
@@ -94,6 +94,8 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
                     throw std::runtime_error("The file loaded from " + filePath.string() +
                                              " specifies vertex colours an invalid number of channels. Please re-export the object using 3 or 4 channel colours.");
                 }
+            } else {
+                readVertexColours = false;
             }
         }
     }
@@ -110,22 +112,69 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
             const tinygltf::Accessor& indexAccessor = model.accessors.at(indexAccessorID);
             const tinygltf::BufferView& indexBufferView = model.bufferViews.at(indexAccessor.bufferView);
 
+
             size_t vertexAccessorID = primitive.attributes.at("POSITION");
             const tinygltf::Accessor& vertexAccessor = model.accessors.at(vertexAccessorID);
             const tinygltf::BufferView& vertexBufferView = model.bufferViews.at(vertexAccessor.bufferView);
+            size_t vertexStride = vertexBufferView.byteStride != 0 ? vertexBufferView.byteStride : sizeof(ShapeDescriptor::cpu::float3);
+            const unsigned char* vertexBufferBasePointer = model.buffers.at(vertexBufferView.buffer).data.data() + vertexBufferView.byteOffset + vertexAccessor.byteOffset;
 
-            unsigned char* indexBasePointer = model.buffers.at(indexBufferView.buffer).data.data() + indexBufferView.byteOffset;
+            size_t normalAccessorID = 0;
+            tinygltf::Accessor* normalAccessor = nullptr;
+            tinygltf::BufferView* normalBufferView = nullptr;
+            bool primitiveContainsNormals = primitive.attributes.contains("NORMAL");
+            bool readNormalsFromThisPrimitive = readNormals && primitiveContainsNormals;
+            size_t normalStride = 0;
+            unsigned char* normalBufferBasePointer = nullptr;
+            if(readNormalsFromThisPrimitive) {
+                normalAccessorID = primitive.attributes.at("NORMAL");
+                normalAccessor = &model.accessors.at(normalAccessorID);
+                normalBufferView = &model.bufferViews.at(normalAccessor->bufferView);
+                normalStride = normalBufferView->byteStride != 0 ? normalBufferView->byteStride : sizeof(ShapeDescriptor::cpu::float3);
+                normalBufferBasePointer = model.buffers.at(normalBufferView->buffer).data.data() + normalBufferView->byteOffset + normalAccessor->byteOffset;
+            }
+
+            size_t colourAccessorID = 0;
+            tinygltf::Accessor* colourAccessor = nullptr;
+            tinygltf::BufferView* colourBufferView = nullptr;
+            size_t colourStride = 0;
+            unsigned char* colourBufferBasePointer = nullptr;
+            if(readVertexColours) {
+                colourAccessorID = primitive.attributes.contains("COLOR_0");
+                colourAccessor = &model.accessors.at(colourAccessorID);
+                colourBufferView = &model.bufferViews.at(colourAccessor->bufferView);
+
+                size_t elementCount = 3;
+                size_t bytesPerChannel = sizeof(unsigned char);
+
+                if(colourAccessor->type == TINYGLTF_TYPE_VEC4) {
+                    elementCount = 4;
+                }
+                if(colourAccessor->componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+                    bytesPerChannel = sizeof(float);
+                }
+
+                colourStride = colourBufferView->byteStride != 0 ? colourBufferView->byteStride : elementCount * bytesPerChannel;
+                colourBufferBasePointer = model.buffers.at(colourBufferView->buffer).data.data() + colourBufferView->byteOffset + colourAccessor->byteOffset;
+            }
+
+
+
+            unsigned char* indexBasePointer = model.buffers.at(indexBufferView.buffer).data.data() + indexBufferView.byteOffset + indexAccessor.byteOffset;
             for(size_t index = 0; index < indexAccessor.count; index++) {
                 size_t vertexIndex = 0;
-                unsigned char* indexPointer = indexBasePointer + index * indexBufferView.byteStride;
+                unsigned char* indexPointer;
                 switch(indexAccessor.componentType) {
                     case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                        indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned int));
                         vertexIndex = *reinterpret_cast<unsigned int*>(indexPointer);
                         break;
                     case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                        indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned short));
                         vertexIndex = *reinterpret_cast<unsigned short*>(indexPointer);
                         break;
                     case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
+                        indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned char));
                         vertexIndex = *indexPointer;
                         break;
                     default:
@@ -133,7 +182,60 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
                                                  " specifies indices with a data type other than unsigned int, unsigned short, or unsigned byte.");
                 }
 
-                mesh.vertices[nextVertexIndex] = *reinterpret_cast<ShapeDescriptor::cpu::float3*>(model.buffers.at(vertexBufferView.buffer).data.data() + vertexIndex * vertexBufferView.byteStride + vertexBufferView.byteOffset);
+                mesh.vertices[nextVertexIndex] = *reinterpret_cast<const ShapeDescriptor::cpu::float3*>(vertexBufferBasePointer + vertexIndex * vertexStride);
+
+                if(readNormalsFromThisPrimitive) {
+                    mesh.normals[nextVertexIndex] = *reinterpret_cast<ShapeDescriptor::cpu::float3*>(normalBufferBasePointer + vertexIndex * normalStride);
+                }
+
+                if(readVertexColours) {
+                    ShapeDescriptor::cpu::uchar4 colour;
+                    unsigned char* colourPointer = colourBufferBasePointer + vertexIndex * colourStride;
+                    if(colourAccessor->componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+                        ShapeDescriptor::cpu::float4 floatColour;
+                        if(colourAccessor->type == TINYGLTF_TYPE_VEC3) {
+                            ShapeDescriptor::cpu::float3* vec3Pointer = reinterpret_cast<ShapeDescriptor::cpu::float3*>(colourPointer);
+                            floatColour = {vec3Pointer->x, vec3Pointer->y, vec3Pointer->z, 1};
+                        } else if(colourAccessor->type == TINYGLTF_TYPE_VEC4) {
+                            floatColour = *reinterpret_cast<ShapeDescriptor::cpu::float4*>(colourPointer);
+                        } else {
+                            throw std::runtime_error("The file loaded from " + filePath.string() +
+                                                     " specifies colours with more or fewer than three or four channels.");
+                        }
+                        colour.r = static_cast<unsigned char>(floatColour.x * 255.0);
+                        colour.g = static_cast<unsigned char>(floatColour.y * 255.0);
+                        colour.b = static_cast<unsigned char>(floatColour.z * 255.0);
+                        colour.a = static_cast<unsigned char>(floatColour.w * 255.0);
+                    } else if(colourAccessor->componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+                        if(colourAccessor->type == TINYGLTF_TYPE_VEC3) {
+                            colour = {colourPointer[0], colourPointer[1], colourPointer[2], 1};
+                        } else if(colourAccessor->type == TINYGLTF_TYPE_VEC4) {
+                            colour = *reinterpret_cast<ShapeDescriptor::cpu::uchar4*>(colourPointer);
+                        } else {
+                            throw std::runtime_error("The file loaded from " + filePath.string() +
+                                                     " specifies colours with more or fewer than three or four channels.");
+                        }
+                    } else {
+                        throw std::runtime_error("The file loaded from " + filePath.string() +
+                                                 " specifies colours with a data type that is different from one float or one byte per channel.");
+                    }
+                    mesh.vertexColours[nextVertexIndex] = colour;
+                }
+
+                bool triangleProcessed = nextVertexIndex % 3 == 2;
+                bool recomputeNormalBecauseMissing = recomputeNormals == RecomputeNormals::RECOMPUTE_IF_MISSING && primitiveContainsNormals;
+                bool recomputeNormalBecauseForced = recomputeNormals == RecomputeNormals::ALWAYS_RECOMPUTE;
+                if(triangleProcessed && (recomputeNormalBecauseMissing || recomputeNormalBecauseForced)) {
+                    ShapeDescriptor::cpu::float3 normal = computeTriangleNormal(
+                            mesh.vertices[nextVertexIndex - 2],
+                            mesh.vertices[nextVertexIndex - 1],
+                            mesh.vertices[nextVertexIndex]);
+
+                    mesh.normals[nextVertexIndex - 2] = normal;
+                    mesh.normals[nextVertexIndex - 1] = normal;
+                    mesh.normals[nextVertexIndex] = normal;
+                }
+
                 nextVertexIndex++;
             }
         }

@@ -8,11 +8,25 @@
 
 
 
-std::vector<std::filesystem::path> ShapeDescriptor::utilities::listDirectory(const std::string& directory) {
+std::vector<std::filesystem::path> ShapeDescriptor::utilities::listDirectory(const std::filesystem::path& directory) {
     std::vector<std::filesystem::path> foundFiles;
 
     for(auto &path : std::filesystem::directory_iterator(directory)) {
         foundFiles.emplace_back(path);
+    }
+
+    std::sort(foundFiles.begin(), foundFiles.end());
+
+    return foundFiles;
+}
+
+std::vector<std::filesystem::path> ShapeDescriptor::utilities::listDirectoryAndSubdirectories(const std::filesystem::path &directory) {
+    std::vector<std::filesystem::path> foundFiles;
+
+    for(auto &path : std::filesystem::recursive_directory_iterator(directory)) {
+        if(path.exists() && path.is_regular_file()) {
+            foundFiles.emplace_back(path);
+        }
     }
 
     std::sort(foundFiles.begin(), foundFiles.end());

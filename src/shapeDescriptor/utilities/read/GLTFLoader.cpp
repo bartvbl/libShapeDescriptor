@@ -10,6 +10,7 @@
 #include "RecomputeNormals.h"
 #include "MeshLoadUtils.h"
 
+const std::array<std::string, 7> gltfDrawModes = {"POINTS", "LINES", "LINE_LOOP", "LINE_STRIP", "TRIANGLES", "TRIANGLE_STRIP", "TRIANGLE_FAN"};
 enum class GLTFDrawMode {
     POINTS = 0,
     LINES = 1,
@@ -20,6 +21,18 @@ enum class GLTFDrawMode {
     TRIANGLE_FAN = 6,
     END = 7
 };
+
+enum class UnsupportedDrawModeBehaviour {
+    IGNORE_AND_EXCLUDE, THROW_ERROR
+};
+
+const UnsupportedDrawModeBehaviour meshIncludesLinesBehaviour = UnsupportedDrawModeBehaviour::IGNORE_AND_EXCLUDE;
+const UnsupportedDrawModeBehaviour meshIncludesPointsBehaviour = UnsupportedDrawModeBehaviour::THROW_ERROR;
+const UnsupportedDrawModeBehaviour meshIncludesTriangleStripOrFanBehaviour = UnsupportedDrawModeBehaviour::THROW_ERROR;
+
+void reportDrawModeError(const std::filesystem::path &filePath, int drawMode) {
+    throw std::runtime_error("The file loaded from " + filePath.string() + " contains geometry with an unsupported drawing mode (" + gltfDrawModes.at(drawMode) + "). Please re-export the object to use triangles exclusively, or use an alternate format.");
+}
 
 ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesystem::path filePath, ShapeDescriptor::RecomputeNormals recomputeNormals) {
     tinygltf::Model model;
@@ -59,7 +72,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
         std::cout << "GLTF load warning: " + binaryParseWarningMessage << std::endl;
     }
 
-    const std::array<std::string, 7> gltfDrawModes = {"POINTS", "LINES", "LINE_LOOP", "LINE_STRIP", "TRIANGLES", "TRIANGLE_STRIP", "TRIANGLE_FAN"};
+
 
     size_t vertexCount = 0;
     bool readNormals = true;
@@ -67,9 +80,39 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
 
     for(const tinygltf::Mesh& mesh : model.meshes) {
         for(const tinygltf::Primitive& primitive : mesh.primitives) {
-            if(primitive.mode != static_cast<int>(GLTFDrawMode::TRIANGLES)) {
-                throw std::runtime_error("The file loaded from " + filePath.string() + " contains geometry with an unsupported drawing mode (" + gltfDrawModes.at(primitive.mode) + "). "
-                    "Please re-export the object to use triangles exclusively, or use an alternate format.");
+            GLTFDrawMode mode = static_cast<GLTFDrawMode>(primitive.mode);
+
+            switch(mode) {
+                case GLTFDrawMode::POINTS:
+                    if(meshIncludesPointsBehaviour == UnsupportedDrawModeBehaviour::THROW_ERROR) {
+                        reportDrawModeError(filePath, primitive.mode);
+                    } else {
+                        continue;
+                    }
+
+                case GLTFDrawMode::LINES:
+                case GLTFDrawMode::LINE_LOOP:
+                case GLTFDrawMode::LINE_STRIP:
+                    if(meshIncludesLinesBehaviour == UnsupportedDrawModeBehaviour::THROW_ERROR) {
+                        reportDrawModeError(filePath, primitive.mode);
+                    } else {
+                        continue;
+                    }
+                    break;
+
+                case GLTFDrawMode::TRIANGLE_STRIP:
+                case GLTFDrawMode::TRIANGLE_FAN:
+                    if(meshIncludesTriangleStripOrFanBehaviour == UnsupportedDrawModeBehaviour::THROW_ERROR) {
+                        reportDrawModeError(filePath, primitive.mode);
+                    } else {
+                        continue;
+                    }
+                    break;
+                case GLTFDrawMode::TRIANGLES:
+                    // Supported
+                    break;
+                case GLTFDrawMode::END:
+                    break;
             }
 
             // Reading vertex coordinates
@@ -108,6 +151,23 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
 
     for(const tinygltf::Mesh& modelMesh : model.meshes) {
         for (const tinygltf::Primitive &primitive: modelMesh.primitives) {
+            GLTFDrawMode mode = static_cast<GLTFDrawMode>(primitive.mode);
+
+            switch(mode) {
+                case GLTFDrawMode::POINTS:
+                    continue;
+                case GLTFDrawMode::LINES:
+                case GLTFDrawMode::LINE_LOOP:
+                case GLTFDrawMode::LINE_STRIP:
+                    continue;
+                case GLTFDrawMode::TRIANGLE_STRIP:
+                case GLTFDrawMode::TRIANGLE_FAN:
+                    continue;
+                case GLTFDrawMode::TRIANGLES:
+                case GLTFDrawMode::END:
+                    break;
+            }
+
             size_t indexAccessorID = primitive.indices;
             const tinygltf::Accessor& indexAccessor = model.accessors.at(indexAccessorID);
             const tinygltf::BufferView& indexBufferView = model.bufferViews.at(indexAccessor.bufferView);
@@ -243,3 +303,5 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
 
     return mesh;
 }
+
+

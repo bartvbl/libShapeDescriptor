@@ -18,6 +18,25 @@ namespace ShapeDescriptor {
             std::string to_string() {
                 return "(" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + ", " + std::to_string(w) + ")";
             }
+
+            bool operator== (const uchar4 &other) const {
+                return
+                        (r == other.r) &&
+                        (g == other.g) &&
+                        (b == other.b) &&
+                        (a == other.a);
+            }
         };
     }
+}
+
+// Allow inclusion into std::set
+namespace std {
+    template <> struct hash<ShapeDescriptor::cpu::uchar4>
+    {
+        size_t operator()(const ShapeDescriptor::cpu::uchar4& p) const
+        {
+            return std::hash<unsigned char>()(p.r) ^ std::hash<unsigned char>()(p.g) ^ std::hash<unsigned char>()(p.b) ^ std::hash<unsigned char>()(p.a);
+        }
+    };
 }

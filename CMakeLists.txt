@@ -23,6 +23,7 @@ find_package(OpenMP)
 add_subdirectory(lib/Catch2)
 add_subdirectory(lib/tinygltf tinygltf)
 add_subdirectory(lib/fast-lzma2 ${CMAKE_CURRENT_BINARY_DIR}/fast-lzma2)
+add_subdirectory(lib/meshoptimizer meshoptimizer)
 
 if (CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -fopenmp -lpthread -Wall")
@@ -43,6 +44,7 @@ include_directories (
 		lib/json/
 		lib/tinygltf
 		lib/fast-lzma2/src/
+		lib/meshoptimizer/src/
 		lib/
 		lib/fast-obj
 )
@@ -75,7 +77,7 @@ else()
 endif()
 
 
-target_link_libraries(${PROJECT_NAME} fast-lzma2)
+target_link_libraries(${PROJECT_NAME} fast-lzma2 meshoptimizer)
 
 
 target_include_directories(${PROJECT_NAME} PUBLIC src/ lib/nvidia-samples-common)

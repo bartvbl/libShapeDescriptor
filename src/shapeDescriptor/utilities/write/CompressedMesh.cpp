@@ -7,6 +7,7 @@
 #include <meshoptimizer.h>
 #include <iostream>
 #include <shapeDescriptor/utilities/read/MeshLoadUtils.h>
+#include <map>
 
 template<typename T> uint8_t* write(const T& data, uint8_t* bufferPointer) {
     *reinterpret_cast<T*>(bufferPointer) = data;
@@ -14,7 +15,7 @@ template<typename T> uint8_t* write(const T& data, uint8_t* bufferPointer) {
     return bufferPointer;
 }
 
-void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu::Mesh &mesh, const std::filesystem::path &filePath) {
+void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu::Mesh &mesh, const std::filesystem::path &filePath, bool stripVertexColours) {
     // limits supported number of triangles per triangle strip to 2B
     const uint32_t TRIANGLE_STRIP_END_FLAG = 0x1U << 31;
 
@@ -22,7 +23,7 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     meshopt_encodeIndexVersion(1);
 
     bool containsNormals = mesh.normals != nullptr;
-    bool containsVertexColours = mesh.vertexColours != nullptr;
+    bool containsVertexColours = mesh.vertexColours != nullptr && !stripVertexColours;
 
     // If all normals can be computed exactly based on the triangles in the mesh, we do not need to store them
     // We can just compute them when loading the mesh instead.
@@ -139,10 +140,62 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     std::vector<unsigned char> compressedColourBuffer;
 
     if(containsVertexColours) {
-        size_t colourBufferSizeBound = meshopt_encodeVertexBufferBound(mesh.vertexCount, sizeof(ShapeDescriptor::cpu::uchar4));
-        compressedColourBuffer.resize(colourBufferSizeBound);
-        compressedColourBufferSize = meshopt_encodeVertexBuffer(compressedColourBuffer.data(), compressedColourBuffer.size(), mesh.vertexColours, mesh.vertexCount, sizeof(ShapeDescriptor::cpu::uchar4));
-        compressedColourBuffer.resize(compressedColourBufferSize);
+        unsigned int nextColourID = 0;
+        std::map<ShapeDescriptor::cpu::uchar4, unsigned int> colourPalette;
+        std::vector<ShapeDescriptor::cpu::uchar4> colours;
+        std::vector<unsigned int> paletteIndices(mesh.vertexCount);
+        for(size_t i = 0; i < mesh.vertexCount; i++) {
+            ShapeDescriptor::cpu::uchar4 vertexColour = mesh.vertexColours[i];
+            if(!colourPalette.contains(vertexColour)) {
+                colourPalette.insert({vertexColour, nextColourID});
+                colours.push_back(vertexColour);
+                nextColourID++;
+            }
+            paletteIndices.push_back(colourPalette.at(vertexColour));
+        }
+
+        // Buffer format:
+        // 4 bytes - number of bits per colour index
+        // 4 bytes - number of unique colours in palette
+        // If number of bits per colour index is 32: list of 32 bit colours, one per vertex
+        // Otherwise:
+        // - Unique colours (number specified in header)
+        // - Index buffer (x bytes per entry, as specified in header)
+        const size_t headerSize = 2 * sizeof(uint32_t);
+        size_t colourPaletteSize = colours.size() * sizeof(ShapeDescriptor::cpu::uchar4);
+
+        uint32_t bitsPerColour = 32;
+        if(colours.size() > 65535) {
+            // When we need 32 bit per colour index, there is no point in using an index buffer
+            colourPaletteSize = 0;
+        } else if(colours.size() > 255) {
+            bitsPerColour = 16;
+        } else {
+            bitsPerColour = 8;
+        }
+        compressedColourBuffer.resize(headerSize + colourPaletteSize + paletteIndices.size() * (bitsPerColour / 8));
+
+        uint32_t colourCount = colours.size();
+        write(colourCount, compressedColourBuffer.data() + sizeof(uint32_t));
+        write(bitsPerColour, compressedColourBuffer.data());
+
+        if(bitsPerColour == 32) {
+            std::copy(mesh.vertexColours, mesh.vertexColours + mesh.vertexCount, reinterpret_cast<ShapeDescriptor::cpu::uchar4*>(compressedColourBuffer.data() + headerSize));
+        } else {
+            std::copy(colours.begin(), colours.end(), reinterpret_cast<ShapeDescriptor::cpu::uchar4*>(compressedColourBuffer.data() + headerSize));
+        }
+
+        if(bitsPerColour == 16) {
+            uint16_t* colourBasePointer = reinterpret_cast<uint16_t*>(compressedColourBuffer.data() + headerSize + colourPaletteSize);
+            for(int i = 0; i < paletteIndices.size(); i++) {
+                colourBasePointer[i] = (uint16_t) paletteIndices.at(i);
+            }
+        } else if(bitsPerColour == 8) {
+            uint8_t* colourBasePointer = reinterpret_cast<uint8_t*>(compressedColourBuffer.data() + headerSize + colourPaletteSize);
+            for(int i = 0; i < paletteIndices.size(); i++) {
+                colourBasePointer[i] = (uint8_t) paletteIndices.at(i);
+            }
+        }
     }
 
 
@@ -158,7 +211,7 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     const uint32_t headerSize = 6 * sizeof(uint64_t) + 5 * sizeof(uint32_t);
     const size_t vertexSize = compressedVertexBufferSize;
     const size_t normalSize = compressedNormalBufferSize;
-    const size_t colourSize = compressedColourBufferSize;
+    const size_t colourSize = compressedColourBuffer.size();
     const size_t vertexIndexSize = compressedIndexBufferSize;
     const size_t normalIndexSize = compressedNormalIndexBufferSize;
     std::vector<uint8_t> fileBuffer(headerSize + vertexSize + normalSize + colourSize + vertexIndexSize + normalIndexSize);
@@ -214,7 +267,7 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     // contents: colour data
     if(containsVertexColours) {
         std::copy(compressedColourBuffer.begin(), compressedColourBuffer.end(), bufferPointer);
-        bufferPointer += compressedColourBufferSize;
+        bufferPointer += compressedColourBuffer.size();
     }
 
     assert(bufferPointer == fileBuffer.data() + fileBuffer.size());

@@ -5,6 +5,6 @@
 
 namespace ShapeDescriptor {
     namespace utilities {
-        void writeCompressedMesh(const ShapeDescriptor::cpu::Mesh &mesh, const std::filesystem::path &filePath);
+        void writeCompressedMesh(const ShapeDescriptor::cpu::Mesh &mesh, const std::filesystem::path &filePath, bool stripVertexColours = false);
     }
 }

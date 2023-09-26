@@ -26,6 +26,14 @@ namespace ShapeDescriptor {
                         (b == other.b) &&
                         (a == other.a);
             }
+
+            bool operator<(const uchar4 &other)  const {
+                return (r < other.r) && (g < other.g) && (b < other.b) && (a < other.a);
+            }
+
+            bool operator>(const uchar4 &other)  const {
+                return (r > other.r) && (g > other.g) && (b > other.b) && (a > other.a);
+            }
         };
     }
 }

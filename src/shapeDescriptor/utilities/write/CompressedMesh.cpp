@@ -5,6 +5,8 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <meshoptimizer.h>
+#include <iostream>
+#include <shapeDescriptor/utilities/read/MeshLoadUtils.h>
 
 template<typename T> uint8_t* write(const T& data, uint8_t* bufferPointer) {
     *reinterpret_cast<T*>(bufferPointer) = data;
@@ -22,22 +24,35 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     bool containsNormals = mesh.normals != nullptr;
     bool containsVertexColours = mesh.vertexColours != nullptr;
 
+    // If all normals can be computed exactly based on the triangles in the mesh, we do not need to store them
+    // We can just compute them when loading the mesh instead.
+    bool normalsEquivalent = true;
+    for(size_t i = 0; i < mesh.vertexCount; i += 3) {
+        ShapeDescriptor::cpu::float3 vertex0 = mesh.vertices[i + 0];
+        ShapeDescriptor::cpu::float3 vertex1 = mesh.vertices[i + 1];
+        ShapeDescriptor::cpu::float3 vertex2 = mesh.vertices[i + 2];
+
+        ShapeDescriptor::cpu::float3 normal0 = mesh.normals[i + 0];
+        ShapeDescriptor::cpu::float3 normal1 = mesh.normals[i + 1];
+        ShapeDescriptor::cpu::float3 normal2 = mesh.normals[i + 2];
+
+        ShapeDescriptor::cpu::float3 normal = computeTriangleNormal(vertex0, vertex1, vertex2);
+
+        if(normal != normal0 || normal != normal1 || normal != normal2) {
+            normalsEquivalent = false;
+            break;
+        }
+    }
+
+    if(normalsEquivalent) {
+        // Do not save any normals when we can compute them perfectly
+        containsNormals = false;
+    }
+
     std::vector<ShapeDescriptor::cpu::float3> condensedVertices;
     std::vector<uint32_t> vertexIndexBuffer(mesh.vertexCount);
     std::unordered_set<ShapeDescriptor::cpu::float3> seenUniqueVertices;
     std::unordered_map<ShapeDescriptor::cpu::float3, uint32_t> seenVerticesIndex;
-
-    std::vector<ShapeDescriptor::cpu::float3> condensedNormals;
-    std::vector<uint32_t> normalIndexBuffer;
-    std::unordered_set<ShapeDescriptor::cpu::float3> seenUniqueNormals;
-    std::unordered_map<ShapeDescriptor::cpu::float3, uint32_t> seenNormalsIndex;
-
-    condensedVertices.reserve(mesh.vertexCount);
-    if(containsNormals) {
-        condensedNormals.reserve(mesh.vertexCount);
-        normalIndexBuffer.resize(mesh.vertexCount);
-    }
-
 
     // -- Compressing vertex positions --
 
@@ -52,6 +67,14 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
         vertexIndexBuffer.at(i) = seenVerticesIndex.at(vertex);
     }
 
+    meshopt_optimizeVertexCacheStrip(vertexIndexBuffer.data(), vertexIndexBuffer.data(), vertexIndexBuffer.size(), condensedVertices.size());
+    meshopt_optimizeVertexFetch(condensedVertices.data(), vertexIndexBuffer.data(), vertexIndexBuffer.size(), condensedVertices.data(), condensedVertices.size(), sizeof(ShapeDescriptor::cpu::float3));
+
+    // Increases file size, even though it reduces the length of the index buffer rather drastically. LZMA2 does much better,
+    //std::vector<unsigned int> vertexIndexBuffer(meshopt_stripifyBound(nonStrippedVertexIndexBuffer.size()));
+    //size_t stripifiedVertexIndexBufferSize = meshopt_stripify(vertexIndexBuffer.data(), nonStrippedVertexIndexBuffer.data(), nonStrippedVertexIndexBuffer.size(), condensedVertices.size(), ~0u);
+    //vertexIndexBuffer.resize(stripifiedVertexIndexBufferSize);
+
     size_t vertexBufferSizeBound = meshopt_encodeVertexBufferBound(condensedVertices.size(), sizeof(ShapeDescriptor::cpu::float3));
     std::vector<unsigned char> compressedVertexBuffer(vertexBufferSizeBound);
     size_t compressedVertexBufferSize = meshopt_encodeVertexBuffer(compressedVertexBuffer.data(), compressedVertexBuffer.size(), condensedVertices.data(), condensedVertices.size(), sizeof(ShapeDescriptor::cpu::float3));
@@ -64,6 +87,17 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
 
 
     // -- Compressing normals --
+
+    std::vector<ShapeDescriptor::cpu::float3> condensedNormals;
+    std::vector<uint32_t> normalIndexBuffer;
+    std::unordered_set<ShapeDescriptor::cpu::float3> seenUniqueNormals;
+    std::unordered_map<ShapeDescriptor::cpu::float3, uint32_t> seenNormalsIndex;
+
+    condensedVertices.reserve(mesh.vertexCount);
+    if(containsNormals) {
+        condensedNormals.reserve(mesh.vertexCount);
+        normalIndexBuffer.resize(mesh.vertexCount);
+    }
 
     std::vector<unsigned char> compressedNormalBuffer;
     size_t compressedNormalBufferSize = 0;
@@ -83,6 +117,13 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
             normalIndexBuffer.at(i) = seenNormalsIndex.at(normal);
         }
 
+        meshopt_optimizeVertexCacheStrip(normalIndexBuffer.data(), normalIndexBuffer.data(), normalIndexBuffer.size(), condensedNormals.size());
+        meshopt_optimizeVertexFetch(condensedNormals.data(), normalIndexBuffer.data(), normalIndexBuffer.size(), condensedNormals.data(), condensedNormals.size(), sizeof(ShapeDescriptor::cpu::float3));
+
+        //std::vector<unsigned int> normalIndexBuffer(meshopt_stripifyBound(nonStrippedNormalIndexBuffer.size()));
+        //size_t stripifiedNormalIndexBufferSize = meshopt_stripify(normalIndexBuffer.data(), nonStrippedNormalIndexBuffer.data(), nonStrippedNormalIndexBuffer.size(), condensedNormals.size(), ~0u);
+        //normalIndexBuffer.resize(stripifiedNormalIndexBufferSize);
+
         size_t normalBufferSizeBound = meshopt_encodeVertexBufferBound(condensedNormals.size(), sizeof(ShapeDescriptor::cpu::float3));
         compressedNormalBuffer.resize(normalBufferSizeBound);
         compressedNormalBufferSize = meshopt_encodeVertexBuffer(compressedNormalBuffer.data(), compressedNormalBuffer.size(), condensedNormals.data(), condensedNormals.size(), sizeof(ShapeDescriptor::cpu::float3));
@@ -95,9 +136,13 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     }
 
     size_t compressedColourBufferSize = 0;
+    std::vector<unsigned char> compressedColourBuffer;
 
     if(containsVertexColours) {
-        /* ... */
+        size_t colourBufferSizeBound = meshopt_encodeVertexBufferBound(mesh.vertexCount, sizeof(ShapeDescriptor::cpu::uchar4));
+        compressedColourBuffer.resize(colourBufferSizeBound);
+        compressedColourBufferSize = meshopt_encodeVertexBuffer(compressedColourBuffer.data(), compressedColourBuffer.size(), mesh.vertexColours, mesh.vertexCount, sizeof(ShapeDescriptor::cpu::uchar4));
+        compressedColourBuffer.resize(compressedColourBufferSize);
     }
 
 
@@ -113,7 +158,7 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     const uint32_t headerSize = 6 * sizeof(uint64_t) + 5 * sizeof(uint32_t);
     const size_t vertexSize = compressedVertexBufferSize;
     const size_t normalSize = compressedNormalBufferSize;
-    const size_t colourSize = mesh.vertexCount * sizeof(ShapeDescriptor::cpu::uchar4) * (containsVertexColours ? 1 : 0);
+    const size_t colourSize = compressedColourBufferSize;
     const size_t vertexIndexSize = compressedIndexBufferSize;
     const size_t normalIndexSize = compressedNormalIndexBufferSize;
     std::vector<uint8_t> fileBuffer(headerSize + vertexSize + normalSize + colourSize + vertexIndexSize + normalIndexSize);
@@ -168,8 +213,8 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
 
     // contents: colour data
     if(containsVertexColours) {
-        std::copy(mesh.vertexColours, mesh.vertexColours + mesh.vertexCount, reinterpret_cast<ShapeDescriptor::cpu::uchar4*>(bufferPointer));
-        bufferPointer += mesh.vertexCount * sizeof(ShapeDescriptor::cpu::uchar4);
+        std::copy(compressedColourBuffer.begin(), compressedColourBuffer.end(), bufferPointer);
+        bufferPointer += compressedColourBufferSize;
     }
 
     assert(bufferPointer == fileBuffer.data() + fileBuffer.size());

@@ -63,7 +63,7 @@ bool ShapeDescriptor::utilities::gltfContainsPointCloud(const std::filesystem::p
         // The whole file is JSON, so we just need to read all of it
         jsonHeader = nlohmann::json::parse(inputStream);
     }
-    
+
     for(const nlohmann::json& meshElement : jsonHeader.at("meshes")) {
         for(const nlohmann::json& primitive : meshElement.at("primitives")) {
             if(primitive.at("mode") == TINYGLTF_MODE_POINTS) {
@@ -160,7 +160,13 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
             }
 
             // Reading vertex coordinates
-            vertexCount += model.accessors.at(primitive.indices).count;
+            if(primitive.indices < 0) {
+                size_t vertexAccessorID = primitive.attributes.at("POSITION");
+                const tinygltf::Accessor& vertexAccessor = model.accessors.at(vertexAccessorID);
+                vertexCount += vertexAccessor.count;
+            } else {
+                vertexCount += model.accessors.at(primitive.indices).count;
+            }
             // coordinates are always 3D floats
 
             // Reading normals
@@ -212,11 +218,6 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
                     break;
             }
 
-            size_t indexAccessorID = primitive.indices;
-            const tinygltf::Accessor& indexAccessor = model.accessors.at(indexAccessorID);
-            const tinygltf::BufferView& indexBufferView = model.bufferViews.at(indexAccessor.bufferView);
-
-
             size_t vertexAccessorID = primitive.attributes.at("POSITION");
             const tinygltf::Accessor& vertexAccessor = model.accessors.at(vertexAccessorID);
             const tinygltf::BufferView& vertexBufferView = model.bufferViews.at(vertexAccessor.bufferView);
@@ -263,27 +264,47 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
             }
 
 
+            size_t vertexCountInPrimitive = 0;
 
-            unsigned char* indexBasePointer = model.buffers.at(indexBufferView.buffer).data.data() + indexBufferView.byteOffset + indexAccessor.byteOffset;
-            for(size_t index = 0; index < indexAccessor.count; index++) {
+            tinygltf::Accessor indexAccessor;
+            tinygltf::BufferView indexBufferView;
+            unsigned char* indexBasePointer;
+
+            bool useIndexBuffer = primitive.indices >= 0;
+            if(!useIndexBuffer) {
+                size_t vertexAccessorID = primitive.attributes.at("POSITION");
+                const tinygltf::Accessor& vertexAccessor = model.accessors.at(vertexAccessorID);
+                vertexCountInPrimitive = vertexAccessor.count;
+            } else {
+                vertexCountInPrimitive = model.accessors.at(primitive.indices).count;
+                indexAccessor = model.accessors.at(primitive.indices);
+                indexBufferView = model.bufferViews.at(indexAccessor.bufferView);
+                indexBasePointer = model.buffers.at(indexBufferView.buffer).data.data() + indexBufferView.byteOffset + indexAccessor.byteOffset;
+            }
+
+            for(size_t index = 0; index < vertexCountInPrimitive; index++) {
                 size_t vertexIndex = 0;
-                unsigned char* indexPointer;
-                switch(indexAccessor.componentType) {
-                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
-                        indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned int));
-                        vertexIndex = *reinterpret_cast<unsigned int*>(indexPointer);
-                        break;
-                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-                        indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned short));
-                        vertexIndex = *reinterpret_cast<unsigned short*>(indexPointer);
-                        break;
-                    case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
-                        indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned char));
-                        vertexIndex = *indexPointer;
-                        break;
-                    default:
-                        throw std::runtime_error("The file loaded from " + filePath.string() +
-                                                 " specifies indices with a data type other than unsigned int, unsigned short, or unsigned byte.");
+                if(useIndexBuffer) {
+                    unsigned char* indexPointer;
+                    switch(indexAccessor.componentType) {
+                        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                            indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned int));
+                            vertexIndex = *reinterpret_cast<unsigned int*>(indexPointer);
+                            break;
+                        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                            indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned short));
+                            vertexIndex = *reinterpret_cast<unsigned short*>(indexPointer);
+                            break;
+                        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
+                            indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned char));
+                            vertexIndex = *indexPointer;
+                            break;
+                        default:
+                            throw std::runtime_error("The file loaded from " + filePath.string() +
+                                                     " specifies indices with a data type other than unsigned int, unsigned short, or unsigned byte.");
+                    }
+                } else {
+                    vertexIndex = index;
                 }
 
                 mesh.vertices[nextVertexIndex] = *reinterpret_cast<const ShapeDescriptor::cpu::float3*>(vertexBufferBasePointer + vertexIndex * vertexStride);
@@ -364,7 +385,14 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::utilities::loadGLTFPointCloud(
             }
 
             // Reading vertex coordinates
-            vertexCount += model.accessors.at(primitive.indices).count;
+            if(primitive.indices < 0) {
+                size_t vertexAccessorID = primitive.attributes.at("POSITION");
+                const tinygltf::Accessor& vertexAccessor = model.accessors.at(vertexAccessorID);
+                vertexCount += vertexAccessor.count;
+            } else {
+                vertexCount += model.accessors.at(primitive.indices).count;
+            }
+
             // coordinates are always 3D floats
 
             if(primitive.attributes.contains("NORMAL")) {
@@ -402,11 +430,6 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::utilities::loadGLTFPointCloud(
             if(mode != GLTFDrawMode::POINTS) {
                 continue;
             }
-
-            size_t indexAccessorID = primitive.indices;
-            const tinygltf::Accessor& indexAccessor = model.accessors.at(indexAccessorID);
-            const tinygltf::BufferView& indexBufferView = model.bufferViews.at(indexAccessor.bufferView);
-
 
             size_t vertexAccessorID = primitive.attributes.at("POSITION");
             const tinygltf::Accessor& vertexAccessor = model.accessors.at(vertexAccessorID);
@@ -455,26 +478,47 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::utilities::loadGLTFPointCloud(
 
 
 
-            unsigned char* indexBasePointer = model.buffers.at(indexBufferView.buffer).data.data() + indexBufferView.byteOffset + indexAccessor.byteOffset;
-            for(size_t index = 0; index < indexAccessor.count; index++) {
+            size_t vertexCountInPrimitive = 0;
+
+            tinygltf::Accessor indexAccessor;
+            tinygltf::BufferView indexBufferView;
+            unsigned char* indexBasePointer;
+
+            bool useIndexBuffer = primitive.indices >= 0;
+            if(!useIndexBuffer) {
+                size_t vertexAccessorID = primitive.attributes.at("POSITION");
+                const tinygltf::Accessor& vertexAccessor = model.accessors.at(vertexAccessorID);
+                vertexCountInPrimitive = vertexAccessor.count;
+            } else {
+                vertexCountInPrimitive = model.accessors.at(primitive.indices).count;
+                indexAccessor = model.accessors.at(primitive.indices);
+                indexBufferView = model.bufferViews.at(indexAccessor.bufferView);
+                indexBasePointer = model.buffers.at(indexBufferView.buffer).data.data() + indexBufferView.byteOffset + indexAccessor.byteOffset;
+            }
+
+            for(size_t index = 0; index < vertexCountInPrimitive; index++) {
                 size_t vertexIndex = 0;
-                unsigned char* indexPointer;
-                switch(indexAccessor.componentType) {
-                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
-                        indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned int));
-                        vertexIndex = *reinterpret_cast<unsigned int*>(indexPointer);
-                        break;
-                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-                        indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned short));
-                        vertexIndex = *reinterpret_cast<unsigned short*>(indexPointer);
-                        break;
-                    case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
-                        indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned char));
-                        vertexIndex = *indexPointer;
-                        break;
-                    default:
-                        throw std::runtime_error("The file loaded from " + filePath.string() +
-                                                 " specifies indices with a data type other than unsigned int, unsigned short, or unsigned byte.");
+                if(useIndexBuffer) {
+                    unsigned char* indexPointer;
+                    switch(indexAccessor.componentType) {
+                        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                            indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned int));
+                            vertexIndex = *reinterpret_cast<unsigned int*>(indexPointer);
+                            break;
+                        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                            indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned short));
+                            vertexIndex = *reinterpret_cast<unsigned short*>(indexPointer);
+                            break;
+                        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
+                            indexPointer = indexBasePointer + index * (indexBufferView.byteStride != 0 ? indexBufferView.byteStride : sizeof(unsigned char));
+                            vertexIndex = *indexPointer;
+                            break;
+                        default:
+                            throw std::runtime_error("The file loaded from " + filePath.string() +
+                                                     " specifies indices with a data type other than unsigned int, unsigned short, or unsigned byte.");
+                    }
+                } else {
+                    vertexIndex = index;
                 }
 
                 cloud.vertices[nextVertexIndex] = *reinterpret_cast<const ShapeDescriptor::cpu::float3*>(vertexBufferBasePointer + vertexIndex * vertexStride);

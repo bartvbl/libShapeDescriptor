@@ -20,7 +20,7 @@ namespace ShapeDescriptor {
                 vertices = new ShapeDescriptor::cpu::float3[pointCount];
                 normals = new ShapeDescriptor::cpu::float3[pointCount];
                 vertexColours = new ShapeDescriptor::cpu::uchar4[pointCount];
-                pointCount = pointCount;
+                this->pointCount = pointCount;
             }
         };
     }

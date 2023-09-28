@@ -87,18 +87,18 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
     // This is a heuristic, but not a correct computation of what the final size will look like given that we have not yet compressed it all.
     size_t vertexBufferSizeWithIndexBuffer = sizeof(ShapeDescriptor::cpu::float3) * condensedVertices.size() + sizeof(unsigned int) * vertexIndexBuffer.size();
     size_t vertexBufferSizeWithoutIndexBuffer = sizeof(ShapeDescriptor::cpu::float3) * vertexCount;
-    bool includeIndexBuffer = vertexBufferSizeWithIndexBuffer < vertexBufferSizeWithoutIndexBuffer;
-    size_t numberOfVerticesToCompress = includeIndexBuffer ? vertexCount : condensedVertices.size();
+    bool includeVertexIndexBuffer = vertexBufferSizeWithIndexBuffer < vertexBufferSizeWithoutIndexBuffer && !isPointCloud;
+    size_t numberOfVerticesToCompress = includeVertexIndexBuffer ? vertexCount : condensedVertices.size();
 
     size_t vertexBufferSizeBound = meshopt_encodeVertexBufferBound(numberOfVerticesToCompress, sizeof(ShapeDescriptor::cpu::float3));
     std::vector<unsigned char> compressedVertexBuffer(vertexBufferSizeBound);
     size_t compressedVertexBufferSize = meshopt_encodeVertexBuffer(compressedVertexBuffer.data(), compressedVertexBuffer.size(), condensedVertices.data(), condensedVertices.size(), sizeof(ShapeDescriptor::cpu::float3));
     compressedVertexBuffer.resize(compressedVertexBufferSize);
 
-    size_t indexBufferSizeBound = meshopt_encodeIndexBufferBound(vertexIndexBuffer.size(), vertexCount);
     std::vector<unsigned char> compressedIndexBuffer;
     size_t compressedIndexBufferSize = 0;
-    if(includeIndexBuffer) {
+    if(includeVertexIndexBuffer) {
+        size_t indexBufferSizeBound = meshopt_encodeIndexBufferBound(vertexIndexBuffer.size(), vertexCount);
         compressedIndexBuffer.resize(indexBufferSizeBound);
         compressedIndexBufferSize = meshopt_encodeIndexBuffer(compressedIndexBuffer.data(), compressedIndexBuffer.size(), vertexIndexBuffer.data(), vertexIndexBuffer.size());
         compressedIndexBuffer.resize(compressedIndexBufferSize);
@@ -123,6 +123,7 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
     std::vector<unsigned char> compressedNormalIndexBuffer;
     size_t compressedNormalIndexBufferSize = 0;
 
+    bool includeNormalIndexBuffer = false;
     if(containsNormals) {
         for(uint32_t i = 0; i < vertexCount; i++) {
             const ShapeDescriptor::cpu::float3 normal = normals[i];
@@ -135,8 +136,14 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
             normalIndexBuffer.at(i) = seenNormalsIndex.at(normal);
         }
 
-        meshopt_optimizeVertexCacheStrip(normalIndexBuffer.data(), normalIndexBuffer.data(), normalIndexBuffer.size(), condensedNormals.size());
-        meshopt_optimizeVertexFetch(condensedNormals.data(), normalIndexBuffer.data(), normalIndexBuffer.size(), condensedNormals.data(), condensedNormals.size(), sizeof(ShapeDescriptor::cpu::float3));
+        size_t normalBufferSizeWithIndexBuffer = sizeof(ShapeDescriptor::cpu::float3) * condensedNormals.size() + sizeof(unsigned int) * normalIndexBuffer.size();
+        size_t normalBufferSizeWithoutIndexBuffer = sizeof(ShapeDescriptor::cpu::float3) * vertexCount;
+        includeNormalIndexBuffer = normalBufferSizeWithIndexBuffer < normalBufferSizeWithoutIndexBuffer && !isPointCloud;
+
+        if(!isPointCloud) {
+            meshopt_optimizeVertexCacheStrip(normalIndexBuffer.data(), normalIndexBuffer.data(), normalIndexBuffer.size(), condensedNormals.size());
+            meshopt_optimizeVertexFetch(condensedNormals.data(), normalIndexBuffer.data(), normalIndexBuffer.size(), condensedNormals.data(), condensedNormals.size(), sizeof(ShapeDescriptor::cpu::float3));
+        }
 
         //std::vector<unsigned int> normalIndexBuffer(meshopt_stripifyBound(nonStrippedNormalIndexBuffer.size()));
         //size_t stripifiedNormalIndexBufferSize = meshopt_stripify(normalIndexBuffer.data(), nonStrippedNormalIndexBuffer.data(), nonStrippedNormalIndexBuffer.size(), condensedNormals.size(), ~0u);
@@ -147,10 +154,12 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
         compressedNormalBufferSize = meshopt_encodeVertexBuffer(compressedNormalBuffer.data(), compressedNormalBuffer.size(), condensedNormals.data(), condensedNormals.size(), sizeof(ShapeDescriptor::cpu::float3));
         compressedNormalBuffer.resize(compressedNormalBufferSize);
 
-        size_t normalIndexBufferSizeBound = meshopt_encodeIndexBufferBound(normalIndexBuffer.size(), vertexCount);
-        compressedNormalIndexBuffer.resize(normalIndexBufferSizeBound);
-        compressedNormalIndexBufferSize = meshopt_encodeIndexBuffer(compressedNormalIndexBuffer.data(), compressedNormalIndexBuffer.size(), normalIndexBuffer.data(), normalIndexBuffer.size());
-        compressedNormalIndexBuffer.resize(compressedNormalIndexBufferSize);
+        if(includeNormalIndexBuffer) {
+            size_t normalIndexBufferSizeBound = meshopt_encodeIndexBufferBound(normalIndexBuffer.size(), vertexCount);
+            compressedNormalIndexBuffer.resize(normalIndexBufferSizeBound);
+            compressedNormalIndexBufferSize = meshopt_encodeIndexBuffer(compressedNormalIndexBuffer.data(), compressedNormalIndexBuffer.size(), normalIndexBuffer.data(), normalIndexBuffer.size());
+            compressedNormalIndexBuffer.resize(compressedNormalIndexBufferSize);
+        }
     }
 
     size_t compressedColourBufferSize = 0;
@@ -249,7 +258,8 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
     const uint32_t flagContainsVertexColours = containsVertexColours ? 2 : 0;
     const uint32_t flagIsPointCloud = isPointCloud ? 4 : 0;
     const uint32_t flagNormalsWereRemoved = originalMeshContainedNormals ? 8 : 0;
-    const uint32_t flagVertexIndexBufferEnabled = includeIndexBuffer ? 16 : 0;
+    const uint32_t flagVertexIndexBufferEnabled = includeVertexIndexBuffer ? 16 : 0;
+    const uint32_t flagNormalIndexBufferEnabled = includeNormalIndexBuffer ? 32 : 0;
     const uint32_t flags = flagContainsNormals | flagContainsVertexColours | flagIsPointCloud | flagNormalsWereRemoved | flagVertexIndexBufferEnabled;
     bufferPointer = write(flags, bufferPointer);
 

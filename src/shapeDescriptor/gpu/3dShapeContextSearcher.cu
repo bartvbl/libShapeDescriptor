@@ -5,7 +5,6 @@
 #endif
 
 #include <shapeDescriptor/gpu/types/float3.h>
-#include <algorithm>
 #include <chrono>
 #include <cfloat>
 #include <iostream>

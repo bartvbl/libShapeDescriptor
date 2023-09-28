@@ -16,9 +16,6 @@ template<typename T> uint8_t* write(const T& data, uint8_t* bufferPointer) {
 }
 
 void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu::Mesh &mesh, const std::filesystem::path &filePath, bool stripVertexColours) {
-    // limits supported number of triangles per triangle strip to 2B
-    const uint32_t TRIANGLE_STRIP_END_FLAG = 0x1U << 31;
-
     meshopt_encodeVertexVersion(0);
     meshopt_encodeIndexVersion(1);
 
@@ -26,6 +23,7 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     bool containsVertexColours = mesh.vertexColours != nullptr && !stripVertexColours;
 
     bool originalMeshContainedNormals = containsNormals;
+    const bool isPointCloud = false;
 
     // If all normals can be computed exactly based on the triangles in the mesh, we do not need to store them
     // We can just compute them when loading the mesh instead.
@@ -232,8 +230,9 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     // header: flags
     const uint32_t flagContainsNormals = containsNormals ? 1 : 0;
     const uint32_t flagContainsVertexColours = containsVertexColours ? 2 : 0;
-    const uint32_t flagNormalsWereRemoved = originalMeshContainedNormals ? 4 : 0;
-    const uint32_t flags = flagContainsNormals | flagContainsVertexColours | flagNormalsWereRemoved;
+    const uint32_t flagIsPointCloud = isPointCloud ? 4 : 0;
+    const uint32_t flagNormalsWereRemoved = originalMeshContainedNormals ? 8 : 0;
+    const uint32_t flags = flagContainsNormals | flagContainsVertexColours | flagIsPointCloud | flagNormalsWereRemoved;
     bufferPointer = write(flags, bufferPointer);
 
     // header: uncondensed vertex count

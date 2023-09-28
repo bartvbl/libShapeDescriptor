@@ -15,27 +15,32 @@ template<typename T> uint8_t* write(const T& data, uint8_t* bufferPointer) {
     return bufferPointer;
 }
 
-void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu::Mesh &mesh, const std::filesystem::path &filePath, bool stripVertexColours) {
+void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
+                            const ShapeDescriptor::cpu::float3* normals,
+                            const ShapeDescriptor::cpu::uchar4* vertexColours,
+                            const uint32_t vertexCount, // Note: important vertex count is 32 bit
+                            const std::filesystem::path &filePath,
+                            bool stripVertexColours,
+                            bool isPointCloud) {
     meshopt_encodeVertexVersion(0);
     meshopt_encodeIndexVersion(1);
 
-    bool containsNormals = mesh.normals != nullptr;
-    bool containsVertexColours = mesh.vertexColours != nullptr && !stripVertexColours;
+    bool containsNormals = normals != nullptr;
+    bool containsVertexColours = vertexColours != nullptr && !stripVertexColours;
 
     bool originalMeshContainedNormals = containsNormals;
-    const bool isPointCloud = false;
 
     // If all normals can be computed exactly based on the triangles in the mesh, we do not need to store them
     // We can just compute them when loading the mesh instead.
     bool normalsEquivalent = true;
-    for(size_t i = 0; i < mesh.vertexCount; i += 3) {
-        ShapeDescriptor::cpu::float3 vertex0 = mesh.vertices[i + 0];
-        ShapeDescriptor::cpu::float3 vertex1 = mesh.vertices[i + 1];
-        ShapeDescriptor::cpu::float3 vertex2 = mesh.vertices[i + 2];
+    for(size_t i = 0; i < vertexCount; i += 3) {
+        ShapeDescriptor::cpu::float3 vertex0 = vertices[i + 0];
+        ShapeDescriptor::cpu::float3 vertex1 = vertices[i + 1];
+        ShapeDescriptor::cpu::float3 vertex2 = vertices[i + 2];
 
-        ShapeDescriptor::cpu::float3 normal0 = mesh.normals[i + 0];
-        ShapeDescriptor::cpu::float3 normal1 = mesh.normals[i + 1];
-        ShapeDescriptor::cpu::float3 normal2 = mesh.normals[i + 2];
+        ShapeDescriptor::cpu::float3 normal0 = normals[i + 0];
+        ShapeDescriptor::cpu::float3 normal1 = normals[i + 1];
+        ShapeDescriptor::cpu::float3 normal2 = normals[i + 2];
 
         ShapeDescriptor::cpu::float3 normal = computeTriangleNormal(vertex0, vertex1, vertex2);
 
@@ -51,41 +56,53 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     }
 
     std::vector<ShapeDescriptor::cpu::float3> condensedVertices;
-    std::vector<uint32_t> vertexIndexBuffer(mesh.vertexCount);
+    std::vector<uint32_t> vertexIndexBuffer(vertexCount);
     std::unordered_set<ShapeDescriptor::cpu::float3> seenUniqueVertices;
     std::unordered_map<ShapeDescriptor::cpu::float3, uint32_t> seenVerticesIndex;
 
     // -- Compressing vertex positions --
 
-    for(uint32_t i = 0; i < mesh.vertexCount; i++) {
-        const ShapeDescriptor::cpu::float3 vertex = mesh.vertices[i];
-        if(seenUniqueVertices.find(vertex) == seenUniqueVertices.end()) {
-            // Vertex has not been seen before
-            seenUniqueVertices.insert(vertex);
-            seenVerticesIndex[vertex] = condensedVertices.size();
-            condensedVertices.push_back(vertex);
+    if(!isPointCloud) {
+        for(uint32_t i = 0; i < vertexCount; i++) {
+            const ShapeDescriptor::cpu::float3 vertex = vertices[i];
+            if(seenUniqueVertices.find(vertex) == seenUniqueVertices.end()) {
+                // Vertex has not been seen before
+                seenUniqueVertices.insert(vertex);
+                seenVerticesIndex[vertex] = condensedVertices.size();
+                condensedVertices.push_back(vertex);
+            }
+            vertexIndexBuffer.at(i) = seenVerticesIndex.at(vertex);
         }
-        vertexIndexBuffer.at(i) = seenVerticesIndex.at(vertex);
-    }
 
-    meshopt_optimizeVertexCacheStrip(vertexIndexBuffer.data(), vertexIndexBuffer.data(), vertexIndexBuffer.size(), condensedVertices.size());
-    meshopt_optimizeVertexFetch(condensedVertices.data(), vertexIndexBuffer.data(), vertexIndexBuffer.size(), condensedVertices.data(), condensedVertices.size(), sizeof(ShapeDescriptor::cpu::float3));
+        meshopt_optimizeVertexCacheStrip(vertexIndexBuffer.data(), vertexIndexBuffer.data(), vertexIndexBuffer.size(), condensedVertices.size());
+        meshopt_optimizeVertexFetch(condensedVertices.data(), vertexIndexBuffer.data(), vertexIndexBuffer.size(), condensedVertices.data(), condensedVertices.size(), sizeof(ShapeDescriptor::cpu::float3));
+    }
 
     // Increases file size, even though it reduces the length of the index buffer rather drastically. LZMA2 does much better,
     //std::vector<unsigned int> vertexIndexBuffer(meshopt_stripifyBound(nonStrippedVertexIndexBuffer.size()));
     //size_t stripifiedVertexIndexBufferSize = meshopt_stripify(vertexIndexBuffer.data(), nonStrippedVertexIndexBuffer.data(), nonStrippedVertexIndexBuffer.size(), condensedVertices.size(), ~0u);
     //vertexIndexBuffer.resize(stripifiedVertexIndexBufferSize);
 
-    size_t vertexBufferSizeBound = meshopt_encodeVertexBufferBound(condensedVertices.size(), sizeof(ShapeDescriptor::cpu::float3));
+    // Some meshes such as point clouds only really have unique vertices. It thus does not always make sense to store an index buffer
+    // This is a heuristic, but not a correct computation of what the final size will look like given that we have not yet compressed it all.
+    size_t vertexBufferSizeWithIndexBuffer = sizeof(ShapeDescriptor::cpu::float3) * condensedVertices.size() + sizeof(unsigned int) * vertexIndexBuffer.size();
+    size_t vertexBufferSizeWithoutIndexBuffer = sizeof(ShapeDescriptor::cpu::float3) * vertexCount;
+    bool includeIndexBuffer = vertexBufferSizeWithIndexBuffer < vertexBufferSizeWithoutIndexBuffer;
+    size_t numberOfVerticesToCompress = includeIndexBuffer ? vertexCount : condensedVertices.size();
+
+    size_t vertexBufferSizeBound = meshopt_encodeVertexBufferBound(numberOfVerticesToCompress, sizeof(ShapeDescriptor::cpu::float3));
     std::vector<unsigned char> compressedVertexBuffer(vertexBufferSizeBound);
     size_t compressedVertexBufferSize = meshopt_encodeVertexBuffer(compressedVertexBuffer.data(), compressedVertexBuffer.size(), condensedVertices.data(), condensedVertices.size(), sizeof(ShapeDescriptor::cpu::float3));
     compressedVertexBuffer.resize(compressedVertexBufferSize);
 
-    size_t indexBufferSizeBound = meshopt_encodeIndexBufferBound(vertexIndexBuffer.size(), mesh.vertexCount);
-    std::vector<unsigned char> compressedIndexBuffer(indexBufferSizeBound);
-    size_t compressedIndexBufferSize = meshopt_encodeIndexBuffer(compressedIndexBuffer.data(), compressedIndexBuffer.size(), vertexIndexBuffer.data(), vertexIndexBuffer.size());
-    compressedIndexBuffer.resize(compressedIndexBufferSize);
-
+    size_t indexBufferSizeBound = meshopt_encodeIndexBufferBound(vertexIndexBuffer.size(), vertexCount);
+    std::vector<unsigned char> compressedIndexBuffer;
+    size_t compressedIndexBufferSize = 0;
+    if(includeIndexBuffer) {
+        compressedIndexBuffer.resize(indexBufferSizeBound);
+        compressedIndexBufferSize = meshopt_encodeIndexBuffer(compressedIndexBuffer.data(), compressedIndexBuffer.size(), vertexIndexBuffer.data(), vertexIndexBuffer.size());
+        compressedIndexBuffer.resize(compressedIndexBufferSize);
+    }
 
     // -- Compressing normals --
 
@@ -94,10 +111,10 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     std::unordered_set<ShapeDescriptor::cpu::float3> seenUniqueNormals;
     std::unordered_map<ShapeDescriptor::cpu::float3, uint32_t> seenNormalsIndex;
 
-    condensedVertices.reserve(mesh.vertexCount);
+    condensedVertices.reserve(vertexCount);
     if(containsNormals) {
-        condensedNormals.reserve(mesh.vertexCount);
-        normalIndexBuffer.resize(mesh.vertexCount);
+        condensedNormals.reserve(vertexCount);
+        normalIndexBuffer.resize(vertexCount);
     }
 
     std::vector<unsigned char> compressedNormalBuffer;
@@ -107,8 +124,8 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     size_t compressedNormalIndexBufferSize = 0;
 
     if(containsNormals) {
-        for(uint32_t i = 0; i < mesh.vertexCount; i++) {
-            const ShapeDescriptor::cpu::float3 normal = mesh.normals[i];
+        for(uint32_t i = 0; i < vertexCount; i++) {
+            const ShapeDescriptor::cpu::float3 normal = normals[i];
             if(seenUniqueNormals.find(normal) == seenUniqueNormals.end()) {
                 // Normal has not been seen before
                 seenUniqueNormals.insert(normal);
@@ -130,7 +147,7 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
         compressedNormalBufferSize = meshopt_encodeVertexBuffer(compressedNormalBuffer.data(), compressedNormalBuffer.size(), condensedNormals.data(), condensedNormals.size(), sizeof(ShapeDescriptor::cpu::float3));
         compressedNormalBuffer.resize(compressedNormalBufferSize);
 
-        size_t normalIndexBufferSizeBound = meshopt_encodeIndexBufferBound(normalIndexBuffer.size(), mesh.vertexCount);
+        size_t normalIndexBufferSizeBound = meshopt_encodeIndexBufferBound(normalIndexBuffer.size(), vertexCount);
         compressedNormalIndexBuffer.resize(normalIndexBufferSizeBound);
         compressedNormalIndexBufferSize = meshopt_encodeIndexBuffer(compressedNormalIndexBuffer.data(), compressedNormalIndexBuffer.size(), normalIndexBuffer.data(), normalIndexBuffer.size());
         compressedNormalIndexBuffer.resize(compressedNormalIndexBufferSize);
@@ -143,9 +160,9 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
         unsigned int nextColourID = 0;
         std::map<ShapeDescriptor::cpu::uchar4, unsigned int> colourPalette;
         std::vector<ShapeDescriptor::cpu::uchar4> colours;
-        std::vector<unsigned int> paletteIndices(mesh.vertexCount);
-        for(size_t i = 0; i < mesh.vertexCount; i++) {
-            ShapeDescriptor::cpu::uchar4 vertexColour = mesh.vertexColours[i];
+        std::vector<unsigned int> paletteIndices(vertexCount);
+        for(size_t i = 0; i < vertexCount; i++) {
+            ShapeDescriptor::cpu::uchar4 vertexColour = vertexColours[i];
             if(!colourPalette.contains(vertexColour)) {
                 colourPalette.insert({vertexColour, nextColourID});
                 colours.push_back(vertexColour);
@@ -180,7 +197,7 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
         write(bitsPerColour, compressedColourBuffer.data());
 
         if(bitsPerColour == 32) {
-            std::copy(mesh.vertexColours, mesh.vertexColours + mesh.vertexCount, reinterpret_cast<ShapeDescriptor::cpu::uchar4*>(compressedColourBuffer.data() + headerSize));
+            std::copy(vertexColours, vertexColours + vertexCount, reinterpret_cast<ShapeDescriptor::cpu::uchar4*>(compressedColourBuffer.data() + headerSize));
         } else {
             std::copy(colours.begin(), colours.end(), reinterpret_cast<ShapeDescriptor::cpu::uchar4*>(compressedColourBuffer.data() + headerSize));
         }
@@ -232,11 +249,11 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     const uint32_t flagContainsVertexColours = containsVertexColours ? 2 : 0;
     const uint32_t flagIsPointCloud = isPointCloud ? 4 : 0;
     const uint32_t flagNormalsWereRemoved = originalMeshContainedNormals ? 8 : 0;
-    const uint32_t flags = flagContainsNormals | flagContainsVertexColours | flagIsPointCloud | flagNormalsWereRemoved;
+    const uint32_t flagVertexIndexBufferEnabled = includeIndexBuffer ? 16 : 0;
+    const uint32_t flags = flagContainsNormals | flagContainsVertexColours | flagIsPointCloud | flagNormalsWereRemoved | flagVertexIndexBufferEnabled;
     bufferPointer = write(flags, bufferPointer);
 
     // header: uncondensed vertex count
-    const uint32_t vertexCount = mesh.vertexCount; // cast to 32 bit
     bufferPointer = write(vertexCount, bufferPointer);
 
     // header: condensed buffer lengths
@@ -275,4 +292,12 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     assert(bufferPointer == fileBuffer.data() + fileBuffer.size());
 
     ShapeDescriptor::utilities::writeCompressedFile((char*) fileBuffer.data(), fileBuffer.size(), filePath, 4);
+}
+
+void ShapeDescriptor::utilities::writeCompressedGeometryFile(const ShapeDescriptor::cpu::Mesh &mesh, const std::filesystem::path &filePath, bool stripVertexColours) {
+    dumpCompressedGeometry(mesh.vertices, mesh.normals, mesh.vertexColours, mesh.vertexCount, filePath, stripVertexColours, false);
+}
+
+void ShapeDescriptor::utilities::writeCompressedGeometryFile(const ShapeDescriptor::cpu::PointCloud &cloud, const std::filesystem::path &filePath, bool stripVertexColours) {
+    dumpCompressedGeometry(cloud.vertices, cloud.normals, cloud.vertexColours, cloud.pointCount, filePath, stripVertexColours, true);
 }

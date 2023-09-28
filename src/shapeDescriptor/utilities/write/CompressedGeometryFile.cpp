@@ -1,4 +1,4 @@
-#include "CompressedMesh.h"
+#include "CompressedGeometryFile.h"
 #include <cstdint>
 #include <vector>
 #include <shapeDescriptor/utilities/fileutils.h>

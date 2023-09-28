@@ -2,6 +2,7 @@
 #include "PointCloudLoader.h"
 #include "PLYLoader.h"
 #include "XYZLoader.h"
+#include "GLTFLoader.h"
 
 ShapeDescriptor::cpu::PointCloud
 ShapeDescriptor::utilities::loadPointCloud(std::filesystem::path src) {
@@ -20,6 +21,8 @@ ShapeDescriptor::utilities::loadPointCloud(std::filesystem::path src) {
         return ShapeDescriptor::utilities::loadXYZ(src, true);
     } else if(src.extension() == ".xyzrgb" || src.extension() == ".XYZRGB") {
         return ShapeDescriptor::utilities::loadXYZ(src, false, true);
+    } else if(src.extension() == ".glb" || src.extension() == ".GLB" || src.extension() == ".gltf" || src.extension() == ".GLTF") {
+        return ShapeDescriptor::utilities::loadGLTFPointCloud(src);
     } else {
         throw std::runtime_error("Failed to load point cloud file: " + src.string() + "\nReason: extension was not recognised as a supported 3D object file format.");
     }

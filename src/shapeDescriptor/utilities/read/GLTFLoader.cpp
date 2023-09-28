@@ -34,6 +34,47 @@ void reportDrawModeError(const std::filesystem::path &filePath, int drawMode) {
     throw std::runtime_error("The file loaded from " + filePath.string() + " contains geometry with an unsupported drawing mode (" + gltfDrawModes.at(drawMode) + "). Please re-export the object to use triangles exclusively, or use an alternate format.");
 }
 
+bool ShapeDescriptor::utilities::gltfContainsPointCloud(const std::filesystem::path& file) {
+    std::ifstream inputStream{file};
+
+    std::array<unsigned int, 3> fileHeader {0, 0, 0};
+    inputStream.read((char*)fileHeader.data(), sizeof(fileHeader));
+
+
+    nlohmann::json jsonHeader;
+
+    if(fileHeader.at(0) == 0x46546C67) {
+        assert(fileHeader.at(1) == 2); // GLTF revision should be 2
+        unsigned int totalSize = fileHeader.at(2);
+
+        unsigned int headerChunkLength;
+        unsigned int ignored_headerChunkType;
+        inputStream.read((char*) &headerChunkLength, sizeof(unsigned int));
+        inputStream.read((char*) &ignored_headerChunkType, sizeof(unsigned int));
+
+        std::string jsonChunkContents;
+        jsonChunkContents.resize(headerChunkLength);
+        inputStream.read(jsonChunkContents.data(), headerChunkLength);
+        jsonHeader = nlohmann::json::parse(jsonChunkContents);
+    } else {
+        // Reset stream
+        inputStream.seekg(0);
+
+        // The whole file is JSON, so we just need to read all of it
+        jsonHeader = nlohmann::json::parse(inputStream);
+    }
+    
+    for(const nlohmann::json& meshElement : jsonHeader.at("meshes")) {
+        for(const nlohmann::json& primitive : meshElement.at("primitives")) {
+            if(primitive.at("mode") == TINYGLTF_MODE_POINTS) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 tinygltf::Model readTinyGLTFFile(const std::filesystem::path& path) {
     tinygltf::Model model;
     tinygltf::TinyGLTF loader;

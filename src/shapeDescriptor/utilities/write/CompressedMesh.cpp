@@ -25,6 +25,8 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     bool containsNormals = mesh.normals != nullptr;
     bool containsVertexColours = mesh.vertexColours != nullptr && !stripVertexColours;
 
+    bool originalMeshContainedNormals = containsNormals;
+
     // If all normals can be computed exactly based on the triangles in the mesh, we do not need to store them
     // We can just compute them when loading the mesh instead.
     bool normalsEquivalent = true;
@@ -230,7 +232,8 @@ void ShapeDescriptor::utilities::writeCompressedMesh(const ShapeDescriptor::cpu:
     // header: flags
     const uint32_t flagContainsNormals = containsNormals ? 1 : 0;
     const uint32_t flagContainsVertexColours = containsVertexColours ? 2 : 0;
-    const uint32_t flags = flagContainsNormals | flagContainsVertexColours;
+    const uint32_t flagNormalsWereRemoved = originalMeshContainedNormals ? 4 : 0;
+    const uint32_t flags = flagContainsNormals | flagContainsVertexColours | flagNormalsWereRemoved;
     bufferPointer = write(flags, bufferPointer);
 
     // header: uncondensed vertex count

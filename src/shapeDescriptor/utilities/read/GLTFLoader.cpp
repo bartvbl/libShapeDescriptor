@@ -30,6 +30,10 @@ const UnsupportedDrawModeBehaviour meshIncludesLinesBehaviour = UnsupportedDrawM
 const UnsupportedDrawModeBehaviour meshIncludesPointsBehaviour = UnsupportedDrawModeBehaviour::THROW_ERROR;
 const UnsupportedDrawModeBehaviour meshIncludesTriangleStripOrFanBehaviour = UnsupportedDrawModeBehaviour::THROW_ERROR;
 
+const UnsupportedDrawModeBehaviour pointCloudIncludesTrianglesBehaviour = UnsupportedDrawModeBehaviour::IGNORE_AND_EXCLUDE;
+const UnsupportedDrawModeBehaviour pointCloudIncludesLinesBehaviour = UnsupportedDrawModeBehaviour::IGNORE_AND_EXCLUDE;
+const UnsupportedDrawModeBehaviour pointCloudIncludesTrianglesStripOrFanBehaviour = UnsupportedDrawModeBehaviour::IGNORE_AND_EXCLUDE;
+
 void reportDrawModeError(const std::filesystem::path &filePath, int drawMode) {
     throw std::runtime_error("The file loaded from " + filePath.string() + " contains geometry with an unsupported drawing mode (" + gltfDrawModes.at(drawMode) + "). Please re-export the object to use triangles exclusively, or use an alternate format.");
 }
@@ -380,8 +384,36 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::utilities::loadGLTFPointCloud(
         for(const tinygltf::Primitive& primitive : mesh.primitives) {
             GLTFDrawMode mode = static_cast<GLTFDrawMode>(primitive.mode);
             // Enforce pure point cloud file
-            if(mode != GLTFDrawMode::POINTS) {
-                reportDrawModeError(filePath, primitive.mode);
+            switch(mode) {
+                case GLTFDrawMode::POINTS:
+                    break;
+                case GLTFDrawMode::LINES:
+                case GLTFDrawMode::LINE_LOOP:
+                case GLTFDrawMode::LINE_STRIP:
+                    if(pointCloudIncludesLinesBehaviour == UnsupportedDrawModeBehaviour::THROW_ERROR) {
+                        reportDrawModeError(filePath, primitive.mode);
+                    } else {
+                        continue;
+                    }
+                    break;
+
+                case GLTFDrawMode::TRIANGLE_STRIP:
+                case GLTFDrawMode::TRIANGLE_FAN:
+                    if(pointCloudIncludesTrianglesStripOrFanBehaviour == UnsupportedDrawModeBehaviour::THROW_ERROR) {
+                        reportDrawModeError(filePath, primitive.mode);
+                    } else {
+                        continue;
+                    }
+                    break;
+                case GLTFDrawMode::TRIANGLES:
+                    if(pointCloudIncludesTrianglesBehaviour == UnsupportedDrawModeBehaviour::THROW_ERROR) {
+                        reportDrawModeError(filePath, primitive.mode);
+                    } else {
+                        continue;
+                    }
+                    break;
+                case GLTFDrawMode::END:
+                    break;
             }
 
             // Reading vertex coordinates

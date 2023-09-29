@@ -6,15 +6,15 @@
 #include <shapeDescriptor/common/types/methods/QUICCIDescriptor.h>
 #include <shapeDescriptor/cpu/types/array.h>
 
-ShapeDescriptor::QUICCIDescriptorFileHeader readHeader(const char* startOfFileBuffer) {
+ShapeDescriptor::QUICCIDescriptorFileHeader readHeader(std::vector<char>& startOfFileBuffer) {
     ShapeDescriptor::QUICCIDescriptorFileHeader header;
     header.fileID = {startOfFileBuffer[0], startOfFileBuffer[1], startOfFileBuffer[2], startOfFileBuffer[3]};
     if(std::string(header.fileID.data()) != "QUIC") {
         std::cout << "WARNING: File header does not match expectations, and is thus possibly corrupt." << std::endl;
     }
 
-    size_t imageCount = *reinterpret_cast<const size_t*>(startOfFileBuffer + 5);
-    unsigned int descriptorWidthPixels = *reinterpret_cast<const unsigned int*>(startOfFileBuffer + 5 + sizeof(size_t));
+    size_t imageCount = *reinterpret_cast<const size_t*>(startOfFileBuffer.data() + 5);
+    unsigned int descriptorWidthPixels = *reinterpret_cast<const unsigned int*>(startOfFileBuffer.data() + 5 + sizeof(size_t));
 
     header.imageCount = imageCount;
     header.descriptorWidthPixels = descriptorWidthPixels;
@@ -23,8 +23,7 @@ ShapeDescriptor::QUICCIDescriptorFileHeader readHeader(const char* startOfFileBu
 }
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> readImageLZFile(const std::filesystem::path &path, unsigned int decompressionThreadCount) {
-    size_t bufferSize;
-    const char* inputBuffer = ShapeDescriptor::utilities::readCompressedFile(path, &bufferSize, decompressionThreadCount);
+    std::vector<char> inputBuffer = ShapeDescriptor::utilities::readCompressedFile(path, decompressionThreadCount);
 
     ShapeDescriptor::QUICCIDescriptorFileHeader header = readHeader(inputBuffer);
 
@@ -42,11 +41,10 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> readImageLZFile(c
 
     const size_t headerSize = 5 * sizeof(char) + sizeof(size_t) + sizeof(unsigned int);
     const ShapeDescriptor::QUICCIDescriptor* imagesBasePointer
-        = reinterpret_cast<const ShapeDescriptor::QUICCIDescriptor*>(inputBuffer + headerSize);
+        = reinterpret_cast<const ShapeDescriptor::QUICCIDescriptor*>(inputBuffer.data() + headerSize);
 
     std::copy(imagesBasePointer, imagesBasePointer + header.imageCount, images.content);
 
-    delete[] inputBuffer;
     return images;
 }
 
@@ -56,13 +54,10 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::
 
 ShapeDescriptor::QUICCIDescriptorFileHeader
 ShapeDescriptor::read::QuicciDescriptorFileHeader(const std::filesystem::path &path) {
-    size_t bufferSize;
     const size_t headerSize = sizeof(ShapeDescriptor::QUICCIDescriptorFileHeader);
-    const char* inputBuffer = ShapeDescriptor::utilities::readCompressedFileUpToNBytes(path, &bufferSize, headerSize, 1);
+    std::vector<char> inputBuffer = ShapeDescriptor::utilities::readCompressedFileUpToNBytes(path, headerSize, 1);
 
     ShapeDescriptor::QUICCIDescriptorFileHeader header = readHeader(inputBuffer);
-
-    delete[] inputBuffer;
 
     return header;
 }

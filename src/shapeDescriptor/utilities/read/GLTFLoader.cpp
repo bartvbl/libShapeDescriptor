@@ -255,7 +255,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
             size_t colourStride = 0;
             unsigned char* colourBufferBasePointer = nullptr;
             if(readVertexColours) {
-                colourAccessorID = primitive.attributes.contains("COLOR_0");
+                colourAccessorID = primitive.attributes.at("COLOR_0");
                 colourAccessor = &model.accessors.at(colourAccessorID);
                 colourBufferView = &model.bufferViews.at(colourAccessor->bufferView);
 
@@ -461,8 +461,10 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::utilities::loadGLTFPointCloud(
                 int accessorID = primitive.attributes.at("COLOR_0");
                 if(model.accessors.at(accessorID).type == TINYGLTF_TYPE_VEC3 || model.accessors.at(accessorID).type == TINYGLTF_TYPE_VEC4) {
                     if(model.accessors.at(accessorID).componentType != TINYGLTF_PARAMETER_TYPE_FLOAT
-                       && model.accessors.at(accessorID).componentType != TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE) {
-                        throw std::runtime_error("The file loaded from " + filePath.string() + " specifies vertex colours in a format different from 32-bit floats or unsigned char for each channel. Please re-export the model to correct this.");
+                    && model.accessors.at(accessorID).componentType != TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE
+                    && model.accessors.at(accessorID).componentType != TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT) {
+                        readVertexColours = false;
+                        //throw std::runtime_error("The file loaded from " + filePath.string() + " specifies vertex colours in a format different from 32-bit floats, 16 bits, or 8 bits for each channel. Please re-export the model to correct this.");
                     }
                 } else {
                     throw std::runtime_error("The file loaded from " + filePath.string() +
@@ -515,7 +517,7 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::utilities::loadGLTFPointCloud(
             size_t colourStride = 0;
             unsigned char* colourBufferBasePointer = nullptr;
             if(readVertexColours) {
-                colourAccessorID = primitive.attributes.contains("COLOR_0");
+                colourAccessorID = primitive.attributes.at("COLOR_0");
                 colourAccessor = &model.accessors.at(colourAccessorID);
                 colourBufferView = &model.bufferViews.at(colourAccessor->bufferView);
 
@@ -527,6 +529,9 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::utilities::loadGLTFPointCloud(
                 }
                 if(colourAccessor->componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
                     bytesPerChannel = sizeof(float);
+                }
+                if(colourAccessor->componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+                    bytesPerChannel = sizeof(uint16_t);
                 }
 
                 colourStride = colourBufferView->byteStride != 0 ? colourBufferView->byteStride : elementCount * bytesPerChannel;
@@ -607,6 +612,22 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::utilities::loadGLTFPointCloud(
                             colour = {colourPointer[0], colourPointer[1], colourPointer[2], 1};
                         } else if(colourAccessor->type == TINYGLTF_TYPE_VEC4) {
                             colour = *reinterpret_cast<ShapeDescriptor::cpu::uchar4*>(colourPointer);
+                        } else {
+                            throw std::runtime_error("The file loaded from " + filePath.string() +
+                                                     " specifies colours with more or fewer than three or four channels.");
+                        }
+                    } else if(colourAccessor->componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+                        const uint16_t* colour16Pointer = reinterpret_cast<uint16_t*>(colourPointer);
+                        if(colourAccessor->type == TINYGLTF_TYPE_VEC3) {
+
+                            colour = {scale16BitColourTo8Bit(colour16Pointer[0]),
+                                      scale16BitColourTo8Bit(colour16Pointer[1]),
+                                      scale16BitColourTo8Bit(colour16Pointer[2]), 255};
+                        } else if(colourAccessor->type == TINYGLTF_TYPE_VEC4) {
+                            colour = {scale16BitColourTo8Bit(colour16Pointer[0]),
+                                      scale16BitColourTo8Bit(colour16Pointer[1]),
+                                      scale16BitColourTo8Bit(colour16Pointer[2]),
+                                      scale16BitColourTo8Bit(colour16Pointer[3])};
                         } else {
                             throw std::runtime_error("The file loaded from " + filePath.string() +
                                                      " specifies colours with more or fewer than three or four channels.");

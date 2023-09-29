@@ -260,7 +260,7 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
     const uint32_t flagNormalsWereRemoved = originalMeshContainedNormals ? 8 : 0;
     const uint32_t flagVertexIndexBufferEnabled = includeVertexIndexBuffer ? 16 : 0;
     const uint32_t flagNormalIndexBufferEnabled = includeNormalIndexBuffer ? 32 : 0;
-    const uint32_t flags = flagContainsNormals | flagContainsVertexColours | flagIsPointCloud | flagNormalsWereRemoved | flagVertexIndexBufferEnabled;
+    const uint32_t flags = flagContainsNormals | flagContainsVertexColours | flagIsPointCloud | flagNormalsWereRemoved | flagVertexIndexBufferEnabled | flagNormalIndexBufferEnabled;
     bufferPointer = write(flags, bufferPointer);
 
     // header: uncondensed vertex count

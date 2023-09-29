@@ -61,7 +61,7 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
     bool flagVertexIndexBufferEnabled = (flags & 16) != 0;
     bool flagNormalIndexBufferEnabled = (flags & 32) != 0;
 
-    if(expectMeshInFile == !flagIsPointCloud) {
+    if(expectMeshInFile == flagIsPointCloud) {
         throw std::runtime_error("Error while reading file: " + filePath.string() + "\nFile was expected to contain a " + (expectMeshInFile ? "mesh" : "point cloud") + ", but in reality contains a " + (flagIsPointCloud ? "point cloud" : "mesh") + ".");
     }
 
@@ -89,14 +89,14 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
     size_t compressedColourBufferSize = readUint64(bufferPointer);
 
     // We can read the compressed buffers directly from the file's buffer
-    char* compressedVertexIndexBuffer = bufferPointer;
-    bufferPointer += compressedIndexBufferSize;
     char* compressedVertexBuffer = bufferPointer;
     bufferPointer += compressedVertexBufferSize;
-    char* compressedNormalIndexBuffer = bufferPointer;
-    bufferPointer += compressedNormalIndexBufferSize;
+    char* compressedVertexIndexBuffer = bufferPointer;
+    bufferPointer += compressedIndexBufferSize;
     char* compressedNormalBuffer = bufferPointer;
     bufferPointer += compressedNormalBufferSize;
+    char* compressedNormalIndexBuffer = bufferPointer;
+    bufferPointer += compressedNormalIndexBufferSize;
     char* compressedColourBuffer = bufferPointer;
     bufferPointer += compressedColourBufferSize;
 

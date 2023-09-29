@@ -2,6 +2,7 @@
 #include <shapeDescriptor/utilities/fileutils.h>
 #include <meshoptimizer.h>
 #include "CompressedGeometryFile.h"
+#include "MeshLoadUtils.h"
 
 uint32_t readUint32(char*& bufferPointer) {
     uint32_t value = *reinterpret_cast<uint32_t*>(bufferPointer);
@@ -120,7 +121,15 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
     // Normals were present, but removed because they could be calculated exactly.
     // We are therefore expected to recompute them here
     } else if(flagNormalsWereRemoved) {
-
+        for(uint32_t i = 0; i < vertexCount; i += 3) {
+            ShapeDescriptor::cpu::float3 vertex0 = vertices.content[i];
+            ShapeDescriptor::cpu::float3 vertex1 = vertices.content[i + 1];
+            ShapeDescriptor::cpu::float3 vertex2 = vertices.content[i + 2];
+            ShapeDescriptor::cpu::float3 normal = computeTriangleNormal(vertex0, vertex1, vertex2);
+            normals.content[i] = normal;
+            normals.content[i + 1] = normal;
+            normals.content[i + 2] = normal;
+        }
     }
 
     if(flagContainsVertexColours) {

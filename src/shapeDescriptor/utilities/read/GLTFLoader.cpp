@@ -463,8 +463,7 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::utilities::loadGLTFPointCloud(
                     if(model.accessors.at(accessorID).componentType != TINYGLTF_PARAMETER_TYPE_FLOAT
                     && model.accessors.at(accessorID).componentType != TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE
                     && model.accessors.at(accessorID).componentType != TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT) {
-                        readVertexColours = false;
-                        //throw std::runtime_error("The file loaded from " + filePath.string() + " specifies vertex colours in a format different from 32-bit floats, 16 bits, or 8 bits for each channel. Please re-export the model to correct this.");
+                        throw std::runtime_error("The file loaded from " + filePath.string() + " specifies vertex colours in a format different from 32-bit floats, 16 bits, or 8 bits for each channel. Please re-export the model to correct this.");
                     }
                 } else {
                     throw std::runtime_error("The file loaded from " + filePath.string() +

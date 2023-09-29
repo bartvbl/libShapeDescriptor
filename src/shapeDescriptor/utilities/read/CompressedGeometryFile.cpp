@@ -1,5 +1,6 @@
 #include <shapeDescriptor/cpu/types/array.h>
 #include <shapeDescriptor/utilities/fileutils.h>
+#include <meshoptimizer.h>
 #include "CompressedGeometryFile.h"
 
 uint32_t readUint32(char*& bufferPointer) {
@@ -14,7 +15,30 @@ uint64_t readUint64(char*& bufferPointer) {
     return value;
 }
 
-void readGeometryDataFromFile(const std::filesystem::path &filePath) {
+void decompressGeometryBuffer(size_t extractedCount, ShapeDescriptor::cpu::float3* destination, unsigned char* compressedVertexBuffer, size_t compressedVertexBufferSize) {
+    int resvb = meshopt_decodeVertexBuffer(destination, extractedCount, sizeof(ShapeDescriptor::cpu::float3), compressedVertexBuffer, compressedVertexBufferSize);
+    assert(resvb == 0);
+}
+
+void decompressGeometryWithIndexBuffer(size_t extractedCount, size_t condensedCount, ShapeDescriptor::cpu::float3* destination, unsigned char* compressedVertexBuffer, size_t compressedVertexBufferSize, unsigned char* compressedIndexBuffer, size_t compressedIndexBufferSize) {
+    std::vector<ShapeDescriptor::cpu::float3> condensedVertices(condensedCount);
+    std::vector<unsigned int> vertexIndexBuffer(extractedCount);
+
+    int resvb = meshopt_decodeVertexBuffer(condensedVertices.data(), condensedCount, sizeof(ShapeDescriptor::cpu::float3), compressedVertexBuffer, compressedVertexBufferSize);
+    int resib = meshopt_decodeIndexBuffer(vertexIndexBuffer.data(), vertexIndexBuffer.size(), compressedIndexBuffer, compressedIndexBufferSize);
+    assert(resvb == 0 && resib == 0);
+
+    for(uint32_t i = 0; i < extractedCount; i++) {
+        uint32_t index = vertexIndexBuffer.at(i);
+        destination[i] = condensedVertices.at(index);
+    }
+}
+
+void readGeometryDataFromFile(const std::filesystem::path &filePath,
+                              ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3>& vertices,
+                              ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3>& normals,
+                              ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::uchar4>& vertexColours,
+                              bool expectMeshInFile) {
     std::vector<char> fileContents = ShapeDescriptor::utilities::readCompressedFile(filePath, 4);
     char* bufferPointer = fileContents.data();
 
@@ -36,8 +60,21 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath) {
     bool flagVertexIndexBufferEnabled = (flags & 16) != 0;
     bool flagNormalIndexBufferEnabled = (flags & 32) != 0;
 
+    if(expectMeshInFile == !flagIsPointCloud) {
+        throw std::runtime_error("Error while reading file: " + filePath.string() + "\nFile was expected to contain a " + (expectMeshInFile ? "mesh" : "point cloud") + ", but in reality contains a " + (flagIsPointCloud ? "point cloud" : "mesh") + ".");
+    }
+
     // header: uncondensed vertex count
     uint32_t vertexCount = readUint32(bufferPointer);
+
+    // Allocate buffers
+    vertices = ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3>(vertexCount);
+    if(flagContainsNormals || flagNormalsWereRemoved) {
+        normals = ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3>(vertexCount);
+    }
+    if(flagContainsVertexColours) {
+        vertexColours = ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::uchar4>(vertexCount);
+    }
 
     // header: condensed buffer lengths
     uint32_t condensedVertexCount = readUint32(bufferPointer);
@@ -62,19 +99,64 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath) {
     char* compressedColourBuffer = bufferPointer;
     bufferPointer += compressedColourBufferSize;
 
+    if(flagVertexIndexBufferEnabled) {
+        decompressGeometryWithIndexBuffer(vertexCount,
+                                          condensedVertexCount, vertices.content,
+                                          reinterpret_cast<unsigned char*>(compressedVertexBuffer), compressedVertexBufferSize,
+                                          reinterpret_cast<unsigned char*>(compressedVertexIndexBuffer), compressedIndexBufferSize);
+    } else {
+        decompressGeometryBuffer(vertexCount, vertices.content, reinterpret_cast<unsigned char*>(compressedVertexBuffer), compressedVertexBufferSize);
+    }
+
+    if(flagContainsNormals) {
+        if(flagNormalIndexBufferEnabled) {
+            decompressGeometryWithIndexBuffer(vertexCount,
+                                              condensedNormalCount, normals.content,
+                                              reinterpret_cast<unsigned char*>(compressedNormalBuffer), compressedNormalBufferSize,
+                                              reinterpret_cast<unsigned char*>(compressedNormalIndexBuffer), compressedNormalIndexBufferSize);
+        } else {
+            decompressGeometryBuffer(vertexCount, normals.content, reinterpret_cast<unsigned char*>(compressedNormalBuffer), compressedNormalBufferSize);
+        }
+    // Normals were present, but removed because they could be calculated exactly.
+    // We are therefore expected to recompute them here
+    } else if(flagNormalsWereRemoved) {
+
+    }
+
+    if(flagContainsVertexColours) {
+
+    }
+
 }
 
 ShapeDescriptor::cpu::Mesh
 ShapeDescriptor::utilities::readMeshFromCompressedGeometryFile(const std::filesystem::path &filePath) {
+    ShapeDescriptor::cpu::Mesh mesh;
+    ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> vertices;
+    ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> normals;
+    ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::uchar4> vertexColours;
+    readGeometryDataFromFile(filePath, vertices, normals, vertexColours, true);
 
+    mesh.vertexCount = vertices.length;
+    mesh.vertices = vertices.content;
+    mesh.normals = normals.content;
+    mesh.vertexColours = vertexColours.content;
 
-
-
-
-    return ShapeDescriptor::cpu::Mesh();
+    return mesh;
 }
 
 ShapeDescriptor::cpu::PointCloud
 ShapeDescriptor::utilities::readPointCloudFromCompressedGeometryFile(const std::filesystem::path &filePath) {
-    return ShapeDescriptor::cpu::PointCloud();
+    ShapeDescriptor::cpu::PointCloud cloud;
+    ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> vertices;
+    ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> normals;
+    ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::uchar4> vertexColours;
+    readGeometryDataFromFile(filePath, vertices, normals, vertexColours, false);
+
+    cloud.pointCount = vertices.length;
+    cloud.vertices = vertices.content;
+    cloud.normals = normals.content;
+    cloud.vertexColours = vertexColours.content;
+
+    return cloud;
 }

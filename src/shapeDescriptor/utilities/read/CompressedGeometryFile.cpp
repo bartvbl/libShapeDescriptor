@@ -40,6 +40,9 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
                               ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3>& normals,
                               ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::uchar4>& vertexColours,
                               bool expectMeshInFile) {
+    meshopt_encodeVertexVersion(0);
+    meshopt_encodeIndexVersion(1);
+
     std::vector<char> fileContents = ShapeDescriptor::utilities::readCompressedFile(filePath, 4);
     char* bufferPointer = fileContents.data();
 
@@ -72,9 +75,13 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
     vertices = ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3>(vertexCount);
     if(flagContainsNormals || flagNormalsWereRemoved) {
         normals = ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3>(vertexCount);
+    } else {
+        normals = {0, nullptr};
     }
     if(flagContainsVertexColours) {
         vertexColours = ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::uchar4>(vertexCount);
+    } else {
+        vertexColours = {0, nullptr};
     }
 
     // header: condensed buffer lengths

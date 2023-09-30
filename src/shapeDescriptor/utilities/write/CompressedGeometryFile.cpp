@@ -73,9 +73,6 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
             }
             vertexIndexBuffer.at(i) = seenVerticesIndex.at(vertex);
         }
-
-        meshopt_optimizeVertexCacheStrip(vertexIndexBuffer.data(), vertexIndexBuffer.data(), vertexIndexBuffer.size(), condensedVertices.size());
-        meshopt_optimizeVertexFetch(condensedVertices.data(), vertexIndexBuffer.data(), vertexIndexBuffer.size(), condensedVertices.data(), condensedVertices.size(), sizeof(ShapeDescriptor::cpu::float3));
     }
 
     // Increases file size, even though it reduces the length of the index buffer rather drastically. LZMA2 does much better,
@@ -139,11 +136,6 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
         size_t normalBufferSizeWithIndexBuffer = sizeof(ShapeDescriptor::cpu::float3) * condensedNormals.size() + sizeof(unsigned int) * normalIndexBuffer.size();
         size_t normalBufferSizeWithoutIndexBuffer = sizeof(ShapeDescriptor::cpu::float3) * vertexCount;
         includeNormalIndexBuffer = normalBufferSizeWithIndexBuffer < normalBufferSizeWithoutIndexBuffer && !isPointCloud;
-
-        if(!isPointCloud) {
-            meshopt_optimizeVertexCacheStrip(normalIndexBuffer.data(), normalIndexBuffer.data(), normalIndexBuffer.size(), condensedNormals.size());
-            meshopt_optimizeVertexFetch(condensedNormals.data(), normalIndexBuffer.data(), normalIndexBuffer.size(), condensedNormals.data(), condensedNormals.size(), sizeof(ShapeDescriptor::cpu::float3));
-        }
 
         //std::vector<unsigned int> normalIndexBuffer(meshopt_stripifyBound(nonStrippedNormalIndexBuffer.size()));
         //size_t stripifiedNormalIndexBufferSize = meshopt_stripify(normalIndexBuffer.data(), nonStrippedNormalIndexBuffer.data(), nonStrippedNormalIndexBuffer.size(), condensedNormals.size(), ~0u);

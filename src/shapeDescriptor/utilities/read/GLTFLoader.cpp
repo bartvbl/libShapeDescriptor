@@ -213,6 +213,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
         for (const tinygltf::Primitive &primitive: modelMesh.primitives) {
             GLTFDrawMode mode = static_cast<GLTFDrawMode>(primitive.mode);
 
+            // At this point, either an error was reported, or the unsupported format is supposed to be ignored.
             switch(mode) {
                 case GLTFDrawMode::POINTS:
                     continue;

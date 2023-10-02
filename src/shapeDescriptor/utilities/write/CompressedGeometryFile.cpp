@@ -238,7 +238,7 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
 
 
     // header: magic
-    const uint64_t magic = 0x4C53532D4D455348;
+    const uint64_t magic = 0x4F45474853454D43;
     bufferPointer = write(magic, bufferPointer);
 
     // header: version

@@ -49,7 +49,7 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
     // Read header
     // header: magic
     uint64_t magic = readUint64(bufferPointer);
-    if(magic != 0x4C53532D4D455348) {
+    if(magic != 0x4F45474853454D43) {
         throw std::runtime_error("Invalid magic bytes detected when reading compressed file from (the file has the wrong format or may be corrupt): " + filePath.string());
     }
 

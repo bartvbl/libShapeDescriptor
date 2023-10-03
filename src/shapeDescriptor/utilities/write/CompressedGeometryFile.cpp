@@ -95,6 +95,13 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
     std::vector<unsigned char> compressedIndexBuffer;
     size_t compressedIndexBufferSize = 0;
     if(includeVertexIndexBuffer) {
+        size_t verticesToPad = (3 - (vertexCount % 3)) % 3;
+        size_t paddedIndexCount = vertexCount + verticesToPad;
+        if(verticesToPad != 0) {
+            // library assumes triangles. Need to invent some additional indices for point clouds and the like
+            vertexIndexBuffer.resize(paddedIndexCount);
+        }
+
         size_t indexBufferSizeBound = meshopt_encodeIndexBufferBound(vertexIndexBuffer.size(), vertexCount);
         compressedIndexBuffer.resize(indexBufferSizeBound);
         compressedIndexBufferSize = meshopt_encodeIndexBuffer(compressedIndexBuffer.data(), compressedIndexBuffer.size(), vertexIndexBuffer.data(), vertexIndexBuffer.size());
@@ -120,7 +127,7 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
     std::vector<unsigned char> compressedNormalIndexBuffer;
     size_t compressedNormalIndexBufferSize = 0;
 
-    bool includeNormalIndexBuffer = false;
+    //bool includeNormalIndexBuffer = false;
     if(containsNormals) {
         for(uint32_t i = 0; i < vertexCount; i++) {
             const ShapeDescriptor::cpu::float3 normal = normals[i];
@@ -135,7 +142,7 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
 
         size_t normalBufferSizeWithIndexBuffer = sizeof(ShapeDescriptor::cpu::float3) * condensedNormals.size() + sizeof(unsigned int) * normalIndexBuffer.size();
         size_t normalBufferSizeWithoutIndexBuffer = sizeof(ShapeDescriptor::cpu::float3) * vertexCount;
-        includeNormalIndexBuffer = normalBufferSizeWithIndexBuffer < normalBufferSizeWithoutIndexBuffer && !isPointCloud;
+        //includeNormalIndexBuffer = normalBufferSizeWithIndexBuffer < normalBufferSizeWithoutIndexBuffer && !isPointCloud;
 
         //std::vector<unsigned int> normalIndexBuffer(meshopt_stripifyBound(nonStrippedNormalIndexBuffer.size()));
         //size_t stripifiedNormalIndexBufferSize = meshopt_stripify(normalIndexBuffer.data(), nonStrippedNormalIndexBuffer.data(), nonStrippedNormalIndexBuffer.size(), condensedNormals.size(), ~0u);
@@ -146,12 +153,19 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
         compressedNormalBufferSize = meshopt_encodeVertexBuffer(compressedNormalBuffer.data(), compressedNormalBuffer.size(), condensedNormals.data(), condensedNormals.size(), sizeof(ShapeDescriptor::cpu::float3));
         compressedNormalBuffer.resize(compressedNormalBufferSize);
 
-        if(includeNormalIndexBuffer) {
+        size_t verticesToPad = (3 - (vertexCount % 3)) % 3;
+        size_t paddedIndexCount = vertexCount + verticesToPad;
+        if(verticesToPad != 0) {
+            // library assumes triangles. Need to invent some additional indices for point clouds and the like
+            normalIndexBuffer.resize(paddedIndexCount);
+        }
+
+        //if(includeNormalIndexBuffer) {
             size_t normalIndexBufferSizeBound = meshopt_encodeIndexBufferBound(normalIndexBuffer.size(), vertexCount);
             compressedNormalIndexBuffer.resize(normalIndexBufferSizeBound);
             compressedNormalIndexBufferSize = meshopt_encodeIndexBuffer(compressedNormalIndexBuffer.data(), compressedNormalIndexBuffer.size(), normalIndexBuffer.data(), normalIndexBuffer.size());
             compressedNormalIndexBuffer.resize(compressedNormalIndexBufferSize);
-        }
+        //}
     }
 
     size_t compressedColourBufferSize = 0;
@@ -251,8 +265,8 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
     const uint32_t flagIsPointCloud = isPointCloud ? 4 : 0;
     const uint32_t flagNormalsWereRemoved = originalMeshContainedNormals ? 8 : 0;
     const uint32_t flagVertexIndexBufferEnabled = includeVertexIndexBuffer ? 16 : 0;
-    const uint32_t flagNormalIndexBufferEnabled = includeNormalIndexBuffer ? 32 : 0;
-    const uint32_t flags = flagContainsNormals | flagContainsVertexColours | flagIsPointCloud | flagNormalsWereRemoved | flagVertexIndexBufferEnabled | flagNormalIndexBufferEnabled;
+    //const uint32_t flagNormalIndexBufferEnabled = includeNormalIndexBuffer ? 32 : 0;
+    const uint32_t flags = flagContainsNormals | flagContainsVertexColours | flagIsPointCloud | flagNormalsWereRemoved | flagVertexIndexBufferEnabled;// | flagNormalIndexBufferEnabled;
     bufferPointer = write(flags, bufferPointer);
 
     // header: uncondensed vertex count

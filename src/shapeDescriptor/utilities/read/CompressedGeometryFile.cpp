@@ -23,7 +23,13 @@ void decompressGeometryBuffer(size_t extractedCount, ShapeDescriptor::cpu::float
 
 void decompressGeometryWithIndexBuffer(size_t extractedCount, size_t condensedCount, ShapeDescriptor::cpu::float3* destination, unsigned char* compressedVertexBuffer, size_t compressedVertexBufferSize, unsigned char* compressedIndexBuffer, size_t compressedIndexBufferSize) {
     std::vector<ShapeDescriptor::cpu::float3> condensedVertices(condensedCount);
-    std::vector<unsigned int> vertexIndexBuffer(extractedCount);
+
+    size_t verticesToPad = (3 - (extractedCount % 3)) % 3;
+    size_t paddedIndexCount = extractedCount + verticesToPad;
+    // library assumes triangles, so the index buffer was padded when writing the file
+    // we need to include that padding while decompressing the index buffer
+    // However, we just ignore the final indices (if any) afterwards
+    std::vector<unsigned int> vertexIndexBuffer(paddedIndexCount);
 
     int resvb = meshopt_decodeVertexBuffer(condensedVertices.data(), condensedCount, sizeof(ShapeDescriptor::cpu::float3), compressedVertexBuffer, compressedVertexBufferSize);
     int resib = meshopt_decodeIndexBuffer(vertexIndexBuffer.data(), vertexIndexBuffer.size(), compressedIndexBuffer, compressedIndexBufferSize);
@@ -117,6 +123,7 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
     }
 
     if(flagContainsNormals) {
+        flagNormalIndexBufferEnabled = true;
         if(flagNormalIndexBufferEnabled) {
             decompressGeometryWithIndexBuffer(vertexCount,
                                               condensedNormalCount, normals.content,

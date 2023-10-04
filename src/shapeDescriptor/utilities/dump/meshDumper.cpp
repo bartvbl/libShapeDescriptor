@@ -72,18 +72,15 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::filesystem::path &outp
     condensedVertices.reserve(mesh.vertexCount);
     condensedNormals.reserve(mesh.vertexCount);
 
-    std::unordered_set<ShapeDescriptor::cpu::float3> seenUniqueVertices;
     std::unordered_map<ShapeDescriptor::cpu::float3, unsigned int> seenVerticesIndex;
 
-    std::unordered_set<ShapeDescriptor::cpu::float3> seenUniqueNormals;
     std::unordered_map<ShapeDescriptor::cpu::float3, unsigned int> seenNormalsIndex;
 
     for(unsigned int i = 0; i < mesh.vertexCount; i++) {
         const ShapeDescriptor::cpu::float3 vertex = mesh.vertices[i];
-        if(seenUniqueVertices.find(vertex) == seenUniqueVertices.end()) {
+        if(!seenVerticesIndex.contains(vertex)) {
             // Vertex has not been seen before
-            seenUniqueVertices.insert(vertex);
-            seenVerticesIndex[vertex] = condensedVertices.size();
+            seenVerticesIndex.insert({vertex, condensedVertices.size()});
             condensedVertices.push_back(vertex);
         }
         vertexIndexBuffer.at(i) = seenVerticesIndex.at(vertex);
@@ -100,10 +97,8 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::filesystem::path &outp
     if(hasNormalsEnabled) {
         for(unsigned int i = 0; i < mesh.vertexCount; i++) {
             const ShapeDescriptor::cpu::float3 normal = mesh.normals[i];
-            if(seenUniqueNormals.find(normal) == seenUniqueNormals.end()) {
-                // Normal has not been seen before
-                seenUniqueNormals.insert(normal);
-                seenNormalsIndex[normal] = condensedNormals.size();
+            if(!seenNormalsIndex.contains(normal)) {
+                seenNormalsIndex.insert({normal, condensedNormals.size()});
                 condensedNormals.push_back(normal);
             }
             normalIndexBuffer.at(i) = seenNormalsIndex.at(normal);

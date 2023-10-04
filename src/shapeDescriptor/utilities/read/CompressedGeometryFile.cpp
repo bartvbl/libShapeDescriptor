@@ -66,9 +66,11 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
     bool flagContainsNormals = (flags & 1) != 0;
     bool flagContainsVertexColours = (flags & 2) != 0;
     bool flagIsPointCloud = (flags & 4) != 0;
-    bool flagNormalsWereRemoved = (flags & 8) != 0;
+    bool flagOriginalMeshContainedNormals = (flags & 8) != 0;
     bool flagVertexIndexBufferEnabled = (flags & 16) != 0;
     bool flagNormalIndexBufferEnabled = (flags & 32) != 0;
+
+    bool normalsWereRemoved = flagOriginalMeshContainedNormals && !flagContainsNormals;
 
     if(expectMeshInFile == flagIsPointCloud) {
         throw std::runtime_error("Error while reading file: " + filePath.string() + "\nFile was expected to contain a " + (expectMeshInFile ? "mesh" : "point cloud") + ", but in reality contains a " + (flagIsPointCloud ? "point cloud" : "mesh") + ".");
@@ -79,7 +81,7 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
 
     // Allocate buffers
     vertices = ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3>(vertexCount);
-    if(flagContainsNormals || flagNormalsWereRemoved) {
+    if(flagContainsNormals || normalsWereRemoved) {
         normals = ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3>(vertexCount);
     } else {
         normals = {0, nullptr};
@@ -95,11 +97,11 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
     uint32_t condensedNormalCount = readUint32(bufferPointer);
 
     // header: compressed vertex/normal/vertex_index/vertex_normal buffer sizes
-    size_t compressedVertexBufferSize = readUint64(bufferPointer);
-    size_t compressedIndexBufferSize = readUint64(bufferPointer);
-    size_t compressedNormalBufferSize = readUint64(bufferPointer);
-    size_t compressedNormalIndexBufferSize = readUint64(bufferPointer);
-    size_t compressedColourBufferSize = readUint64(bufferPointer);
+    size_t compressedVertexBufferSize = readUint32(bufferPointer);
+    size_t compressedIndexBufferSize = readUint32(bufferPointer);
+    size_t compressedNormalBufferSize = readUint32(bufferPointer);
+    size_t compressedNormalIndexBufferSize = readUint32(bufferPointer);
+    size_t compressedColourBufferSize = readUint32(bufferPointer);
 
     // We can read the compressed buffers directly from the file's buffer
     char* compressedVertexBuffer = bufferPointer;
@@ -123,7 +125,6 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
     }
 
     if(flagContainsNormals) {
-        flagNormalIndexBufferEnabled = true;
         if(flagNormalIndexBufferEnabled) {
             decompressGeometryWithIndexBuffer(vertexCount,
                                               condensedNormalCount, normals.content,
@@ -134,7 +135,7 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
         }
     // Normals were present, but removed because they could be calculated exactly.
     // We are therefore expected to recompute them here
-    } else if(flagNormalsWereRemoved) {
+    } else if(normalsWereRemoved) {
         for(uint32_t i = 0; i < vertexCount; i += 3) {
             ShapeDescriptor::cpu::float3 vertex0 = vertices.content[i];
             ShapeDescriptor::cpu::float3 vertex1 = vertices.content[i + 1];

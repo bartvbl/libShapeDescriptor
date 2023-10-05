@@ -89,7 +89,7 @@ void compressIndexBuffer(std::vector<unsigned char>& compressedIndexBuffer,
 void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
                             const ShapeDescriptor::cpu::float3* normals,
                             const ShapeDescriptor::cpu::uchar4* vertexColours,
-                            const uint32_t vertexCount, // Note: important vertex count is 32 bit
+                            const uint32_t vertexCount, // Note: code relies on that vertex count is 32 bit
                             const std::filesystem::path &filePath,
                             bool stripVertexColours,
                             bool isPointCloud) {
@@ -107,7 +107,6 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
 
     if(normalsEquivalent) {
         // Do not save any normals when we can compute them perfectly
-        std::cout << std::endl << filePath.string() + " -> equivalent normals" << std::endl;
         containsNormals = false;
     }
 
@@ -134,9 +133,9 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
                      includeVertexIndexBuffer ? condensedVertices.data() : vertices,
                      includeVertexIndexBuffer ? condensedVertices.size() : vertexCount);
 
-    std::vector<unsigned char> compressedIndexBuffer;
+    std::vector<unsigned char> compressedVertexIndexBuffer;
     if(includeVertexIndexBuffer) {
-        compressIndexBuffer(compressedIndexBuffer, vertexIndexBuffer, vertexCount);
+        compressIndexBuffer(compressedVertexIndexBuffer, vertexIndexBuffer, vertexCount);
     }
 
     // -- Compressing normals --
@@ -160,7 +159,7 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
                          includeNormalIndexBuffer ? condensedNormals.size() : vertexCount);
 
         if(includeNormalIndexBuffer) {
-            compressIndexBuffer(compressedNormalBuffer, normalIndexBuffer, vertexCount);
+            compressIndexBuffer(compressedNormalIndexBuffer, normalIndexBuffer, vertexCount);
         }
     }
 
@@ -232,14 +231,14 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
     // - 4 byte flags
     // - 4 byte uncondensed/original vertex count
     // - 2 x 4 byte condensed vertex/normal buffers lengths
-    // - 4 x 8 byte compressed vertex/normal/vertex_index/normal_index buffer sizes in bytes
-    // - 8 byte compressed vertex colour buffer
+    // - 4 x 4 byte compressed vertex/normal/vertex_index/normal_index buffer sizes in bytes
+    // - 4 byte compressed vertex colour buffer
     // (note: 32-bit colour is the same size as the index buffer, and therefore does not save on file size. It thus does not have an index buffer)
     const uint32_t headerSize = sizeof(uint64_t) + 10 * sizeof(uint32_t);
     const uint32_t vertexSize = compressedVertexBuffer.size();
     const uint32_t normalSize = compressedNormalBuffer.size();
     const uint32_t colourSize = compressedColourBuffer.size();
-    const uint32_t vertexIndexSize = compressedIndexBuffer.size();
+    const uint32_t vertexIndexSize = compressedVertexIndexBuffer.size();
     const uint32_t normalIndexSize = compressedNormalIndexBuffer.size();
     std::vector<uint8_t> fileBuffer(headerSize + vertexSize + normalSize + colourSize + vertexIndexSize + normalIndexSize);
     uint8_t* bufferPointer = fileBuffer.data();
@@ -288,7 +287,7 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
 
     // contents: vertex data
     bufferPointer = write(compressedVertexBuffer, bufferPointer);
-    bufferPointer = write(compressedIndexBuffer, bufferPointer);
+    bufferPointer = write(compressedVertexIndexBuffer, bufferPointer);
 
     // contents: normal data
     if(containsNormals) {

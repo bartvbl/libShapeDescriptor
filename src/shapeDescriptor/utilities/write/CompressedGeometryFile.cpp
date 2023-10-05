@@ -152,7 +152,7 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
 
         size_t normalBufferSizeWithIndexBuffer = sizeof(ShapeDescriptor::cpu::float3) * condensedNormals.size() + sizeof(unsigned int) * normalIndexBuffer.size();
         size_t normalBufferSizeWithoutIndexBuffer = sizeof(ShapeDescriptor::cpu::float3) * vertexCount;
-        includeNormalIndexBuffer = /*normalBufferSizeWithIndexBuffer < normalBufferSizeWithoutIndexBuffer &&*/ !isPointCloud;
+        includeNormalIndexBuffer = normalBufferSizeWithIndexBuffer < normalBufferSizeWithoutIndexBuffer && !isPointCloud;
 
         compressGeometry(compressedNormalBuffer,
                          includeNormalIndexBuffer ? condensedNormals.data() : normals,

@@ -151,7 +151,7 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
         }
     }
 
-    if(flagUseVertexIndexBuffer && flagUseNormalIndexBuffer) {
+    if(flagUseVertexIndexBuffer && flagUseNormalIndexBuffer && !normalsWereRemoved && displacementBufferSize > 0) {
         for(uint32_t i = 0; i < vertexCount; i+=3) {
             uint32_t triangleIndex = i / 3;
             uint8_t rotation = (displacementBuffer[triangleIndex / 4] >> (6 - 2 * (triangleIndex % 4)) & 0b11);

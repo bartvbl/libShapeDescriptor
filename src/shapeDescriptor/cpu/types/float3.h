@@ -66,6 +66,10 @@ namespace ShapeDescriptor {
                         (z == other.z);
             }
 
+            bool operator< (const float3 &other) const {
+                return (x < other.x) && (y < other.y) && (z < other.z);
+            }
+
             void operator+= (float3 other) {
                 x += other.x;
                 y += other.y;

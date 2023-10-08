@@ -1,6 +1,7 @@
 #include <shapeDescriptor/cpu/types/array.h>
 #include <shapeDescriptor/utilities/fileutils.h>
 #include <meshoptimizer.h>
+#include <iostream>
 #include "CompressedGeometryFile.h"
 #include "MeshLoadUtils.h"
 
@@ -34,6 +35,7 @@ void decompressGeometryWithIndexBuffer(size_t extractedCount, size_t condensedCo
     int resvb = meshopt_decodeVertexBuffer(condensedVertices.data(), condensedCount, sizeof(ShapeDescriptor::cpu::float3), compressedVertexBuffer, compressedVertexBufferSize);
     int resib = meshopt_decodeIndexBuffer(vertexIndexBuffer.data(), vertexIndexBuffer.size(), compressedIndexBuffer, compressedIndexBufferSize);
     assert(resvb == 0 && resib == 0);
+    
 
     for(uint32_t i = 0; i < extractedCount; i++) {
         uint32_t index = vertexIndexBuffer.at(i);
@@ -67,8 +69,8 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
     bool flagContainsVertexColours = (flags & 2) != 0;
     bool flagIsPointCloud = (flags & 4) != 0;
     bool flagOriginalMeshContainedNormals = (flags & 8) != 0;
-    bool flagVertexIndexBufferEnabled = (flags & 16) != 0;
-    bool flagNormalIndexBufferEnabled = (flags & 32) != 0;
+    bool flagUseVertexIndexBuffer = (flags & 16) != 0;
+    bool flagUseNormalIndexBuffer = (flags & 32) != 0;
 
     bool normalsWereRemoved = flagOriginalMeshContainedNormals && !flagContainsNormals;
 
@@ -97,42 +99,44 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
     uint32_t condensedNormalCount = readUint32(bufferPointer);
 
     // header: compressed vertex/normal/vertex_index/vertex_normal buffer sizes
-    size_t compressedVertexBufferSize = readUint32(bufferPointer);
-    size_t compressedIndexBufferSize = readUint32(bufferPointer);
-    size_t compressedNormalBufferSize = readUint32(bufferPointer);
-    size_t compressedNormalIndexBufferSize = readUint32(bufferPointer);
-    size_t compressedColourBufferSize = readUint32(bufferPointer);
+    uint32_t compressedVertexBufferSize = readUint32(bufferPointer);
+    uint32_t compressedNormalBufferSize = readUint32(bufferPointer);
+    uint32_t compressedVertexIndexBufferSize = readUint32(bufferPointer);
+    uint32_t compressedNormalIndexBufferSize = readUint32(bufferPointer);
+    uint32_t displacementBufferSize = readUint32(bufferPointer);
 
     // We can read the compressed buffers directly from the file's buffer
     char* compressedVertexBuffer = bufferPointer;
     bufferPointer += compressedVertexBufferSize;
-    char* compressedVertexIndexBuffer = bufferPointer;
-    bufferPointer += compressedIndexBufferSize;
     char* compressedNormalBuffer = bufferPointer;
     bufferPointer += compressedNormalBufferSize;
+    char* compressedVertexIndexBuffer = bufferPointer;
+    bufferPointer += compressedVertexIndexBufferSize;
     char* compressedNormalIndexBuffer = bufferPointer;
     bufferPointer += compressedNormalIndexBufferSize;
-    char* compressedColourBuffer = bufferPointer;
-    bufferPointer += compressedColourBufferSize;
+    char* displacementBuffer = bufferPointer;
+    bufferPointer += displacementBufferSize;
 
-    if(flagVertexIndexBufferEnabled) {
+    // Read vertices
+    if(flagUseVertexIndexBuffer) {
         decompressGeometryWithIndexBuffer(vertexCount,
                                           condensedVertexCount, vertices.content,
-                                          reinterpret_cast<unsigned char*>(compressedVertexBuffer), compressedVertexBufferSize,
-                                          reinterpret_cast<unsigned char*>(compressedVertexIndexBuffer), compressedIndexBufferSize);
+                                          reinterpret_cast<uint8_t*>(compressedVertexBuffer), compressedVertexBufferSize,
+                                          reinterpret_cast<uint8_t*>(compressedVertexIndexBuffer), compressedVertexIndexBufferSize);
     } else {
-        decompressGeometryBuffer(vertexCount, vertices.content, reinterpret_cast<unsigned char*>(compressedVertexBuffer), compressedVertexBufferSize);
+        decompressGeometryBuffer(vertexCount, vertices.content, reinterpret_cast<uint8_t*>(compressedVertexBuffer), compressedVertexBufferSize);
     }
 
     if(flagContainsNormals) {
-        if(flagNormalIndexBufferEnabled) {
+        if(flagUseNormalIndexBuffer) {
             decompressGeometryWithIndexBuffer(vertexCount,
                                               condensedNormalCount, normals.content,
-                                              reinterpret_cast<unsigned char*>(compressedNormalBuffer), compressedNormalBufferSize,
-                                              reinterpret_cast<unsigned char*>(compressedNormalIndexBuffer), compressedNormalIndexBufferSize);
+                                              reinterpret_cast<uint8_t*>(compressedNormalBuffer), compressedNormalBufferSize,
+                                              reinterpret_cast<uint8_t*>(compressedNormalIndexBuffer), compressedNormalIndexBufferSize);
         } else {
-            decompressGeometryBuffer(vertexCount, normals.content, reinterpret_cast<unsigned char*>(compressedNormalBuffer), compressedNormalBufferSize);
+            decompressGeometryBuffer(vertexCount, normals.content, reinterpret_cast<uint8_t*>(compressedNormalBuffer), compressedNormalBufferSize);
         }
+
     // Normals were present, but removed because they could be calculated exactly.
     // We are therefore expected to recompute them here
     } else if(normalsWereRemoved) {
@@ -144,6 +148,25 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
             normals.content[i] = normal;
             normals.content[i + 1] = normal;
             normals.content[i + 2] = normal;
+        }
+    }
+
+    if(flagUseVertexIndexBuffer && flagUseNormalIndexBuffer) {
+        for(uint32_t i = 0; i < vertexCount; i+=3) {
+            uint32_t triangleIndex = i / 3;
+            uint8_t rotation = (displacementBuffer[triangleIndex / 4] >> (6 - 2 * (triangleIndex % 4)) & 0b11);
+            if(rotation == 2) {
+                ShapeDescriptor::cpu::float3 tempNormal = normals.content[i];
+                normals.content[i] = normals.content[i + 1];
+                normals.content[i + 1] = normals.content[i + 2];
+                normals.content[i + 2] = tempNormal;
+            }
+            if(rotation == 1) {
+                ShapeDescriptor::cpu::float3 tempNormal = normals.content[i + 2];
+                normals.content[i + 2] = normals.content[i + 1];
+                normals.content[i + 1] = normals.content[i];
+                normals.content[i] = tempNormal;
+            }
         }
     }
 

@@ -9,29 +9,6 @@
 #include <shapeDescriptor/utilities/read/MeshLoadUtils.h>
 #include <map>
 
-struct Vertex {
-    ShapeDescriptor::cpu::float3 position = {0, 0, 0};
-    ShapeDescriptor::cpu::float3 normal = {0, 0, 0};
-    ShapeDescriptor::cpu::uchar4 colour = {0, 0, 0, 255};
-
-    bool operator==(const Vertex& other) const {
-        return position == other.position && normal == other.normal && colour == other.colour;
-    }
-};
-
-// Allow inclusion into std::set
-namespace std {
-    template <> struct hash<Vertex>
-    {
-        size_t operator()(const Vertex& p) const
-        {
-            return std::hash<ShapeDescriptor::cpu::float3>()(p.position)
-                    ^ std::hash<ShapeDescriptor::cpu::float3>()(p.normal)
-                    ^ std::hash<ShapeDescriptor::cpu::uchar4>()(p.colour);
-        }
-    };
-}
-
 template<typename T> uint8_t* write(const T& data, uint8_t* bufferPointer) {
     *reinterpret_cast<T*>(bufferPointer) = data;
     bufferPointer += sizeof(T);
@@ -67,13 +44,15 @@ bool canMeshNormalsBeComputedExactly(const ShapeDescriptor::cpu::float3* vertice
     return normalsEquivalent;
 }
 
-void computeIndexBuffer(const std::vector<Vertex>& vertices,
-                        std::vector<Vertex>& condensedVertices,
+template<typename T>
+void computeIndexBuffer(const T* vertices,
+                        uint32_t vertexCount,
+                        std::vector<T>& condensedVertices,
                         std::vector<uint32_t>& indexBuffer) {
-    indexBuffer.resize(vertices.size());
-    std::unordered_map<Vertex, uint32_t> seenCoordinates;
-    for(uint32_t i = 0; i < vertices.size(); i++) {
-        const Vertex& vertex = vertices.at(i);
+    indexBuffer.resize(vertexCount);
+    std::unordered_map<T, uint32_t> seenCoordinates;
+    for(uint32_t i = 0; i < vertexCount; i++) {
+        const T& vertex = vertices[i];
         if(!seenCoordinates.contains(vertex)) {
             // Has not been seen before
             seenCoordinates.insert({vertex, condensedVertices.size()});
@@ -83,21 +62,22 @@ void computeIndexBuffer(const std::vector<Vertex>& vertices,
     }
 }
 
+template<typename T>
 void compressGeometry(std::vector<uint8_t>& compressedBuffer,
-                      const std::vector<uint8_t>& geometryData,
+                      const T* geometryData,
                       uint16_t vertexSizeBytes,
                       uint32_t geometryDataEntryCount) {
     size_t vertexBufferSizeBound = meshopt_encodeVertexBufferBound(geometryDataEntryCount, vertexSizeBytes);
     compressedBuffer.resize(vertexBufferSizeBound);
-    size_t compressedVertexBufferSize = meshopt_encodeVertexBuffer(compressedBuffer.data(), compressedBuffer.size(), geometryData.data(), geometryDataEntryCount, vertexSizeBytes);
+    size_t compressedVertexBufferSize = meshopt_encodeVertexBuffer(compressedBuffer.data(), compressedBuffer.size(), geometryData, geometryDataEntryCount, vertexSizeBytes);
     compressedBuffer.resize(compressedVertexBufferSize);
 }
 
 void compressIndexBuffer(std::vector<uint8_t>& compressedIndexBuffer,
                          std::vector<uint32_t>& indexBuffer,
                          uint32_t vertexCount) {
-    size_t verticesToPad = (3 - (vertexCount % 3)) % 3;
-    size_t paddedIndexCount = vertexCount + verticesToPad;
+    size_t verticesToPad = (3 - (indexBuffer.size() % 3)) % 3;
+    size_t paddedIndexCount = indexBuffer.size() + verticesToPad;
     if(verticesToPad != 0) {
         // library assumes triangles. Need to invent some additional indices for point clouds and the like
         indexBuffer.resize(paddedIndexCount);
@@ -133,50 +113,105 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
         containsNormals = false;
     }
 
-    std::vector<Vertex> geometry(vertexCount);
-    for(uint32_t i = 0; i < vertexCount; i++) {
-        Vertex vertex;
-        vertex.position = vertices[i];
-        if(containsNormals) {
-            vertex.normal = normals[i];
-        }
-        if(containsVertexColours) {
-            vertex.colour = vertexColours[i];
-        }
-        geometry.at(i) = vertex;
+    bool useVertexIndexBuffer = !isPointCloud;
+    bool useNormalIndexBuffer = !isPointCloud;
+
+    std::vector<uint8_t> compressedVertices;
+    std::vector<uint8_t> compressedNormals;
+
+    std::vector<uint8_t> compressedVertexIndexBuffer;
+    std::vector<uint8_t> compressedNormalIndexBuffer;
+
+    std::vector<ShapeDescriptor::cpu::float3> condensedVertices;
+    std::vector<ShapeDescriptor::cpu::float3> condensedNormals;
+
+    std::vector<uint32_t> vertexIndexBuffer;
+    std::vector<uint32_t> normalIndexBuffer;
+
+
+
+    if(useVertexIndexBuffer) {
+        computeIndexBuffer(vertices, vertexCount, condensedVertices, vertexIndexBuffer);
+        compressIndexBuffer(compressedVertexIndexBuffer, vertexIndexBuffer, condensedVertices.size());
+        compressGeometry(compressedVertices, condensedVertices.data(), sizeof(ShapeDescriptor::cpu::float3), condensedVertices.size());
+    } else {
+        compressGeometry(compressedVertices, vertices, sizeof(ShapeDescriptor::cpu::float3), vertexCount);
     }
 
+    std::vector<uint8_t> displacementBuffer;
 
-    std::vector<Vertex> condensedGeometry;
-    std::vector<uint32_t> indexBuffer;
-
-    computeIndexBuffer(geometry, condensedGeometry, indexBuffer);
-
-    uint32_t stride = sizeof(ShapeDescriptor::cpu::float3)
-            + (containsNormals ? sizeof(ShapeDescriptor::cpu::float3) : 0)
-            + (containsVertexColours ? sizeof(ShapeDescriptor::cpu::uchar4) : 0);
-
-    std::vector<uint8_t> compactedGeometryData(stride * condensedGeometry.size());
-    for(uint32_t i = 0; i < condensedGeometry.size(); i++) {
-        uint8_t* valuePointer = compactedGeometryData.data() + stride * i;
-        Vertex vertex = condensedGeometry.at(i);
-        *reinterpret_cast<ShapeDescriptor::cpu::float3*>(valuePointer) = vertex.position;
-        valuePointer += sizeof(ShapeDescriptor::cpu::float3);
-        if(containsNormals) {
-            *reinterpret_cast<ShapeDescriptor::cpu::float3*>(valuePointer) = vertex.normal;
-            valuePointer += sizeof(ShapeDescriptor::cpu::float3);
+    if(containsNormals) {
+        if(useNormalIndexBuffer) {
+            computeIndexBuffer(normals, vertexCount, condensedNormals, normalIndexBuffer);
+            compressIndexBuffer(compressedNormalIndexBuffer, normalIndexBuffer, condensedNormals.size());
+            compressGeometry(compressedNormals, condensedNormals.data(), sizeof(ShapeDescriptor::cpu::float3),condensedNormals.size());
+        } else {
+            compressGeometry(compressedNormals, normals, sizeof(ShapeDescriptor::cpu::float3), vertexCount);
         }
-        if(containsVertexColours) {
-            *reinterpret_cast<ShapeDescriptor::cpu::uchar4*>(valuePointer) = vertex.colour;
-            valuePointer += sizeof(ShapeDescriptor::cpu::uchar4);
+
+        if(useVertexIndexBuffer && useNormalIndexBuffer) {
+            std::vector<uint32_t> decodedVertexIndexBuffer;
+            std::vector<uint32_t> decodedNormalIndexBuffer;
+
+            size_t verticesToPad = (3 - (vertexCount % 3)) % 3;
+            uint32_t triangleCount = (vertexCount + verticesToPad) / 3;
+            displacementBuffer.resize(triangleCount / 4 + (triangleCount % 4 > 0 ? 1 : 0));
+
+            decodedVertexIndexBuffer.resize(vertexCount + verticesToPad);
+            meshopt_decodeIndexBuffer(decodedVertexIndexBuffer.data(), vertexCount + verticesToPad, compressedVertexIndexBuffer.data(), compressedVertexIndexBuffer.size());
+
+            decodedNormalIndexBuffer.resize(vertexCount + verticesToPad);
+            meshopt_decodeIndexBuffer(decodedNormalIndexBuffer.data(), vertexCount + verticesToPad, compressedNormalIndexBuffer.data(), compressedNormalIndexBuffer.size());
+
+            for(uint32_t i = 0; i < vertexCount; i+=3) {
+                uint32_t baseVertex0 = vertexIndexBuffer.at(i);
+                uint32_t baseVertex1 = vertexIndexBuffer.at(i + 1);
+                uint32_t baseVertex2 = vertexIndexBuffer.at(i + 2);
+
+                uint32_t movedVertex0 = decodedVertexIndexBuffer.at(i);
+                uint32_t movedVertex1 = decodedVertexIndexBuffer.at(i + 1);
+                uint32_t movedVertex2 = decodedVertexIndexBuffer.at(i + 2);
+
+                uint8_t vertexRotation = 0;
+                if(baseVertex0 == movedVertex0 && baseVertex1 == movedVertex1 && baseVertex2 == movedVertex2) {
+                    vertexRotation = 0;
+                } else if(baseVertex0 == movedVertex2 && baseVertex1 == movedVertex0 && baseVertex2 == movedVertex1) {
+                    vertexRotation = 2;
+                } else if(baseVertex0 == movedVertex1 && baseVertex1 == movedVertex2 && baseVertex2 == movedVertex0) {
+                    vertexRotation = 1;
+                } else {
+                    throw std::runtime_error("UNKNOWN VERTEX ORDER!");
+                }
+
+
+                uint32_t baseNormal0 = normalIndexBuffer.at(i);
+                uint32_t baseNormal1 = normalIndexBuffer.at(i + 1);
+                uint32_t baseNormal2 = normalIndexBuffer.at(i + 2);
+
+                uint32_t movedNormal0 = decodedNormalIndexBuffer.at(i);
+                uint32_t movedNormal1 = decodedNormalIndexBuffer.at(i + 1);
+                uint32_t movedNormal2 = decodedNormalIndexBuffer.at(i + 2);
+
+                uint8_t normalRotation = 0;
+                if(baseNormal0 == movedNormal0 && baseNormal1 == movedNormal1 && baseNormal2 == movedNormal2) {
+                    normalRotation = 0;
+                } else if(baseNormal0 == movedNormal2 && baseNormal1 == movedNormal0 && baseNormal2 == movedNormal1) {
+                    normalRotation = 2;
+                } else if(baseNormal0 == movedNormal1 && baseNormal1 == movedNormal2 && baseNormal2 == movedNormal0) {
+                    normalRotation = 1;
+                } else {
+                    throw std::runtime_error("UNKNOWN NORMAL ORDER!");
+                }
+
+                int difference = int(vertexRotation) - int(normalRotation);
+                uint8_t rotation = uint8_t(difference + (difference < 0 ? 3 : 0));
+                assert(rotation >= 0 && rotation < 3);
+
+                uint32_t triangleIndex = i / 3;
+                displacementBuffer.at(triangleIndex / 4) |= (rotation << (6 - 2 * (triangleIndex % 4)));
+            }
         }
     }
-
-    std::vector<uint8_t> compressedGeometryBuffer;
-    compressGeometry(compressedGeometryBuffer, compactedGeometryData, stride, condensedGeometry.size());
-
-    std::vector<uint8_t> compressedIndexBuffer;
-    compressIndexBuffer(compressedIndexBuffer, indexBuffer, condensedGeometry.size());
 
 
 
@@ -190,10 +225,13 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
     // - 4 x 4 byte compressed vertex/normal/vertex_index/normal_index buffer sizes in bytes
     // - 4 byte compressed vertex colour buffer
     // (note: 32-bit colour is the same size as the index buffer, and therefore does not save on file size. It thus does not have an index buffer)
-    const uint32_t headerSize = sizeof(uint64_t) + 6 * sizeof(uint32_t);
-    const uint32_t geometryBufferSize = compressedGeometryBuffer.size();
-    const uint32_t indexBufferSize = compressedIndexBuffer.size();
-    std::vector<uint8_t> fileBuffer(headerSize + geometryBufferSize + indexBufferSize);
+    const uint32_t headerSize = sizeof(uint64_t) + 10 * sizeof(uint32_t);
+    const uint32_t vertexBufferSize = compressedVertices.size();
+    const uint32_t normalBufferSize = compressedNormals.size();
+    const uint32_t vertexIndexBufferSize = compressedVertexIndexBuffer.size();
+    const uint32_t normalIndexBufferSize = compressedNormalIndexBuffer.size();
+    const uint32_t displacementBufferSize = displacementBuffer.size();
+    std::vector<uint8_t> fileBuffer(headerSize + vertexBufferSize + normalBufferSize + vertexIndexBufferSize + normalIndexBufferSize + displacementBufferSize);
     uint8_t* bufferPointer = fileBuffer.data();
 
 
@@ -210,28 +248,40 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
     const uint32_t flagContainsNormals = containsNormals ? 1 : 0;
     const uint32_t flagContainsVertexColours = containsVertexColours ? 2 : 0;
     const uint32_t flagIsPointCloud = isPointCloud ? 4 : 0;
-    const uint32_t flagNormalsWereRemoved = originalMeshContainedNormals ? 8 : 0;
+    const uint32_t flagOriginalMeshContainedNormals = originalMeshContainedNormals ? 8 : 0;
+    const uint32_t flagUseVertexIndexBuffer = useVertexIndexBuffer ? 16 : 0;
+    const uint32_t flagUseNormalIndexBuffer = useNormalIndexBuffer ? 32 : 0;
     const uint32_t flags =
               flagContainsNormals
             | flagContainsVertexColours
             | flagIsPointCloud
-            | flagNormalsWereRemoved;
+            | flagOriginalMeshContainedNormals
+            | flagUseVertexIndexBuffer
+            | flagUseNormalIndexBuffer;
     bufferPointer = write(flags, bufferPointer);
 
     // header: uncondensed vertex count
     bufferPointer = write(vertexCount, bufferPointer);
 
     // header: condensed vertex count
-    const uint32_t condensedVertexCount = condensedGeometry.size();
+    const uint32_t condensedVertexCount = condensedVertices.size();
     bufferPointer = write(condensedVertexCount, bufferPointer);
+    const uint32_t condensedNormalCount = condensedNormals.size();
+    bufferPointer = write(condensedNormalCount, bufferPointer);
 
     // header: compressed buffer sizes
-    bufferPointer = write(geometryBufferSize, bufferPointer);
-    bufferPointer = write(indexBufferSize, bufferPointer);
+    bufferPointer = write(vertexBufferSize, bufferPointer);
+    bufferPointer = write(normalBufferSize, bufferPointer);
+    bufferPointer = write(vertexIndexBufferSize, bufferPointer);
+    bufferPointer = write(normalIndexBufferSize, bufferPointer);
+    bufferPointer = write(displacementBufferSize, bufferPointer);
 
     // contents: geometry data
-    bufferPointer = write(compressedGeometryBuffer, bufferPointer);
-    bufferPointer = write(compressedIndexBuffer, bufferPointer);
+    bufferPointer = write(compressedVertices, bufferPointer);
+    bufferPointer = write(compressedNormals, bufferPointer);
+    bufferPointer = write(compressedVertexIndexBuffer, bufferPointer);
+    bufferPointer = write(compressedNormalIndexBuffer, bufferPointer);
+    bufferPointer = write(displacementBuffer, bufferPointer);
 
     assert(bufferPointer == fileBuffer.data() + fileBuffer.size());
 

@@ -76,11 +76,15 @@ void compressGeometry(std::vector<uint8_t>& compressedBuffer,
 void compressIndexBuffer(std::vector<uint8_t>& compressedIndexBuffer,
                          std::vector<uint32_t>& indexBuffer,
                          uint32_t vertexCount) {
+    uint32_t indexCount = indexBuffer.size();
     size_t verticesToPad = (3 - (indexBuffer.size() % 3)) % 3;
     size_t paddedIndexCount = indexBuffer.size() + verticesToPad;
     if(verticesToPad != 0) {
         // library assumes triangles. Need to invent some additional indices for point clouds and the like
         indexBuffer.resize(paddedIndexCount);
+        for(int i = 0; i < verticesToPad; i++) {
+            indexBuffer.at(indexCount + i) = 0;
+        }
     }
 
     size_t indexBufferSizeBound = meshopt_encodeIndexBufferBound(indexBuffer.size(), vertexCount);

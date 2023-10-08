@@ -33,7 +33,7 @@ void decompressGeometryWithIndexBuffer(size_t extractedCount, size_t condensedCo
     std::vector<unsigned int> vertexIndexBuffer(paddedIndexCount);
 
     int resvb = meshopt_decodeVertexBuffer(condensedVertices.data(), condensedCount, sizeof(ShapeDescriptor::cpu::float3), compressedVertexBuffer, compressedVertexBufferSize);
-    int resib = meshopt_decodeIndexBuffer(vertexIndexBuffer.data(), vertexIndexBuffer.size(), compressedIndexBuffer, compressedIndexBufferSize);
+    int resib = meshopt_decodeIndexBuffer(vertexIndexBuffer.data(), paddedIndexCount, compressedIndexBuffer, compressedIndexBufferSize);
     assert(resvb == 0 && resib == 0);
     
 

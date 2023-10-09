@@ -128,9 +128,11 @@ namespace ShapeDescriptor {
     }
 
     uint32_t hashPointCloud(const cpu::PointCloud &cloud) {
-        //uint32_t vertexHash = hashBuffer(cloud.vertices, cloud.pointCount);
-        //uint32_t normalHash = cloud.normals != nullptr ? hashBuffer(cloud.normals, cloud.pointCount) : 0;
-        return 0;// ^ normalHash;
+        uint32_t verticesToPad = (3 - (cloud.pointCount % 3)) % 3;
+
+        uint32_t vertexHash = hashBuffer(cloud.vertices, cloud.pointCount);
+        uint32_t normalHash = cloud.normals != nullptr ? hashBuffer(cloud.normals, cloud.pointCount) : 0;
+        return vertexHash ^ normalHash;
     }
 
 
@@ -138,7 +140,6 @@ namespace ShapeDescriptor {
     bool compareMesh(const cpu::Mesh &mesh, const cpu::Mesh &otherMesh) {
         std::unordered_map<Vertex, bool> foundMap;
         if(mesh.vertexCount != otherMesh.vertexCount) {
-            std::cout << "Vertex count mismatch" << std::endl;
             return false;
         }
         for(int i = 0; i < mesh.vertexCount; i++) {
@@ -150,5 +151,19 @@ namespace ShapeDescriptor {
             }
         }
         return true;
+    }
+
+    bool comparePointCloud(const cpu::PointCloud &cloud, const cpu::PointCloud &otherCloud) {
+        std::unordered_map<Vertex, bool> foundMap;
+        if(cloud.pointCount != otherCloud.pointCount) {
+            return false;
+        }
+        uint32_t wrongCount = 0;
+        for(int i = 0; i < cloud.pointCount; i++) {
+            if(cloud.vertices[i] != otherCloud.vertices[i] || cloud.normals[i] != otherCloud.normals[i]) {
+                wrongCount++;
+            }
+        }
+        return wrongCount > 0;
     }
 }

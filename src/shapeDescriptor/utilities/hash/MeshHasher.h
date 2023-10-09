@@ -7,4 +7,5 @@ namespace ShapeDescriptor {
     uint32_t hashMesh(const cpu::Mesh& mesh);
     uint32_t hashPointCloud(const cpu::PointCloud& cloud);
     bool compareMesh(const cpu::Mesh& mesh, const cpu::Mesh& otherMesh);
+    bool comparePointCloud(const cpu::PointCloud& cloud, const cpu::PointCloud& otherCloud);
 }

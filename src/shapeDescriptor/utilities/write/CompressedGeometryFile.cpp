@@ -152,42 +152,48 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
         } else {
             compressGeometry(compressedNormals, normals, sizeof(ShapeDescriptor::cpu::float3), vertexCount);
         }
+    }
 
-        if(useVertexIndexBuffer && useNormalIndexBuffer) {
-            std::vector<uint32_t> decodedVertexIndexBuffer;
-            std::vector<uint32_t> decodedNormalIndexBuffer;
+    bool usesTwoIndexBuffers = useVertexIndexBuffer && useNormalIndexBuffer;
+    bool removedNormals = useVertexIndexBuffer && originalMeshContainedNormals && !containsNormals;
+    if(usesTwoIndexBuffers || removedNormals) {
+        std::vector<uint32_t> decodedVertexIndexBuffer;
+        std::vector<uint32_t> decodedNormalIndexBuffer;
 
-            size_t verticesToPad = (3 - (vertexCount % 3)) % 3;
-            uint32_t triangleCount = (vertexCount + verticesToPad) / 3;
-            displacementBuffer.resize(triangleCount / 4 + (triangleCount % 4 > 0 ? 1 : 0));
+        size_t verticesToPad = (3 - (vertexCount % 3)) % 3;
+        uint32_t triangleCount = (vertexCount + verticesToPad) / 3;
+        displacementBuffer.resize(triangleCount / 4 + (triangleCount % 4 > 0 ? 1 : 0));
 
-            decodedVertexIndexBuffer.resize(vertexCount + verticesToPad);
-            meshopt_decodeIndexBuffer(decodedVertexIndexBuffer.data(), vertexCount + verticesToPad, compressedVertexIndexBuffer.data(), compressedVertexIndexBuffer.size());
+        decodedVertexIndexBuffer.resize(vertexCount + verticesToPad);
+        meshopt_decodeIndexBuffer(decodedVertexIndexBuffer.data(), vertexCount + verticesToPad, compressedVertexIndexBuffer.data(), compressedVertexIndexBuffer.size());
 
+        if(!removedNormals) {
             decodedNormalIndexBuffer.resize(vertexCount + verticesToPad);
             meshopt_decodeIndexBuffer(decodedNormalIndexBuffer.data(), vertexCount + verticesToPad, compressedNormalIndexBuffer.data(), compressedNormalIndexBuffer.size());
+        }
 
-            for(uint32_t i = 0; i < vertexCount; i+=3) {
-                uint32_t baseVertex0 = vertexIndexBuffer.at(i);
-                uint32_t baseVertex1 = vertexIndexBuffer.at(i + 1);
-                uint32_t baseVertex2 = vertexIndexBuffer.at(i + 2);
+        for(uint32_t i = 0; i < vertexCount; i+=3) {
+            uint32_t baseVertex0 = vertexIndexBuffer.at(i);
+            uint32_t baseVertex1 = vertexIndexBuffer.at(i + 1);
+            uint32_t baseVertex2 = vertexIndexBuffer.at(i + 2);
 
-                uint32_t movedVertex0 = decodedVertexIndexBuffer.at(i);
-                uint32_t movedVertex1 = decodedVertexIndexBuffer.at(i + 1);
-                uint32_t movedVertex2 = decodedVertexIndexBuffer.at(i + 2);
+            uint32_t movedVertex0 = decodedVertexIndexBuffer.at(i);
+            uint32_t movedVertex1 = decodedVertexIndexBuffer.at(i + 1);
+            uint32_t movedVertex2 = decodedVertexIndexBuffer.at(i + 2);
 
-                uint8_t vertexRotation = 0;
-                if(baseVertex0 == movedVertex0 && baseVertex1 == movedVertex1 && baseVertex2 == movedVertex2) {
-                    vertexRotation = 0;
-                } else if(baseVertex0 == movedVertex2 && baseVertex1 == movedVertex0 && baseVertex2 == movedVertex1) {
-                    vertexRotation = 2;
-                } else if(baseVertex0 == movedVertex1 && baseVertex1 == movedVertex2 && baseVertex2 == movedVertex0) {
-                    vertexRotation = 1;
-                } else {
-                    throw std::runtime_error("UNKNOWN VERTEX ORDER!");
-                }
+            uint8_t vertexRotation = 0;
+            if(baseVertex0 == movedVertex0 && baseVertex1 == movedVertex1 && baseVertex2 == movedVertex2) {
+                vertexRotation = 0;
+            } else if(baseVertex0 == movedVertex2 && baseVertex1 == movedVertex0 && baseVertex2 == movedVertex1) {
+                vertexRotation = 2;
+            } else if(baseVertex0 == movedVertex1 && baseVertex1 == movedVertex2 && baseVertex2 == movedVertex0) {
+                vertexRotation = 1;
+            } else {
+                throw std::runtime_error("UNKNOWN VERTEX ORDER!");
+            }
 
-
+            uint8_t normalRotation = 0;
+            if(!removedNormals) {
                 uint32_t baseNormal0 = normalIndexBuffer.at(i);
                 uint32_t baseNormal1 = normalIndexBuffer.at(i + 1);
                 uint32_t baseNormal2 = normalIndexBuffer.at(i + 2);
@@ -196,7 +202,6 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
                 uint32_t movedNormal1 = decodedNormalIndexBuffer.at(i + 1);
                 uint32_t movedNormal2 = decodedNormalIndexBuffer.at(i + 2);
 
-                uint8_t normalRotation = 0;
                 if(baseNormal0 == movedNormal0 && baseNormal1 == movedNormal1 && baseNormal2 == movedNormal2) {
                     normalRotation = 0;
                 } else if(baseNormal0 == movedNormal2 && baseNormal1 == movedNormal0 && baseNormal2 == movedNormal1) {
@@ -206,14 +211,17 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
                 } else {
                     throw std::runtime_error("UNKNOWN NORMAL ORDER!");
                 }
-
-                int difference = int(vertexRotation) - int(normalRotation);
-                uint8_t rotation = uint8_t(difference + (difference < 0 ? 3 : 0));
-                assert(rotation >= 0 && rotation < 3);
-
-                uint32_t triangleIndex = i / 3;
-                displacementBuffer.at(triangleIndex / 4) |= (rotation << (6 - 2 * (triangleIndex % 4)));
             }
+
+            int difference = int(vertexRotation) - int(normalRotation);
+            if(removedNormals) {
+                difference = (3 - difference) % 3;
+            }
+            uint8_t rotation = uint8_t(difference + (difference < 0 ? 3 : 0));
+            assert(rotation >= 0 && rotation < 3);
+
+            uint32_t triangleIndex = i / 3;
+            displacementBuffer.at(triangleIndex / 4) |= (rotation << (6 - 2 * (triangleIndex % 4)));
         }
     }
 

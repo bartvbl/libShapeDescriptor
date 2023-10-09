@@ -127,6 +127,25 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
         decompressGeometryBuffer(vertexCount, vertices.content, reinterpret_cast<uint8_t*>(compressedVertexBuffer), compressedVertexBufferSize);
     }
 
+    if(flagUseVertexIndexBuffer && normalsWereRemoved && displacementBufferSize > 0) {
+        for(uint32_t i = 0; i < vertexCount; i+=3) {
+            uint32_t triangleIndex = i / 3;
+            uint8_t rotation = (displacementBuffer[triangleIndex / 4] >> (6 - 2 * (triangleIndex % 4)) & 0b11);
+            if(rotation == 2) {
+                ShapeDescriptor::cpu::float3 tempNormal = vertices.content[i];
+                vertices.content[i] = vertices.content[i + 1];
+                vertices.content[i + 1] = vertices.content[i + 2];
+                vertices.content[i + 2] = tempNormal;
+            }
+            if(rotation == 1) {
+                ShapeDescriptor::cpu::float3 tempNormal = vertices.content[i + 2];
+                vertices.content[i + 2] = vertices.content[i + 1];
+                vertices.content[i + 1] = vertices.content[i];
+                vertices.content[i] = tempNormal;
+            }
+        }
+    }
+
     if(flagContainsNormals) {
         if(flagUseNormalIndexBuffer) {
             decompressGeometryWithIndexBuffer(vertexCount,

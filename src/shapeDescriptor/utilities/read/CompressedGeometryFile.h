@@ -5,8 +5,6 @@
 #include <filesystem>
 
 namespace ShapeDescriptor {
-    namespace utilities {
-        ShapeDescriptor::cpu::Mesh readMeshFromCompressedGeometryFile(const std::filesystem::path &filePath);
-        ShapeDescriptor::cpu::PointCloud readPointCloudFromCompressedGeometryFile(const std::filesystem::path &filePath);
-    }
+    ShapeDescriptor::cpu::Mesh readMeshFromCompressedGeometryFile(const std::filesystem::path &filePath);
+    ShapeDescriptor::cpu::PointCloud readPointCloudFromCompressedGeometryFile(const std::filesystem::path &filePath);
 }

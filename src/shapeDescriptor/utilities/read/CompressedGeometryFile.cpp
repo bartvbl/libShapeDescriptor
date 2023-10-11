@@ -196,7 +196,7 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
 }
 
 ShapeDescriptor::cpu::Mesh
-ShapeDescriptor::utilities::readMeshFromCompressedGeometryFile(const std::filesystem::path &filePath) {
+ShapeDescriptor::readMeshFromCompressedGeometryFile(const std::filesystem::path &filePath) {
     ShapeDescriptor::cpu::Mesh mesh;
     ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> vertices;
     ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> normals;
@@ -212,7 +212,7 @@ ShapeDescriptor::utilities::readMeshFromCompressedGeometryFile(const std::filesy
 }
 
 ShapeDescriptor::cpu::PointCloud
-ShapeDescriptor::utilities::readPointCloudFromCompressedGeometryFile(const std::filesystem::path &filePath) {
+ShapeDescriptor::readPointCloudFromCompressedGeometryFile(const std::filesystem::path &filePath) {
     ShapeDescriptor::cpu::PointCloud cloud;
     ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> vertices;
     ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> normals;

@@ -1,7 +1,7 @@
 #include <iostream>
-#include "QuicciDescriptor.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 
-void ShapeDescriptor::print::quicciDescriptor(ShapeDescriptor::QUICCIDescriptor &descriptor) {
+void ShapeDescriptor::printQuicciDescriptor(ShapeDescriptor::QUICCIDescriptor &descriptor) {
     std::cout << "+";
     for(unsigned int col = 0; col < spinImageWidthPixels; col++) {
         std::cout << "-";

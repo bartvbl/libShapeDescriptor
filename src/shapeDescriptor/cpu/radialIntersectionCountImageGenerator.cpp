@@ -1,11 +1,4 @@
-#include "radialIntersectionCountImageGenerator.h"
-
-#include <shapeDescriptor/cpu/types/Mesh.h>
-#include <shapeDescriptor/cpu/types/float2.h>
-#include <shapeDescriptor/cpu/types/float3.h>
-#include <shapeDescriptor/libraryBuildSettings.h>
-#include <shapeDescriptor/common/types/OrientedPoint.h>
-
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <chrono>
 #include <cstring>
 
@@ -239,11 +232,11 @@ void generateRadialIntersectionCountImage(
 }
 
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::cpu::generateRadialIntersectionCountImages(
+ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::generateRadialIntersectionCountImages(
         ShapeDescriptor::cpu::Mesh mesh,
         ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
         float spinImageWidth,
-        ShapeDescriptor::cpu::RICIExecutionTimes* executionTimes) {
+        ShapeDescriptor::RICIExecutionTimes* executionTimes) {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t imageCount = descriptorOrigins.length;

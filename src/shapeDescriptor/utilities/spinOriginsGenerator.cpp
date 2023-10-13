@@ -1,10 +1,10 @@
-#include "spinOriginsGenerator.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <unordered_set>
 #include <vector>
 #include <unordered_map>
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint>
-ShapeDescriptor::utilities::generateSpinOriginBuffer(const ShapeDescriptor::cpu::Mesh &mesh) {
+ShapeDescriptor::generateSpinOriginBuffer(const ShapeDescriptor::cpu::Mesh &mesh) {
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> originBuffer(mesh.vertexCount);
     for(size_t i = 0; i < mesh.vertexCount; i++) {
         originBuffer.content[i] = ShapeDescriptor::OrientedPoint{mesh.vertices[i], mesh.normals[i]};
@@ -13,7 +13,7 @@ ShapeDescriptor::utilities::generateSpinOriginBuffer(const ShapeDescriptor::cpu:
 }
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint>
-ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(const ShapeDescriptor::cpu::Mesh &mesh, std::vector<size_t>* mapping) {
+ShapeDescriptor::generateUniqueSpinOriginBuffer(const ShapeDescriptor::cpu::Mesh &mesh, std::vector<size_t>* mapping) {
     std::unordered_map<ShapeDescriptor::OrientedPoint, size_t> indexMapping;
     if(mapping != nullptr) {
         mapping->resize(mesh.vertexCount);

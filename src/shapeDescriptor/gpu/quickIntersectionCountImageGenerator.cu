@@ -1,5 +1,3 @@
-#include "quickIntersectionCountImageGenerator.cuh"
-
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include "cuda_runtime.h"
 #include "nvidia/helper_math.h"
@@ -7,9 +5,7 @@
 #include "device_launch_parameters.h"
 #endif
 
-#include <shapeDescriptor/gpu/types/Mesh.h>
-#include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
-#include <shapeDescriptor/utilities/kernels/setValue.cuh>
+#include <shapeDescriptor/shapeDescriptor.h>
 
 #include <shapeDescriptor/libraryBuildSettings.h>
 
@@ -19,9 +15,6 @@
 #include <iomanip>
 #include <chrono>
 #include <sstream>
-#include <shapeDescriptor/common/types/OrientedPoint.h>
-#include <shapeDescriptor/gpu/types/array.h>
-#include <shapeDescriptor/cpu/types/array.h>
 
 #ifndef ENABLE_SHARED_MEMORY_IMAGE
 #define ENABLE_SHARED_MEMORY_IMAGE true
@@ -424,11 +417,11 @@ __global__ void redistributeSpinOrigins(ShapeDescriptor::OrientedPoint* spinOrig
 }
 #endif
 
-ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::gpu::generateQUICCImages(
+ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::generateQUICCImages(
         ShapeDescriptor::gpu::Mesh device_mesh,
         ShapeDescriptor::gpu::array<OrientedPoint> device_descriptorOrigins,
         float supportRadius,
-        ShapeDescriptor::debug::QUICCIExecutionTimes* executionTimes)
+        ShapeDescriptor::QUICCIExecutionTimes* executionTimes)
 {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
@@ -445,7 +438,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::
 
     float scaleFactor = float(spinImageWidthPixels)/supportRadius;
 
-    Mesh device_editableMeshCopy = duplicateMesh(device_mesh);
+    gpu::Mesh device_editableMeshCopy = duplicateMesh(device_mesh);
     scaleQUICCIMesh<<<(meshVertexCount / 128) + 1, 128>>>(device_editableMeshCopy, scaleFactor);
     checkCudaErrors(cudaDeviceSynchronize());
 
@@ -500,7 +493,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::
 
     // -- Cleanup --
 
-    freeMesh(device_editableMeshCopy);
+    free(device_editableMeshCopy);
     cudaFree(quicciMesh.spinOriginsBasePointer);
     cudaFree(quicciMesh.geometryBasePointer);
     cudaFree(device_editableSpinOriginsCopy);

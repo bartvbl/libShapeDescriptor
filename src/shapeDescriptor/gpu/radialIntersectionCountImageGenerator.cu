@@ -1,9 +1,4 @@
-#include "radialIntersectionCountImageGenerator.cuh"
-
-#include <shapeDescriptor/gpu/types/Mesh.h>
-#include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
-#include <shapeDescriptor/utilities/kernels/setValue.cuh>
-#include <shapeDescriptor/gpu/types/float2.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <shapeDescriptor/libraryBuildSettings.h>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
@@ -19,7 +14,6 @@
 #include <iomanip>
 #include <chrono>
 #include <sstream>
-#include <shapeDescriptor/common/types/OrientedPoint.h>
 
 #define spinOriginCount gridDim.x
 #define renderedSpinImageIndex blockIdx.x
@@ -307,7 +301,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateRadialInte
 	}
 }
 
-__global__ void scaleMesh(ShapeDescriptor::gpu::Mesh mesh, float scaleFactor) {
+__global__ void scaleMeshKernel(ShapeDescriptor::gpu::Mesh mesh, float scaleFactor) {
     size_t vertexIndex = blockDim.x * blockIdx.x + threadIdx.x;
 
     if(vertexIndex >= mesh.vertexCount) {
@@ -368,11 +362,11 @@ __global__ void redistributeSpinOrigins(ShapeDescriptor::OrientedPoint* spinOrig
 }
 #endif
 
-ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
+ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::generateRadialIntersectionCountImages(
         ShapeDescriptor::gpu::Mesh device_mesh,
         ShapeDescriptor::gpu::array<OrientedPoint> device_descriptorOrigins,
         float spinImageWidth,
-        ShapeDescriptor::debug::RICIExecutionTimes* executionTimes)
+        ShapeDescriptor::RICIExecutionTimes* executionTimes)
 {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
@@ -389,8 +383,8 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::gp
 
 	    float scaleFactor = float(spinImageWidthPixels)/spinImageWidth;
 
-	    Mesh device_editableMeshCopy = duplicateMesh(device_mesh);
-	    scaleMesh<<<(meshVertexCount / 128) + 1, 128>>>(device_editableMeshCopy, scaleFactor);
+	    gpu::Mesh device_editableMeshCopy = duplicateMesh(device_mesh);
+	    scaleMeshKernel<<<(meshVertexCount / 128) + 1, 128>>>(device_editableMeshCopy, scaleFactor);
         checkCudaErrors(cudaDeviceSynchronize());
 
         OrientedPoint* device_editableSpinOriginsCopy;
@@ -445,7 +439,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::gp
 
 	// -- Cleanup --
 
-    freeMesh(device_editableMeshCopy);
+    free(device_editableMeshCopy);
 	cudaFree(riciMesh.spinOriginsBasePointer);
 	cudaFree(riciMesh.geometryBasePointer);
 	cudaFree(device_editableSpinOriginsCopy);

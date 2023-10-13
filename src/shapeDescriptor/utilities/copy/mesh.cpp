@@ -1,14 +1,12 @@
-#include "mesh.h"
 
-#include <shapeDescriptor/cpu/types/Mesh.h>
-#include <shapeDescriptor/gpu/types/Mesh.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <cuda_runtime.h>
 #include <nvidia/helper_cuda.h>
 #endif
 
-ShapeDescriptor::gpu::Mesh ShapeDescriptor::copy::hostMeshToDevice(cpu::Mesh hostMesh)
+ShapeDescriptor::gpu::Mesh ShapeDescriptor::copyToGPU(cpu::Mesh hostMesh)
 {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     size_t vertexCount = hostMesh.vertexCount;
@@ -92,7 +90,7 @@ ShapeDescriptor::gpu::Mesh ShapeDescriptor::copy::hostMeshToDevice(cpu::Mesh hos
 #endif
 }
 
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::copy::deviceMeshToHost(gpu::Mesh deviceMesh)
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::copyToCPU(gpu::Mesh deviceMesh)
 {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     size_t vertexCount = deviceMesh.vertexCount;
@@ -134,5 +132,5 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::copy::deviceMeshToHost(gpu::Mesh dev
 }
 
 ShapeDescriptor::cpu::Mesh ShapeDescriptor::gpu::Mesh::copyToCPU() {
-    return ShapeDescriptor::copy::deviceMeshToHost(*this);
+    return ShapeDescriptor::copyToCPU(*this);
 }

@@ -1,4 +1,4 @@
-#include "meshDumper.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -163,18 +163,18 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::filesystem::path &outp
     outputFile.close();
 }
 
-void ShapeDescriptor::dump::mesh(cpu::Mesh mesh, const std::filesystem::path outputFilePath) {
+void ShapeDescriptor::writeOBJ(cpu::Mesh mesh, const std::filesystem::path outputFilePath) {
     // Highlight a range that will never be highlighted
     dumpMesh(mesh, outputFilePath, -1, -1, false, {0, nullptr}, "");
 }
 
-void ShapeDescriptor::dump::mesh(cpu::Mesh mesh, const std::filesystem::path outputFilePath,
+void ShapeDescriptor::writeOBJ(cpu::Mesh mesh, const std::filesystem::path outputFilePath,
         size_t highlightStartVertex, size_t highlightEndVertex) {
 
     dumpMesh(mesh, outputFilePath, highlightStartVertex, highlightEndVertex, false, {0, nullptr}, "");
 }
 
-void ShapeDescriptor::dump::mesh(cpu::Mesh mesh, const std::filesystem::path &outputFilePath,
+void ShapeDescriptor::writeOBJ(cpu::Mesh mesh, const std::filesystem::path &outputFilePath,
           ShapeDescriptor::cpu::array<float2> vertexTextureCoordinates, std::string textureMapPath) {
     assert(vertexTextureCoordinates.length == mesh.vertexCount);
     dumpMesh(mesh, outputFilePath, -1, -1, true, vertexTextureCoordinates, textureMapPath);

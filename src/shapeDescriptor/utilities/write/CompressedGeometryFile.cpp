@@ -1,12 +1,10 @@
-#include "CompressedGeometryFile.h"
 #include <cstdint>
 #include <vector>
-#include <shapeDescriptor/utilities/fileutils.h>
 #include <unordered_set>
 #include <unordered_map>
 #include <meshoptimizer.h>
 #include <iostream>
-#include <shapeDescriptor/utilities/read/MeshLoadUtils.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <map>
 
 template<typename T> uint8_t* write(const T& data, uint8_t* bufferPointer) {
@@ -34,7 +32,7 @@ bool canMeshNormalsBeComputedExactly(const ShapeDescriptor::cpu::float3* vertice
         ShapeDescriptor::cpu::float3 normal1 = normals[i + 1];
         ShapeDescriptor::cpu::float3 normal2 = normals[i + 2];
 
-        ShapeDescriptor::cpu::float3 normal = computeTriangleNormal(vertex0, vertex1, vertex2);
+        ShapeDescriptor::cpu::float3 normal = ShapeDescriptor::computeTriangleNormal(vertex0, vertex1, vertex2);
 
         if(normal != normal0 || normal != normal1 || normal != normal2) {
             normalsEquivalent = false;
@@ -297,7 +295,7 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
 
     assert(bufferPointer == fileBuffer.data() + fileBuffer.size());
 
-    ShapeDescriptor::utilities::writeCompressedFile((char*) fileBuffer.data(), fileBuffer.size(), filePath, 4);
+    ShapeDescriptor::writeCompressedFile((char*) fileBuffer.data(), fileBuffer.size(), filePath, 4);
 }
 
 void ShapeDescriptor::writeCompressedGeometryFile(const ShapeDescriptor::cpu::Mesh &mesh, const std::filesystem::path &filePath, bool stripVertexColours) {

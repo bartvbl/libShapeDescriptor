@@ -1,9 +1,9 @@
 #include <fast-lzma2.h>
-#include "byteCompressor.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 
 const int LZMA2_COMPRESSION_LEVEL = 9;
 
-size_t ShapeDescriptor::utilities::compressBytes(
+size_t ShapeDescriptor::compressBytes(
         void *outputBuffer, size_t outputBufferCapacity,
         const void *inputBuffer, size_t inputBufferSize) {
     return FL2_compress(
@@ -12,7 +12,7 @@ size_t ShapeDescriptor::utilities::compressBytes(
             LZMA2_COMPRESSION_LEVEL);
 }
 
-size_t ShapeDescriptor::utilities::compressBytesMultithreaded(
+size_t ShapeDescriptor::compressBytesMultithreaded(
         void *outputBuffer, size_t outputBufferCapacity,
         const void *inputBuffer, size_t inputBufferSize,
         unsigned int numThreads) {
@@ -22,7 +22,7 @@ size_t ShapeDescriptor::utilities::compressBytesMultithreaded(
             LZMA2_COMPRESSION_LEVEL, numThreads);
 }
 
-size_t ShapeDescriptor::utilities::decompressBytes(
+size_t ShapeDescriptor::decompressBytes(
         void *outputBuffer, size_t outputBufferCapacity,
         const void *inputBuffer, size_t inputBufferCapacity) {
     return FL2_decompress(
@@ -30,7 +30,7 @@ size_t ShapeDescriptor::utilities::decompressBytes(
             (void*) inputBuffer, inputBufferCapacity);
 }
 
-size_t ShapeDescriptor::utilities::decompressBytesMultithreaded(
+size_t ShapeDescriptor::decompressBytesMultithreaded(
         void *outputBuffer, size_t outputBufferCapacity,
         const void *inputBuffer, size_t inputBufferCapacity,
         unsigned int numThreads) {
@@ -40,6 +40,6 @@ size_t ShapeDescriptor::utilities::decompressBytesMultithreaded(
             numThreads);
 }
 
-size_t ShapeDescriptor::utilities::computeMaxCompressedBufferSize(size_t inputBufferSize) {
+size_t ShapeDescriptor::computeMaxCompressedBufferSize(size_t inputBufferSize) {
     return FL2_compressBound(inputBufferSize);
 }

@@ -1,12 +1,9 @@
-#include "descriptorImages.h"
 #include <iostream>
 #include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <bitset>
-#include <shapeDescriptor/utilities/free/array.h>
-
-
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <vector>
 #include <lodepng.h>
 
@@ -176,21 +173,21 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> redChannelDescr
 	}
 }
 
-void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow, unsigned int imageLimit)
+void ShapeDescriptor::writeDescriptorImages(ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow, unsigned int imageLimit)
 {
 	performSpinDump<float, ShapeDescriptor::SpinImageDescriptor>(hostDescriptors, hostDescriptors, hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow, imageLimit);
 }
 
-void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow, unsigned int imageLimit)
+void ShapeDescriptor::writeDescriptorImages(ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, bool logarithmicImage, unsigned int imagesPerRow, unsigned int imageLimit)
 {
 	performSpinDump<unsigned int, ShapeDescriptor::RICIDescriptor> (hostDescriptors, hostDescriptors, hostDescriptors, imageDestinationFile, logarithmicImage, imagesPerRow, imageLimit);
 }
 
-void ShapeDescriptor::dump::descriptors(ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, unsigned int imagesPerRow, unsigned int imageLimit) {
-    descriptorComparisonImage(imageDestinationFile, hostDescriptors, hostDescriptors, hostDescriptors, imagesPerRow, imageLimit);
+void ShapeDescriptor::writeDescriptorImages(ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, unsigned int imagesPerRow, unsigned int imageLimit) {
+    writeDescriptorComparisonImage(imageDestinationFile, hostDescriptors, hostDescriptors, hostDescriptors, imagesPerRow, imageLimit);
 }
 
-void ShapeDescriptor::dump::descriptorComparisonImage(std::filesystem::path imageDestinationFile,
+void ShapeDescriptor::writeDescriptorComparisonImage(std::filesystem::path imageDestinationFile,
                                                       ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> blueChannelDescriptors,
                                                       ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> greenChannelDescriptors,
                                                       ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> redChannelDescriptors,
@@ -262,7 +259,7 @@ void ShapeDescriptor::dump::descriptorComparisonImage(std::filesystem::path imag
                                                                    imagesPerRow,
                                                                    imageLimit);
 
-    ShapeDescriptor::free::array(redDecompressedDescriptors);
-    ShapeDescriptor::free::array(blueDecompressedDescriptors);
-    ShapeDescriptor::free::array(greenDecompressedDescriptors);
+    ShapeDescriptor::free(redDecompressedDescriptors);
+    ShapeDescriptor::free(blueDecompressedDescriptors);
+    ShapeDescriptor::free(greenDecompressedDescriptors);
 }

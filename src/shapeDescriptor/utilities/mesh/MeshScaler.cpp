@@ -1,10 +1,10 @@
 #include <cassert>
 #include <cmath>
 #include <limits>
-#include "MeshScaler.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <algorithm>
 
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::fitMeshInsideSphereOfRadius(ShapeDescriptor::cpu::Mesh &input, float radius) {
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::fitMeshInsideSphereOfRadius(ShapeDescriptor::cpu::Mesh &input, float radius) {
     double averageX = 0;
     double averageY = 0;
     double averageZ = 0;

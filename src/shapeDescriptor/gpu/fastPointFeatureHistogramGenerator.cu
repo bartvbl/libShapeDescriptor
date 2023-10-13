@@ -40,7 +40,6 @@
  *  Author: Anatoly Baskeheev, Itseez Ltd, (myname.mysurname@mycompany.com)
  */
 
-#include "fastPointFeatureHistogramGenerator.cuh"
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <nvidia/helper_cuda.h>
@@ -49,11 +48,8 @@
 #endif
 
 #include <iostream>
-#include <shapeDescriptor/gpu/types/PointCloud.h>
-#include <shapeDescriptor/utilities/kernels/gpuMeshSampler.cuh>
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <chrono>
-#include <shapeDescriptor/libraryBuildSettings.h>
-#include <shapeDescriptor/gpu/types/array.h>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __device__ __host__ __forceinline__
@@ -242,11 +238,11 @@ __global__ void reformatOrigins(
 }
 #endif
 
-ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> ShapeDescriptor::gpu::generateFPFHHistograms(
+ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> ShapeDescriptor::generateFPFHHistograms(
         ShapeDescriptor::gpu::PointCloud device_pointCloud,
         ShapeDescriptor::gpu::array<OrientedPoint> device_descriptorOrigins,
         float supportRadius,
-        ShapeDescriptor::debug::FPFHExecutionTimes* executionTimes)
+        ShapeDescriptor::FPFHExecutionTimes* executionTimes)
 {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
@@ -258,8 +254,8 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> ShapeDescriptor::gp
     // Reformat origins to a better buffer format (makes SPFH kernel usable for both input buffers)
     std::cout << "\t\t\tReformatting origins.." << std::endl;
     auto reformatTimeStart = std::chrono::steady_clock::now();
-    VertexList device_reformattedOriginVerticesList(device_descriptorOrigins.length);
-    VertexList device_reformattedOriginNormalsList(device_descriptorOrigins.length);
+    gpu::VertexList device_reformattedOriginVerticesList(device_descriptorOrigins.length);
+    gpu::VertexList device_reformattedOriginNormalsList(device_descriptorOrigins.length);
     reformatOrigins<<<(device_descriptorOrigins.length / 32) + 1, 32>>>(
             device_descriptorOrigins,
             device_reformattedOriginVerticesList,

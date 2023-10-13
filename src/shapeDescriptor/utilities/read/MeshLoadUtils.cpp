@@ -1,11 +1,11 @@
 #include <glm/vec3.hpp>
 #include <glm/geometric.hpp>
-#include "MeshLoadUtils.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 
 #pragma GCC optimize ("0")
 
 ShapeDescriptor::cpu::float3
-computeTriangleNormal(
+ShapeDescriptor::computeTriangleNormal(
         ShapeDescriptor::cpu::float3 &triangleVertex0,
         ShapeDescriptor::cpu::float3 &triangleVertex1,
         ShapeDescriptor::cpu::float3 &triangleVertex2) {
@@ -51,6 +51,6 @@ ShapeDescriptor::cpu::float3 hostComputeTriangleNormal(std::vector<ShapeDescript
     ShapeDescriptor::cpu::float3 triangleVertex1 = vertices.at(baseIndex + 1);
     ShapeDescriptor::cpu::float3 triangleVertex2 = vertices.at(baseIndex + 2);
 
-    return computeTriangleNormal(triangleVertex0, triangleVertex1, triangleVertex2);
+    return ShapeDescriptor::computeTriangleNormal(triangleVertex0, triangleVertex1, triangleVertex2);
 }
 #pragma GCC reset_options

@@ -1,8 +1,5 @@
 #include <arrrgh.hpp>
-#include <shapeDescriptor/cpu/types/Mesh.h>
-#include <shapeDescriptor/utilities/free/array.h>
-#include <shapeDescriptor/utilities/read/QUICCIDescriptors.h>
-#include <shapeDescriptor/utilities/print/QuicciDescriptor.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 
 int main(int argc, const char** argv) {
     arrrgh::parser parser("quicciviewer", "Print QUICCI descriptors from an archive file to stdout.");
@@ -27,10 +24,10 @@ int main(int argc, const char** argv) {
         return 0;
     }
 
-    ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors = ShapeDescriptor::read::QUICCIDescriptors(inputArchive.value());
+    ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors = ShapeDescriptor::readCompressedQUICCIDescriptors(inputArchive.value());
 
-    ShapeDescriptor::print::quicciDescriptor(descriptors.content[imageIndex.value()]);
+    ShapeDescriptor::printQuicciDescriptor(descriptors.content[imageIndex.value()]);
 
-    ShapeDescriptor::free::array(descriptors);
+    ShapeDescriptor::free(descriptors);
 }
 

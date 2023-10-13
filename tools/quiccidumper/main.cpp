@@ -1,17 +1,5 @@
 #include <arrrgh.hpp>
-#include <shapeDescriptor/cpu/types/Mesh.h>
-#include <shapeDescriptor/utilities/read/OBJLoader.h>
-#include <shapeDescriptor/gpu/types/Mesh.h>
-#include <shapeDescriptor/common/types/OrientedPoint.h>
-#include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
-#include <shapeDescriptor/utilities/mesh/MeshScaler.h>
-#include <shapeDescriptor/utilities/dump/QUICCIDescriptors.h>
-#include <shapeDescriptor/utilities/copy/mesh.h>
-#include <shapeDescriptor/utilities/copy/array.h>
-#include <shapeDescriptor/utilities/read/MeshLoader.h>
-#include <shapeDescriptor/utilities/free/mesh.h>
-#include <shapeDescriptor/utilities/spinOriginsGenerator.h>
-#include <shapeDescriptor/utilities/free/array.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <cuda_runtime.h>
 #endif
@@ -44,31 +32,31 @@ int main(int argc, const char** argv) {
     }
 
     std::cout << "Loading mesh file: " << inputOBJFile.value() << std::endl;
-    ShapeDescriptor::cpu::Mesh hostMesh = ShapeDescriptor::utilities::loadMesh(inputOBJFile.value(), ShapeDescriptor::RecomputeNormals::ALWAYS_RECOMPUTE);
+    ShapeDescriptor::cpu::Mesh hostMesh = ShapeDescriptor::loadMesh(inputOBJFile.value(), ShapeDescriptor::RecomputeNormals::ALWAYS_RECOMPUTE);
 
     if(fitInUnitSphere.value()) {
         std::cout << "Fitting object in unit sphere.." << std::endl;
-        ShapeDescriptor::cpu::Mesh scaledMesh = ShapeDescriptor::utilities::fitMeshInsideSphereOfRadius(hostMesh, 1);
-        ShapeDescriptor::free::mesh(hostMesh);
+        ShapeDescriptor::cpu::Mesh scaledMesh = ShapeDescriptor::fitMeshInsideSphereOfRadius(hostMesh, 1);
+        ShapeDescriptor::free(hostMesh);
         hostMesh = scaledMesh;
     }
 
-    ShapeDescriptor::gpu::Mesh deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(hostMesh);
-    ShapeDescriptor::free::mesh(hostMesh);
+    ShapeDescriptor::gpu::Mesh deviceMesh = ShapeDescriptor::copyToGPU(hostMesh);
+    ShapeDescriptor::free(hostMesh);
 
     std::cout << "Computing QUICCI images.." << std::endl;
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> hostUniqueVertices =
-            ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(hostMesh);
-    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> uniqueVertices = ShapeDescriptor::copy::hostArrayToDevice(hostUniqueVertices);
-    ShapeDescriptor::free::array(hostUniqueVertices);
+            ShapeDescriptor::generateUniqueSpinOriginBuffer(hostMesh);
+    ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> uniqueVertices = ShapeDescriptor::copyToGPU(hostUniqueVertices);
+    ShapeDescriptor::free(hostUniqueVertices);
 
-    ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> images = ShapeDescriptor::gpu::generateQUICCImages(deviceMesh, uniqueVertices, spinImageWidth.value());
-    ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostImages = ShapeDescriptor::copy::deviceArrayToHost(images);
+    ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> images = ShapeDescriptor::generateQUICCImages(deviceMesh, uniqueVertices, spinImageWidth.value());
+    ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostImages = ShapeDescriptor::copyToCPU(images);
 
     std::cout << "Writing output file.." << std::endl,
-            ShapeDescriptor::dump::raw::QUICCIDescriptors(outputDumpFile.value(), hostImages, 0);
+            ShapeDescriptor::writeCompressedQUICCIDescriptors(outputDumpFile.value(), hostImages, 0);
 
-    ShapeDescriptor::gpu::freeMesh(deviceMesh);
+    ShapeDescriptor::free(deviceMesh);
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     cudaFree(uniqueVertices.content);
     cudaFree(images.content);

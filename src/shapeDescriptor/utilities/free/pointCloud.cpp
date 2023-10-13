@@ -1,6 +1,6 @@
-#include <shapeDescriptor/utilities/free/pointCloud.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 
-void ShapeDescriptor::free::pointCloud(ShapeDescriptor::cpu::PointCloud &cloudToFree) {
+void ShapeDescriptor::free(ShapeDescriptor::cpu::PointCloud &cloudToFree) {
     if(cloudToFree.vertices != nullptr) {
         delete[] cloudToFree.vertices;
         cloudToFree.vertices = nullptr;
@@ -17,6 +17,6 @@ void ShapeDescriptor::free::pointCloud(ShapeDescriptor::cpu::PointCloud &cloudTo
     }
 }
 
-void ShapeDescriptor::free::pointCloud(ShapeDescriptor::gpu::PointCloud &cloudToFree) {
+void ShapeDescriptor::free(ShapeDescriptor::gpu::PointCloud &cloudToFree) {
     cloudToFree.free();
 }

@@ -1,17 +1,9 @@
-#include "spinImageGenerator.h"
-
 #include <cassert>
 #include <iostream>
 #include <chrono>
 #include <map>
 #include <cstring>
-
-#include <shapeDescriptor/cpu/types/Mesh.h>
-#include <shapeDescriptor/cpu/types/PointCloud.h>
-#include <shapeDescriptor/cpu/types/array.h>
-#include <shapeDescriptor/cpu/types/float2.h>
-#include <shapeDescriptor/cpu/types/float3.h>
-#include <shapeDescriptor/common/types/SampleBounds.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 
 ShapeDescriptor::cpu::float2 calculateAlphaBeta(ShapeDescriptor::cpu::float3 spinVertex, ShapeDescriptor::cpu::float3 spinNormal, ShapeDescriptor::cpu::float3 point)
 {
@@ -116,12 +108,12 @@ void createDescriptors(
 	}
 }
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> ShapeDescriptor::cpu::generateSpinImages(
+ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> ShapeDescriptor::generateSpinImages(
         ShapeDescriptor::cpu::PointCloud pointCloud,
         ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
         float supportRadius,
         float supportAngleDegrees,
-        ShapeDescriptor::cpu::SIExecutionTimes* executionTimes) {
+        ShapeDescriptor::SIExecutionTimes* executionTimes) {
 
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 

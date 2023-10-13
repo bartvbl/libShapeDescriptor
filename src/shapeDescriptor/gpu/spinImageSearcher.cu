@@ -1,20 +1,15 @@
-#include "spinImageSearcher.cuh"
-
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <cuda_runtime.h>
 #include "nvidia/helper_cuda.h"
 #endif
 
-#include <shapeDescriptor/gpu/types/Mesh.h>
-#include <shapeDescriptor/libraryBuildSettings.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <cassert>
 #include <iostream>
 #include <climits>
 #include <cfloat>
 #include <chrono>
 #include <typeinfo>
-#include <shapeDescriptor/common/types/methods/SpinImageDescriptor.h>
-#include <shapeDescriptor/utilities/free/array.h>
 
 const unsigned int warpCount = 16;
 
@@ -108,7 +103,7 @@ __global__ void generateSearchResults(ShapeDescriptor::SpinImageDescriptor* need
 									  size_t needleImageCount,
                                       ShapeDescriptor::SpinImageDescriptor* haystackDescriptors,
 									  size_t haystackImageCount,
-                                      ShapeDescriptor::gpu::SearchResults<float>* searchResults,
+                                      ShapeDescriptor::SearchResults<float>* searchResults,
 									  float* needleImageAverages,
 									  float* haystackImageAverages) {
 
@@ -204,7 +199,7 @@ __global__ void generateSearchResults(ShapeDescriptor::SpinImageDescriptor* need
 
 #endif
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<float>> ShapeDescriptor::gpu::findSpinImagesInHaystack(
+ShapeDescriptor::cpu::array<ShapeDescriptor::SearchResults<float>> ShapeDescriptor::findSpinImagesInHaystack(
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_haystackDescriptors) {
 
@@ -223,8 +218,8 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<float>> ShapeDes
 
 	// Step 2: Perform search
 
-	size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(ShapeDescriptor::gpu::SearchResults<float>);
-    ShapeDescriptor::gpu::SearchResults<float>* device_searchResults;
+	size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(ShapeDescriptor::SearchResults<float>);
+    ShapeDescriptor::SearchResults<float>* device_searchResults;
 	checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
 
 	std::cout << "\t\tPerforming search.." << std::endl;
@@ -245,8 +240,8 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<float>> ShapeDes
 
     // Step 3: Copying results to CPU
 
-	ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<float>> searchResults;
-	searchResults.content = new ShapeDescriptor::gpu::SearchResults<float>[device_needleDescriptors.length];
+	ShapeDescriptor::cpu::array<ShapeDescriptor::SearchResults<float>> searchResults;
+	searchResults.content = new ShapeDescriptor::SearchResults<float>[device_needleDescriptors.length];
 	searchResults.length = device_needleDescriptors.length;
 
 	checkCudaErrors(cudaMemcpy(searchResults.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));
@@ -348,10 +343,10 @@ __global__ void computeSpinImageSearchResultIndices(
 }
 #endif
 
-ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeSpinImageSearchResultRanks(
+ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::computeSpinImageSearchResultRanks(
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_haystackDescriptors,
-        ShapeDescriptor::debug::SISearchExecutionTimes* executionTimes) {
+        ShapeDescriptor::SISearchExecutionTimes* executionTimes) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 	auto executionStart = std::chrono::steady_clock::now();
 
@@ -448,7 +443,7 @@ __global__ void computeElementWiseSIEuclideanDistances(
 }
 #endif
 
-ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::computeSIElementWiseEuclideanDistances(
+ShapeDescriptor::cpu::array<float> ShapeDescriptor::computeSIElementWiseEuclideanDistances(
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_descriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_correspondingDescriptors) {
 
@@ -464,7 +459,7 @@ ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::computeSIElementWiseEuc
 
     ShapeDescriptor::cpu::array<float> distances = device_distances.copyToCPU();
 
-    ShapeDescriptor::free::array(device_distances);
+    ShapeDescriptor::free(device_distances);
 
     return distances;
 }
@@ -495,7 +490,7 @@ __global__ void computeElementWiseSIPearsonCorrelations(
 }
 #endif
 
-ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::computeSIElementWisePearsonCorrelations(
+ShapeDescriptor::cpu::array<float> ShapeDescriptor::computeSIElementWisePearsonCorrelations(
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_descriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_correspondingDescriptors) {
     ShapeDescriptor::gpu::array<float> descriptorAverages(device_descriptors.length);
@@ -517,9 +512,9 @@ ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::computeSIElementWisePea
 
     ShapeDescriptor::cpu::array<float> distances = device_distances.copyToCPU();
 
-    ShapeDescriptor::free::array(device_distances);
-    ShapeDescriptor::free::array(descriptorAverages);
-    ShapeDescriptor::free::array(correspondingAverages);
+    ShapeDescriptor::free(device_distances);
+    ShapeDescriptor::free(descriptorAverages);
+    ShapeDescriptor::free(correspondingAverages);
 
     return distances;
 }

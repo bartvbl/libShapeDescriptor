@@ -1,7 +1,6 @@
 #pragma once
 
-#include <shapeDescriptor/libraryBuildSettings.h>
-#include <shapeDescriptor/gpu/spinImageSearcher.cuh>
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <tsl/ordered_map.h>
 #include <json.hpp>
 #include <fstream>
@@ -11,7 +10,7 @@ namespace ShapeDescriptor {
         using json = nlohmann::ordered_json;
 
         template<typename ScoreType>
-        void searchResults(ShapeDescriptor::cpu::array<gpu::SearchResults<ScoreType>> searchResults, std::string outputFilePath) {
+        void searchResults(ShapeDescriptor::cpu::array<SearchResults<ScoreType>> searchResults, std::string outputFilePath) {
             json outJson;
 
             outJson["version"] = "v1";

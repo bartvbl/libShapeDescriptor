@@ -1,9 +1,8 @@
 #include <fast-obj/fast_obj.h>
 #include <iostream>
-#include "OFFLoader.h"
-#include "MeshLoadUtils.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOFF(std::filesystem::path src) {
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::loadOFF(std::filesystem::path src) {
     // Read file contents into a buffer
     FILE* offFile = fopen(src.c_str(), "r");
 

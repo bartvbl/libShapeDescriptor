@@ -1,17 +1,13 @@
-#include "3dShapeContextSearcher.cuh"
+#include <shapeDescriptor/shapeDescriptor.h>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <nvidia/helper_cuda.h>
 #endif
 
-#include <shapeDescriptor/gpu/types/float3.h>
 #include <chrono>
 #include <cfloat>
 #include <iostream>
-#include <shapeDescriptor/common/types/methods/3DSCDescriptor.h>
-#include <shapeDescriptor/cpu/types/array.h>
-#include <shapeDescriptor/gpu/types/array.h>
-#include <shapeDescriptor/utilities/free/array.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 
 const size_t elementsPerShapeContextDescriptor =
         SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT *
@@ -140,12 +136,12 @@ __global__ void computeShapeContextSearchResultIndices(
 #endif
 
 
-ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::compute3DSCSearchResultRanks(
+ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::compute3DSCSearchResultRanks(
         ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_needleDescriptors,
         size_t needleDescriptorSampleCount,
         ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_haystackDescriptors,
         size_t haystackDescriptorSampleCount,
-        ShapeDescriptor::debug::SCSearchExecutionTimes* executionTimes) {
+        ShapeDescriptor::SCSearchExecutionTimes* executionTimes) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     static_assert(SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT <= 32, "Exceeding this number of slices causes an overflow in the amount of shared memory needed by the kernel");
 
@@ -245,7 +241,7 @@ __global__ void computeElementWiseDistances3DSC(
 #endif
 
 
-ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::compute3DSCElementWiseSquaredDistances(
+ShapeDescriptor::cpu::array<float> ShapeDescriptor::compute3DSCElementWiseSquaredDistances(
         ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_descriptors,
         size_t descriptorSampleCount,
         ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_correspondingDescriptors,
@@ -272,7 +268,7 @@ ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::compute3DSCElementWiseS
     checkCudaErrors(cudaGetLastError());
 
     ShapeDescriptor::cpu::array<float> distances = device_results.copyToCPU();
-    ShapeDescriptor::free::array(device_results);
+    ShapeDescriptor::free(device_results);
 
     return distances;
 #else

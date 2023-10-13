@@ -1,5 +1,4 @@
-#include "OBJLoader.h"
-#include "MeshLoadUtils.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <vector>
 #include <sstream>
 #include <fstream>
@@ -49,7 +48,7 @@ inline ShapeDescriptor::cpu::float3 elementWiseMax(ShapeDescriptor::cpu::float3 
 	return output;
 }
 
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadOBJ(std::filesystem::path src, RecomputeNormals recomputeNormals)
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::loadOBJ(std::filesystem::path src, RecomputeNormals recomputeNormals)
 {
     fastObjMesh* temporaryMesh = fast_obj_read(src.c_str());
 

@@ -1,4 +1,4 @@
-#include "CUDAContextCreator.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include "nvidia/helper_cuda.h"
@@ -7,7 +7,7 @@
 #include <shapeDescriptor/libraryBuildSettings.h>
 #include <iostream>
 
-int ShapeDescriptor::utilities::createCUDAContext(int forceGPU)
+int ShapeDescriptor::createCUDAContext(int forceGPU)
 {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 	int deviceCount;
@@ -46,7 +46,7 @@ int ShapeDescriptor::utilities::createCUDAContext(int forceGPU)
 #endif
 }
 
-void ShapeDescriptor::utilities::printGPUProperties(unsigned int deviceIndex) {
+void ShapeDescriptor::printGPUProperties(unsigned int deviceIndex) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 	cudaDeviceProp deviceInfo;
 

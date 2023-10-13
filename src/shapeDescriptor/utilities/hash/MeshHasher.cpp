@@ -1,5 +1,5 @@
 #include <array>
-#include "MeshHasher.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <vector>
 #include <iostream>
 #include <unordered_map>

@@ -1,5 +1,4 @@
-#include "Mesh.h"
-#include <shapeDescriptor/utilities/copy/mesh.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 
 ShapeDescriptor::cpu::Mesh ShapeDescriptor::cpu::Mesh::clone() const {
     ShapeDescriptor::cpu::Mesh copiedMesh(vertexCount);
@@ -24,5 +23,5 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::cpu::Mesh::clone() const {
 }
 
 ShapeDescriptor::gpu::Mesh ShapeDescriptor::cpu::Mesh::copyToGPU() {
-    return ShapeDescriptor::copy::hostMeshToDevice(*this);
+    return ShapeDescriptor::copyToGPU(*this);
 }

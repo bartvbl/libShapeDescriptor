@@ -1,9 +1,6 @@
-#include <shapeDescriptor/cpu/types/array.h>
-#include <shapeDescriptor/utilities/fileutils.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <meshoptimizer.h>
 #include <iostream>
-#include "CompressedGeometryFile.h"
-#include "MeshLoadUtils.h"
 
 uint32_t readUint32(char*& bufferPointer) {
     uint32_t value = *reinterpret_cast<uint32_t*>(bufferPointer);
@@ -51,7 +48,7 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
     meshopt_encodeVertexVersion(0);
     meshopt_encodeIndexVersion(1);
 
-    std::vector<char> fileContents = ShapeDescriptor::utilities::readCompressedFile(filePath, 4);
+    std::vector<char> fileContents = ShapeDescriptor::readCompressedFile(filePath, 4);
     char* bufferPointer = fileContents.data();
 
     // Read header
@@ -163,7 +160,7 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
             ShapeDescriptor::cpu::float3 vertex0 = vertices.content[i];
             ShapeDescriptor::cpu::float3 vertex1 = vertices.content[i + 1];
             ShapeDescriptor::cpu::float3 vertex2 = vertices.content[i + 2];
-            ShapeDescriptor::cpu::float3 normal = computeTriangleNormal(vertex0, vertex1, vertex2);
+            ShapeDescriptor::cpu::float3 normal = ShapeDescriptor::computeTriangleNormal(vertex0, vertex1, vertex2);
             normals.content[i] = normal;
             normals.content[i + 1] = normal;
             normals.content[i + 2] = normal;

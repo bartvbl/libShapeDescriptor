@@ -1,10 +1,6 @@
-#include <shapeDescriptor/libraryBuildSettings.h>
-#include "QUICCIDescriptors.h"
 #include <exception>
 #include <iostream>
-#include <shapeDescriptor/utilities/fileutils.h>
-#include <shapeDescriptor/common/types/methods/QUICCIDescriptor.h>
-#include <shapeDescriptor/cpu/types/array.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 
 ShapeDescriptor::QUICCIDescriptorFileHeader readHeader(std::vector<char>& startOfFileBuffer) {
     ShapeDescriptor::QUICCIDescriptorFileHeader header;
@@ -23,7 +19,7 @@ ShapeDescriptor::QUICCIDescriptorFileHeader readHeader(std::vector<char>& startO
 }
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> readImageLZFile(const std::filesystem::path &path, unsigned int decompressionThreadCount) {
-    std::vector<char> inputBuffer = ShapeDescriptor::utilities::readCompressedFile(path, decompressionThreadCount);
+    std::vector<char> inputBuffer = ShapeDescriptor::readCompressedFile(path, decompressionThreadCount);
 
     ShapeDescriptor::QUICCIDescriptorFileHeader header = readHeader(inputBuffer);
 
@@ -48,14 +44,15 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> readImageLZFile(c
     return images;
 }
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::read::QUICCIDescriptors(const std::filesystem::path &dumpFileLocation, unsigned int decompressionThreadCount) {
+ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::readCompressedQUICCIDescriptors(
+        const std::filesystem::path &dumpFileLocation, unsigned int decompressionThreadCount) {
     return readImageLZFile(dumpFileLocation, decompressionThreadCount);
 }
 
 ShapeDescriptor::QUICCIDescriptorFileHeader
-ShapeDescriptor::read::QuicciDescriptorFileHeader(const std::filesystem::path &path) {
+ShapeDescriptor::readCompressedQUICCIDescriptorFileHeader(const std::filesystem::path &dumpFileLocation) {
     const size_t headerSize = sizeof(ShapeDescriptor::QUICCIDescriptorFileHeader);
-    std::vector<char> inputBuffer = ShapeDescriptor::utilities::readCompressedFileUpToNBytes(path, headerSize, 1);
+    std::vector<char> inputBuffer = ShapeDescriptor::readCompressedFileUpToNBytes(dumpFileLocation, headerSize, 1);
 
     ShapeDescriptor::QUICCIDescriptorFileHeader header = readHeader(inputBuffer);
 

@@ -1,23 +1,15 @@
-#include "radialIntersectionCountImageSearcher.cuh"
-
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <cuda_runtime.h>
 #include "nvidia/helper_cuda.h"
 #endif
 
-#include <shapeDescriptor/gpu/types/Mesh.h>
-#include <shapeDescriptor/libraryBuildSettings.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <cassert>
 #include <iostream>
 #include <climits>
 #include <cfloat>
 #include <chrono>
 #include <typeinfo>
-#include <shapeDescriptor/common/types/methods/RICIDescriptor.h>
-#include <shapeDescriptor/utilities/free/array.h>
-#include <shapeDescriptor/cpu/types/array.h>
-#include <shapeDescriptor/gpu/types/array.h>
-#include "types/ImageSearchResults.h"
 
 #ifndef warpSize
 #define warpSize 32
@@ -292,10 +284,10 @@ __global__ void computeRadialIntersectionCountImageSearchResultIndices(
 }
 #endif
 
-ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeRadialIntersectionCountImageSearchResultRanks(
+ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::computeRadialIntersectionCountImageSearchResultRanks(
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackDescriptors,
-        ShapeDescriptor::debug::RICISearchExecutionTimes* executionTimes) {
+        ShapeDescriptor::RICISearchExecutionTimes* executionTimes) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto executionStart = std::chrono::steady_clock::now();
 
@@ -375,7 +367,7 @@ __global__ void generateSearchResults(ShapeDescriptor::RICIDescriptor* needleDes
                                       size_t needleImageCount,
                                       ShapeDescriptor::RICIDescriptor* haystackDescriptors,
                                       size_t haystackImageCount,
-                                      ShapeDescriptor::gpu::SearchResults<unsigned int>* searchResults) {
+                                      ShapeDescriptor::SearchResults<unsigned int>* searchResults) {
 
     size_t needleImageIndex = warpCount * blockIdx.x + (threadIdx.x / 32);
 
@@ -461,12 +453,12 @@ __global__ void generateSearchResults(ShapeDescriptor::RICIDescriptor* needleDes
 }
 #endif
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> ShapeDescriptor::gpu::findRadialIntersectionCountImagesInHaystack(
+ShapeDescriptor::cpu::array<ShapeDescriptor::SearchResults<unsigned int>> ShapeDescriptor::findRadialIntersectionCountImagesInHaystack(
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_haystackDescriptors) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
-    size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(ShapeDescriptor::gpu::SearchResults<unsigned int>);
-    ShapeDescriptor::gpu::SearchResults<unsigned int>* device_searchResults;
+    size_t searchResultBufferSize = device_needleDescriptors.length * sizeof(ShapeDescriptor::SearchResults<unsigned int>);
+    ShapeDescriptor::SearchResults<unsigned int>* device_searchResults;
     checkCudaErrors(cudaMalloc(&device_searchResults, searchResultBufferSize));
 
     std::cout << "\t\tPerforming search.." << std::endl;
@@ -485,8 +477,8 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> S
 
     // Step 3: Copying results to CPU
 
-    ShapeDescriptor::cpu::array<ShapeDescriptor::gpu::SearchResults<unsigned int>> searchResults;
-    searchResults.content = new ShapeDescriptor::gpu::SearchResults<unsigned int>[device_needleDescriptors.length];
+    ShapeDescriptor::cpu::array<ShapeDescriptor::SearchResults<unsigned int>> searchResults;
+    searchResults.content = new ShapeDescriptor::SearchResults<unsigned int>[device_needleDescriptors.length];
     searchResults.length = device_needleDescriptors.length;
 
     checkCudaErrors(cudaMemcpy(searchResults.content, device_searchResults, searchResultBufferSize, cudaMemcpyDeviceToHost));
@@ -548,7 +540,7 @@ __global__ void computeElementWiseRICIDistances(
 }
 #endif
 
-ShapeDescriptor::cpu::array<int> ShapeDescriptor::gpu::computeRICIElementWiseModifiedSquareSumDistances(
+ShapeDescriptor::cpu::array<int> ShapeDescriptor::computeRICIElementWiseModifiedSquareSumDistances(
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_descriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> device_correspondingDescriptors) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
@@ -563,7 +555,7 @@ ShapeDescriptor::cpu::array<int> ShapeDescriptor::gpu::computeRICIElementWiseMod
     checkCudaErrors(cudaGetLastError());
 
     ShapeDescriptor::cpu::array<int> resultDistances = device_distances.copyToCPU();
-    ShapeDescriptor::free::array(device_distances);
+    ShapeDescriptor::free(device_distances);
 
     return resultDistances;
 #else

@@ -6,11 +6,7 @@
 #include <nvidia/helper_cuda.h>
 #endif
 
-#include <shapeDescriptor/cpu/types/array.h>
-#include <shapeDescriptor/gpu/types/array.h>
-#include <shapeDescriptor/utilities/free/array.h>
-#include "fastPointFeatureHistogramSearcher.cuh"
-
+#include <shapeDescriptor/shapeDescriptor.h>
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __inline__ __device__ float warpAllReduceSum(float val) {
     for (int mask = warpSize/2; mask > 0; mask /= 2)
@@ -129,10 +125,10 @@ __global__ void computeFPFHSearchResultIndices(
 }
 #endif
 
-ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::gpu::computeFPFHSearchResultRanks(
+ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::computeFPFHSearchResultRanks(
         ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_needleDescriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_haystackDescriptors,
-        ShapeDescriptor::debug::FPFHSearchExecutionTimes* executionTimes) {
+        ShapeDescriptor::FPFHSearchExecutionTimes* executionTimes) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto executionStart = std::chrono::steady_clock::now();
 
@@ -211,7 +207,7 @@ __global__ void computeElementWiseFPFHEuclideanDistances(
 }
 #endif
 
-ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::computeFPFHElementWiseEuclideanDistances(
+ShapeDescriptor::cpu::array<float> ShapeDescriptor::computeFPFHElementWiseEuclideanDistances(
         ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_descriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_correspondingDescriptors) {
     ShapeDescriptor::gpu::array<float> device_distances(device_descriptors.length);
@@ -226,7 +222,7 @@ ShapeDescriptor::cpu::array<float> ShapeDescriptor::gpu::computeFPFHElementWiseE
 
     ShapeDescriptor::cpu::array<float> distances = device_distances.copyToCPU();
 
-    ShapeDescriptor::free::array(device_distances);
+    ShapeDescriptor::free(device_distances);
 
     return distances;
 }

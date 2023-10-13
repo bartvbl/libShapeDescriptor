@@ -1,4 +1,4 @@
-#include "CUDAAvailability.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 
 bool ShapeDescriptor::isCUDASupportAvailable() {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED

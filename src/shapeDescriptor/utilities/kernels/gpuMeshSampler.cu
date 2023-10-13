@@ -1,10 +1,4 @@
-#include "gpuMeshSampler.cuh"
-
-#include <shapeDescriptor/common/types/SampleBounds.h>
-#include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
-
-#include <shapeDescriptor/gpu/types/array.h>
-#include <shapeDescriptor/gpu/types/float3.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <iostream>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
@@ -16,6 +10,27 @@
 #endif
 
 #define SAMPLE_COEFFICIENT_THREAD_COUNT 4096
+
+const unsigned int blockSize = 64;
+
+namespace ShapeDescriptor {
+    namespace gpu {
+        struct CudaLaunchDimensions {
+            size_t threadsPerBlock;
+            size_t blocksPerGrid;
+        };
+    }
+}
+
+ShapeDescriptor::gpu::CudaLaunchDimensions calculateCudaLaunchDimensions(size_t vertexCount)
+{
+    // Required block count is rounded down, we need rounded up
+    size_t blockCount = (vertexCount / blockSize) + 1;
+    ShapeDescriptor::gpu::CudaLaunchDimensions settings;
+    settings.threadsPerBlock = blockSize;
+    settings.blocksPerGrid = blockCount;
+    return settings;
+}
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __device__ __inline__ ShapeDescriptor::SampleBounds calculateSampleBounds(const ShapeDescriptor::gpu::array<float> &areaArray, int triangleIndex, int sampleCount) {
@@ -144,7 +159,7 @@ __global__ void generateRandomSampleCoefficients(ShapeDescriptor::gpu::array<flo
 }
 
 // One thread = One triangle
-__global__ void sampleMesh(
+__global__ void sampleMeshKernel(
         ShapeDescriptor::gpu::Mesh mesh,
         ShapeDescriptor::gpu::array<float> areaArray,
         ShapeDescriptor::gpu::PointCloud pointCloud,
@@ -194,7 +209,7 @@ __global__ void sampleMesh(
 
 #endif
 
-ShapeDescriptor::gpu::PointCloud ShapeDescriptor::internal::sampleMesh(gpu::Mesh device_mesh, size_t sampleCount, size_t randomSamplingSeed, ShapeDescriptor::internal::MeshSamplingBuffers* internalSampleBuffers) {
+ShapeDescriptor::gpu::PointCloud ShapeDescriptor::sampleMesh(gpu::Mesh device_mesh, size_t sampleCount, size_t randomSamplingSeed, ShapeDescriptor::internal::MeshSamplingBuffers* internalSampleBuffers) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     size_t vertexCount = device_mesh.vertexCount;
     size_t triangleCount = vertexCount / 3;
@@ -232,7 +247,7 @@ ShapeDescriptor::gpu::PointCloud ShapeDescriptor::internal::sampleMesh(gpu::Mesh
     cudaDeviceSynchronize();
     checkCudaErrors(cudaGetLastError());
 
-    sampleMesh <<<areaSettings.blocksPerGrid, areaSettings.threadsPerBlock>>>(device_mesh, device_cumulativeAreaArray, device_pointCloud, device_coefficients, sampleCount);
+    sampleMeshKernel <<<areaSettings.blocksPerGrid, areaSettings.threadsPerBlock>>>(device_mesh, device_cumulativeAreaArray, device_pointCloud, device_coefficients, sampleCount);
     cudaDeviceSynchronize();
     checkCudaErrors(cudaGetLastError());
 

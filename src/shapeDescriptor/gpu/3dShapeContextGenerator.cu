@@ -1,4 +1,4 @@
-#include "3dShapeContextGenerator.cuh"
+#include <shapeDescriptor/shapeDescriptor.h>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <cuda_runtime.h>
@@ -6,13 +6,7 @@
 #include <nvidia/helper_math.h>
 #endif
 
-#include <shapeDescriptor/gpu/types/PointCloud.h>
-#include <shapeDescriptor/gpu/types/array.h>
-#include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
-#include <shapeDescriptor/utilities/kernels/gpuMeshSampler.cuh>
-#include <shapeDescriptor/utilities/kernels/setValue.cuh>
-#include <shapeDescriptor/utilities/kernels/pointCloudUtils.h>
-#include <shapeDescriptor/common/types/BoundingBox.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 
 #include <chrono>
 #include <iostream>
@@ -249,20 +243,23 @@ __global__ void createDescriptors(
 }
 #endif
 
-ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescriptor::gpu::generate3DSCDescriptors(
+#define COMMA ,
+ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescriptor::generate3DSCDescriptors(
         ShapeDescriptor::gpu::PointCloud device_pointCloud,
         ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> device_spinImageOrigins,
         float pointDensityRadius,
         float minSupportRadius,
         float maxSupportRadius,
-        ShapeDescriptor::debug::SCExecutionTimes* executionTimes) {
-#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+        ShapeDescriptor::SCExecutionTimes* executionTimes) {
+    CUDA_REGION(
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t descriptorCount = device_spinImageOrigins.length;
     size_t descriptorBufferSize = sizeof(ShapeDescriptor::ShapeContextDescriptor) * descriptorCount;
 
-    ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_descriptors = {0, nullptr};
+    ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> device_descriptors;
+    device_descriptors.length = 0;
+    device_descriptors.content = nullptr;
 
     // -- Initialisation --
     auto initialisationStart = std::chrono::steady_clock::now();
@@ -279,14 +276,14 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescri
     auto pointCountingStart = std::chrono::steady_clock::now();
 
     ShapeDescriptor::gpu::array<unsigned int> device_pointCountArray =
-            ShapeDescriptor::utilities::computePointDensities(pointDensityRadius, device_pointCloud);
+            ShapeDescriptor::computePointDensities(pointDensityRadius, device_pointCloud);
 
     std::chrono::milliseconds pointCountingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - pointCountingStart);
 
     // -- Spin Image Generation --
     auto generationStart = std::chrono::steady_clock::now();
 
-    createDescriptors <<<descriptorCount, 416>>>(
+    createDescriptors <<<descriptorCount COMMA 416>>>(
         device_spinImageOrigins.content,
         device_pointCloud,
         device_descriptors,
@@ -312,9 +309,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescri
     }
 
     return device_descriptors;
-#else
-    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
-#endif
+    )
 }
 
 

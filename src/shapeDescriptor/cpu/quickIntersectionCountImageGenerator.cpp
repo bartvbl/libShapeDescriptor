@@ -1,12 +1,6 @@
-#include "quickIntersectionCountImageGenerator.h"
-#include "radialIntersectionCountImageGenerator.h"
-
-#include <shapeDescriptor/cpu/types/Mesh.h>
-#include <shapeDescriptor/common/types/OrientedPoint.h>
-
 #include <chrono>
 #include <cstring>
-#include <shapeDescriptor/common/types/methods/RICIDescriptor.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <bitset>
 
 void generateQUICCIDescriptor(const ShapeDescriptor::RICIDescriptor &riciDescriptor, ShapeDescriptor::QUICCIDescriptor* descriptor) {
@@ -33,16 +27,16 @@ void generateQUICCIDescriptor(const ShapeDescriptor::RICIDescriptor &riciDescrip
     }
 }
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::cpu::generateQUICCImages(
+ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::generateQUICCImages(
         ShapeDescriptor::cpu::Mesh mesh,
         ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
         float spinImageWidth,
-        ShapeDescriptor::cpu::QUICCIExecutionTimes* executionTimes) {
+        ShapeDescriptor::QUICCIExecutionTimes* executionTimes) {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     auto generationStart = std::chrono::steady_clock::now();
     ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> riciDescriptors
-        = ShapeDescriptor::cpu::generateRadialIntersectionCountImages(mesh, descriptorOrigins, spinImageWidth);
+        = ShapeDescriptor::generateRadialIntersectionCountImages(mesh, descriptorOrigins, spinImageWidth);
 
     size_t imageCount = descriptorOrigins.length;
     ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors(imageCount);

@@ -1,6 +1,5 @@
 #include <stdexcept>
-#include <shapeDescriptor/libraryBuildSettings.h>
-#include "Mesh.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <cuda_runtime.h>
@@ -38,7 +37,7 @@ ShapeDescriptor::gpu::Mesh ShapeDescriptor::gpu::duplicateMesh(Mesh mesh) {
 #endif
 }
 
-void ShapeDescriptor::gpu::freeMesh(Mesh mesh) {
+void ShapeDescriptor::free(gpu::Mesh& mesh) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     cudaFree(mesh.vertices_x);
     cudaFree(mesh.vertices_y);

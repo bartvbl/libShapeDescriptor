@@ -1,14 +1,11 @@
 #include <iostream>
-#include <shapeDescriptor/cpu/types/float4.h>
-#include "GLTFLoader.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 // #define TINYGLTF_NOEXCEPTION // optional. disable exception handling.
 #include "tiny_gltf.h"
-#include "RecomputeNormals.h"
-#include "MeshLoadUtils.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -40,7 +37,7 @@ void reportDrawModeError(const std::filesystem::path &filePath, int drawMode) {
     throw std::runtime_error("The file loaded from " + filePath.string() + " contains geometry with an unsupported drawing mode (" + gltfDrawModes.at(drawMode) + "). Please re-export the object to use triangles exclusively, or use an alternate format.");
 }
 
-bool ShapeDescriptor::utilities::gltfContainsPointCloud(const std::filesystem::path& file) {
+bool ShapeDescriptor::gltfContainsPointCloud(const std::filesystem::path& file) {
     std::ifstream inputStream{file};
 
     std::array<unsigned int, 3> fileHeader {0, 0, 0};
@@ -160,7 +157,7 @@ void computeMeshTransformation(const std::vector<tinygltf::Node> &nodes, int nod
     }
 }
 
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesystem::path filePath, ShapeDescriptor::RecomputeNormals recomputeNormals) {
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::loadGLTFMesh(std::filesystem::path filePath, ShapeDescriptor::RecomputeNormals recomputeNormals) {
     tinygltf::Model model = readTinyGLTFFile(filePath);
 
     // Calculate transformation matrices
@@ -448,7 +445,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadGLTFMesh(std::filesys
     return mesh;
 }
 
-ShapeDescriptor::cpu::PointCloud ShapeDescriptor::utilities::loadGLTFPointCloud(std::filesystem::path filePath) {
+ShapeDescriptor::cpu::PointCloud ShapeDescriptor::loadGLTFPointCloud(std::filesystem::path filePath) {
     tinygltf::Model model = readTinyGLTFFile(filePath);
 
     // Calculate transformation matrices

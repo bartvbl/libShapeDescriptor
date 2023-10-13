@@ -1,7 +1,7 @@
 #pragma once
 
 #include <utility>
-#include <shapeDescriptor/libraryBuildSettings.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <algorithm>
 #include <bitset>
 
@@ -47,7 +47,7 @@ namespace ShapeDescriptor {
         inline HammingWeights computeWeightedHammingWeights(const ShapeDescriptor::QUICCIDescriptor &descriptor) {
             unsigned int setBitCount = 0;
 
-            for(unsigned int i = 0; i < ShapeDescriptor::QUICCIDescriptorLength; i++) {
+            for(unsigned int i = 0; i < (spinImageWidthPixels * spinImageWidthPixels) / (8 * sizeof(uint32_t)); i++) {
                 setBitCount += std::bitset<32>(descriptor.contents[i]).count();
             }
 
@@ -60,7 +60,7 @@ namespace ShapeDescriptor {
         inline HammingWeights computeWeightedHammingWeightsGPU(const ShapeDescriptor::QUICCIDescriptor &descriptor) {
             unsigned int setBitCount = 0;
 
-            for(unsigned int i = 0; i < ShapeDescriptor::QUICCIDescriptorLength; i++) {
+            for(unsigned int i = 0; i < (spinImageWidthPixels * spinImageWidthPixels) / (8 * sizeof(uint32_t)); i++) {
                 setBitCount += __popc(descriptor.contents[i]);
             }
 

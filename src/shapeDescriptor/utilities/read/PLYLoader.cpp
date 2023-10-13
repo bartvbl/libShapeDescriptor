@@ -1,13 +1,9 @@
-#include "PLYLoader.h"
 #include <fast-obj/fast_obj.h>
 #include <iostream>
-#include <shapeDescriptor/cpu/types/double3.h>
-#include <shapeDescriptor/cpu/types/uchar3.h>
-#include "MeshLoadUtils.h"
-#include "RecomputeNormals.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 
 
-ShapeDescriptor::cpu::Mesh ShapeDescriptor::utilities::loadPLY(std::filesystem::path src, RecomputeNormals recomputeNormals) {
+ShapeDescriptor::cpu::Mesh ShapeDescriptor::loadPLY(std::filesystem::path src, RecomputeNormals recomputeNormals) {
     // Read file contents into a buffer
     FILE* plyFile = fopen(src.c_str(), "r");
 

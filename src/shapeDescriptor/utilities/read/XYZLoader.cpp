@@ -1,8 +1,8 @@
 #include <fast_obj.h>
 #include <vector>
-#include "XYZLoader.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 
-ShapeDescriptor::cpu::PointCloud ShapeDescriptor::utilities::loadXYZ(std::filesystem::path src, bool readNormals, bool readColours) {
+ShapeDescriptor::cpu::PointCloud ShapeDescriptor::loadXYZ(std::filesystem::path src, bool readNormals, bool readColours) {
     // Read file contents into a buffer
     FILE* xyzFile = fopen(src.c_str(), "r");
 

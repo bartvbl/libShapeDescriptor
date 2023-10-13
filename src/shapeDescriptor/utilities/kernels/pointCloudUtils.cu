@@ -1,4 +1,4 @@
-#include "pointCloudUtils.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <nvidia/helper_cuda.h>
@@ -110,7 +110,7 @@ __global__ void computePointCloudBoundingBox(
 }
 #endif
 
-ShapeDescriptor::BoundingBox ShapeDescriptor::utilities::computeBoundingBox(ShapeDescriptor::gpu::PointCloud device_pointCloud) {
+ShapeDescriptor::BoundingBox ShapeDescriptor::computeBoundingBox(ShapeDescriptor::gpu::PointCloud device_pointCloud) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     ShapeDescriptor::BoundingBox host_boundingBox = {
             {std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max()},
@@ -314,13 +314,13 @@ __global__ void computePointCounts(
 }
 #endif
 
-ShapeDescriptor::gpu::array<unsigned int> ShapeDescriptor::utilities::computePointDensities(
+ShapeDescriptor::gpu::array<unsigned int> ShapeDescriptor::computePointDensities(
         float pointDensityRadius, ShapeDescriptor::gpu::PointCloud device_pointCloud) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     size_t sampleCount = device_pointCloud.vertices.length;
 
     // 1. Compute bounding box
-    ShapeDescriptor::BoundingBox boundingBox = ShapeDescriptor::utilities::computeBoundingBox(device_pointCloud);
+    ShapeDescriptor::BoundingBox boundingBox = ShapeDescriptor::computeBoundingBox(device_pointCloud);
 
     // 2. Allocate index array for boxes of radius x radius x radius
     float3 boundingBoxSize = boundingBox.max - boundingBox.min;

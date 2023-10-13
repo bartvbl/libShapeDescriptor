@@ -1,6 +1,6 @@
-#include <shapeDescriptor/utilities/free/mesh.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 
-void ShapeDescriptor::free::mesh(ShapeDescriptor::cpu::Mesh &meshToFree) {
+void ShapeDescriptor::free(ShapeDescriptor::cpu::Mesh &meshToFree) {
     if(meshToFree.vertices != nullptr) {
         delete[] meshToFree.vertices;
         meshToFree.vertices = nullptr;
@@ -17,8 +17,8 @@ void ShapeDescriptor::free::mesh(ShapeDescriptor::cpu::Mesh &meshToFree) {
     }
 }
 
-void ShapeDescriptor::free::mesh(ShapeDescriptor::gpu::Mesh &meshToFree) {
-#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+void ShapeDescriptor::free(ShapeDescriptor::gpu::Mesh &meshToFree) {
+CUDA_REGION(
     if(meshToFree.vertices_x != nullptr) {
         cudaFree(meshToFree.vertices_x);
         cudaFree(meshToFree.vertices_y);
@@ -38,7 +38,5 @@ void ShapeDescriptor::free::mesh(ShapeDescriptor::gpu::Mesh &meshToFree) {
         meshToFree.normals_y = nullptr;
         meshToFree.normals_z = nullptr;
     }
-#else
-    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
-#endif
+)
 }

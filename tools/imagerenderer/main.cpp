@@ -1,23 +1,5 @@
-#include <shapeDescriptor/cpu/types/Mesh.h>
-#include <shapeDescriptor/gpu/spinImageGenerator.cuh>
-#include <shapeDescriptor/gpu/radialIntersectionCountImageGenerator.cuh>
-#include <shapeDescriptor/gpu/quickIntersectionCountImageGenerator.cuh>
-#include <shapeDescriptor/utilities/read/OBJLoader.h>
-#include <shapeDescriptor/utilities/dump/descriptorImages.h>
-#include <shapeDescriptor/utilities/CUDAContextCreator.h>
-#include <shapeDescriptor/utilities/free/mesh.h>
-
 #include <arrrgh.hpp>
-#include <shapeDescriptor/utilities/copy/mesh.h>
-#include <shapeDescriptor/utilities/kernels/gpuMeshSampler.cuh>
-#include <shapeDescriptor/utilities/copy/array.h>
-#include <shapeDescriptor/utilities/read/MeshLoader.h>
-#include <shapeDescriptor/utilities/free/array.h>
-#include <shapeDescriptor/utilities/CUDAAvailability.h>
-#include <shapeDescriptor/cpu/radialIntersectionCountImageGenerator.h>
-#include <shapeDescriptor/utilities/spinOriginsGenerator.h>
-#include <shapeDescriptor/cpu/quickIntersectionCountImageGenerator.h>
-#include <shapeDescriptor/utilities/meshSampler.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 
 int main(int argc, const char** argv) {
     const std::string defaultExecutionDevice = ShapeDescriptor::isCUDASupportAvailable() ? "gpu" : "cpu";
@@ -67,7 +49,7 @@ int main(int argc, const char** argv) {
 
     if(forceGPU.value() != -1) {
         std::cout << "Forcing GPU " << forceGPU.value() << std::endl;
-        ShapeDescriptor::utilities::createCUDAContext(forceGPU.value());
+        ShapeDescriptor::createCUDAContext(forceGPU.value());
     }
 
     if(!ShapeDescriptor::isCUDASupportAvailable() && generationDevice.value() == "gpu") {
@@ -75,10 +57,10 @@ int main(int argc, const char** argv) {
     }
 
     std::cout << "Loading mesh file.." << std::endl;
-    ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh(inputFile.value(), ShapeDescriptor::RecomputeNormals::DO_NOT_RECOMPUTE);
+    ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::loadMesh(inputFile.value(), ShapeDescriptor::RecomputeNormals::DO_NOT_RECOMPUTE);
     std::cout << "    Object has " << mesh.vertexCount << " vertices" << std::endl;
 
-    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOrigins = ShapeDescriptor::utilities::generateUniqueSpinOriginBuffer(mesh);
+    ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinOrigins = ShapeDescriptor::generateUniqueSpinOriginBuffer(mesh);
     std::cout << "    Found " << spinOrigins.length << " unique vertices" << std::endl;
 
     // Limit image count being generated depending on command line parameter
@@ -90,7 +72,7 @@ int main(int argc, const char** argv) {
     ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> deviceSpinOrigins;
 
     if(ShapeDescriptor::isCUDASupportAvailable() && generationDevice.value() == "gpu") {
-        deviceMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
+        deviceMesh = ShapeDescriptor::copyToGPU(mesh);
 
         ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> tempOrigins = ShapeDescriptor::copy::hostArrayToDevice(spinOrigins);
         deviceSpinOrigins = {tempOrigins.length, reinterpret_cast<ShapeDescriptor::OrientedPoint*>(tempOrigins.content)};
@@ -101,32 +83,32 @@ int main(int argc, const char** argv) {
 
     std::cout << "Generating images.. (this can take a while)" << std::endl;
     if(generationMode.value() == "si") {
-        ShapeDescriptor::gpu::PointCloud pointCloud = ShapeDescriptor::utilities::sampleMesh(deviceMesh, spinImageSampleCount.value(), 0);
+        ShapeDescriptor::gpu::PointCloud pointCloud = ShapeDescriptor::sampleMesh(deviceMesh, spinImageSampleCount.value(), 0);
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> descriptors = ShapeDescriptor::gpu::generateSpinImages(
+        ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> descriptors = ShapeDescriptor::generateSpinImages(
                 pointCloud,
                 deviceSpinOrigins,
                 spinImageWidth.value(),
                 supportAngle.value());
         std::cout << "Dumping results.. " << std::endl;
         ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors = ShapeDescriptor::copy::deviceArrayToHost<ShapeDescriptor::SpinImageDescriptor>(descriptors);
-        ShapeDescriptor::dump::descriptors(hostDescriptors, outputFile.value(), enableLogarithmicImage.value(), imagesPerRow.value());
+        ShapeDescriptor::writeDescriptorImages(hostDescriptors, outputFile.value(), enableLogarithmicImage.value(), imagesPerRow.value());
 
-        ShapeDescriptor::free::array<ShapeDescriptor::SpinImageDescriptor>(descriptors);
+        ShapeDescriptor::free<ShapeDescriptor::SpinImageDescriptor>(descriptors);
         delete[] hostDescriptors.content;
 
     } else if(generationMode.value() == "rici") {
         ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors;
         if(generationDevice.value() == "gpu") {
             ShapeDescriptor::gpu::array<ShapeDescriptor::RICIDescriptor> descriptors =
-                    ShapeDescriptor::gpu::generateRadialIntersectionCountImages(
+                    ShapeDescriptor::generateRadialIntersectionCountImages(
                             deviceMesh,
                             deviceSpinOrigins,
                             spinImageWidth.value());
             hostDescriptors = ShapeDescriptor::copy::deviceArrayToHost(descriptors);
-            ShapeDescriptor::free::array(descriptors);
+            ShapeDescriptor::free(descriptors);
         } else if(generationDevice.value() == "cpu") {
-            hostDescriptors = ShapeDescriptor::cpu::generateRadialIntersectionCountImages(mesh, spinOrigins, spinImageWidth.value());
+            hostDescriptors = ShapeDescriptor::generateRadialIntersectionCountImages(mesh, spinOrigins, spinImageWidth.value());
         }
 
 
@@ -135,7 +117,7 @@ int main(int argc, const char** argv) {
         if(imageLimit.value() != -1) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
-        ShapeDescriptor::dump::descriptors(hostDescriptors, outputFile.value(), enableLogarithmicImage.value(), imagesPerRow.value());
+        ShapeDescriptor::writeDescriptorImages(hostDescriptors, outputFile.value(), enableLogarithmicImage.value(), imagesPerRow.value());
         delete[] hostDescriptors.content;
 
 
@@ -144,14 +126,14 @@ int main(int argc, const char** argv) {
         ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors;
 
         if(generationDevice.value() == "gpu") {
-            ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> images = ShapeDescriptor::gpu::generateQUICCImages(
+            ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> images = ShapeDescriptor::generateQUICCImages(
                     deviceMesh,
                     deviceSpinOrigins,
                     spinImageWidth.value());
             hostDescriptors = ShapeDescriptor::copy::deviceArrayToHost(images);
-            ShapeDescriptor::free::array(images);
+            ShapeDescriptor::free(images);
         } else if(generationDevice.value() == "cpu") {
-            hostDescriptors = ShapeDescriptor::cpu::generateQUICCImages(mesh, spinOrigins, spinImageWidth.value());
+            hostDescriptors = ShapeDescriptor::generateQUICCImages(mesh, spinOrigins, spinImageWidth.value());
         }
 
         std::cout << "Dumping results.. " << std::endl;
@@ -160,16 +142,16 @@ int main(int argc, const char** argv) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
 
-        ShapeDescriptor::dump::descriptors(hostDescriptors, outputFile.value(), imagesPerRow.value());
+        ShapeDescriptor::writeDescriptorImages(hostDescriptors, outputFile.value(), imagesPerRow.value());
 
-        ShapeDescriptor::free::array(hostDescriptors);
+        ShapeDescriptor::free(hostDescriptors);
     } else {
         std::cerr << "Unrecognised image type: " << generationMode.value() << std::endl;
         std::cerr << "Should be either 'si', 'rici', or 'quicci'." << std::endl;
     }
 
-    ShapeDescriptor::free::mesh(mesh);
+    ShapeDescriptor::free(mesh);
     if(generationDevice.value() == "gpu") {
-        ShapeDescriptor::gpu::freeMesh(deviceMesh);
+        ShapeDescriptor::free(deviceMesh);
     }
 }

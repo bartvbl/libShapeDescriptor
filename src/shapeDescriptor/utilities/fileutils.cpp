@@ -1,14 +1,13 @@
 #include <fstream>
 #include <cassert>
-#include "fileutils.h"
 #include <algorithm>
 #include <array>
 #include <random>
-#include <shapeDescriptor/utilities/compress/byteCompressor.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 
 
 
-std::vector<std::filesystem::path> ShapeDescriptor::utilities::listDirectory(const std::filesystem::path& directory) {
+std::vector<std::filesystem::path> ShapeDescriptor::listDirectory(const std::filesystem::path& directory) {
     std::vector<std::filesystem::path> foundFiles;
 
     for(auto &path : std::filesystem::directory_iterator(directory)) {
@@ -20,7 +19,7 @@ std::vector<std::filesystem::path> ShapeDescriptor::utilities::listDirectory(con
     return foundFiles;
 }
 
-std::vector<std::filesystem::path> ShapeDescriptor::utilities::listDirectoryAndSubdirectories(const std::filesystem::path &directory) {
+std::vector<std::filesystem::path> ShapeDescriptor::listDirectoryAndSubdirectories(const std::filesystem::path &directory) {
     std::vector<std::filesystem::path> foundFiles;
 
     for(auto &path : std::filesystem::recursive_directory_iterator(directory)) {
@@ -69,7 +68,7 @@ std::vector<char> readLZMAFile(const std::filesystem::path &archiveFile, size_t 
             //        (void*) decompressedBuffer, decompressedBufferSize,
             //        (void*) compressedBuffer, compressedBufferSize);
         //} else {
-            ShapeDescriptor::utilities::decompressBytesMultithreaded(
+            ShapeDescriptor::decompressBytesMultithreaded(
                     (void*) decompressedBuffer.data(), numberOfDecompressedBytesToRead,
                     (void*) compressedBuffer.data(), compressedBufferSize,
                     threadCount);
@@ -79,21 +78,21 @@ std::vector<char> readLZMAFile(const std::filesystem::path &archiveFile, size_t 
     return decompressedBuffer;
 }
 
-std::vector<char> ShapeDescriptor::utilities::readCompressedFile(const std::filesystem::path &archiveFile, unsigned int threadCount) {
+std::vector<char> ShapeDescriptor::readCompressedFile(const std::filesystem::path &archiveFile, unsigned int threadCount) {
     return readLZMAFile(archiveFile, std::numeric_limits<size_t>::max(), threadCount);
 }
 
-void ShapeDescriptor::utilities::writeCompressedFile(const char *buffer, size_t bufferSize, const std::filesystem::path &archiveFile, unsigned int threadCount) {
+void ShapeDescriptor::writeCompressedFile(const char *buffer, size_t bufferSize, const std::filesystem::path &archiveFile, unsigned int threadCount) {
 
     std::filesystem::create_directories(std::filesystem::absolute(archiveFile).parent_path());
 
-    const size_t maxCompressedBufferSize = ShapeDescriptor::utilities::computeMaxCompressedBufferSize(bufferSize);
+    const size_t maxCompressedBufferSize = ShapeDescriptor::computeMaxCompressedBufferSize(bufferSize);
     char* compressedBuffer = new char[maxCompressedBufferSize];
     unsigned long compressedBufferSize;
  //   #pragma omp critical
     {
         compressedBufferSize =
-                ShapeDescriptor::utilities::compressBytesMultithreaded(
+                ShapeDescriptor::compressBytesMultithreaded(
                         (void*) compressedBuffer, maxCompressedBufferSize,
                         (void*) buffer, bufferSize, threadCount);
     }
@@ -112,13 +111,13 @@ void ShapeDescriptor::utilities::writeCompressedFile(const char *buffer, size_t 
     delete[] compressedBuffer;
 }
 
-std::vector<char> ShapeDescriptor::utilities::readCompressedFileUpToNBytes(const std::filesystem::path &archiveFile,
+std::vector<char> ShapeDescriptor::readCompressedFileUpToNBytes(const std::filesystem::path &archiveFile,
                                                          size_t decompressedBytesToRead,
                                                          unsigned int threadCount) {
     return readLZMAFile(archiveFile, decompressedBytesToRead, threadCount);
 }
 
-std::string ShapeDescriptor::utilities::generateUniqueFilenameString() {
+std::string ShapeDescriptor::generateUniqueFilenameString() {
     time_t currentTime = std::time(nullptr);
     tm convertedTime = *std::localtime(&currentTime);
 

@@ -1,9 +1,9 @@
 #include <fast_obj.h>
 #include <vector>
 #include <fstream>
-#include "XYZWriter.h"
+#include <shapeDescriptor/shapeDescriptor.h>
 
-void ShapeDescriptor::utilities::writeXYZ(std::filesystem::path destination, ShapeDescriptor::cpu::PointCloud pointCloud) {
+void ShapeDescriptor::writeXYZ(std::filesystem::path destination, ShapeDescriptor::cpu::PointCloud pointCloud) {
     std::string outputFileExtension = destination.extension().string();
     bool exportNormals = outputFileExtension == ".xyzn" || outputFileExtension == ".XYZN";
     bool exportVertexColours = outputFileExtension == ".xyzrgb" || outputFileExtension == ".XYZRGB";

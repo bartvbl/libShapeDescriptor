@@ -1,5 +1,3 @@
-#include "spinImageGenerator.cuh"
-
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include "nvidia/helper_math.h"
 #include "nvidia/helper_cuda.h"
@@ -12,15 +10,7 @@
 #include <chrono>
 #include <map>
 
-#include <shapeDescriptor/gpu/types/Mesh.h>
-#include <shapeDescriptor/gpu/types/CudaLaunchDimensions.h>
-#include <shapeDescriptor/utilities/kernels/setValue.cuh>
-#include <shapeDescriptor/utilities/kernels/gpuMeshSampler.cuh>
-#include <shapeDescriptor/utilities/dump/descriptorImages.h>
-#include <shapeDescriptor/gpu/types/PointCloud.h>
-#include <shapeDescriptor/gpu/types/VertexList.cuh>
-#include <shapeDescriptor/common/types/SampleBounds.h>
-#include <shapeDescriptor/gpu/types/array.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 __device__ __inline__ float2 calculateAlphaBeta(float3 spinVertex, float3 spinNormal, float3 point)
@@ -144,12 +134,12 @@ __global__ void createDescriptors(
 }
 #endif
 
-ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> ShapeDescriptor::gpu::generateSpinImages(
+ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> ShapeDescriptor::generateSpinImages(
         ShapeDescriptor::gpu::PointCloud device_pointCloud,
         ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> device_descriptorOrigins,
         float supportRadius,
         float supportAngleDegrees,
-        ShapeDescriptor::debug::SIExecutionTimes* executionTimes) {
+        ShapeDescriptor::SIExecutionTimes* executionTimes) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 

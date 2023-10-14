@@ -74,7 +74,7 @@ int main(int argc, const char** argv) {
     if(ShapeDescriptor::isCUDASupportAvailable() && generationDevice.value() == "gpu") {
         deviceMesh = ShapeDescriptor::copyToGPU(mesh);
 
-        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> tempOrigins = ShapeDescriptor::copy::hostArrayToDevice(spinOrigins);
+        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> tempOrigins = ShapeDescriptor::copyToGPU(spinOrigins);
         deviceSpinOrigins = {tempOrigins.length, reinterpret_cast<ShapeDescriptor::OrientedPoint*>(tempOrigins.content)};
     }
 
@@ -91,7 +91,7 @@ int main(int argc, const char** argv) {
                 spinImageWidth.value(),
                 supportAngle.value());
         std::cout << "Dumping results.. " << std::endl;
-        ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors = ShapeDescriptor::copy::deviceArrayToHost<ShapeDescriptor::SpinImageDescriptor>(descriptors);
+        ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> hostDescriptors = ShapeDescriptor::copyToCPU<ShapeDescriptor::SpinImageDescriptor>(descriptors);
         ShapeDescriptor::writeDescriptorImages(hostDescriptors, outputFile.value(), enableLogarithmicImage.value(), imagesPerRow.value());
 
         ShapeDescriptor::free<ShapeDescriptor::SpinImageDescriptor>(descriptors);
@@ -105,7 +105,7 @@ int main(int argc, const char** argv) {
                             deviceMesh,
                             deviceSpinOrigins,
                             spinImageWidth.value());
-            hostDescriptors = ShapeDescriptor::copy::deviceArrayToHost(descriptors);
+            hostDescriptors = ShapeDescriptor::copyToCPU(descriptors);
             ShapeDescriptor::free(descriptors);
         } else if(generationDevice.value() == "cpu") {
             hostDescriptors = ShapeDescriptor::generateRadialIntersectionCountImages(mesh, spinOrigins, spinImageWidth.value());
@@ -130,7 +130,7 @@ int main(int argc, const char** argv) {
                     deviceMesh,
                     deviceSpinOrigins,
                     spinImageWidth.value());
-            hostDescriptors = ShapeDescriptor::copy::deviceArrayToHost(images);
+            hostDescriptors = ShapeDescriptor::copyToCPU(images);
             ShapeDescriptor::free(images);
         } else if(generationDevice.value() == "cpu") {
             hostDescriptors = ShapeDescriptor::generateQUICCImages(mesh, spinOrigins, spinImageWidth.value());

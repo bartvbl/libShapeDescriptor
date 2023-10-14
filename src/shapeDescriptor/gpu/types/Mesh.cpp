@@ -37,18 +37,4 @@ ShapeDescriptor::gpu::Mesh ShapeDescriptor::gpu::duplicateMesh(Mesh mesh) {
 #endif
 }
 
-void ShapeDescriptor::free(gpu::Mesh& mesh) {
-#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
-    cudaFree(mesh.vertices_x);
-    cudaFree(mesh.vertices_y);
-    cudaFree(mesh.vertices_z);
-
-    cudaFree(mesh.normals_x);
-    cudaFree(mesh.normals_y);
-    cudaFree(mesh.normals_z);
-#else
-    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
-#endif
-}
-
 

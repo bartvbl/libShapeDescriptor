@@ -3,8 +3,7 @@
 #include <cuda_runtime.h>
 #include <vector_types.h>
 
-#include <shapeDescriptor/gpu/types/PointCloud.h>
-#include <shapeDescriptor/utilities/kernels/pointCloudUtils.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 #include <iostream>
 
 
@@ -13,7 +12,7 @@ unsigned int *computeNeighbourCounts(const float *simpleCloud, unsigned int poin
 
     cudaMemcpy(device_pointCloud.vertices.array, simpleCloud, pointCount * 3 * sizeof(float), cudaMemcpyHostToDevice);
 
-    ShapeDescriptor::gpu::array<unsigned int> device_pointDensities = ShapeDescriptor::utilities::computePointDensities(radius, device_pointCloud);
+    ShapeDescriptor::gpu::array<unsigned int> device_pointDensities = ShapeDescriptor::computePointDensities(radius, device_pointCloud);
 
     unsigned int* counts = new unsigned int[pointCount];
     cudaMemcpy(counts, device_pointDensities.content, pointCount * sizeof(unsigned int), cudaMemcpyDeviceToHost);

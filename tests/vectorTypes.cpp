@@ -1,6 +1,5 @@
 #include <catch2/catch.hpp>
-#include <shapeDescriptor/types/float2.h>
-#include <shapeDescriptor/types/float3.h>
+#include <shapeDescriptor/shapeDescriptor.h>
 
 TEST_CASE("float vector structs", "[vectors]" ) {
 

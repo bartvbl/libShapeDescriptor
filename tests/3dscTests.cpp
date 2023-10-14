@@ -1,6 +1,5 @@
 #include <catch2/catch.hpp>
-#include <shapeDescriptor/libraryBuildSettings.h>
-#include <shapeDescriptor/gpu/3dShapeContextGenerator.cuh>
+#include <shapeDescriptor/shapeDescriptor.h>
 
 TEST_CASE("Ensuring volume computation makes sense") {
     SECTION("Volume computation") {

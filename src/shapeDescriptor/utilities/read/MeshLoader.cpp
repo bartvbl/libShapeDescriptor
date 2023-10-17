@@ -13,6 +13,8 @@ ShapeDescriptor::loadMesh(std::filesystem::path src, RecomputeNormals recomputeN
         return ShapeDescriptor::loadOFF(src.string());
     } else if(src.extension() == ".gltf" || src.extension() == ".GLTF" || src.extension() == ".glb" || src.extension() == ".GLB") {
         return ShapeDescriptor::loadGLTFMesh(src, recomputeNormals);
+    } else if(src.extension() == ".cm" || src.extension() == ".CM") {
+        return ShapeDescriptor::loadMeshFromCompressedGeometryFile(src);
     } else {
         throw std::runtime_error("Failed to load file: " + src.string() + "\nReason: extension was not recognised as a supported 3D object file format.");
     }

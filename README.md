@@ -76,7 +76,7 @@ ShapeDescriptor::cpu::array<unsigned int> cpuArray;
 ShapeDescriptor::gpu::array<unsigned int> gpuArray;
 ```
 
-A number of constants can only be changed at compile time. All such constants can be found in the file 'src/shapeDescriptor/libraryBuildSettings.h'.
+A number of constants can only be changed at compile time. All such constants can be found in the file 'include/shapeDescriptor/libraryBuildSettings.h'.
 
 ## Cookbook
 
@@ -84,7 +84,7 @@ Here are some code samples to help you get up and running quickly.
 
 #### Load Mesh files
 
-Loaders for OBJ, OFF, and PLY are included which return a mesh in the format other functions in the library can understand.
+Loaders for OBJ, OFF, GLTF, and PLY are included which return a mesh in the format other functions in the library can understand.
 
 ```c++
 // Load mesh
@@ -97,7 +97,7 @@ ShapeDescriptor::free(mesh);
 
 #### Copy meshes to and from the GPU
 
-The src/utilities/copy directory contains a number of functions which can copy all relevant data structures to and from the GPU.
+All types for which variants exist in CPU and GPU memory can be copied to and from each respective memory using the `ShapeDescriptor::copyToCPU()` and `ShapeDescriptor::copyToGPU()` functions:
 
 ```c++
 // Load mesh
@@ -138,8 +138,8 @@ Note that for a number of functions there exist implementations for the CPU and 
 
 #### Compute descriptors
 
-All descriptors implemented by the library follow the same API. Their parameters take in a scene in the form of a `cpu::Mesh` or `gpu::Mesh`, and a list of vertices for which a descriptor should be computed (referred to as 'origins'). Origins are specified as instances of the ShapeDescriptor::OrientedPoint.
+All descriptors implemented by the library follow the same API. Their parameters take in a scene in the form of a `cpu::Mesh` or `gpu::Mesh`, and a list of vertices for which a descriptor should be computed (referred to as 'origins'). Origins are specified as instances of the `ShapeDescriptor::OrientedPoint`.
 
-Each function returns a ShapeDescriptor::cpu::array or ShapeDescriptor::gpu::array containing the desired descriptor. The ShapeDescriptor::copyToCPU() can be used to transfer any computed descriptors to CPU memory.
+Each function returns a `ShapeDescriptor::cpu::array` or `ShapeDescriptor::gpu::array` containing the desired descriptor. The `ShapeDescriptor::copyToCPU()` can be used to transfer any computed descriptors to CPU memory.
 
 For a set of complete example projects, please refer to the [examples directory](https://github.com/bartvbl/libShapeDescriptor/tree/master/examples).

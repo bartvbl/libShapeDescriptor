@@ -360,7 +360,7 @@ namespace ShapeDescriptor {
 
 
     /* File reading */
-    cpu::Mesh readMeshFromCompressedGeometryFile(const std::filesystem::path &filePath);
+    cpu::Mesh loadMeshFromCompressedGeometryFile(const std::filesystem::path &filePath);
     cpu::PointCloud readPointCloudFromCompressedGeometryFile(const std::filesystem::path &filePath);
     cpu::array<QUICCIDescriptor> readCompressedQUICCIDescriptors(const std::filesystem::path &dumpFileLocation, unsigned int decompressionThreadCount = 1);
     QUICCIDescriptorFileHeader readCompressedQUICCIDescriptorFileHeader(const std::filesystem::path &dumpFileLocation);

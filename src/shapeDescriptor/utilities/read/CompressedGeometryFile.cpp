@@ -193,7 +193,7 @@ void readGeometryDataFromFile(const std::filesystem::path &filePath,
 }
 
 ShapeDescriptor::cpu::Mesh
-ShapeDescriptor::readMeshFromCompressedGeometryFile(const std::filesystem::path &filePath) {
+ShapeDescriptor::loadMeshFromCompressedGeometryFile(const std::filesystem::path &filePath) {
     ShapeDescriptor::cpu::Mesh mesh;
     ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> vertices;
     ShapeDescriptor::cpu::array<ShapeDescriptor::cpu::float3> normals;

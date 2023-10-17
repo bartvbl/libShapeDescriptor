@@ -58,7 +58,13 @@ The library has been tested on Windows and Ubuntu Linux.
 
 ## Design
 
-The folder structure should hopefully be quite easy to understand. However, it's worth pointing out that any struct will tell you whether it resides in CPU or GPU memory:
+To import all library functionality, only a single header file needs to be included:
+
+```c++
+#include <shapeDescriptor/shapeDescriptor.h>
+```
+
+The folder structure should hopefully be quite easy to understand. However, it's worth pointing out that any struct will tell you whether it resides in CPU or GPU memory (where applicable):
 
 ```c++
 // Anything in the 'cpu' namespace lives in RAM and can be accessed directly.
@@ -82,11 +88,11 @@ Loaders for OBJ, OFF, and PLY are included which return a mesh in the format oth
 
 ```c++
 // Load mesh
-const bool recomputeNormals = false;
-ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh("path/to/obj/file.obj", recomputeNormals);
+ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::loadMesh("path/to/obj/file.obj",
+                                                            ShapeDescriptor::RecomputeNormals::RECOMPUTE_IF_MISSING);
 
 // Free mesh memory
-ShapeDescriptor::free::mesh(mesh);
+ShapeDescriptor::free(mesh);
 ```
 
 #### Copy meshes to and from the GPU
@@ -95,23 +101,23 @@ The src/utilities/copy directory contains a number of functions which can copy a
 
 ```c++
 // Load mesh
-const bool recomputeNormals = false;
-ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::utilities::loadMesh("path/to/obj/file.obj", recomputeNormals);
+ShapeDescriptor::cpu::Mesh mesh = ShapeDescriptor::loadMesh("path/to/obj/file.obj",
+                                                            ShapeDescriptor::RecomputeNormals::RECOMPUTE_IF_MISSING);
 
 // Copy the mesh to the GPU
-ShapeDescriptor::gpu::Mesh gpuMesh = ShapeDescriptor::copy::hostMeshToDevice(mesh);
+ShapeDescriptor::gpu::Mesh gpuMesh = ShapeDescriptor::copyToGPU(mesh);
 
 // And back into CPU memory
-ShapeDescriptor::cpu::Mesh returnedMesh = ShapeDescriptor::copy::deviceMeshToHost(gpuMesh);
+ShapeDescriptor::cpu::Mesh returnedMesh = ShapeDescriptor::copyToCPU(gpuMesh);
 ``` 
 
 Note that each copy operation allocates the required memory automatically. You will therefore need to manually free copies separately. For all meshes, wither they are allocated in CPU or GPU memory you can use:
 
 ```c++
 // Free all allocated meshes
-ShapeDescriptor::free::mesh(gpuMesh);
-ShapeDescriptor::free::mesh(mesh);
-ShapeDescriptor::free::mesh(returnedMesh);
+ShapeDescriptor::free(gpuMesh);
+ShapeDescriptor::free(mesh);
+ShapeDescriptor::free(returnedMesh);
 ```
 
 #### Uniformly sample a triangle mesh into a point cloud
@@ -121,14 +127,19 @@ Many descriptors work on point clouds instead of triangle meshes, so we've imple
 ```c++
 size_t sampleCount = 1000000;
 size_t randomSeed = 1189998819991197253;
+ShapeDescriptor::cpu::Mesh mesh = /* see above */;
 ShapeDescriptor::gpu::Mesh gpuMesh = /* see above */;
-ShapeDescriptor::gpu::PointCloud sampledPointCloud = ShapeDescriptor::utilities::sampleMesh(gpuMesh, sampleCount, randomSeed);
+
+ShapeDescriptor::cpu::PointCloud sampledPointCloud = ShapeDescriptor::sampleMesh(mesh, sampleCount, randomSeed);
+ShapeDescriptor::gpu::PointCloud sampledPointCloud = ShapeDescriptor::sampleMesh(gpuMesh, sampleCount, randomSeed);
 ```
+
+Note that for a number of functions there exist implementations for the CPU and GPU. The location where the input data resides (that is, CPU or GPU memory) decides where the algorithm is run.
 
 #### Compute descriptors
 
-All descriptors implemented by the library follow the same API. Their parameters take in a scene, and a list of vertices for which a descriptor should be computed (referred to as 'origins'). Origins are specified as instances of the ShapeDescriptor::gpu::OrientedPoint.
+All descriptors implemented by the library follow the same API. Their parameters take in a scene in the form of a `cpu::Mesh` or `gpu::Mesh`, and a list of vertices for which a descriptor should be computed (referred to as 'origins'). Origins are specified as instances of the ShapeDescriptor::OrientedPoint.
 
-Each function returns a ShapeDescriptor::gpu::array containing the desired descriptor. There's a function in the src/shapeDescriptor/utilities/copy directory for transferring them to CPU memory.
+Each function returns a ShapeDescriptor::cpu::array or ShapeDescriptor::gpu::array containing the desired descriptor. The ShapeDescriptor::copyToCPU() can be used to transfer any computed descriptors to CPU memory.
 
 For a set of complete example projects, please refer to the [examples directory](https://github.com/bartvbl/libShapeDescriptor/tree/master/examples).

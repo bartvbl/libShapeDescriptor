@@ -345,6 +345,7 @@ namespace ShapeDescriptor {
 
 
     BoundingBox computeBoundingBox(gpu::PointCloud device_pointCloud);
+    double calculateMeshSurfaceArea(const cpu::Mesh& mesh);
     gpu::array<unsigned int> computePointDensities(float pointDensityRadius, gpu::PointCloud device_pointCloud);
     size_t compressBytes(void* outputBuffer, size_t outputBufferCapacity,
                          const void* inputBuffer, size_t inputBufferSize);

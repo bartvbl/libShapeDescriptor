@@ -138,3 +138,10 @@ inline std::ostream & operator<<(std::ostream &os, const ShapeDescriptor::cpu::f
 inline float dot(ShapeDescriptor::cpu::float3 a, ShapeDescriptor::cpu::float3 b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
+
+inline ShapeDescriptor::cpu::float3 cross(const ShapeDescriptor::cpu::float3 a, const ShapeDescriptor::cpu::float3 b) {
+    float x = a.y * b.z - a.z * b.y;
+    float y = a.z * b.x - a.x * b.z;
+    float z = a.x * b.y - a.y * b.x;
+    return {x, y, z};
+}

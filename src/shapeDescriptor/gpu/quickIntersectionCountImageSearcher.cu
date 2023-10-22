@@ -17,17 +17,7 @@
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 const unsigned int uintsPerQUICCImage = (spinImageWidthPixels * spinImageWidthPixels) / 32;
 
-__inline__ __device__ unsigned int warpAllReduceSum(unsigned int val) {
-    for (int mask = warpSize/2; mask > 0; mask /= 2)
-        val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
-    return val;
-}
 
-__inline__ __device__ float warpAllReduceSum(float val) {
-    for (int mask = warpSize/2; mask > 0; mask /= 2)
-        val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
-    return val;
-}
 
 __inline__ __device__ unsigned int getChunkAt(const ShapeDescriptor::QUICCIDescriptor* image, const size_t imageIndex, const int chunkIndex) {
     return image[imageIndex].contents[chunkIndex];
@@ -50,7 +40,7 @@ __device__ int computeImageSumGPU(
         threadSum += __popc(needleChunk);
     }
 
-    int sum = warpAllReduceSum(threadSum);
+    int sum = ShapeDescriptor::warpAllReduceSum(threadSum);
 
     return sum;
 }
@@ -82,7 +72,7 @@ __device__ ShapeDescriptor::quicciDistanceType compareConstantQUICCImagePairGPU(
 #endif
     }
 
-    return warpAllReduceSum(threadSum);
+    return ShapeDescriptor::warpAllReduceSum(threadSum);
 }
 
 __device__ ShapeDescriptor::quicciDistanceType compareQUICCImagePairGPU(
@@ -115,7 +105,7 @@ __device__ ShapeDescriptor::quicciDistanceType compareQUICCImagePairGPU(
 #endif
     }
 
-    ShapeDescriptor::quicciDistanceType imageScore = warpAllReduceSum(threadScore);
+    ShapeDescriptor::quicciDistanceType imageScore = ShapeDescriptor::warpAllReduceSum(threadScore);
 
     return imageScore;
 }
@@ -303,9 +293,9 @@ __global__ void computeElementWiseQUICCIDistances(
         }
     }
 
-    imageDistances.clutterResistantDistance = warpAllReduceSum(threadClutterResistantDistance);
-    imageDistances.hammingDistance = warpAllReduceSum(threadHammingDistance);
-    imageDistances.weightedHammingDistance = warpAllReduceSum(threadWeightedHammingDistance);
+    imageDistances.clutterResistantDistance = ShapeDescriptor::warpAllReduceSum(threadClutterResistantDistance);
+    imageDistances.hammingDistance = ShapeDescriptor::warpAllReduceSum(threadHammingDistance);
+    imageDistances.weightedHammingDistance = ShapeDescriptor::warpAllReduceSum(threadWeightedHammingDistance);
     imageDistances.needleImageBitCount = referenceImageBitCount;
 
     if(threadIdx.x == 0) {
@@ -350,7 +340,7 @@ __global__ void computeElementWiseQUICCIWeightedHammingDistances(
         }
     }
 
-    float weightedHammingDistance = warpAllReduceSum(threadWeightedHammingDistance);
+    float weightedHammingDistance = ShapeDescriptor::warpAllReduceSum(threadWeightedHammingDistance);
 
     if(threadIdx.x == 0) {
         distances[descriptorIndex] = weightedHammingDistance;

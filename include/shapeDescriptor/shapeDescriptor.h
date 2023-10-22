@@ -468,6 +468,21 @@ namespace ShapeDescriptor {
 
     gpu::PointCloud sampleMesh(gpu::Mesh mesh, size_t sampleCount, size_t randomSamplingSeed, internal::MeshSamplingBuffers* keepComputedBuffersForExternalUse = nullptr);
     cpu::PointCloud sampleMesh(cpu::Mesh mesh, size_t sampleCount, size_t randomSamplingSeed);
+
+
+#ifdef __CUDACC__
+    __inline__ __device__ unsigned int warpAllReduceSum(unsigned int val) {
+        for (int mask = warpSize/2; mask > 0; mask /= 2)
+            val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
+        return val;
+    }
+
+    __inline__ __device__ float warpAllReduceSum(float val) {
+        for (int mask = warpSize/2; mask > 0; mask /= 2)
+            val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
+        return val;
+    }
+#endif
 }
 
 // Allow inclusion into std::set

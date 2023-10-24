@@ -56,5 +56,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::
         executionTimes->generationTimeSeconds = double(generationDuration.count()) / 1000.0;
     }
 
+    ShapeDescriptor::free(riciDescriptors);
+
     return descriptors;
 }

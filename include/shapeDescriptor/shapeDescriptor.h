@@ -5,7 +5,7 @@
 #include <cassert>
 #include <filesystem>
 #include <vector>
-#include <c++/10/array>
+#include <array>
 #include "nvidia/helper_math.h"
 #include "nvidia/helper_cuda.h"
 #define CUDA_REGION(contents) contents

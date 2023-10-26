@@ -194,7 +194,9 @@ void rasteriseTriangle(
 				// Hence the values in this loop are in-bounds.
 				for (int jobX = jobDoubleIntersectionStartPixels; jobX < rowStartPixels; jobX++)
 				{
-					// Increment pixel by 2 because 2 intersections occurred.
+					assert(jobX >= 0);
+                    assert(jobX < spinImageWidthPixels);
+                    // Increment pixel by 2 because 2 intersections occurred.
 					descriptors[descriptorImageIndex].contents[pixelYCoordinate * spinImageWidthPixels + jobX] += 2;
 				}
 			}
@@ -202,7 +204,9 @@ void rasteriseTriangle(
 			// It's imperative the condition of this loop is a < comparison
 			for (int jobX = rowStartPixels; jobX < rowEndPixels; jobX++)
 			{
-				descriptors[descriptorImageIndex].contents[pixelYCoordinate * spinImageWidthPixels + jobX] += 1;
+                assert(jobX >= 0);
+                assert(jobX < spinImageWidthPixels);
+                descriptors[descriptorImageIndex].contents[pixelYCoordinate * spinImageWidthPixels + jobX] += 1;
 			}
 		}
 	}
@@ -235,12 +239,11 @@ void generateRadialIntersectionCountImage(
 ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::generateRadialIntersectionCountImages(
         ShapeDescriptor::cpu::Mesh mesh,
         ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
-        float spinImageWidth,
+        float supportRadius,
         ShapeDescriptor::RICIExecutionTimes* executionTimes) {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t imageCount = descriptorOrigins.length;
-    size_t meshVertexCount = mesh.vertexCount;
         
     // -- Descriptor Array Allocation and Initialisation --
 
@@ -252,10 +255,10 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::ge
 
 	auto generationStart = std::chrono::steady_clock::now();
 
-	float scaleFactor = float(spinImageWidthPixels)/spinImageWidth;
+	float scaleFactor = float(spinImageWidthPixels)/supportRadius;
 
 	// Warning: kernel assumes the grid dimensions are equivalent to imageCount.
-    #pragma omp parallel for
+    #pragma omp parallel for default(none) shared(descriptors, mesh, descriptorOrigins, scaleFactor)
 	for(size_t imageIndex = 0; imageIndex < descriptors.length; imageIndex++) {
 		generateRadialIntersectionCountImage(descriptors.content, mesh, descriptorOrigins, imageIndex, scaleFactor);
 	}

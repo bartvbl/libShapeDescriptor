@@ -33,7 +33,6 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> redChannelDescr
     blueChannelDescriptors.length = std::min<size_t>(blueChannelDescriptors.length, imageLimit);
 
 	size_t rowCount = (redChannelDescriptors.length / imagesPerRow) + ((redChannelDescriptors.length % imagesPerRow == 0) ? 0 : 1);
-	std::cout << "Dumping " << rowCount << " rows containing " << redChannelDescriptors.length << " images." << std::endl;
 
 	unsigned int width = imagesPerRow * (spinImageWidthPixels + 1);
 	size_t height = rowCount * (spinImageWidthPixels + 1);
@@ -69,8 +68,10 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> redChannelDescr
 			}
 		}
 	}
-	std::cout << "Image dumper: max is " << std::max(redMax, std::max(greenMax, blueMax)) << std::endl;
-	std::cout << "Image dumper: nonzero pixel count is: " << nonzeroPixelCount << std::endl;
+
+    if(nonzeroPixelCount == 0) {
+        std::cout << "WARNING: all your images appear to be empty. This usually indicates a problem with your descriptor generation settings" << std::endl;
+    }
 
 	if(redMax == 1 || greenMax == 1 || blueMax == 1) {
 		std::cout << "WARNING: ignoring logarithmic image parameter, as maximum pixel value is 1 (would cause 0 division)." << std::endl;
@@ -162,8 +163,6 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> redChannelDescr
 			imageIndex++;
 		}
 	}
-
-	std::cout << "Writing image file.. " << imageDestinationFile << std::endl;
 
 	unsigned error = lodepng::encode(imageDestinationFile.string(), imageData, width, height);
 

@@ -56,20 +56,20 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> redChannelDescr
 					nonzeroPixelCount++;
 				}
 				if(!std::isnan((float) redChannelPixelValue) && redChannelPixelValue != UINT32_MAX) {
-					redMax = std::max(redChannelPixelValue, redMax);
+					redMax = std::max<spinPixelType>(redChannelPixelValue, redMax);
 				}
                 if(!std::isnan((float) greenChannelPixelValue) && greenChannelPixelValue != UINT32_MAX) {
-                    greenMax = std::max(greenChannelPixelValue, greenMax);
+                    greenMax = std::max<spinPixelType>(greenChannelPixelValue, greenMax);
                 }
 				if(!std::isnan((float) blueChannelPixelValue) && blueChannelPixelValue != UINT32_MAX) {
-                    blueMax = std::max(blueChannelPixelValue, blueMax);
+                    blueMax = std::max<spinPixelType>(blueChannelPixelValue, blueMax);
                 }
 
 			}
 		}
 	}
 
-    if(nonzeroPixelCount == 0) {
+    if(redMax == 0 && greenMax == 0 && blueMax == 0) {
         std::cout << "WARNING: all your images appear to be empty. This usually indicates a problem with your descriptor generation settings" << std::endl;
     }
 

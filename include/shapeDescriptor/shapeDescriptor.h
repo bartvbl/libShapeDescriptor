@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <vector>
 #include <array>
+#include <cooperative_groups.h>
 #include "nvidia/helper_math.h"
 #include "nvidia/helper_cuda.h"
 #define CUDA_REGION(contents) contents

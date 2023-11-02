@@ -466,7 +466,6 @@ namespace ShapeDescriptor {
         };
     }
 
-    gpu::PointCloud sampleMesh(gpu::Mesh mesh, size_t sampleCount, size_t randomSamplingSeed, internal::MeshSamplingBuffers* keepComputedBuffersForExternalUse = nullptr);
     cpu::PointCloud sampleMesh(cpu::Mesh mesh, size_t sampleCount, size_t randomSamplingSeed);
 
 

@@ -83,10 +83,11 @@ int main(int argc, const char** argv) {
 
     std::cout << "Generating images.. (this can take a while)" << std::endl;
     if(generationMode.value() == "si") {
-        ShapeDescriptor::gpu::PointCloud pointCloud = ShapeDescriptor::sampleMesh(deviceMesh, spinImageSampleCount.value(), 0);
+        ShapeDescriptor::cpu::PointCloud pointCloud = ShapeDescriptor::sampleMesh(mesh, spinImageSampleCount.value(), 0);
+        ShapeDescriptor::gpu::PointCloud device_cloud = ShapeDescriptor::copyToGPU(pointCloud);
 
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> descriptors = ShapeDescriptor::generateSpinImages(
-                pointCloud,
+                device_cloud,
                 deviceSpinOrigins,
                 spinImageWidth.value(),
                 supportAngle.value());
@@ -95,7 +96,8 @@ int main(int argc, const char** argv) {
         ShapeDescriptor::writeDescriptorImages(hostDescriptors, outputFile.value(), enableLogarithmicImage.value(), imagesPerRow.value());
 
         ShapeDescriptor::free<ShapeDescriptor::SpinImageDescriptor>(descriptors);
-        delete[] hostDescriptors.content;
+        ShapeDescriptor::free(hostDescriptors);
+        ShapeDescriptor::free(device_cloud);
 
     } else if(generationMode.value() == "rici") {
         ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> hostDescriptors;

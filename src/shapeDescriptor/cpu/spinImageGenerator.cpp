@@ -70,7 +70,7 @@ void createDescriptors(
             size_t valueIndex = size_t(
                     (baseSpinImageCoordinateY + 0 + spinImageWidthPixels / 2) * spinImageWidthPixels +
                      baseSpinImageCoordinateX + 0);
-            descriptors.content[spinImageIndex].contents[valueIndex] += (interPixelX) * (interPixelY);
+            descriptors[spinImageIndex].contents[valueIndex] += (interPixelX) * (interPixelY);
         }
 
         if (baseSpinImageCoordinateX + 1 >= 0 &&
@@ -81,7 +81,7 @@ void createDescriptors(
             size_t valueIndex = size_t(
                     (baseSpinImageCoordinateY + 0 + spinImageWidthPixels / 2) * spinImageWidthPixels +
                      baseSpinImageCoordinateX + 1);
-            descriptors.content[spinImageIndex].contents[valueIndex] += (1.0f - interPixelX) * (interPixelY);
+            descriptors[spinImageIndex].contents[valueIndex] += (1.0f - interPixelX) * (interPixelY);
         }
 
         if (baseSpinImageCoordinateX + 1 >= 0 &&
@@ -92,7 +92,7 @@ void createDescriptors(
             size_t valueIndex = size_t(
                     (baseSpinImageCoordinateY + 1 + spinImageWidthPixels / 2) * spinImageWidthPixels +
                      baseSpinImageCoordinateX + 1);
-            descriptors.content[spinImageIndex].contents[valueIndex] += (1.0f - interPixelX) * (1.0f - interPixelY);
+            descriptors[spinImageIndex].contents[valueIndex] += (1.0f - interPixelX) * (1.0f - interPixelY);
         }
 
         if (baseSpinImageCoordinateX + 0 >= 0 &&
@@ -103,7 +103,7 @@ void createDescriptors(
             size_t valueIndex = size_t(
                     (baseSpinImageCoordinateY + 1 + spinImageWidthPixels / 2) * spinImageWidthPixels +
                      baseSpinImageCoordinateX + 0);
-            descriptors.content[spinImageIndex].contents[valueIndex] += (interPixelX) * (1.0f - interPixelY);
+            descriptors[spinImageIndex].contents[valueIndex] += (interPixelX) * (1.0f - interPixelY);
         }
 	}
 }

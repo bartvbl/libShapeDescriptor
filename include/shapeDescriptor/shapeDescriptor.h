@@ -2,10 +2,6 @@
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <cuda_runtime.h>
-#include <cassert>
-#include <filesystem>
-#include <vector>
-#include <array>
 #include <cooperative_groups.h>
 #include "nvidia/helper_math.h"
 #include "nvidia/helper_cuda.h"
@@ -17,6 +13,11 @@
 #ifndef __device__
 #define __device__
 #endif
+
+#include <filesystem>
+#include <cassert>
+#include <vector>
+#include <array>
 
 #define CUDA_REGION(contents) throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
 #endif

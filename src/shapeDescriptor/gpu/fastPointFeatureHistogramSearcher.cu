@@ -212,6 +212,7 @@ ShapeDescriptor::cpu::array<float> ShapeDescriptor::computeFPFHElementWiseEuclid
         ShapeDescriptor::gpu::array<ShapeDescriptor::FPFHDescriptor> device_correspondingDescriptors) {
     ShapeDescriptor::gpu::array<float> device_distances(device_descriptors.length);
 
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     computeElementWiseFPFHEuclideanDistances<<<device_descriptors.length, 32>>>(
             device_descriptors.content,
             device_correspondingDescriptors.content,
@@ -225,4 +226,7 @@ ShapeDescriptor::cpu::array<float> ShapeDescriptor::computeFPFHElementWiseEuclid
     ShapeDescriptor::free(device_distances);
 
     return distances;
+#else
+    throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
+#endif
 }

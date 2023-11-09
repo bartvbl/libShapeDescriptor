@@ -1,6 +1,7 @@
 #include <fast_obj.h>
 #include <vector>
 #include <fstream>
+#include <sstream>
 #include <shapeDescriptor/shapeDescriptor.h>
 
 void ShapeDescriptor::writeXYZ(std::filesystem::path destination, ShapeDescriptor::cpu::PointCloud pointCloud) {

@@ -106,8 +106,10 @@ namespace ShapeDescriptor {
             __host__ __device__ array() {}
 
             __host__ array(size_t length) {
+                CUDA_REGION(
                 this->length = length;
                 cudaMalloc(&content, length * sizeof(TYPE));
+                )
             }
 
             __host__ __device__ array(size_t length, TYPE *content) : length(length), content(content) {}

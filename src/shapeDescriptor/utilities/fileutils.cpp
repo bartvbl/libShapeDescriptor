@@ -1,5 +1,6 @@
 #include <fstream>
 #include <cassert>
+#include <sstream>
 #include <algorithm>
 #include <array>
 #include <random>

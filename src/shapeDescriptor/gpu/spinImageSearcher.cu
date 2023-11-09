@@ -446,7 +446,7 @@ __global__ void computeElementWiseSIEuclideanDistances(
 ShapeDescriptor::cpu::array<float> ShapeDescriptor::computeSIElementWiseEuclideanDistances(
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_descriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_correspondingDescriptors) {
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     ShapeDescriptor::gpu::array<float> device_distances(device_descriptors.length);
 
     computeElementWiseSIEuclideanDistances<<<device_descriptors.length, 32>>>(
@@ -462,6 +462,9 @@ ShapeDescriptor::cpu::array<float> ShapeDescriptor::computeSIElementWiseEuclidea
     ShapeDescriptor::free(device_distances);
 
     return distances;
+    #else
+throw std::runtime_error(cudaMissingErrorMessage);
+#endif
 }
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
@@ -493,6 +496,7 @@ __global__ void computeElementWiseSIPearsonCorrelations(
 ShapeDescriptor::cpu::array<float> ShapeDescriptor::computeSIElementWisePearsonCorrelations(
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_descriptors,
         ShapeDescriptor::gpu::array<ShapeDescriptor::SpinImageDescriptor> device_correspondingDescriptors) {
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
     ShapeDescriptor::gpu::array<float> descriptorAverages(device_descriptors.length);
     ShapeDescriptor::gpu::array<float> correspondingAverages(device_correspondingDescriptors.length);
 
@@ -517,4 +521,7 @@ ShapeDescriptor::cpu::array<float> ShapeDescriptor::computeSIElementWisePearsonC
     ShapeDescriptor::free(correspondingAverages);
 
     return distances;
+#else
+throw std::runtime_error(cudaMissingErrorMessage);
+#endif
 }

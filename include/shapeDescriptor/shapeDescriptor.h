@@ -14,17 +14,16 @@
 #define __device__
 #endif
 
-#include <filesystem>
-#include <cassert>
-#include <vector>
-#include <array>
-
 #define CUDA_REGION(contents) throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
 #endif
 
 #include <shapeDescriptor/libraryBuildSettings.h>
 #include <shapeDescriptor/geometryTypes.h>
 #include <shapeDescriptor/containerTypes.h>
+#include <filesystem>
+#include <cassert>
+#include <vector>
+#include <array>
 
 
 namespace ShapeDescriptor {

@@ -1,4 +1,5 @@
 #pragma once
+#include <cassert>
 
 namespace ShapeDescriptor {
     namespace internal {

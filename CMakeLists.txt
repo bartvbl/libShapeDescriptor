@@ -4,7 +4,7 @@ check_language(CUDA)
 if (CMAKE_CUDA_COMPILER)
 	message(STATUS "CUDA support was detected, GPU kernels enabled")
 	project(ShapeDescriptor CXX CUDA)
-	set(CUDA_NVCC_FLAGS -lcurand -lineinfo -lcudart)
+	set(CUDA_NVCC_FLAGS -lcurand -lineinfo -lcudart -lcudadevrt)
 	include_directories(
 		lib/nvidia-samples-common/
 		include/

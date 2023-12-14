@@ -13,3 +13,6 @@
 [submodule "lib/meshoptimizer"]
 	path = lib/meshoptimizer
 	url = https://github.com/zeux/meshoptimizer
+[submodule "lib/cuda-samples"]
+	path = lib/cuda-samples
+	url = https://github.com/NVIDIA/cuda-samples

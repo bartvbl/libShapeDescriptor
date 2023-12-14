@@ -3,7 +3,7 @@
 #include <cassert>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
-#include <nvidia/helper_cuda.h>
+#include <helper_cuda.h>
 #endif
 
 #include <shapeDescriptor/shapeDescriptor.h>

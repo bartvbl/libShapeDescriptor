@@ -3,7 +3,7 @@
 
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
-#include <nvidia/helper_cuda.h>
+#include <helper_cuda.h>
 #include <cuda_runtime.h>
 
 // GPUs have optimised memory transaction channels for aligned writes with a power of 2 in size

@@ -2,8 +2,8 @@
 #include <shapeDescriptor/libraryBuildSettings.h>
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
-#include "nvidia/helper_math.h"
-#include "nvidia/helper_cuda.h"
+#include "helper_math.h"
+#include "helper_cuda.h"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #endif

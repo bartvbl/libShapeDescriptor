@@ -6,50 +6,45 @@ if (CMAKE_CUDA_COMPILER)
 	project(ShapeDescriptor CXX CUDA)
 	set(CUDA_NVCC_FLAGS -lcurand -lineinfo -lcudart -lcudadevrt)
 	include_directories(
-		lib/nvidia-samples-common/
-		include/
 		${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
 	)
 	enable_language(CUDA)
+
 else()
 	message(STATUS "No CUDA support was detected, GPU kernels disabled")
 	project(ShapeDescriptor CXX)
 endif()
 
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.5)
 
 set(CMAKE_CXX_STANDARD 20)
 
 find_package(OpenMP)
 add_subdirectory(lib/Catch2)
 add_subdirectory(lib/tinygltf tinygltf)
-add_subdirectory(lib/fast-lzma2 ${CMAKE_CURRENT_BINARY_DIR}/fast-lzma2)
+add_subdirectory(lib/fast-lzma2 fast-lzma2)
 add_subdirectory(lib/meshoptimizer meshoptimizer)
+
+include_directories (
+	src/
+	lib/glm/
+	lib/lodepng/
+	lib/arrrgh/
+	lib/json/
+	lib/tinygltf
+	lib/cuda-samples/Common
+	lib/fast-lzma2/src/
+	lib/meshoptimizer/src/
+	lib/
+	lib/fast-obj
+	include/
+)
 
 if (CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -fopenmp -lpthread -Wall")
 endif()
 
-if (MSVC)
-    add_definitions(-D_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING)
-endif()
 
-
-
-
-include_directories (
-        src/
-        lib/glm/
-        lib/lodepng/
-		lib/arrrgh/
-		lib/json/
-		lib/tinygltf
-		lib/fast-lzma2/src/
-		lib/meshoptimizer/src/
-		lib/
-		lib/fast-obj
-		include/
-)
 
 file (GLOB_RECURSE LIBRARY_HEADERS             src/*.hpp
                                                src/*.h
@@ -68,22 +63,24 @@ file (GLOB_RECURSE QUICCI_DUMPER_TOOL_SOURCES  tools/quiccidumper/*.cpp)
 file (GLOB_RECURSE QUICCI_VIEWER_TOOL_SOURCES  tools/quicciviewer/*.cpp)
 
 if (CMAKE_CUDA_COMPILER)
-	add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
-	target_compile_definitions(${PROJECT_NAME} PUBLIC DESCRIPTOR_CUDA_KERNELS_ENABLED)
-	target_include_directories(${PROJECT_NAME} PUBLIC ${CUDA_INCLUDE_DIRS})
+	message("CUDA library created")
+	add_library(ShapeDescriptor STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
+	target_compile_definitions(ShapeDescriptor PUBLIC DESCRIPTOR_CUDA_KERNELS_ENABLED)
+	target_compile_options(ShapeDescriptor PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:-DDESCRIPTOR_CUDA_KERNELS_ENABLED>)
+	target_include_directories(ShapeDescriptor PUBLIC ${CUDA_INCLUDE_DIRS})
 else()
-	add_library(${PROJECT_NAME} STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
+	message("Regular library created")
+	add_library(ShapeDescriptor STATIC ${LIBRARY_SOURCES} ${LIBRARY_HEADERS} ${LIBRARY_KERNELS})
 	# Ensures .cu files are compiled using the regular C++ compiler
 	set_source_files_properties(${LIBRARY_KERNELS} PROPERTIES LANGUAGE CXX)
 	set_source_files_properties(${LIBRARY_KERNELS} PROPERTIES COMPILE_OPTIONS -xc++)
 endif()
+target_include_directories(ShapeDescriptor PUBLIC
+		include/ lib/cuda-samples/Common)
 
 
-target_link_libraries(${PROJECT_NAME} fast-lzma2 meshoptimizer)
-
-
-target_include_directories(${PROJECT_NAME} PUBLIC src/ lib/nvidia-samples-common)
-set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
+target_link_libraries(ShapeDescriptor fast-lzma2 meshoptimizer)
+set_property(TARGET ShapeDescriptor PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
 
 add_executable(runTests ${TEST_SOURCES})
 target_link_libraries(runTests ShapeDescriptor Catch2::Catch2)

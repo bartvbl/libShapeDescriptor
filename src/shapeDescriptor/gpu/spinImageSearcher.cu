@@ -1,6 +1,6 @@
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <cuda_runtime.h>
-#include "nvidia/helper_cuda.h"
+#include "helper_cuda.h"
 #endif
 
 #include <shapeDescriptor/shapeDescriptor.h>

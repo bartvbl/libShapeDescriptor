@@ -1,6 +1,6 @@
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
-#include "nvidia/helper_math.h"
-#include "nvidia/helper_cuda.h"
+#include "helper_math.h"
+#include "helper_cuda.h"
 #include "device_launch_parameters.h"
 #include "cuda_runtime.h"
 #endif

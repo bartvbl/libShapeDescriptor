@@ -25,6 +25,10 @@
 #include <vector>
 #include <array>
 
+#ifndef __SHAPE_DESCRIPTOR_HEADER_INCLUDED
+#define __SHAPE_DESCRIPTOR_HEADER_INCLUDED
+#endif
+
 
 namespace ShapeDescriptor {
 
@@ -484,6 +488,8 @@ namespace ShapeDescriptor {
     }
 #endif
 }
+
+#include "compressedDescriptorIO.h"
 
 // Allow inclusion into std::set
 namespace std {

@@ -1,14 +1,15 @@
 #pragma once
 
 #include <filesystem>
+#include <iostream>
 #include <shapeDescriptor/containerTypes.h>
 
 namespace ShapeDescriptor {
     template<typename DescriptorType>
     void writeCompressedDescriptors(
             const std::filesystem::path &outputDumpFile,
-            const ShapeDescriptor::cpu::array<DescriptorType> &images,
-            unsigned int compressionThreadCount) {
+            const ShapeDescriptor::cpu::array<DescriptorType> images,
+            unsigned int compressionThreadCount = 1) {
 
         size_t imageBlockSize = images.length * sizeof(DescriptorType);
         size_t outFileBufferSize = 5 + sizeof(size_t) + 2 * imageBlockSize;

@@ -3,7 +3,7 @@
 #include "utilities/spinImageGenerator.h"
 #include <shapeDescriptor/shapeDescriptor.h>
 #include <cuda_runtime.h>
-#include <nvidia/helper_cuda.h>
+#include <helper_cuda.h>
 #include <iostream>
 
 const float correlationThreshold = 0.00001f;

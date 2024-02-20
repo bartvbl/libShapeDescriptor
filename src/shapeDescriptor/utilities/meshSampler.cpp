@@ -3,33 +3,28 @@
 #include <algorithm>
 #include <iostream>
 
+double computeSingleTriangleArea(ShapeDescriptor::cpu::float3 vertex0, ShapeDescriptor::cpu::float3 vertex1, ShapeDescriptor::cpu::float3 vertex2) {
+    ShapeDescriptor::cpu::float3 AB = vertex1 - vertex0;
+    ShapeDescriptor::cpu::float3 AC = vertex2 - vertex0;
+
+    double area = length(cross(AB, AC)) * 0.5;
+    assert(area >= 0);
+    return area;
+}
+
 ShapeDescriptor::cpu::PointCloud ShapeDescriptor::sampleMesh(cpu::Mesh mesh, size_t sampleCount, size_t randomSeed) {
     size_t triangleCount = mesh.vertexCount / 3;
 
-    std::vector<float> cumulativeAreaArray(triangleCount);
-
-    double cumulativeArea = 0;
+    double totalArea = 0;
     for(uint32_t i = 0; i < mesh.vertexCount; i += 3) {
-        ShapeDescriptor::cpu::float3 vertex0 = mesh.vertices[i];
-        ShapeDescriptor::cpu::float3 vertex1 = mesh.vertices[i + 1];
-        ShapeDescriptor::cpu::float3 vertex2 = mesh.vertices[i + 2];
-
-        ShapeDescriptor::cpu::float3 AB = vertex1 - vertex0;
-        ShapeDescriptor::cpu::float3 AC = vertex2 - vertex0;
-
-        double area = length(cross(AB, AC)) * 0.5;
-        assert(area >= 0);
-        cumulativeArea += area;
-        if(i > 0) {
-            assert(cumulativeAreaArray.at((i/3)-1) <= float(cumulativeArea));
-        }
-        cumulativeAreaArray.at(i/3) = float(cumulativeArea);
+        double area = computeSingleTriangleArea(mesh.vertices[i], mesh.vertices[i + 1], mesh.vertices[i + 2]);
+        totalArea += area;
     }
 
     cpu::PointCloud pointCloud(sampleCount);
 
     std::mt19937_64 randomEngine(randomSeed);
-    if(cumulativeArea == 0) {
+    if(totalArea == 0) {
         // Mesh is a simulated point cloud. Sample random vertices instead
         std::uniform_int_distribution<uint32_t> sampleDistribution(0, mesh.vertexCount);
         for(uint32_t i = 0; i < sampleCount; i++) {
@@ -43,7 +38,7 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::sampleMesh(cpu::Mesh mesh, siz
         }
     } else {
         // Normal mesh, sample weighted by area
-        std::uniform_real_distribution<float> sampleDistribution(0, float(cumulativeArea));
+        std::uniform_real_distribution<float> sampleDistribution(0, float(totalArea));
         std::uniform_real_distribution<float> coefficientDistribution(0, 1);
 
         std::vector<float> samplePoints(sampleCount);
@@ -53,13 +48,15 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::sampleMesh(cpu::Mesh mesh, siz
         std::sort(samplePoints.begin(), samplePoints.end());
 
         uint32_t currentTriangleIndex = 0;
+        double cumulativeArea = computeSingleTriangleArea(mesh.vertices[0], mesh.vertices[1], mesh.vertices[2]);
         // MUST be run in serial!
         for(uint32_t i = 0; i < sampleCount; i++) {
             float sampleAreaPoint = samplePoints.at(i);
-            float nextSampleBorder = cumulativeAreaArray.at(currentTriangleIndex);
+            float nextSampleBorder = cumulativeArea;
             while(nextSampleBorder < sampleAreaPoint && currentTriangleIndex < (triangleCount - 1)) {
                 currentTriangleIndex++;
-                nextSampleBorder = cumulativeAreaArray.at(currentTriangleIndex);
+                cumulativeArea += computeSingleTriangleArea(mesh.vertices[3 * currentTriangleIndex + 0], mesh.vertices[3 * currentTriangleIndex + 1], mesh.vertices[3 * currentTriangleIndex + 2]);
+                nextSampleBorder = cumulativeArea;
             }
 
             float v1 = coefficientDistribution(randomEngine);

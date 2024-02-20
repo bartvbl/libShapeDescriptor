@@ -1,7 +1,7 @@
 #include <catch2/catch.hpp>
+#include <shapeDescriptor/shapeDescriptor.h>
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include "utilities/spinImageGenerator.h"
-#include <shapeDescriptor/shapeDescriptor.h>
 #include <cuda_runtime.h>
 #include <helper_cuda.h>
 #include <iostream>

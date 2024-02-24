@@ -8,6 +8,7 @@
 #include "tiny_gltf.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 
 const std::array<std::string, 7> gltfDrawModes = {"POINTS", "LINES", "LINE_LOOP", "LINE_STRIP", "TRIANGLES", "TRIANGLE_STRIP", "TRIANGLE_FAN"};
 enum class GLTFDrawMode {
@@ -144,8 +145,24 @@ void computeMeshTransformation(const std::vector<tinygltf::Node> &nodes, int nod
     }
     glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0), scale);
 
+    glm::mat4 transformationDefinedByNode(1.0);
+    if(node.matrix.size() == 16) {
+        bool allZero = true;
+        std::array<float, 16> convertedMatrix;
+        // Guaranteed to be in column major order
+        for(uint32_t i = 0; i < node.matrix.size(); i++) {
+            if(node.matrix.at(i) != 0) {
+                allZero = false;
+            }
+            transformationDefinedByNode[i / 4][i % 4] = node.matrix.at(i);
+        }
+        if(allZero) {
+            transformationDefinedByNode = glm::mat4(1.0);
+        }
+    }
+
     // Specification requires this multiplication order
-    glm::mat4 transformationMatrix = translationMatrix * rotationMatrix * scaleMatrix * partialTransform;
+    glm::mat4 transformationMatrix = transformationDefinedByNode * translationMatrix * rotationMatrix * scaleMatrix * partialTransform;
 
     if(node.mesh >= 0 && node.mesh < meshTransformationMatrices.size()) {
         meshTransformationMatrices.at(node.mesh) = transformationMatrix;
@@ -166,6 +183,17 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::loadGLTFMesh(std::filesystem::path f
         for(int nodeIndex : scene.nodes) {
             computeMeshTransformation(model.nodes, nodeIndex, glm::mat4(1.0), meshTransformationMatrices);
         }
+    }
+
+    // Compute normal matrices
+    std::vector<glm::mat3> meshNormalMatrices(meshTransformationMatrices.size());
+    for(uint32_t i = 0; i < meshTransformationMatrices.size(); i++) {
+        glm::mat4 invTraMatrix = glm::inverseTranspose(meshTransformationMatrices.at(i));
+        glm::mat3 normalMatrix(1.0);
+        normalMatrix[0] = {invTraMatrix[0].x, invTraMatrix[0].y, invTraMatrix[0].z};
+        normalMatrix[1] = {invTraMatrix[1].x, invTraMatrix[1].y, invTraMatrix[1].z};
+        normalMatrix[2] = {invTraMatrix[2].x, invTraMatrix[2].y, invTraMatrix[2].z};
+        meshNormalMatrices.at(i) = normalMatrix;
     }
 
     size_t vertexCount = 0;
@@ -253,6 +281,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::loadGLTFMesh(std::filesystem::path f
     for(int meshIndex = 0; meshIndex < model.meshes.size(); meshIndex++) {
         const tinygltf::Mesh& modelMesh = model.meshes.at(meshIndex);
         glm::mat4 meshTransformationMatrix = meshTransformationMatrices.at(meshIndex);
+        glm::mat3 meshNormalMatrix = meshNormalMatrices.at(meshIndex);
 
         for (const tinygltf::Primitive &primitive: modelMesh.primitives) {
             GLTFDrawMode mode = static_cast<GLTFDrawMode>(primitive.mode);
@@ -370,7 +399,9 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::loadGLTFMesh(std::filesystem::path f
                 mesh.vertices[nextVertexIndex] = {transformedVertex.x, transformedVertex.y, transformedVertex.z};
 
                 if(readNormalsFromThisPrimitive) {
-                    mesh.normals[nextVertexIndex] = *reinterpret_cast<ShapeDescriptor::cpu::float3*>(normalBufferBasePointer + vertexIndex * normalStride);
+                    ShapeDescriptor::cpu::float3 nonTransformedNormal = *reinterpret_cast<ShapeDescriptor::cpu::float3*>(normalBufferBasePointer + vertexIndex * normalStride);
+                    glm::vec3 transformedNormal = meshNormalMatrix * glm::vec3(nonTransformedNormal.x, nonTransformedNormal.y, nonTransformedNormal.z);
+                    mesh.normals[nextVertexIndex] = {transformedNormal.x, transformedNormal.y, transformedNormal.z};
                 }
 
                 if(readVertexColours) {

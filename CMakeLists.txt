@@ -38,6 +38,7 @@ include_directories (
 	lib/
 	lib/fast-obj
 	include/
+	${CUDA_INCLUDE_DIRS}
 )
 
 if (CMAKE_COMPILER_IS_GNUCC)

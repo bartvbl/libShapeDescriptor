@@ -124,7 +124,7 @@ tinygltf::Model readTinyGLTFFile(const std::filesystem::path& path) {
     return model;
 }
 
-void computeMeshTransformation(const std::vector<tinygltf::Node> &nodes, int nodeIndex, glm::mat4 partialTransform, std::vector<glm::mat4> &meshTransformationMatrices) {
+void computeMeshTransformation(const std::vector<tinygltf::Node> &nodes, int nodeIndex, glm::mat4 partialTransform, glm::mat3 partialNormalMatrix, std::vector<glm::mat4> &meshTransformationMatrices, std::vector<glm::mat3>& normalMatrices) {
     const tinygltf::Node& node = nodes.at(nodeIndex);
 
     glm::qua rotation = {1.0, 0.0, 0.0, 0.0};
@@ -132,6 +132,11 @@ void computeMeshTransformation(const std::vector<tinygltf::Node> &nodes, int nod
         rotation = {node.rotation.at(0), node.rotation.at(1), node.rotation.at(2), node.rotation.at(3)};
     }
     glm::mat4 rotationMatrix = glm::mat4_cast(rotation);
+
+    glm::mat3 directionMatrix(1.0);
+    directionMatrix[0] = {rotationMatrix[0].x, rotationMatrix[0].y, rotationMatrix[0].z};
+    directionMatrix[1] = {rotationMatrix[1].x, rotationMatrix[1].y, rotationMatrix[1].z};
+    directionMatrix[2] = {rotationMatrix[2].x, rotationMatrix[2].y, rotationMatrix[2].z};
 
     glm::vec3 translation = {0.0, 0.0, 0.0};
     if(node.translation.size() == 3) {
@@ -146,6 +151,7 @@ void computeMeshTransformation(const std::vector<tinygltf::Node> &nodes, int nod
     glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0), scale);
 
     glm::mat4 transformationDefinedByNode(1.0);
+    glm::mat3 normalMatrixDefinedByNode(1.0);
     if(node.matrix.size() == 16) {
         bool allZero = true;
         std::array<float, 16> convertedMatrix;
@@ -154,23 +160,47 @@ void computeMeshTransformation(const std::vector<tinygltf::Node> &nodes, int nod
             if(node.matrix.at(i) != 0) {
                 allZero = false;
             }
-            transformationDefinedByNode[i / 4][i % 4] = node.matrix.at(i);
         }
         if(allZero) {
             transformationDefinedByNode = glm::mat4(1.0);
+        } else {
+            transformationDefinedByNode[0] = {node.matrix.at(0), node.matrix.at(1), node.matrix.at(2), node.matrix.at(3)};
+            transformationDefinedByNode[1] = {node.matrix.at(4), node.matrix.at(5), node.matrix.at(6), node.matrix.at(7)};
+            transformationDefinedByNode[2] = {node.matrix.at(8), node.matrix.at(9), node.matrix.at(10), node.matrix.at(11)};
+            transformationDefinedByNode[3] = {node.matrix.at(12), node.matrix.at(13), node.matrix.at(14), node.matrix.at(15)};
+        }
+
+        glm::mat4 invTranMatrix = glm::inverseTranspose(transformationDefinedByNode);
+        normalMatrixDefinedByNode[0] = {invTranMatrix[0].x, invTranMatrix[0].y, invTranMatrix[0].z};
+        normalMatrixDefinedByNode[1] = {invTranMatrix[1].x, invTranMatrix[1].y, invTranMatrix[1].z};
+        normalMatrixDefinedByNode[2] = {invTranMatrix[2].x, invTranMatrix[2].y, invTranMatrix[2].z};
+
+        bool containsNaN = false;
+        for(uint32_t i = 0; i < 3; i++) {
+            if( std::isnan(normalMatrixDefinedByNode[i].x) ||
+                std::isnan(normalMatrixDefinedByNode[i].y) ||
+                std::isnan(normalMatrixDefinedByNode[i].z)) {
+                containsNaN = true;
+            }
+        }
+        if(containsNaN) {
+            // Usually only happens if the initial transformation matrix is invalid
+            normalMatrixDefinedByNode = glm::mat3(1.0);
         }
     }
 
     // Specification requires this multiplication order
-    glm::mat4 transformationMatrix = transformationDefinedByNode * translationMatrix * rotationMatrix * scaleMatrix * partialTransform;
+    glm::mat4 transformationMatrix = node.matrix.size() == 16 ? transformationDefinedByNode : translationMatrix * rotationMatrix * scaleMatrix * partialTransform;
+    glm::mat3 normalMatrix = node.matrix.size() == 16 ? normalMatrixDefinedByNode : directionMatrix * partialNormalMatrix;
 
     if(node.mesh >= 0 && node.mesh < meshTransformationMatrices.size()) {
         meshTransformationMatrices.at(node.mesh) = transformationMatrix;
+        normalMatrices.at(node.mesh) = normalMatrix;
     }
 
     // Call recursively to visit the entire scene graph
     for(const int childNodeIndex : node.children) {
-        computeMeshTransformation(nodes, childNodeIndex, transformationMatrix, meshTransformationMatrices);
+        computeMeshTransformation(nodes, childNodeIndex, transformationMatrix, normalMatrix, meshTransformationMatrices, normalMatrices);
     }
 }
 
@@ -179,21 +209,11 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::loadGLTFMesh(std::filesystem::path f
 
     // Calculate transformation matrices
     std::vector<glm::mat4> meshTransformationMatrices(model.meshes.size(), glm::mat4(1));
+    std::vector<glm::mat3> meshNormalMatrices(meshTransformationMatrices.size(), glm::mat3(1));
     for(tinygltf::Scene &scene : model.scenes) {
         for(int nodeIndex : scene.nodes) {
-            computeMeshTransformation(model.nodes, nodeIndex, glm::mat4(1.0), meshTransformationMatrices);
+            computeMeshTransformation(model.nodes, nodeIndex, glm::mat4(1.0), glm::mat3(1.0), meshTransformationMatrices, meshNormalMatrices);
         }
-    }
-
-    // Compute normal matrices
-    std::vector<glm::mat3> meshNormalMatrices(meshTransformationMatrices.size());
-    for(uint32_t i = 0; i < meshTransformationMatrices.size(); i++) {
-        glm::mat4 invTraMatrix = glm::inverseTranspose(meshTransformationMatrices.at(i));
-        glm::mat3 normalMatrix(1.0);
-        normalMatrix[0] = {invTraMatrix[0].x, invTraMatrix[0].y, invTraMatrix[0].z};
-        normalMatrix[1] = {invTraMatrix[1].x, invTraMatrix[1].y, invTraMatrix[1].z};
-        normalMatrix[2] = {invTraMatrix[2].x, invTraMatrix[2].y, invTraMatrix[2].z};
-        meshNormalMatrices.at(i) = normalMatrix;
     }
 
     size_t vertexCount = 0;
@@ -481,9 +501,10 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::loadGLTFPointCloud(std::filesy
 
     // Calculate transformation matrices
     std::vector<glm::mat4> meshTransformationMatrices(model.meshes.size(), glm::mat4(1));
+    std::vector<glm::mat3> meshNormalMatrices(meshTransformationMatrices.size(), glm::mat3(1));
     for(tinygltf::Scene &scene : model.scenes) {
         for(int nodeIndex : scene.nodes) {
-            computeMeshTransformation(model.nodes, nodeIndex, glm::mat4(1.0), meshTransformationMatrices);
+            computeMeshTransformation(model.nodes, nodeIndex, glm::mat4(1.0), glm::mat3(1.0), meshTransformationMatrices, meshNormalMatrices);
         }
     }
 

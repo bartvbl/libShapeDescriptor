@@ -150,7 +150,19 @@ namespace ShapeDescriptor {
             float supportRadius,
             QUICCIExecutionTimes* executionTimes = nullptr);
 
+    cpu::array<QUICCIDescriptor> generatePartialityResistantQUICCImages(
+            cpu::Mesh device_mesh,
+            cpu::array<OrientedPoint> device_descriptorOrigins,
+            float supportRadius,
+            QUICCIExecutionTimes* executionTimes = nullptr);
+
     gpu::array<QUICCIDescriptor> generateQUICCImages(
+            gpu::Mesh device_mesh,
+            gpu::array<OrientedPoint> device_descriptorOrigins,
+            float supportRadius,
+            QUICCIExecutionTimes* executionTimes = nullptr);
+
+    gpu::array<QUICCIDescriptor> generatePartialityResistantQUICCImages(
             gpu::Mesh device_mesh,
             gpu::array<OrientedPoint> device_descriptorOrigins,
             float supportRadius,

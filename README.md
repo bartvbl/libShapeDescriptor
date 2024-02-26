@@ -23,19 +23,19 @@ If you use (parts of) this library in your research, we kindly ask you reference
       title={Radial intersection count image: A clutter resistant 3D shape descriptor},
       author={van Blokland, Bart Iver and Theoharis, Theoharis},
       journal={Computers \& Graphics},
-      volume="91",
-      pages="118--128",
+      volume={91},
+      pages={118--128},
       year={2020},
       publisher={Elsevier}
     }
-    
-    @article{van2020indexing,
-      title={An Indexing Scheme and Descriptor for 3D Object Retrieval Based on Local Shape Querying},
+
+    @article{van2021partial,
+      title={Partial 3D object retrieval using local binary QUICCI descriptors and dissimilarity tree indexing},
       author={van Blokland, Bart Iver and Theoharis, Theoharis},
       journal={Computers \& Graphics},
-      volume="92",
-      pages="55-66",
-      year={2020},
+      volume={100},
+      pages={32--42},
+      year={2021},
       publisher={Elsevier}
     }
 

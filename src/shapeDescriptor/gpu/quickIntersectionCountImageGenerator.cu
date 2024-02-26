@@ -245,6 +245,7 @@ __device__ __inline__ void rasteriseTriangle(
 }
 
 
+template<unsigned int pixelDifferenceThreshold>
 __device__ void writeQUICCImage(
         ShapeDescriptor::QUICCIDescriptor* descriptorArray,
         radialIntersectionCountImagePixelType* RICIDescriptor) {
@@ -281,7 +282,7 @@ __device__ void writeQUICCImage(
 
             int imageDelta = int(currentNeedlePixelValue) - int(previousNeedlePixelValue);
 
-            bool didIntersectionCountsChange = imageDelta != 0;
+            bool didIntersectionCountsChange = (imageDelta * imageDelta) >= (pixelDifferenceThreshold * pixelDifferenceThreshold);
 
             unsigned int changeOccurredCombined = __brev(__ballot_sync(0xFFFFFFFF, didIntersectionCountsChange));
 
@@ -297,6 +298,7 @@ __device__ void writeQUICCImage(
     }
 }
 
+template<unsigned int pixelDifferenceThreshold>
 __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuickIntersectionCountChangeImage(
         ShapeDescriptor::QUICCIDescriptor* descriptors,
         QUICCIMesh mesh)
@@ -353,7 +355,7 @@ __launch_bounds__(RASTERISATION_WARP_SIZE, 2) __global__ void generateQuickInter
 
 	__syncthreads();
 	// Image finished. Copying into main memory
-	writeQUICCImage(descriptors, descriptorArrayPointer);
+	writeQUICCImage<pixelDifferenceThreshold>(descriptors, descriptorArrayPointer);
 }
 
 __global__ void scaleQUICCIMesh(ShapeDescriptor::gpu::Mesh mesh, float scaleFactor) {
@@ -417,9 +419,10 @@ __global__ void redistributeSpinOrigins(ShapeDescriptor::OrientedPoint* spinOrig
 }
 #endif
 
-ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::generateQUICCImages(
+template<unsigned int pixelDifferenceThreshold>
+ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> generateQUICCImagesGPU(
         ShapeDescriptor::gpu::Mesh device_mesh,
-        ShapeDescriptor::gpu::array<OrientedPoint> device_descriptorOrigins,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> device_descriptorOrigins,
         float supportRadius,
         ShapeDescriptor::QUICCIExecutionTimes* executionTimes)
 {
@@ -438,13 +441,13 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::
 
     float scaleFactor = float(spinImageWidthPixels)/supportRadius;
 
-    gpu::Mesh device_editableMeshCopy = duplicateMesh(device_mesh);
+    ShapeDescriptor::gpu::Mesh device_editableMeshCopy = duplicateMesh(device_mesh);
     scaleQUICCIMesh<<<(meshVertexCount / 128) + 1, 128>>>(device_editableMeshCopy, scaleFactor);
     checkCudaErrors(cudaDeviceSynchronize());
 
-    OrientedPoint* device_editableSpinOriginsCopy;
-    checkCudaErrors(cudaMalloc(&device_editableSpinOriginsCopy, imageCount * sizeof(OrientedPoint)));
-    checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_descriptorOrigins.content, imageCount * sizeof(OrientedPoint), cudaMemcpyDeviceToDevice));
+    ShapeDescriptor::OrientedPoint* device_editableSpinOriginsCopy;
+    checkCudaErrors(cudaMalloc(&device_editableSpinOriginsCopy, imageCount * sizeof(ShapeDescriptor::OrientedPoint)));
+    checkCudaErrors(cudaMemcpy(device_editableSpinOriginsCopy, device_descriptorOrigins.content, imageCount * sizeof(ShapeDescriptor::OrientedPoint), cudaMemcpyDeviceToDevice));
     scaleQUICCISpinOrigins<<<(imageCount / 128) + 1, 128>>>(device_editableSpinOriginsCopy, imageCount, scaleFactor);
     checkCudaErrors(cudaDeviceSynchronize());
 
@@ -485,7 +488,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::
     auto generationStart = std::chrono::steady_clock::now();
 
     // Warning: kernel assumes the grid dimensions are equivalent to imageCount.
-    generateQuickIntersectionCountChangeImage <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors, quicciMesh);
+    generateQuickIntersectionCountChangeImage<pixelDifferenceThreshold> <<<imageCount, RASTERISATION_WARP_SIZE>>> (device_descriptors, quicciMesh);
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 
@@ -511,4 +514,20 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::
 #else
     throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
 #endif
+}
+
+ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::generateQUICCImages(
+        ShapeDescriptor::gpu::Mesh device_mesh,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> device_descriptorOrigins,
+        float supportRadius,
+        ShapeDescriptor::QUICCIExecutionTimes* executionTimes) {
+    return generateQUICCImagesGPU<1>(device_mesh, device_descriptorOrigins, supportRadius, executionTimes);
+}
+
+ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::generatePartialityResistantQUICCImages(
+        ShapeDescriptor::gpu::Mesh device_mesh,
+        ShapeDescriptor::gpu::array<ShapeDescriptor::OrientedPoint> device_descriptorOrigins,
+        float supportRadius,
+        ShapeDescriptor::QUICCIExecutionTimes* executionTimes) {
+    return generateQUICCImagesGPU<1>(device_mesh, device_descriptorOrigins, supportRadius, executionTimes);
 }

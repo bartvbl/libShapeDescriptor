@@ -496,7 +496,7 @@ ShapeDescriptor::gpu::array<ShapeDescriptor::QUICCIDescriptor> generateQUICCImag
 
     // -- Cleanup --
 
-    free(device_editableMeshCopy);
+    ShapeDescriptor::free(device_editableMeshCopy);
     cudaFree(quicciMesh.spinOriginsBasePointer);
     cudaFree(quicciMesh.geometryBasePointer);
     cudaFree(device_editableSpinOriginsCopy);

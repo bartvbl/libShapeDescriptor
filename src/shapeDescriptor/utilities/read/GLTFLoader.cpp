@@ -129,7 +129,8 @@ void computeMeshTransformation(const std::vector<tinygltf::Node> &nodes, int nod
 
     glm::qua rotation = {1.0, 0.0, 0.0, 0.0};
     if(node.rotation.size() == 4) {
-        rotation = {node.rotation.at(0), node.rotation.at(1), node.rotation.at(2), node.rotation.at(3)};
+        // GLM uses a different format than GLTF
+        rotation = {node.rotation.at(3), node.rotation.at(0), node.rotation.at(1), node.rotation.at(2)};
     }
     glm::mat4 rotationMatrix = glm::mat4_cast(rotation);
 

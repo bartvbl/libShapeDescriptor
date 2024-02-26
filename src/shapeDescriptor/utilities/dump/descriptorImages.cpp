@@ -186,6 +186,10 @@ void ShapeDescriptor::writeDescriptorImages(ShapeDescriptor::cpu::array<ShapeDes
     writeDescriptorComparisonImage(imageDestinationFile, hostDescriptors, hostDescriptors, hostDescriptors, imagesPerRow, imageLimit);
 }
 
+void ShapeDescriptor::writeDescriptorImages(ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> hostDescriptors, std::filesystem::path imageDestinationFile, bool unusedOnlyExistsForCompatibility, unsigned int imagesPerRow, unsigned int imageLimit) {
+    writeDescriptorComparisonImage(imageDestinationFile, hostDescriptors, hostDescriptors, hostDescriptors, imagesPerRow, imageLimit);
+}
+
 void ShapeDescriptor::writeDescriptorComparisonImage(std::filesystem::path imageDestinationFile,
                                                       ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> blueChannelDescriptors,
                                                       ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> greenChannelDescriptors,

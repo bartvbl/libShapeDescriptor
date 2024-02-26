@@ -424,6 +424,13 @@ namespace ShapeDescriptor {
             unsigned int imagesPerRow = 50,
             unsigned int imageLimit = 2000);
 
+    void writeDescriptorImages(
+            cpu::array<QUICCIDescriptor> hostDescriptors,
+            std::filesystem::path imageDestinationFile,
+            bool unusedOnlyExistsForCompatibility = false,
+            unsigned int imagesPerRow = 50,
+            unsigned int imageLimit = 2000);
+
     // Write an image where each channel shows a different descriptor.
     // Useful for comparing similarity of different QUICCI descriptors
     void writeDescriptorComparisonImage(

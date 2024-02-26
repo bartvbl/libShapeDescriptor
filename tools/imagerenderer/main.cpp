@@ -144,7 +144,7 @@ int main(int argc, const char** argv) {
             hostDescriptors.length = std::min<int>(hostDescriptors.length, imageLimit.value());
         }
 
-        ShapeDescriptor::writeDescriptorImages(hostDescriptors, outputFile.value(), imagesPerRow.value());
+        ShapeDescriptor::writeDescriptorImages(hostDescriptors, outputFile.value(), false, imagesPerRow.value());
 
         ShapeDescriptor::free(hostDescriptors);
     } else {

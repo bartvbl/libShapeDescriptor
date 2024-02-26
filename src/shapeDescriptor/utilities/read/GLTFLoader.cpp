@@ -160,6 +160,7 @@ void computeMeshTransformation(const std::vector<tinygltf::Node> &nodes, int nod
         for(uint32_t i = 0; i < node.matrix.size(); i++) {
             if(node.matrix.at(i) != 0) {
                 allZero = false;
+                break;
             }
         }
         if(allZero) {
@@ -182,6 +183,7 @@ void computeMeshTransformation(const std::vector<tinygltf::Node> &nodes, int nod
                 std::isnan(normalMatrixDefinedByNode[i].y) ||
                 std::isnan(normalMatrixDefinedByNode[i].z)) {
                 containsNaN = true;
+                break;
             }
         }
         if(containsNaN) {
@@ -191,8 +193,8 @@ void computeMeshTransformation(const std::vector<tinygltf::Node> &nodes, int nod
     }
 
     // Specification requires this multiplication order
-    glm::mat4 transformationMatrix = node.matrix.size() == 16 ? transformationDefinedByNode : translationMatrix * rotationMatrix * scaleMatrix * partialTransform;
-    glm::mat3 normalMatrix = node.matrix.size() == 16 ? normalMatrixDefinedByNode : directionMatrix * partialNormalMatrix;
+    glm::mat4 transformationMatrix = node.matrix.size() == 16 ? partialTransform * transformationDefinedByNode : partialTransform * translationMatrix * rotationMatrix * scaleMatrix;
+    glm::mat3 normalMatrix = node.matrix.size() == 16 ? partialNormalMatrix *  normalMatrixDefinedByNode : partialNormalMatrix * directionMatrix;
 
     if(node.mesh >= 0 && node.mesh < meshTransformationMatrices.size()) {
         meshTransformationMatrices.at(node.mesh) = transformationMatrix;

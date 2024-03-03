@@ -75,11 +75,20 @@ namespace ShapeDescriptor {
         os << "OrientedPoint (vertex: " << &point.vertex <<  ", normal: " << &point.normal << ")";
         return os;
     }
+    namespace cpu {
+        struct BoundingBox {
+            ShapeDescriptor::cpu::float3 min;
+            ShapeDescriptor::cpu::float3 max;
+        };
+    }
+    namespace gpu {
+        struct BoundingBox {
+            float3 min;
+            float3 max;
+        };
+    }
 
-    struct BoundingBox {
-        float3 min;
-        float3 max;
-    };
+
 
     struct SampleBounds {
         size_t sampleCount;
@@ -193,6 +202,14 @@ namespace ShapeDescriptor {
             float supportRadius,
             float supportAngleDegrees,
             SIExecutionTimes* executionTimes = nullptr);
+
+    cpu::array<ShapeDescriptor::ShapeContextDescriptor> generate3DSCDescriptors(
+            cpu::PointCloud pointCloud,
+            cpu::array<OrientedPoint> imageOrigins,
+            float pointDensityRadius,
+            float minSupportRadius,
+            float maxSupportRadius,
+            ShapeDescriptor::SCExecutionTimes* executionTimes);
 
     gpu::array<ShapeContextDescriptor> generate3DSCDescriptors(
             gpu::PointCloud device_pointCloud,
@@ -361,9 +378,11 @@ namespace ShapeDescriptor {
 
 
 
-    BoundingBox computeBoundingBox(gpu::PointCloud device_pointCloud);
+    gpu::BoundingBox computeBoundingBox(gpu::PointCloud device_pointCloud);
+    cpu::BoundingBox computeBoundingBox(cpu::PointCloud pointCloud);
     double calculateMeshSurfaceArea(const cpu::Mesh& mesh);
     gpu::array<unsigned int> computePointDensities(float pointDensityRadius, gpu::PointCloud device_pointCloud);
+    cpu::array<unsigned int> computePointDensities(float pointDensityRadius, cpu::PointCloud pointCloud);
     size_t compressBytes(void* outputBuffer, size_t outputBufferCapacity,
                          const void* inputBuffer, size_t inputBufferSize);
     size_t compressBytesMultithreaded(void* outputBuffer, size_t outputBufferCapacity,

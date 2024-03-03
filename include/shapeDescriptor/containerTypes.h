@@ -204,6 +204,8 @@ namespace ShapeDescriptor {
                 vertexColours = new ShapeDescriptor::cpu::uchar4[pointCount];
                 this->pointCount = pointCount;
             }
+
+            ShapeDescriptor::cpu::PointCloud clone() const;
         };
     }
 

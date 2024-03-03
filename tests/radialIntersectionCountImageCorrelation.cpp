@@ -47,6 +47,8 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
                 }
             }
         }
+
+        ShapeDescriptor::free(searchResults);
     }
 
     SECTION("Ranking by computing rank indices") {
@@ -57,6 +59,8 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
         for(int i = 0; i < imageCount; i++) {
             REQUIRE(results.content[i] == 0);
         }
+
+        ShapeDescriptor::free(results);
 
     }
 
@@ -73,6 +77,7 @@ TEST_CASE("Ranking of Radial Intersection Count Images on the GPU") {
         }
 
         ShapeDescriptor::free(device_haystackImages_reversed);
+        ShapeDescriptor::free(results);
     }
 
     ShapeDescriptor::free(device_haystackImages);

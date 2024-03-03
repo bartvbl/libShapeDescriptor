@@ -43,7 +43,7 @@ std::ostream& operator << (std::ostream &o, const float3& p)
 
 __global__ void computePointCloudBoundingBox(
         ShapeDescriptor::gpu::PointCloud pointCloud,
-        ShapeDescriptor::BoundingBox* boundingBox) {
+        ShapeDescriptor::gpu::BoundingBox* boundingBox) {
 
     assert(blockDim.x == 1024);
     __shared__ float3 minVertices[1024 / 32];
@@ -110,21 +110,21 @@ __global__ void computePointCloudBoundingBox(
 }
 #endif
 
-ShapeDescriptor::BoundingBox ShapeDescriptor::computeBoundingBox(ShapeDescriptor::gpu::PointCloud device_pointCloud) {
+ShapeDescriptor::gpu::BoundingBox ShapeDescriptor::computeBoundingBox(ShapeDescriptor::gpu::PointCloud device_pointCloud) {
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
-    ShapeDescriptor::BoundingBox host_boundingBox = {
+    ShapeDescriptor::gpu::BoundingBox host_boundingBox = {
             {std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max()},
             {-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), -std::numeric_limits<float>::max()}};
-    ShapeDescriptor::BoundingBox* device_boundingBox;
-    checkCudaErrors(cudaMalloc(&device_boundingBox, sizeof(ShapeDescriptor::BoundingBox)));
-    checkCudaErrors(cudaMemcpy(device_boundingBox, &host_boundingBox, sizeof(ShapeDescriptor::BoundingBox), cudaMemcpyHostToDevice));
+    ShapeDescriptor::gpu::BoundingBox* device_boundingBox;
+    checkCudaErrors(cudaMalloc(&device_boundingBox, sizeof(ShapeDescriptor::gpu::BoundingBox)));
+    checkCudaErrors(cudaMemcpy(device_boundingBox, &host_boundingBox, sizeof(ShapeDescriptor::gpu::BoundingBox), cudaMemcpyHostToDevice));
 
     // Single block, because CUDA is not being nice to me.
     computePointCloudBoundingBox<<<1, 1024>>>(device_pointCloud, device_boundingBox);
     checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
 
-    checkCudaErrors(cudaMemcpy(&host_boundingBox, device_boundingBox, sizeof(ShapeDescriptor::BoundingBox), cudaMemcpyDeviceToHost));
+    checkCudaErrors(cudaMemcpy(&host_boundingBox, device_boundingBox, sizeof(ShapeDescriptor::gpu::BoundingBox), cudaMemcpyDeviceToHost));
     checkCudaErrors(cudaFree(device_boundingBox));
     return host_boundingBox;
 #else
@@ -161,7 +161,7 @@ __device__ __inline__ unsigned int computeJumpTableIndex(int3 binIndex, int3 bin
 __global__ void countBinContents(
         ShapeDescriptor::gpu::PointCloud pointCloud,
         unsigned int* indexTable,
-        ShapeDescriptor::BoundingBox boundingBox,
+        ShapeDescriptor::gpu::BoundingBox boundingBox,
         int3 binCounts,
         float binSize) {
 
@@ -206,7 +206,7 @@ __global__ void countCumulativeBinIndices(unsigned int* indexTable, int3 binCoun
 __global__ void rearrangePointCloud(
         ShapeDescriptor::gpu::PointCloud sourcePointCloud,
         ShapeDescriptor::gpu::PointCloud destinationPointCloud,
-        ShapeDescriptor::BoundingBox boundingBox,
+        ShapeDescriptor::gpu::BoundingBox boundingBox,
         unsigned int* nextIndexEntryTable,
         int3 binCounts,
         float binSize) {
@@ -238,7 +238,7 @@ __global__ void rearrangePointCloud(
 __global__ void computePointCounts(
         ShapeDescriptor::gpu::array<unsigned int> pointDensityArray,
         ShapeDescriptor::gpu::PointCloud pointCloud,
-        ShapeDescriptor::BoundingBox boundingBox,
+        ShapeDescriptor::gpu::BoundingBox boundingBox,
         unsigned int* indexTable,
         int3 binCounts,
         float binSize,
@@ -320,7 +320,7 @@ ShapeDescriptor::gpu::array<unsigned int> ShapeDescriptor::computePointDensities
     size_t sampleCount = device_pointCloud.vertices.length;
 
     // 1. Compute bounding box
-    ShapeDescriptor::BoundingBox boundingBox = ShapeDescriptor::computeBoundingBox(device_pointCloud);
+    ShapeDescriptor::gpu::BoundingBox boundingBox = ShapeDescriptor::computeBoundingBox(device_pointCloud);
 
     // 2. Allocate index array for boxes of radius x radius x radius
     float3 boundingBoxSize = boundingBox.max - boundingBox.min;
@@ -388,3 +388,4 @@ ShapeDescriptor::gpu::array<unsigned int> ShapeDescriptor::computePointDensities
     throw std::runtime_error(ShapeDescriptor::cudaMissingErrorMessage);
 #endif
 }
+

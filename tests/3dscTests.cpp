@@ -71,7 +71,7 @@ TEST_CASE("3D Shape Context") {
         ShapeDescriptor::gpu::array<ShapeDescriptor::ShapeContextDescriptor> gpuDescriptors = ShapeDescriptor::generate3DSCDescriptors(gpuCloud, gpuOrigins, pointDensityRadius, minSupportRadius, maxSupportRadius);
         ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> otherDescriptors = ShapeDescriptor::copyToCPU(gpuDescriptors);
 
-        const float tolerance = 0.1;
+        const float tolerance = 0.001;
         for(uint32_t descriptorIndex = 0; descriptorIndex < descriptorCount; descriptorIndex++) {
             for(uint32_t i = 0; i < SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT * SHAPE_CONTEXT_LAYER_COUNT * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT; i++) {
                 float delta = std::abs(cpuDescriptors[descriptorIndex].contents[i] - otherDescriptors[descriptorIndex].contents[i]);

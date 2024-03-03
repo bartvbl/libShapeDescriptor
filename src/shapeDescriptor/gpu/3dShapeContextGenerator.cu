@@ -81,12 +81,10 @@ inline float computeSingleBinVolume(short verticalBinIndex, short layerIndex, fl
 // Cuda is being dumb. Need to create separate function to allow the linker to figure out that, yes, this function does
 // indeed exist somewhere.
 
-float ShapeDescriptor::internal::computeBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius) {
-    return computeSingleBinVolume(verticalBinIndex, layerIndex, minSupportRadius, maxSupportRadius);
-}
+float ShapeDescriptor::internal::computeBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius);
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 
-__device__ float absoluteAngle(float y, float x) {
+__device__ __host__ float absoluteAngle(float y, float x) {
     float absoluteAngle = std::atan2(y, x);
     return absoluteAngle < 0 ? absoluteAngle + (2.0f * float(M_PI)) : absoluteAngle;
 }

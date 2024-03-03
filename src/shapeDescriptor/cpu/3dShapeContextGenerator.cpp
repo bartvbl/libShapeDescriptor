@@ -53,10 +53,7 @@ float ShapeDescriptor::internal::computeBinVolume(short verticalBinIndex, short 
     return computeSingleBinVolume(verticalBinIndex, layerIndex, minSupportRadius, maxSupportRadius);
 }
 
-float absoluteAngle(float y, float x) {
-    float absoluteAngle = std::atan2(y, x);
-    return absoluteAngle < 0 ? absoluteAngle + (2.0f * float(M_PI)) : absoluteAngle;
-}
+float absoluteAngle(float y, float x);
 
 // Run once for every vertex index
 void createDescriptors(
@@ -68,7 +65,7 @@ void createDescriptors(
     float minSupportRadius,
     float maxSupportRadius)
 {
-    for(uint32_t descriptorIndex = 0; descriptorIndex < pointCloud.pointCount; descriptorIndex++) {
+    for(uint32_t descriptorIndex = 0; descriptorIndex < descriptors.length; descriptorIndex++) {
 
         const ShapeDescriptor::OrientedPoint spinOrigin = spinImageOrigins[descriptorIndex];
 
@@ -210,7 +207,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescri
     std::chrono::time_point totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> descriptors(imageOrigins.length);
-    std::memset(imageOrigins.content, 0, sizeof(ShapeContextDescriptor::contents));
+    std::memset(descriptors.content, 0, descriptors.length * sizeof(ShapeContextDescriptor::contents));
 
     // -- Point Count Computation --
     std::chrono::time_point pointCountingStart = std::chrono::steady_clock::now();

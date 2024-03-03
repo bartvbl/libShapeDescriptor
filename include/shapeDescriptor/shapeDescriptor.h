@@ -209,7 +209,7 @@ namespace ShapeDescriptor {
             float pointDensityRadius,
             float minSupportRadius,
             float maxSupportRadius,
-            ShapeDescriptor::SCExecutionTimes* executionTimes);
+            ShapeDescriptor::SCExecutionTimes* executionTimes = nullptr);
 
     gpu::array<ShapeContextDescriptor> generate3DSCDescriptors(
             gpu::PointCloud device_pointCloud,

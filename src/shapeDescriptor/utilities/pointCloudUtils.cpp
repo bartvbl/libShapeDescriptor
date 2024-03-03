@@ -103,8 +103,8 @@ void rearrangePointCloud(
 
         assert(indexTableIndex < binCounts.x * binCounts.y * binCounts.z);
 
-        nextIndexEntryTable.at(indexTableIndex)++;
         unsigned int targetIndex = nextIndexEntryTable.at(indexTableIndex);
+        nextIndexEntryTable.at(indexTableIndex)++;
 
         destinationPointCloud.vertices[targetIndex] = vertex;
     }

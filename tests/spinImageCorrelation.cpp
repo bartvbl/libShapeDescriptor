@@ -5,6 +5,7 @@
 #include <cuda_runtime.h>
 #include <helper_cuda.h>
 #include <iostream>
+#include <algorithm>
 
 const float correlationThreshold = 0.00001f;
 

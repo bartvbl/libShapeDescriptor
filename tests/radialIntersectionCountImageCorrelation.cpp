@@ -2,6 +2,7 @@
 #include <shapeDescriptor/shapeDescriptor.h>
 #include <iostream>
 #include "utilities/spinImageGenerator.h"
+#include <algorithm>
 
 const float correlationThreshold = 0.00001f;
 

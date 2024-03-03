@@ -52,6 +52,10 @@ inline ShapeDescriptor::cpu::float2 normalize(ShapeDescriptor::cpu::float2 in) {
     return out;
 }
 
+inline bool operator==(ShapeDescriptor::cpu::float2 a, ShapeDescriptor::cpu::float2 b) {
+    return a.x == b.x && a.y == b.y;
+}
+
 inline ShapeDescriptor::cpu::float2 operator* (float other, ShapeDescriptor::cpu::float2 in) {
     ShapeDescriptor::cpu::float2 out;
     out.x = other * in.x;

@@ -84,7 +84,7 @@ target_link_libraries(ShapeDescriptor fast-lzma2 meshoptimizer)
 set_property(TARGET ShapeDescriptor PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
 
 add_executable(runTests ${TEST_SOURCES})
-target_link_libraries(runTests ShapeDescriptor Catch2::Catch2)
+target_link_libraries(runTests ShapeDescriptor Catch2::Catch2WithMain)
 set_property(TARGET runTests PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
 
 add_executable(imagerenderer ${RENDER_TOOL_SOURCES})

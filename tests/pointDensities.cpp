@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include <cuda_runtime.h>
 #include <vector_types.h>

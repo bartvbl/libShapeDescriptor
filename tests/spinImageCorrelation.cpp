@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <shapeDescriptor/shapeDescriptor.h>
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
 #include "utilities/spinImageGenerator.h"

@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <shapeDescriptor/shapeDescriptor.h>
 /*TEST_CASE("Reading and writing of compressed files", "[index]" ) {
 

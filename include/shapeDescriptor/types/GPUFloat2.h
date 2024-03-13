@@ -1,7 +1,7 @@
 #pragma once
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
-#include <vector_types.h>
+#include <cuda_runtime_api.h>
 #else
 struct float2 {
         float x;

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
-double computeSingleTriangleArea(ShapeDescriptor::cpu::float3 vertex0, ShapeDescriptor::cpu::float3 vertex1, ShapeDescriptor::cpu::float3 vertex2) {
+double ShapeDescriptor::computeTriangleArea(ShapeDescriptor::cpu::float3 vertex0, ShapeDescriptor::cpu::float3 vertex1, ShapeDescriptor::cpu::float3 vertex2) {
     ShapeDescriptor::cpu::float3 AB = vertex1 - vertex0;
     ShapeDescriptor::cpu::float3 AC = vertex2 - vertex0;
 
@@ -17,7 +17,7 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::sampleMesh(cpu::Mesh mesh, siz
 
     double totalArea = 0;
     for(uint32_t i = 0; i < mesh.vertexCount; i += 3) {
-        double area = computeSingleTriangleArea(mesh.vertices[i], mesh.vertices[i + 1], mesh.vertices[i + 2]);
+        double area = computeTriangleArea(mesh.vertices[i], mesh.vertices[i + 1], mesh.vertices[i + 2]);
         totalArea += area;
     }
 
@@ -48,14 +48,14 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::sampleMesh(cpu::Mesh mesh, siz
         std::sort(samplePoints.begin(), samplePoints.end());
 
         uint32_t currentTriangleIndex = 0;
-        double cumulativeArea = computeSingleTriangleArea(mesh.vertices[0], mesh.vertices[1], mesh.vertices[2]);
+        double cumulativeArea = computeTriangleArea(mesh.vertices[0], mesh.vertices[1], mesh.vertices[2]);
         // MUST be run in serial!
         for(uint32_t i = 0; i < sampleCount; i++) {
             float sampleAreaPoint = samplePoints.at(i);
             float nextSampleBorder = cumulativeArea;
             while(nextSampleBorder < sampleAreaPoint && currentTriangleIndex < (triangleCount - 1)) {
                 currentTriangleIndex++;
-                cumulativeArea += computeSingleTriangleArea(mesh.vertices[3 * currentTriangleIndex + 0], mesh.vertices[3 * currentTriangleIndex + 1], mesh.vertices[3 * currentTriangleIndex + 2]);
+                cumulativeArea += computeTriangleArea(mesh.vertices[3 * currentTriangleIndex + 0], mesh.vertices[3 * currentTriangleIndex + 1], mesh.vertices[3 * currentTriangleIndex + 2]);
                 nextSampleBorder = cumulativeArea;
             }
 

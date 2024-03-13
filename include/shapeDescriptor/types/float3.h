@@ -66,6 +66,18 @@ namespace ShapeDescriptor {
                 return (x < other.x) && (y < other.y) && (z < other.z);
             }
 
+            void operator*= (float scaleFactor) {
+                x *= scaleFactor;
+                y *= scaleFactor;
+                z *= scaleFactor;
+            }
+
+            void operator/= (float factor) {
+                x /= factor;
+                y /= factor;
+                z /= factor;
+            }
+
             void operator+= (float3 other) {
                 x += other.x;
                 y += other.y;

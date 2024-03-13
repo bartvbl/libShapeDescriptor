@@ -24,6 +24,7 @@ add_subdirectory(lib/Catch2)
 add_subdirectory(lib/tinygltf tinygltf)
 add_subdirectory(lib/fast-lzma2 fast-lzma2)
 add_subdirectory(lib/meshoptimizer meshoptimizer)
+find_package(Eigen3 3.4.0 REQUIRED)
 
 include_directories (
 	src/
@@ -35,6 +36,7 @@ include_directories (
 	lib/cuda-samples/Common
 	lib/fast-lzma2/src/
 	lib/meshoptimizer/src/
+	lib/eigen/Eigen
 	lib/
 	lib/fast-obj
 	include/
@@ -80,7 +82,7 @@ target_include_directories(ShapeDescriptor PUBLIC
 		include/ lib/cuda-samples/Common)
 
 
-target_link_libraries(ShapeDescriptor fast-lzma2 meshoptimizer)
+target_link_libraries(ShapeDescriptor fast-lzma2 meshoptimizer Eigen3::Eigen)
 set_property(TARGET ShapeDescriptor PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
 
 add_executable(runTests ${TEST_SOURCES})

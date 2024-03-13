@@ -37,6 +37,10 @@
 // Descriptor size settings for the Fast Point Feature Histogram (FPFH) method
 #define FPFH_BINS_PER_FEATURE 11
 
+// Number of rotations to use when computing RoPS descriptors
+#define ROPS_NUM_ROTATIONS 3
+#define ROPS_HISTOGRAM_BINS 5
+
 // Select distance function to use for comparing QUICCI images
 // (uncomment one of three)
 #define QUICCI_DISTANCE_FUNCTION CLUTTER_RESISTANT_DISTANCE

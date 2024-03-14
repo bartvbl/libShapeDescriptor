@@ -241,13 +241,7 @@ struct PlaneBounds {
 ShapeDescriptor::RoPSDescriptor computeRoPSDescriptor(const ShapeDescriptor::cpu::PointCloud cloud,
                                                       ShapeDescriptor::OrientedPoint &referencePoint,
                                                       std::array<ShapeDescriptor::cpu::float3, 3>& localReferenceFrame,
-                                                      float supportRadius,
-                                                      float numPointSamplesPerUnitArea) {
-
-    ShapeDescriptor::RoPSDescriptor descriptor{};
-    for(int i = 0; i < sizeof(descriptor) / 4; i++) {
-        descriptor.contents[i] = 0;
-    }
+                                                      float supportRadius) {
 
     glm::mat3 lrfTransform(
               localReferenceFrame.at(0).x,  localReferenceFrame.at(1).x,    localReferenceFrame.at(2).x,
@@ -270,6 +264,7 @@ ShapeDescriptor::RoPSDescriptor computeRoPSDescriptor(const ShapeDescriptor::cpu
     std::array<glm::mat3, rotatedPointCloudCount> rotationMatrices{};
     for(int i = 0; i < ROPS_NUM_ROTATIONS; i++) {
         float rotationAngle = float(i) * angleStep;
+        // Order is important here and follows the one used in the paper
         rotationMatrices.at(ROPS_NUM_ROTATIONS * 0 + i) = glm::rotate(glm::mat4(1.0), rotationAngle, glm::vec3(1.0, 0.0, 0.0));
         rotationMatrices.at(ROPS_NUM_ROTATIONS * 1 + i) = glm::rotate(glm::mat4(1.0), rotationAngle, glm::vec3(0.0, 1.0, 0.0));
         rotationMatrices.at(ROPS_NUM_ROTATIONS * 2 + i) = glm::rotate(glm::mat4(1.0), rotationAngle, glm::vec3(0.0, 0.0, 1.0));
@@ -304,22 +299,87 @@ ShapeDescriptor::RoPSDescriptor computeRoPSDescriptor(const ShapeDescriptor::cpu
         bool isInSupportRadius = length(point - referencePoint.vertex) <= supportRadius;
         if(isInSupportRadius) {
             glm::vec3 lrfPoint = lrfTransform * glm::vec3(point.x, point.y, point.z);
-            for(int rotationIndex = 0; rotationIndex < ROPS_NUM_ROTATIONS; rotationIndex++) {
-                uint32_t xRotationIndex = ROPS_NUM_ROTATIONS * 0 + rotationIndex;
-                uint32_t yRotationIndex = ROPS_NUM_ROTATIONS * 1 + rotationIndex;
-                uint32_t zRotationIndex = ROPS_NUM_ROTATIONS * 2 + rotationIndex;
+            for(uint32_t matrixIndex = 0; matrixIndex < rotationMatrices.size(); matrixIndex++) {
+                PlaneBounds& bounds = planeBounds.at(matrixIndex);
+                glm::vec3 rotatedPoint = rotationMatrices.at(matrixIndex) * lrfPoint;
 
-                PlaneBounds& xBounds = planeBounds.at(xRotationIndex);
-                PlaneBounds& yBounds = planeBounds.at(yRotationIndex);
-                PlaneBounds& zBounds = planeBounds.at(zRotationIndex);
+                int xIndex = int(float(ROPS_HISTOGRAM_BINS) * (rotatedPoint.x - bounds.minX) / (bounds.maxX - bounds.minX));
+                int yIndex = int(float(ROPS_HISTOGRAM_BINS) * (rotatedPoint.y - bounds.minY) / (bounds.maxY - bounds.minY));
+                int zIndex = int(float(ROPS_HISTOGRAM_BINS) * (rotatedPoint.z - bounds.minZ) / (bounds.maxZ - bounds.minZ));
 
-                glm::vec3 xRotated = rotationMatrices.at(xRotationIndex) * lrfPoint;
-                glm::vec3 yRotated = rotationMatrices.at(yRotationIndex) * lrfPoint;
-                glm::vec3 zRotated = rotationMatrices.at(zRotationIndex) * lrfPoint;
+                // Ensure that rounding errors do not cause out of range indices
+                xIndex = clamp(xIndex, 0, ROPS_HISTOGRAM_BINS - 1);
+                yIndex = clamp(yIndex, 0, ROPS_HISTOGRAM_BINS - 1);
+                zIndex = clamp(zIndex, 0, ROPS_HISTOGRAM_BINS - 1);
 
-                int xRotatedRow = int(float(ROPS_HISTOGRAM_BINS) * (xRotated.x - xBounds.minX) / (xBounds.maxX - xBounds.minX));
+                // xy plane
+                intermediateHistograms.at(3 * matrixIndex + 0).at(xIndex).at(yIndex)++;
+
+                // xz plane
+                intermediateHistograms.at(3 * matrixIndex + 1).at(xIndex).at(zIndex)++;
+
+                // yz plane
+                intermediateHistograms.at(3 * matrixIndex + 2).at(yIndex).at(zIndex)++;
             }
         }
+    }
+
+    ShapeDescriptor::RoPSDescriptor descriptor{};
+    for(int i = 0; i < sizeof(descriptor) / 4; i++) {
+        descriptor.contents[i] = 0;
+    }
+
+    for(uint32_t histogramIndex = 0; histogramIndex < intermediateHistograms.size(); histogramIndex++) {
+        std::array<std::array<float, ROPS_HISTOGRAM_BINS>, ROPS_HISTOGRAM_BINS>& histogram = intermediateHistograms.at(histogramIndex);
+
+        // Normalise histogram
+        float histogramMaxValue = 0;
+        for(uint32_t row = 0; row < ROPS_HISTOGRAM_BINS; row++) {
+            for(uint32_t col = 0; col < ROPS_HISTOGRAM_BINS; col++) {
+                histogramMaxValue = std::max<float>(histogram.at(col).at(row), histogramMaxValue);
+            }
+        }
+        for(uint32_t row = 0; row < ROPS_HISTOGRAM_BINS; row++) {
+            for(uint32_t col = 0; col < ROPS_HISTOGRAM_BINS; col++) {
+                histogram.at(col).at(row) /= histogramMaxValue;
+            }
+        }
+
+        // Compute iStrike and jStrike
+        float iStrike = 0;
+        float jStrike = 0;
+        for(uint32_t row = 0; row < ROPS_HISTOGRAM_BINS; row++) {
+            for(uint32_t col = 0; col < ROPS_HISTOGRAM_BINS; col++) {
+                iStrike += float(col) * histogram.at(col).at(row);
+                jStrike += float(row) * histogram.at(col).at(row);
+            }
+        }
+
+        // Compute central moments and Shannon entropy
+        float centralMoment_11 = 0;
+        float centralMoment_21 = 0;
+        float centralMoment_12 = 0;
+        float centralMoment_22 = 0;
+        float shannonEntropy = 0;
+        for(uint32_t row = 0; row < ROPS_HISTOGRAM_BINS; row++) {
+            for(uint32_t col = 0; col < ROPS_HISTOGRAM_BINS; col++) {
+                float binValue = histogram.at(col).at(row);
+                float iStrikeDelta = binValue - iStrike;
+                float jStrikeDelta = binValue - jStrike;
+
+                centralMoment_11 += iStrikeDelta * jStrikeDelta * binValue;
+                centralMoment_21 += iStrikeDelta * iStrikeDelta * jStrikeDelta * binValue;
+                centralMoment_12 += iStrikeDelta * jStrikeDelta * jStrikeDelta * binValue;
+                centralMoment_22 += iStrikeDelta * iStrikeDelta * jStrikeDelta * jStrikeDelta * binValue;
+                shannonEntropy -= binValue * std::log10(binValue);
+            }
+        }
+
+        descriptor.contents[5 * histogramIndex + 0] = centralMoment_11;
+        descriptor.contents[5 * histogramIndex + 1] = centralMoment_21;
+        descriptor.contents[5 * histogramIndex + 2] = centralMoment_12;
+        descriptor.contents[5 * histogramIndex + 3] = centralMoment_22;
+        descriptor.contents[5 * histogramIndex + 4] = shannonEntropy;
     }
 
     return descriptor;
@@ -345,8 +405,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RoPSDescriptor> ShapeDescriptor::ge
         outputDescriptors[descriptorIndex] = computeRoPSDescriptor(cloud,
                                                                    descriptorOrigins[descriptorIndex],
                                                                    localReferenceFrames.at(descriptorIndex),
-                                                                   supportRadius,
-                                                                   numPointSamplesPerUnitArea);
+                                                                   supportRadius);
     }
 
     ShapeDescriptor::free(cloud);

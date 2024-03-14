@@ -52,7 +52,7 @@ namespace ShapeDescriptor {
     };
 
     struct RoPSDescriptor {
-        std::array<float, ROPS_NUM_ROTATIONS * ROPS_NUM_ROTATIONS * ROPS_NUM_ROTATIONS * 5> contents;
+        float contents[ROPS_NUM_ROTATIONS * ROPS_NUM_ROTATIONS * ROPS_NUM_ROTATIONS * 5];
     };
 
     struct ShapeContextDescriptor {
@@ -238,7 +238,7 @@ namespace ShapeDescriptor {
             float supportRadius,
             float numPointSamplesPerUnitArea,
             uint64_t randomSeed,
-            ShapeDescriptor::RoPSExecutionTimes* executionTimes);
+            ShapeDescriptor::RoPSExecutionTimes* executionTimes = nullptr);
 
 
     // -- Execution times structs for search methods --

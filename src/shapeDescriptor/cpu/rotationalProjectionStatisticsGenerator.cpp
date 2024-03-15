@@ -371,7 +371,9 @@ ShapeDescriptor::RoPSDescriptor computeRoPSDescriptor(const ShapeDescriptor::cpu
                 centralMoment_21 += iStrikeDelta * iStrikeDelta * jStrikeDelta * binValue;
                 centralMoment_12 += iStrikeDelta * jStrikeDelta * jStrikeDelta * binValue;
                 centralMoment_22 += iStrikeDelta * iStrikeDelta * jStrikeDelta * jStrikeDelta * binValue;
-                shannonEntropy -= binValue * std::log10(binValue);
+                if(binValue > 0) {
+                    shannonEntropy -= binValue * std::log10(binValue);
+                }
             }
         }
 

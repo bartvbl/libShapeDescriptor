@@ -402,6 +402,16 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RoPSDescriptor> ShapeDescriptor::ge
     uint32_t meshSampleCount = uint32_t(meshArea * numPointSamplesPerUnitArea);
     ShapeDescriptor::cpu::PointCloud cloud = ShapeDescriptor::sampleMesh(mesh, meshSampleCount, randomSeed);
 
+    // Can happen if a mesh pretends to be a point cloud
+    if(meshArea == 0) {
+        for(uint32_t descriptorIndex = 0; descriptorIndex < descriptorOrigins.length; descriptorIndex++) {
+            for(float& bin : outputDescriptors.content[descriptorIndex].contents) {
+                bin = 0;
+            }
+        }
+        return outputDescriptors;
+    }
+
     #pragma omp parallel for
     for(uint32_t descriptorIndex = 0; descriptorIndex < descriptorOrigins.length; descriptorIndex++) {
         outputDescriptors[descriptorIndex] = computeRoPSDescriptor(cloud,

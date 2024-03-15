@@ -402,6 +402,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RoPSDescriptor> ShapeDescriptor::ge
         float supportRadius,
         float numPointSamplesPerUnitArea,
         uint64_t randomSeed,
+        uint32_t pointSampleCountLimit,
         ShapeDescriptor::RoPSExecutionTimes* executionTimes) {
 
     ShapeDescriptor::cpu::array<ShapeDescriptor::RoPSDescriptor> outputDescriptors(descriptorOrigins.length);
@@ -409,6 +410,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RoPSDescriptor> ShapeDescriptor::ge
     std::vector<std::array<ShapeDescriptor::cpu::float3, 3>> localReferenceFrames = computeLocalReferenceFrames(mesh, descriptorOrigins, supportRadius, meshArea);
 
     uint32_t meshSampleCount = uint32_t(meshArea * numPointSamplesPerUnitArea);
+    meshSampleCount = std::min<uint32_t>(meshSampleCount, pointSampleCountLimit);
     ShapeDescriptor::cpu::PointCloud cloud = ShapeDescriptor::sampleMesh(mesh, meshSampleCount, randomSeed);
 
     // Can happen if a mesh pretends to be a point cloud

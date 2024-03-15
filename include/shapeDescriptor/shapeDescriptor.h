@@ -238,6 +238,7 @@ namespace ShapeDescriptor {
             float supportRadius,
             float numPointSamplesPerUnitArea,
             uint64_t randomSeed,
+            uint32_t pointSampleCountLimit = 10000000,
             ShapeDescriptor::RoPSExecutionTimes* executionTimes = nullptr);
 
 

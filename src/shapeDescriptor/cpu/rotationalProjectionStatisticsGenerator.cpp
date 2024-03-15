@@ -301,7 +301,7 @@ ShapeDescriptor::RoPSDescriptor computeRoPSDescriptor(const ShapeDescriptor::cpu
     }
 
     // No points in support radius, so we return an empty descriptor
-    if(pointCountInSupportRadius) {
+    if(pointCountInSupportRadius == 0) {
         return descriptor;
     }
 

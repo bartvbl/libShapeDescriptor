@@ -249,6 +249,11 @@ ShapeDescriptor::RoPSDescriptor computeRoPSDescriptor(const ShapeDescriptor::cpu
               localReferenceFrame.at(0).z,  localReferenceFrame.at(1).z,    localReferenceFrame.at(2).z
     );
 
+    ShapeDescriptor::RoPSDescriptor descriptor{};
+    for(int i = 0; i < sizeof(descriptor) / 4; i++) {
+        descriptor.contents[i] = 0;
+    }
+
     constexpr int rotatedPointCloudCount = 3 * ROPS_NUM_ROTATIONS;
     constexpr int histogramCount = 3 * rotatedPointCloudCount;
     std::array<std::array<std::array<float, ROPS_HISTOGRAM_BINS>, ROPS_HISTOGRAM_BINS>, histogramCount> intermediateHistograms{};
@@ -260,7 +265,7 @@ ShapeDescriptor::RoPSDescriptor computeRoPSDescriptor(const ShapeDescriptor::cpu
         }
     }
 
-    const float angleStep = M_2_PI / float(ROPS_NUM_ROTATIONS);
+    const float angleStep = (2.0f * M_PI) / float(ROPS_NUM_ROTATIONS);
     std::array<glm::mat3, rotatedPointCloudCount> rotationMatrices{};
     for(int i = 0; i < ROPS_NUM_ROTATIONS; i++) {
         float rotationAngle = float(i) * angleStep;
@@ -275,10 +280,12 @@ ShapeDescriptor::RoPSDescriptor computeRoPSDescriptor(const ShapeDescriptor::cpu
     }
 
     // Calculating bounds
+    uint32_t pointCountInSupportRadius = 0;
     for(uint32_t vertexIndex = 0; vertexIndex < cloud.pointCount; vertexIndex++) {
         ShapeDescriptor::cpu::float3 point = cloud.vertices[vertexIndex];
         bool isInSupportRadius = length(point - referencePoint.vertex) <= supportRadius;
         if(isInSupportRadius) {
+            pointCountInSupportRadius++;
             glm::vec3 lrfPoint = lrfTransform * glm::vec3(point.x, point.y, point.z);
             for(uint32_t matrixIndex = 0; matrixIndex < rotationMatrices.size(); matrixIndex++) {
                 glm::vec3 transformedPoint = rotationMatrices.at(matrixIndex) * lrfPoint;
@@ -291,6 +298,11 @@ ShapeDescriptor::RoPSDescriptor computeRoPSDescriptor(const ShapeDescriptor::cpu
                 bounds.minZ = std::min(bounds.minZ, transformedPoint.z);
             }
         }
+    }
+
+    // No points in support radius, so we return an empty descriptor
+    if(pointCountInSupportRadius) {
+        return descriptor;
     }
 
     // Computing histograms
@@ -324,10 +336,7 @@ ShapeDescriptor::RoPSDescriptor computeRoPSDescriptor(const ShapeDescriptor::cpu
         }
     }
 
-    ShapeDescriptor::RoPSDescriptor descriptor{};
-    for(int i = 0; i < sizeof(descriptor) / 4; i++) {
-        descriptor.contents[i] = 0;
-    }
+
 
     for(uint32_t histogramIndex = 0; histogramIndex < intermediateHistograms.size(); histogramIndex++) {
         std::array<std::array<float, ROPS_HISTOGRAM_BINS>, ROPS_HISTOGRAM_BINS>& histogram = intermediateHistograms.at(histogramIndex);

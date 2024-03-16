@@ -421,15 +421,23 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RoPSDescriptor> ShapeDescriptor::ge
         return outputDescriptors;
     }
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for(uint32_t descriptorIndex = 0; descriptorIndex < descriptorOrigins.length; descriptorIndex++) {
         outputDescriptors[descriptorIndex] = computeRoPSDescriptor(cloud,
                                                                    descriptorOrigins[descriptorIndex],
                                                                    localReferenceFrames.at(descriptorIndex),
                                                                    supportRadius);
+        for(uint32_t binIndex = 0; binIndex < 3 * 3 * ROPS_NUM_ROTATIONS * ROPS_HISTOGRAM_BINS; binIndex++) {
+            float bin = outputDescriptors.content[descriptorIndex].contents[binIndex];
+            if(std::isnan(bin)) {
+                throw std::runtime_error("Found a NaN!");
+            }
+        }
     }
 
     ShapeDescriptor::free(cloud);
+
+
 
     return outputDescriptors;
 }

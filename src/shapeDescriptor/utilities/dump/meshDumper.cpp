@@ -96,7 +96,10 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::filesystem::path &outp
 
     if(hasNormalsEnabled) {
         for(unsigned int i = 0; i < mesh.vertexCount; i++) {
-            const ShapeDescriptor::cpu::float3 normal = mesh.normals[i];
+            ShapeDescriptor::cpu::float3 normal = mesh.normals[i];
+            if(std::isnan(normal.x) || std::isnan(normal.z) || std::isnan(normal.z)) {
+                normal = {1, 0, 0};
+            }
             if(!seenNormalsIndex.contains(normal)) {
                 seenNormalsIndex.insert({normal, condensedNormals.size()});
                 condensedNormals.push_back(normal);

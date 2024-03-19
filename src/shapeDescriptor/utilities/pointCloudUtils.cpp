@@ -193,15 +193,24 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::computePointDensities
 
     // 2. Allocate index array for boxes of radius x radius x radius
     float3 boundingBoxSize = boundingBox.max - boundingBox.min;
-    float binSize = std::cbrt(
-            (boundingBoxSize.x != 0 ? boundingBoxSize.x : 1) *
-            (boundingBoxSize.y != 0 ? boundingBoxSize.y : 1) *
-            (boundingBoxSize.z != 0 ? boundingBoxSize.z : 1)) / 50.0f;
+    double boundingBoxMax  = std::max(std::max(boundingBoxSize.x, boundingBoxSize.y), boundingBoxSize.z);
+    double binSize = boundingBoxMax;
+    const double binSizeScaleFactor = 0.66;
+    const uint32_t minBinCount = 150;
 
-    ShapeDescriptor::cpu::int3 binCounts = {int(boundingBoxSize.x / binSize) + 1,
-                                            int(boundingBoxSize.y / binSize) + 1,
-                                            int(boundingBoxSize.z / binSize) + 1};
+    ShapeDescriptor::cpu::int3 binCounts;
     int totalBinCount = binCounts.x * binCounts.y * binCounts.z;
+    while(totalBinCount < minBinCount) {
+        binSize *= binSizeScaleFactor;
+        binCounts = {int(boundingBoxSize.x / binSize) + 1,
+                     int(boundingBoxSize.y / binSize) + 1,
+                     int(boundingBoxSize.z / binSize) + 1};
+        binCounts.x = std::max(binCounts.x, 1);
+        binCounts.y = std::max(binCounts.y, 1);
+        binCounts.z = std::max(binCounts.z, 1);
+        totalBinCount = binCounts.x * binCounts.y * binCounts.z;
+    }
+
     std::vector<uint32_t> indexTable(totalBinCount);
 
     // 3. Counting occurrences for each box

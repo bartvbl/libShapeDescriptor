@@ -277,11 +277,11 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::ge
     return descriptors;
 }
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> generateRadialIntersectionCountImages(
+ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::generateRadialIntersectionCountImages(
         ShapeDescriptor::cpu::Mesh mesh,
         ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
         float supportRadius,
-        ShapeDescriptor::RICIExecutionTimes* executionTimes = nullptr) {
+        ShapeDescriptor::RICIExecutionTimes* executionTimes) {
     std::vector<float> radii(descriptorOrigins.length, supportRadius);
     return ShapeDescriptor::generateRadialIntersectionCountImagesMultiRadius(mesh, descriptorOrigins, radii, executionTimes);
 }

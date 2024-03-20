@@ -62,8 +62,8 @@ void createDescriptors(
     ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> descriptors,
     ShapeDescriptor::cpu::array<unsigned int> pointDensityArray,
     size_t sampleCount,
-    float minSupportRadius,
-    float maxSupportRadius)
+    const std::vector<float>& minSupportRadius,
+    const std::vector<float>& maxSupportRadius)
 {
     for(uint32_t descriptorIndex = 0; descriptorIndex < descriptors.length; descriptorIndex++) {
 
@@ -104,7 +104,7 @@ void createDescriptors(
 
             // Only include vertices which are within the support radius
             float distanceToVertex = length(translated);
-            if (distanceToVertex < minSupportRadius || distanceToVertex > maxSupportRadius) {
+            if (distanceToVertex < minSupportRadius.at(descriptorIndex) || distanceToVertex > maxSupportRadius.at(descriptorIndex)) {
                 continue;
             }
 
@@ -153,7 +153,7 @@ void createDescriptors(
 
             // Recomputing logarithms is still preferable over doing memory transactions for each of them
             for (; layerIndex < SHAPE_CONTEXT_LAYER_COUNT; layerIndex++) {
-                float nextSliceEnd = computeLayerDistance(minSupportRadius, maxSupportRadius, layerIndex + 1);
+                float nextSliceEnd = computeLayerDistance(minSupportRadius.at(descriptorIndex), maxSupportRadius.at(descriptorIndex), layerIndex + 1);
                 if (sampleDistance <= nextSliceEnd) {
                     break;
                 }
@@ -176,11 +176,11 @@ void createDescriptors(
             assert(binIndex.z < SHAPE_CONTEXT_LAYER_COUNT);
 
             // 2. Compute sample weight
-            float binVolume = computeSingleBinVolume(binIndex.y, binIndex.z, minSupportRadius, maxSupportRadius);
+            float binVolume = computeSingleBinVolume(binIndex.y, binIndex.z, minSupportRadius.at(descriptorIndex), maxSupportRadius.at(descriptorIndex));
 
             // Volume can't be 0, and should be less than the volume of the support volume
             assert(binVolume > 0);
-            assert(binVolume < (4.0f / 3.0f) * M_PI * maxSupportRadius * maxSupportRadius * maxSupportRadius);
+            assert(binVolume < (4.0f / 3.0f) * M_PI * maxSupportRadius.at(descriptorIndex) * maxSupportRadius.at(descriptorIndex) * maxSupportRadius.at(descriptorIndex));
 
             float sampleWeight = 1.0f / (pointDensityArray.content[sampleIndex] * std::cbrt(binVolume));
 
@@ -196,15 +196,17 @@ void createDescriptors(
     }
 }
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescriptor::generate3DSCDescriptors(
-        ShapeDescriptor::cpu::PointCloud pointCloud,
-        ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> imageOrigins,
+ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescriptor::generate3DSCDescriptorsMultiRadius(
+        const ShapeDescriptor::cpu::PointCloud& pointCloud,
+        const ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint>& imageOrigins,
         float pointDensityRadius,
-        float minSupportRadius,
-        float maxSupportRadius,
+        const std::vector<float>& minSupportRadius,
+        const std::vector<float>& maxSupportRadius,
         ShapeDescriptor::SCExecutionTimes* executionTimes) {
-
     std::chrono::time_point totalExecutionTimeStart = std::chrono::steady_clock::now();
+
+    assert(imageOrigins.length == minSupportRadius.size());
+    assert(imageOrigins.length == maxSupportRadius.size());
 
     ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> descriptors(imageOrigins.length);
     std::memset(descriptors.content, 0, descriptors.length * sizeof(ShapeContextDescriptor::contents));
@@ -216,17 +218,17 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescri
 
     std::chrono::milliseconds pointCountingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - pointCountingStart);
 
-    // -- Spin Image Generation --
+    // -- 3DSC Generation --
     auto generationStart = std::chrono::steady_clock::now();
 
     createDescriptors(
-        imageOrigins,
-        pointCloud,
-        descriptors,
-        pointCountArray,
-        pointCloud.pointCount,
-        minSupportRadius,
-        maxSupportRadius);
+            imageOrigins,
+            pointCloud,
+            descriptors,
+            pointCountArray,
+            pointCloud.pointCount,
+            minSupportRadius,
+            maxSupportRadius);
 
     std::chrono::milliseconds generationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - generationStart);
 
@@ -242,6 +244,18 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescri
     }
 
     return descriptors;
+}
+
+ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescriptor::generate3DSCDescriptors(
+        ShapeDescriptor::cpu::PointCloud pointCloud,
+        ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> imageOrigins,
+        float pointDensityRadius,
+        float minSupportRadius,
+        float maxSupportRadius,
+        ShapeDescriptor::SCExecutionTimes* executionTimes) {
+    std::vector<float> minRadii(imageOrigins.length, minSupportRadius);
+    std::vector<float> maxRadii(imageOrigins.length, maxSupportRadius);
+    return generate3DSCDescriptorsMultiRadius(pointCloud, imageOrigins, pointDensityRadius, minRadii, maxRadii, executionTimes);
 }
 
 

@@ -30,15 +30,17 @@ void generateQUICCIDescriptor(const ShapeDescriptor::RICIDescriptor &riciDescrip
 
 template<unsigned int threshold>
 ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> generateQUICCImagesCPU(
-        ShapeDescriptor::cpu::Mesh mesh,
-        ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
-        float spinImageWidth,
+        const ShapeDescriptor::cpu::Mesh mesh,
+        const ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
+        const std::vector<float>& supportRadii,
         ShapeDescriptor::QUICCIExecutionTimes* executionTimes) {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
+    assert(supportRadii.size() == descriptorOrigins.length);
+
     auto generationStart = std::chrono::steady_clock::now();
     ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> riciDescriptors
-            = ShapeDescriptor::generateRadialIntersectionCountImages(mesh, descriptorOrigins, spinImageWidth);
+            = ShapeDescriptor::generateRadialIntersectionCountImagesMultiRadius(mesh, descriptorOrigins, supportRadii);
 
     size_t imageCount = descriptorOrigins.length;
     ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> descriptors(imageCount);
@@ -63,12 +65,21 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> generateQUICCImag
     return descriptors;
 }
 
+ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::generatePartialityResistantQUICCImagesMultiRadius(
+        const cpu::Mesh& mesh,
+        const cpu::array<OrientedPoint>& descriptorOrigins,
+        const std::vector<float>& supportRadii,
+        ShapeDescriptor::QUICCIExecutionTimes* executionTimes) {
+    return generateQUICCImagesCPU<2>(mesh, descriptorOrigins, supportRadii, executionTimes);
+}
+
 ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::generatePartialityResistantQUICCImages(
         ShapeDescriptor::cpu::Mesh mesh,
         ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
         float spinImageWidth,
         ShapeDescriptor::QUICCIExecutionTimes* executionTimes) {
-    return generateQUICCImagesCPU<2>(mesh, descriptorOrigins, spinImageWidth, executionTimes);
+    std::vector<float> radii(descriptorOrigins.length, spinImageWidth);
+    return generateQUICCImagesCPU<2>(mesh, descriptorOrigins, radii, executionTimes);
 }
 
 ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::generateQUICCImages(
@@ -76,5 +87,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::QUICCIDescriptor> ShapeDescriptor::
         ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
         float spinImageWidth,
         ShapeDescriptor::QUICCIExecutionTimes* executionTimes) {
-    return generateQUICCImagesCPU<1>(mesh, descriptorOrigins, spinImageWidth, executionTimes);
+    std::vector<float> radii(descriptorOrigins.length, spinImageWidth);
+    return generateQUICCImagesCPU<1>(mesh, descriptorOrigins, radii, executionTimes);
 }
+

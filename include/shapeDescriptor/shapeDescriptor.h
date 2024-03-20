@@ -161,15 +161,21 @@ namespace ShapeDescriptor {
     // is used that runs on the GPU.
 
     cpu::array<QUICCIDescriptor> generateQUICCImages(
-            cpu::Mesh device_mesh,
+            cpu::Mesh mesh,
             cpu::array<OrientedPoint> device_descriptorOrigins,
             float supportRadius,
             QUICCIExecutionTimes* executionTimes = nullptr);
 
     cpu::array<QUICCIDescriptor> generatePartialityResistantQUICCImages(
-            cpu::Mesh device_mesh,
+            cpu::Mesh mesh,
             cpu::array<OrientedPoint> device_descriptorOrigins,
             float supportRadius,
+            QUICCIExecutionTimes* executionTimes = nullptr);
+
+    cpu::array<QUICCIDescriptor> generatePartialityResistantQUICCImagesMultiRadius(
+            const cpu::Mesh& mesh,
+            const cpu::array<OrientedPoint>& device_descriptorOrigins,
+            const std::vector<float>& supportRadii,
             QUICCIExecutionTimes* executionTimes = nullptr);
 
     gpu::array<QUICCIDescriptor> generateQUICCImages(
@@ -196,6 +202,12 @@ namespace ShapeDescriptor {
             float supportRadius,
             RICIExecutionTimes* executionTimes = nullptr);
 
+    cpu::array<RICIDescriptor> generateRadialIntersectionCountImagesMultiRadius(
+            const cpu::Mesh& mesh,
+            const cpu::array<OrientedPoint>& device_descriptorOrigins,
+            const std::vector<float>& supportRadii,
+            RICIExecutionTimes* executionTimes = nullptr);
+
     cpu::array<SpinImageDescriptor> generateSpinImages(
             cpu::PointCloud pointCloud,
             cpu::array<OrientedPoint> descriptorOrigins,
@@ -207,6 +219,13 @@ namespace ShapeDescriptor {
             gpu::PointCloud device_pointCloud,
             gpu::array<OrientedPoint> device_descriptorOrigins,
             float supportRadius,
+            float supportAngleDegrees,
+            SIExecutionTimes* executionTimes = nullptr);
+
+    cpu::array<SpinImageDescriptor> generateSpinImagesMultiRadius(
+            const cpu::PointCloud& pointCloud,
+            const cpu::array<OrientedPoint>& descriptorOrigins,
+            const std::vector<float>& supportRadii,
             float supportAngleDegrees,
             SIExecutionTimes* executionTimes = nullptr);
 
@@ -225,6 +244,14 @@ namespace ShapeDescriptor {
             float minSupportRadius,
             float maxSupportRadius,
             SCExecutionTimes* executionTimes = nullptr);
+
+    cpu::array<ShapeDescriptor::ShapeContextDescriptor> generate3DSCDescriptorsMultiRadius(
+            const cpu::PointCloud& pointCloud,
+            const cpu::array<OrientedPoint>& imageOrigins,
+            float pointDensityRadius,
+            const std::vector<float>& minSupportRadius,
+            const std::vector<float>& maxSupportRadius,
+            ShapeDescriptor::SCExecutionTimes* executionTimes = nullptr);
 
     gpu::array<FPFHDescriptor> generateFPFHHistograms(
             gpu::PointCloud device_pointCloud,

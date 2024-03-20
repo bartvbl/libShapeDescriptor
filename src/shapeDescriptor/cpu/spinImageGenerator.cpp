@@ -108,45 +108,45 @@ void createDescriptors(
 	}
 }
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> ShapeDescriptor::generateSpinImages(
-        ShapeDescriptor::cpu::PointCloud pointCloud,
-        ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
-        float supportRadius,
+ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> ShapeDescriptor::generateSpinImagesMultiRadius(
+        const ShapeDescriptor::cpu::PointCloud& pointCloud,
+        const ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint>& descriptorOrigins,
+        const std::vector<float>& supportRadii,
         float supportAngleDegrees,
         ShapeDescriptor::SIExecutionTimes* executionTimes) {
-
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
+    assert(supportRadii.size() == descriptorOrigins.length);
 
     size_t imageCount = descriptorOrigins.length;
 
-	float supportAngleCosine = float(std::cos(supportAngleDegrees * (M_PI / 180.0)));
+    float supportAngleCosine = float(std::cos(supportAngleDegrees * (M_PI / 180.0)));
 
-	// -- Initialisation --
-	auto initialisationStart = std::chrono::steady_clock::now();
+    // -- Initialisation --
+    auto initialisationStart = std::chrono::steady_clock::now();
 
-		ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> descriptors(imageCount);
+    ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> descriptors(imageCount);
 
-        size_t bufferSize = imageCount * sizeof(ShapeDescriptor::SpinImageDescriptor);
-        std::memset(descriptors.content, 0, bufferSize);
+    size_t bufferSize = imageCount * sizeof(ShapeDescriptor::SpinImageDescriptor);
+    std::memset(descriptors.content, 0, bufferSize);
 
-	std::chrono::milliseconds initialisationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - initialisationStart);
+    std::chrono::milliseconds initialisationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - initialisationStart);
 
 
-	// -- Spin Image Generation --
-	auto generationStart = std::chrono::steady_clock::now();
+    // -- Spin Image Generation --
+    auto generationStart = std::chrono::steady_clock::now();
 
-    #pragma omp parallel for schedule(dynamic) default(none) shared(imageCount, descriptorOrigins, pointCloud, descriptors, supportRadius, supportAngleCosine)
+#pragma omp parallel for schedule(dynamic) default(none) shared(imageCount, descriptorOrigins, pointCloud, descriptors, supportRadii, supportAngleCosine)
     for(size_t imageIndex = 0; imageIndex < imageCount; imageIndex++) {
         createDescriptors(
-            descriptorOrigins.content,
-            pointCloud,
-            descriptors,
-            float(spinImageWidthPixels)/supportRadius,
-            supportAngleCosine,
-            imageIndex);
+                descriptorOrigins.content,
+                pointCloud,
+                descriptors,
+                float(spinImageWidthPixels)/supportRadii.at(imageIndex),
+                supportAngleCosine,
+                imageIndex);
     }
-        
-	std::chrono::milliseconds generationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - generationStart);
+
+    std::chrono::milliseconds generationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - generationStart);
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 
@@ -154,8 +154,19 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> ShapeDescripto
         executionTimes->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
         executionTimes->initialisationTimeSeconds = double(initialisationDuration.count()) / 1000.0;
         executionTimes->generationTimeSeconds = double(generationDuration.count()) / 1000.0;
-	}
+    }
 
-	return descriptors;
+    return descriptors;
 }
+
+ShapeDescriptor::cpu::array<ShapeDescriptor::SpinImageDescriptor> ShapeDescriptor::generateSpinImages(
+        ShapeDescriptor::cpu::PointCloud pointCloud,
+        ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
+        float supportRadius,
+        float supportAngleDegrees,
+        ShapeDescriptor::SIExecutionTimes* executionTimes) {
+    std::vector<float> radii(descriptorOrigins.length, supportRadius);
+    return generateSpinImagesMultiRadius(pointCloud, descriptorOrigins, radii, supportAngleDegrees, executionTimes);
+}
+
 

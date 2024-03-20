@@ -236,14 +236,15 @@ void generateRadialIntersectionCountImage(
 }
 
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::generateRadialIntersectionCountImages(
-        ShapeDescriptor::cpu::Mesh mesh,
-        ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
-        float supportRadius,
-        ShapeDescriptor::RICIExecutionTimes* executionTimes) {
+ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::generateRadialIntersectionCountImagesMultiRadius(
+        const cpu::Mesh& mesh,
+        const cpu::array<OrientedPoint>& descriptorOrigins,
+        const std::vector<float>& supportRadii,
+        RICIExecutionTimes* executionTimes) {
     auto totalExecutionTimeStart = std::chrono::steady_clock::now();
 
     size_t imageCount = descriptorOrigins.length;
+    assert(supportRadii.size() == descriptorOrigins.length);
         
     // -- Descriptor Array Allocation and Initialisation --
 
@@ -255,11 +256,12 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::ge
 
 	auto generationStart = std::chrono::steady_clock::now();
 
-	float scaleFactor = float(spinImageWidthPixels)/supportRadius;
+
 
 	// Warning: kernel assumes the grid dimensions are equivalent to imageCount.
-    #pragma omp parallel for default(none) shared(descriptors, mesh, descriptorOrigins, scaleFactor)
+    #pragma omp parallel for default(none) shared(descriptors, mesh, descriptorOrigins, supportRadii)
 	for(size_t imageIndex = 0; imageIndex < descriptors.length; imageIndex++) {
+        float scaleFactor = float(spinImageWidthPixels)/supportRadii.at(imageIndex);
 		generateRadialIntersectionCountImage(descriptors.content, mesh, descriptorOrigins, imageIndex, scaleFactor);
 	}
 	
@@ -273,4 +275,13 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> ShapeDescriptor::ge
 	}
 
     return descriptors;
+}
+
+ShapeDescriptor::cpu::array<ShapeDescriptor::RICIDescriptor> generateRadialIntersectionCountImages(
+        ShapeDescriptor::cpu::Mesh mesh,
+        ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
+        float supportRadius,
+        ShapeDescriptor::RICIExecutionTimes* executionTimes = nullptr) {
+    std::vector<float> radii(descriptorOrigins.length, supportRadius);
+    return ShapeDescriptor::generateRadialIntersectionCountImagesMultiRadius(mesh, descriptorOrigins, radii, executionTimes);
 }

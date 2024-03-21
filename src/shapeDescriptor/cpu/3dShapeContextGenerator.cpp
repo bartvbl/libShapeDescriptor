@@ -60,12 +60,20 @@ void createDescriptors(
     ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> spinImageOrigins,
     ShapeDescriptor::cpu::PointCloud pointCloud,
     ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> descriptors,
-    ShapeDescriptor::cpu::array<unsigned int> pointDensityArray,
+    std::vector<unsigned int> pointDensityArray,
     size_t sampleCount,
     const std::vector<float>& minSupportRadius,
     const std::vector<float>& maxSupportRadius)
 {
+
+
+
     for(uint32_t descriptorIndex = 0; descriptorIndex < descriptors.length; descriptorIndex++) {
+
+        std::array<float, SHAPE_CONTEXT_LAYER_COUNT> layerDistances;
+        for(int i = 0; i < SHAPE_CONTEXT_LAYER_COUNT; i++) {
+            layerDistances.at(i) = computeLayerDistance(minSupportRadius.at(descriptorIndex), maxSupportRadius.at(descriptorIndex), i + 1);
+        }
 
         const ShapeDescriptor::OrientedPoint spinOrigin = spinImageOrigins[descriptorIndex];
 
@@ -151,9 +159,8 @@ void createDescriptors(
             float sampleDistance = length(relativeSamplePoint);
             short layerIndex = 0;
 
-            // Recomputing logarithms is still preferable over doing memory transactions for each of them
             for (; layerIndex < SHAPE_CONTEXT_LAYER_COUNT; layerIndex++) {
-                float nextSliceEnd = computeLayerDistance(minSupportRadius.at(descriptorIndex), maxSupportRadius.at(descriptorIndex), layerIndex + 1);
+                float nextSliceEnd = layerDistances.at(layerIndex);
                 if (sampleDistance <= nextSliceEnd) {
                     break;
                 }
@@ -182,7 +189,7 @@ void createDescriptors(
             assert(binVolume > 0);
             assert(binVolume < (4.0f / 3.0f) * M_PI * maxSupportRadius.at(descriptorIndex) * maxSupportRadius.at(descriptorIndex) * maxSupportRadius.at(descriptorIndex));
 
-            float sampleWeight = 1.0f / (pointDensityArray.content[sampleIndex] * std::cbrt(binVolume));
+            float sampleWeight = 1.0f / (pointDensityArray.at(sampleIndex) * std::cbrt(binVolume));
 
             // 3. Increment appropriate bin
             unsigned int index =
@@ -193,6 +200,11 @@ void createDescriptors(
             assert(!isnan(sampleWeight));
             descriptors.content[descriptorIndex].contents[index] += sampleWeight;
         }
+
+        /*for(int i = 0; i < SHAPE_CONTEXT_LAYER_COUNT * SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT; i++) {
+            std::cout << descriptors.content[descriptorIndex].contents[i] << " ";
+        }
+        std::cout << std::endl;*/
     }
 }
 
@@ -214,7 +226,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescri
     // -- Point Count Computation --
     std::chrono::time_point pointCountingStart = std::chrono::steady_clock::now();
 
-    ShapeDescriptor::cpu::array<uint32_t> pointCountArray = ShapeDescriptor::computePointDensities(pointDensityRadius, pointCloud);
+    std::vector<uint32_t> pointCountArray = ShapeDescriptor::computePointDensities(pointDensityRadius, pointCloud);
 
     std::chrono::milliseconds pointCountingDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - pointCountingStart);
 
@@ -233,7 +245,6 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescri
     std::chrono::milliseconds generationDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - generationStart);
 
     // -- Cleanup --
-    ShapeDescriptor::free(pointCountArray);
 
     std::chrono::milliseconds totalExecutionDuration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - totalExecutionTimeStart);
 

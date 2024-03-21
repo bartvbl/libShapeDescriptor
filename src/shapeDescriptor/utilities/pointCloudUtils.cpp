@@ -36,7 +36,7 @@ ShapeDescriptor::cpu::BoundingBox ShapeDescriptor::computeBoundingBox(ShapeDescr
 
 
 
-inline unsigned int computeJumpTableIndex(ShapeDescriptor::cpu::int3 binIndex, ShapeDescriptor::cpu::int3 binCounts) {
+inline unsigned int computeBinIndex(ShapeDescriptor::cpu::int3 binIndex, ShapeDescriptor::cpu::int3 binCounts) {
     return binIndex.z * binCounts.x * binCounts.y + binIndex.y * binCounts.x + binIndex.x;
 }
 
@@ -58,11 +58,9 @@ void countBinContents(
                 std::min(std::max(int(relativeToBoundingBox.z / binSize), 0), binCounts.z - 1)
         };
 
-        uint32_t indexTableIndex = computeJumpTableIndex(binIndex, binCounts);
+        uint32_t indexTableIndex = computeBinIndex(binIndex, binCounts);
 
-        assert(indexTableIndex < binCounts.x * binCounts.y * binCounts.z);
-
-        indexTable[indexTableIndex]++;
+        indexTable.at(indexTableIndex)++;
     }
 }
 
@@ -71,7 +69,7 @@ void countCumulativeBinIndices(std::vector<uint32_t>& indexTable, ShapeDescripto
     for(int z = 0; z < binCounts.z; z++) {
         for(int y = 0; y < binCounts.y; y++) {
             for(int x = 0; x < binCounts.x; x++) {
-                unsigned int binIndex = computeJumpTableIndex({x, y, z}, binCounts);
+                unsigned int binIndex = computeBinIndex({x, y, z}, binCounts);
                 unsigned int binLength = indexTable.at(binIndex);
                 indexTable.at(binIndex) = cumulativeIndex;
                 cumulativeIndex += binLength;
@@ -81,45 +79,16 @@ void countCumulativeBinIndices(std::vector<uint32_t>& indexTable, ShapeDescripto
     assert(cumulativeIndex == pointCloudSize);
 }
 
-void rearrangePointCloud(
-        ShapeDescriptor::cpu::PointCloud sourcePointCloud,
-        ShapeDescriptor::cpu::PointCloud destinationPointCloud,
-        ShapeDescriptor::cpu::BoundingBox boundingBox,
-        std::vector<uint32_t>& nextIndexEntryTable,
-        ShapeDescriptor::cpu::int3 binCounts,
-        float binSize) {
-    for(uint32_t vertexIndex = 0; vertexIndex < sourcePointCloud.pointCount; vertexIndex++) {
-        ShapeDescriptor::cpu::float3 vertex = sourcePointCloud.vertices[vertexIndex];
-
-        ShapeDescriptor::cpu::float3 relativeToBoundingBox = vertex - boundingBox.min;
-
-        ShapeDescriptor::cpu::int3 binIndex = {
-                std::min(std::max(int(relativeToBoundingBox.x / binSize), 0), binCounts.x - 1),
-                std::min(std::max(int(relativeToBoundingBox.y / binSize), 0), binCounts.y - 1),
-                std::min(std::max(int(relativeToBoundingBox.z / binSize), 0), binCounts.z - 1)
-        };
-
-        unsigned int indexTableIndex = computeJumpTableIndex(binIndex, binCounts);
-
-        assert(indexTableIndex < binCounts.x * binCounts.y * binCounts.z);
-
-        unsigned int targetIndex = nextIndexEntryTable.at(indexTableIndex);
-        nextIndexEntryTable.at(indexTableIndex)++;
-
-        destinationPointCloud.vertices[targetIndex] = vertex;
-    }
-}
-
 void computePointCounts(
-        ShapeDescriptor::cpu::array<uint32_t> pointDensityArray,
+        std::vector<uint32_t>& pointDensityArray,
         ShapeDescriptor::cpu::PointCloud pointCloud,
         ShapeDescriptor::cpu::BoundingBox boundingBox,
-        std::vector<uint32_t>& indexTable,
+        std::vector<uint32_t>& cumulativeSamplesPerBin,
+        std::vector<uint32_t>& pointsInBinMapping,
         ShapeDescriptor::cpu::int3 binCounts,
-        float binSize,
+        double binSize,
         float countRadius) {
     for(uint32_t pointIndex = 0; pointIndex < pointCloud.pointCount; pointIndex++) {
-        unsigned int totalPointCount = 0;
         ShapeDescriptor::cpu::float3 referencePoint = pointCloud.vertices[pointIndex];
 
         ShapeDescriptor::cpu::float3 referencePointBoundsMin =
@@ -149,14 +118,14 @@ void computePointCounts(
 
         for (int binZ = minBinIndices.z; binZ <= maxBinIndices.z; binZ++) {
             for (int binY = minBinIndices.y; binY <= maxBinIndices.y; binY++) {
-                unsigned int startTableIndex = computeJumpTableIndex({minBinIndices.x, binY, binZ}, binCounts);
-                unsigned int endTableIndex = computeJumpTableIndex({maxBinIndices.x, binY, binZ}, binCounts) + 1;
+                unsigned int startTableIndex = computeBinIndex({minBinIndices.x, binY, binZ}, binCounts);
+                unsigned int endTableIndex = computeBinIndex({maxBinIndices.x, binY, binZ}, binCounts) + 1;
 
-                unsigned int startVertexIndex = indexTable[startTableIndex];
+                unsigned int startVertexIndex = cumulativeSamplesPerBin.at(startTableIndex);
                 unsigned int endVertexIndex = 0;
 
                 if (endTableIndex < binCounts.x * binCounts.y * binCounts.z - 1) {
-                    endVertexIndex = indexTable[endTableIndex];
+                    endVertexIndex = cumulativeSamplesPerBin.at(endTableIndex);
                 } else {
                     endVertexIndex = pointCloud.pointCount;
                 }
@@ -166,27 +135,57 @@ void computePointCounts(
                 assert(endVertexIndex <= pointCloud.pointCount);
 
                 for (unsigned int samplePointIndex = startVertexIndex; samplePointIndex < endVertexIndex; samplePointIndex++) {
-                    if (samplePointIndex == pointIndex) {
+                    uint32_t mappedIndex = pointsInBinMapping.at(samplePointIndex);
+                    if (mappedIndex == pointIndex) {
                         continue;
                     }
 
-                    ShapeDescriptor::cpu::float3 samplePoint = pointCloud.vertices[samplePointIndex];
+                    ShapeDescriptor::cpu::float3 samplePoint = pointCloud.vertices[mappedIndex];
                     ShapeDescriptor::cpu::float3 delta = samplePoint - referencePoint;
                     float distanceToPoint = length(delta);
                     if (distanceToPoint <= countRadius) {
-                        totalPointCount++;
+                        pointDensityArray.at(pointIndex)++;
                     }
                 }
             }
         }
-        pointDensityArray.content[pointIndex] = totalPointCount;
     }
 }
 
-ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::computePointDensities(
-        float pointDensityRadius, ShapeDescriptor::cpu::PointCloud pointCloud) {
+void computePointMapping(ShapeDescriptor::cpu::PointCloud cloud,
+                         const std::vector<uint32_t>& cumulativeSamplesPerBin,
+                         ShapeDescriptor::cpu::int3 binCounts,
+                         double binSize,
+                         ShapeDescriptor::cpu::BoundingBox boundingBox,
+                        std::vector<uint32_t>& pointsInBinMapping) {
+    std::vector<uint32_t> nextIndices = cumulativeSamplesPerBin;
+    nextIndices.push_back(cloud.pointCount);
 
-    size_t sampleCount = pointCloud.pointCount;
+    for(uint32_t vertexIndex = 0; vertexIndex < cloud.pointCount; vertexIndex++) {
+        ShapeDescriptor::cpu::float3 vertex = cloud.vertices[vertexIndex];
+
+        ShapeDescriptor::cpu::float3 relativeToBoundingBox = vertex - boundingBox.min;
+
+        ShapeDescriptor::cpu::int3 binIndex = {
+                std::min(std::max(int(relativeToBoundingBox.x / binSize), 0), binCounts.x - 1),
+                std::min(std::max(int(relativeToBoundingBox.y / binSize), 0), binCounts.y - 1),
+                std::min(std::max(int(relativeToBoundingBox.z / binSize), 0), binCounts.z - 1)
+        };
+
+        uint32_t indexTableIndex = computeBinIndex(binIndex, binCounts);
+
+        assert(indexTableIndex < binCounts.x * binCounts.y * binCounts.z);
+
+        // Reserve next spot
+        uint32_t& targetIndex = nextIndices.at(indexTableIndex + 1);
+        targetIndex--;
+        pointsInBinMapping.at(targetIndex) = vertexIndex;
+    }
+
+}
+
+std::vector<unsigned int> ShapeDescriptor::computePointDensities(
+        float pointDensityRadius, ShapeDescriptor::cpu::PointCloud pointCloud) {
 
     // 1. Compute bounding box
     ShapeDescriptor::cpu::BoundingBox boundingBox = ShapeDescriptor::computeBoundingBox(pointCloud);
@@ -196,7 +195,7 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::computePointDensities
     double boundingBoxMax  = std::max(std::max(boundingBoxSize.x, boundingBoxSize.y), boundingBoxSize.z);
     double binSize = boundingBoxMax;
     const double binSizeScaleFactor = 0.66;
-    const uint32_t minBinCount = 150;
+    const uint32_t minBinCount = 250;
 
     ShapeDescriptor::cpu::int3 binCounts;
     int totalBinCount = binCounts.x * binCounts.y * binCounts.z;
@@ -211,34 +210,22 @@ ShapeDescriptor::cpu::array<unsigned int> ShapeDescriptor::computePointDensities
         totalBinCount = binCounts.x * binCounts.y * binCounts.z;
     }
 
-    std::vector<uint32_t> indexTable(totalBinCount);
+    std::vector<uint32_t> cumulativeSamplesPerBin(totalBinCount);
 
     // 3. Counting occurrences for each box
-    countBinContents(pointCloud, indexTable, boundingBox, binCounts, binSize);
+    countBinContents(pointCloud, cumulativeSamplesPerBin, boundingBox, binCounts, binSize);
 
     // 4. Compute cumulative indices
     // Single threaded, because there aren't all that many bins, and you don't win much by parallelising it anyway
-    countCumulativeBinIndices(indexTable, binCounts, pointCloud.pointCount);
-
-    // 5. Allocate temporary point cloud (vertices only)
-    ShapeDescriptor::cpu::PointCloud tempPointCloud = pointCloud.clone();
+    countCumulativeBinIndices(cumulativeSamplesPerBin, binCounts, pointCloud.pointCount);
 
     // 6. Move points into respective bins
-    std::vector<uint32_t> nextIndexTableEntries(totalBinCount);
-    std::copy(indexTable.begin(), indexTable.end(), nextIndexTableEntries.begin());
-
-    rearrangePointCloud(
-            tempPointCloud, pointCloud,
-            boundingBox,
-            nextIndexTableEntries,
-            binCounts, binSize);
-
-    // 7. Delete temporary vertex buffer
-    ShapeDescriptor::free(tempPointCloud);
+    std::vector<uint32_t> pointsInBinMapping(pointCloud.pointCount);
+    computePointMapping(pointCloud, cumulativeSamplesPerBin, binCounts, binSize, boundingBox, pointsInBinMapping);
 
     // 8. Count nearby points using new array and its index structure
-    ShapeDescriptor::cpu::array<uint32_t> pointCountArray (sampleCount);
-    computePointCounts(pointCountArray, pointCloud, boundingBox, indexTable, binCounts, binSize, pointDensityRadius);
+    std::vector<uint32_t> pointCountArray (pointCloud.pointCount);
+    computePointCounts(pointCountArray, pointCloud, boundingBox, cumulativeSamplesPerBin, pointsInBinMapping, binCounts, binSize, pointDensityRadius);
 
     return pointCountArray;
 }

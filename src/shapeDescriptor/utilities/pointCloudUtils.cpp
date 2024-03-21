@@ -40,25 +40,29 @@ inline unsigned int computeBinIndex(ShapeDescriptor::cpu::int3 binIndex, ShapeDe
     return binIndex.z * binCounts.x * binCounts.y + binIndex.y * binCounts.x + binIndex.x;
 }
 
+inline uint32_t computeBinIndex(ShapeDescriptor::cpu::float3 vertex, ShapeDescriptor::cpu::BoundingBox boundingBox, double binSize, ShapeDescriptor::cpu::int3 binCounts) {
+    ShapeDescriptor::cpu::float3 relativeToBoundingBox = vertex - boundingBox.min;
+
+    ShapeDescriptor::cpu::int3 binIndex = {
+            std::min(std::max(int(relativeToBoundingBox.x / binSize), 0), binCounts.x - 1),
+            std::min(std::max(int(relativeToBoundingBox.y / binSize), 0), binCounts.y - 1),
+            std::min(std::max(int(relativeToBoundingBox.z / binSize), 0), binCounts.z - 1)
+    };
+
+    uint32_t indexTableIndex = computeBinIndex(binIndex, binCounts);
+}
+
 void countBinContents(
         ShapeDescriptor::cpu::PointCloud pointCloud,
         std::vector<uint32_t>& indexTable,
         ShapeDescriptor::cpu::BoundingBox boundingBox,
         ShapeDescriptor::cpu::int3 binCounts,
-        float binSize) {
+        double binSize) {
 
     for(uint32_t vertexIndex = 0; vertexIndex < pointCloud.pointCount; vertexIndex++) {
         ShapeDescriptor::cpu::float3 vertex = pointCloud.vertices[vertexIndex];
 
-        ShapeDescriptor::cpu::float3 relativeToBoundingBox = vertex - boundingBox.min;
-
-        ShapeDescriptor::cpu::int3 binIndex = {
-                std::min(std::max(int(relativeToBoundingBox.x / binSize), 0), binCounts.x - 1),
-                std::min(std::max(int(relativeToBoundingBox.y / binSize), 0), binCounts.y - 1),
-                std::min(std::max(int(relativeToBoundingBox.z / binSize), 0), binCounts.z - 1)
-        };
-
-        uint32_t indexTableIndex = computeBinIndex(binIndex, binCounts);
+        uint32_t indexTableIndex = computeBinIndex(vertex, boundingBox, binSize, binCounts);
 
         indexTable.at(indexTableIndex)++;
     }
@@ -159,20 +163,13 @@ void computePointMapping(ShapeDescriptor::cpu::PointCloud cloud,
                          ShapeDescriptor::cpu::BoundingBox boundingBox,
                         std::vector<uint32_t>& pointsInBinMapping) {
     std::vector<uint32_t> nextIndices = cumulativeSamplesPerBin;
+    // The last bin should start counting down from the length of the list. This facilitates that we can request index i + 1
     nextIndices.push_back(cloud.pointCount);
 
     for(uint32_t vertexIndex = 0; vertexIndex < cloud.pointCount; vertexIndex++) {
         ShapeDescriptor::cpu::float3 vertex = cloud.vertices[vertexIndex];
 
-        ShapeDescriptor::cpu::float3 relativeToBoundingBox = vertex - boundingBox.min;
-
-        ShapeDescriptor::cpu::int3 binIndex = {
-                std::min(std::max(int(relativeToBoundingBox.x / binSize), 0), binCounts.x - 1),
-                std::min(std::max(int(relativeToBoundingBox.y / binSize), 0), binCounts.y - 1),
-                std::min(std::max(int(relativeToBoundingBox.z / binSize), 0), binCounts.z - 1)
-        };
-
-        uint32_t indexTableIndex = computeBinIndex(binIndex, binCounts);
+        uint32_t indexTableIndex = computeBinIndex(vertex, boundingBox, binSize, binCounts);
 
         assert(indexTableIndex < binCounts.x * binCounts.y * binCounts.z);
 

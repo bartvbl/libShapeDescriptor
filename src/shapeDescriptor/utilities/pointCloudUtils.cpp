@@ -50,6 +50,8 @@ inline uint32_t computeBinIndex(ShapeDescriptor::cpu::float3 vertex, ShapeDescri
     };
 
     uint32_t indexTableIndex = computeBinIndex(binIndex, binCounts);
+
+    return indexTableIndex;
 }
 
 void countBinContents(

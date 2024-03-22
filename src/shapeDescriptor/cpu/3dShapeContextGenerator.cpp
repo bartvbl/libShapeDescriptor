@@ -198,6 +198,7 @@ void createDescriptors(
                     binIndex.z;
             assert(index < elementsPerShapeContextDescriptor);
             assert(!isnan(sampleWeight));
+            assert(!isinf(sampleWeight));
             descriptors.content[descriptorIndex].contents[index] += sampleWeight;
         }
 
@@ -252,6 +253,14 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::ShapeContextDescriptor> ShapeDescri
         executionTimes->totalExecutionTimeSeconds = double(totalExecutionDuration.count()) / 1000.0;
         executionTimes->generationTimeSeconds = double(generationDuration.count()) / 1000.0;
         executionTimes->pointCountingTimeSeconds = double(pointCountingDuration.count()) / 1000.0;
+    }
+
+    for(uint32_t i = 0; i < descriptors.length; i++) {
+        for(float content : descriptors[i].contents) {
+            if(std::isnan(content) || std::isinf(content)) {
+                throw std::runtime_error("Found a NaN!");
+            }
+        }
     }
 
     return descriptors;

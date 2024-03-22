@@ -143,6 +143,7 @@ void computePointCounts(
                 for (unsigned int samplePointIndex = startVertexIndex; samplePointIndex < endVertexIndex; samplePointIndex++) {
                     uint32_t mappedIndex = pointsInBinMapping.at(samplePointIndex);
                     if (mappedIndex == pointIndex) {
+                        pointDensityArray.at(pointIndex)++;
                         continue;
                     }
 

@@ -201,11 +201,6 @@ void createDescriptors(
             assert(!isinf(sampleWeight));
             descriptors.content[descriptorIndex].contents[index] += sampleWeight;
         }
-
-        /*for(int i = 0; i < SHAPE_CONTEXT_LAYER_COUNT * SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT * SHAPE_CONTEXT_VERTICAL_SLICE_COUNT; i++) {
-            std::cout << descriptors.content[descriptorIndex].contents[i] << " ";
-        }
-        std::cout << std::endl;*/
     }
 }
 

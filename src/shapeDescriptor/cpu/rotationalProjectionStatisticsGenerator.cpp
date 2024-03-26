@@ -342,15 +342,15 @@ ShapeDescriptor::RoPSDescriptor computeRoPSDescriptor(const ShapeDescriptor::cpu
         std::array<std::array<float, ROPS_HISTOGRAM_BINS>, ROPS_HISTOGRAM_BINS>& histogram = intermediateHistograms.at(histogramIndex);
 
         // Normalise histogram
-        float histogramMaxValue = 0;
+        float histogramSum = 0;
         for(uint32_t row = 0; row < ROPS_HISTOGRAM_BINS; row++) {
             for(uint32_t col = 0; col < ROPS_HISTOGRAM_BINS; col++) {
-                histogramMaxValue = std::max<float>(histogram.at(col).at(row), histogramMaxValue);
+                histogramSum += histogram.at(col).at(row);
             }
         }
         for(uint32_t row = 0; row < ROPS_HISTOGRAM_BINS; row++) {
             for(uint32_t col = 0; col < ROPS_HISTOGRAM_BINS; col++) {
-                histogram.at(col).at(row) /= histogramMaxValue;
+                histogram.at(col).at(row) /= histogramSum;
             }
         }
 

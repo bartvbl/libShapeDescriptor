@@ -563,6 +563,12 @@ namespace ShapeDescriptor {
         return val;
     }
 
+    __inline__ __device__ uint64_t warpAllReduceSum(uint64_t val) {
+        for (int mask = warpSize/2; mask > 0; mask /= 2)
+            val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
+        return val;
+    }
+
     __inline__ __device__ float warpAllReduceSum(float val) {
         for (int mask = warpSize/2; mask > 0; mask /= 2)
             val += __shfl_xor_sync(0xFFFFFFFF, val, mask);

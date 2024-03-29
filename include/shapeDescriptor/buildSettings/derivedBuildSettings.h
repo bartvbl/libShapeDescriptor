@@ -13,12 +13,6 @@ typedef float spinImagePixelType;
 #error Unsupported datatype has been specified for the Spin Image
 #endif
 
-#if SC_PIXEL_DATATYPE == DATATYPE_FLOAT
-typedef float shapeContextBinType;
-#else
-#error Unsupported datatype has been specified for the 3D Shape Context
-#endif
-
 #if SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT > 32
 #error Due to implementation limitations, only 32 horizontal slices are supported
 #endif

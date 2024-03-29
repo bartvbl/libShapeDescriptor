@@ -34,6 +34,11 @@
 #define SHAPE_CONTEXT_LAYER_COUNT 12
 #define SHAPE_CONTEXT_VERTICAL_SLICE_COUNT 11
 
+// Descriptor size settings for the Universal Shape Context method
+constexpr uint32_t USC_HORIZONTAL_SLICE_COUNT = 14;
+constexpr uint32_t USC_VERTICAL_SLICE_COUNT = 14;
+constexpr uint32_t USC_SLICE_COUNT = 10;
+
 // Descriptor size settings for the Fast Point Feature Histogram (FPFH) method
 #define FPFH_BINS_PER_FEATURE 11
 

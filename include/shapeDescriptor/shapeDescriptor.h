@@ -55,12 +55,17 @@ namespace ShapeDescriptor {
         float contents[ROPS_NUM_ROTATIONS * ROPS_NUM_ROTATIONS * ROPS_NUM_ROTATIONS * 5];
     };
 
-    struct ShapeContextDescriptor {
-        shapeContextBinType contents[
-                SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT *
-                SHAPE_CONTEXT_VERTICAL_SLICE_COUNT *
-                SHAPE_CONTEXT_LAYER_COUNT];
+    template<uint32_t horizontalSlices, uint32_t verticalSlices, uint32_t layers>
+    struct GeneralShapeContextDescriptor {
+        float contents[horizontalSlices * verticalSlices * layers];
+        static constexpr uint32_t horizontalSliceCount = horizontalSlices;
+        static constexpr uint32_t verticalSliceCount = verticalSlices;
+        static constexpr uint32_t layerCount = layers;
     };
+
+    typedef GeneralShapeContextDescriptor<SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT, SHAPE_CONTEXT_VERTICAL_SLICE_COUNT, SHAPE_CONTEXT_LAYER_COUNT> ShapeContextDescriptor;
+    typedef GeneralShapeContextDescriptor<USC_HORIZONTAL_SLICE_COUNT, USC_VERTICAL_SLICE_COUNT, USC_SLICE_COUNT> UniversalShapeContextDescriptor;
+
 
 
 
@@ -99,6 +104,12 @@ namespace ShapeDescriptor {
         float areaStart;
         float areaEnd;
         size_t sampleStartIndex;
+    };
+
+    struct LocalReferenceFrame {
+        cpu::float3 xAxis = {1, 0, 0};
+        cpu::float3 yAxis = {0, 1, 0};
+        cpu::float3 zAxis = {0, 0, 1};
     };
 
     struct QUICCIDescriptorFileHeader {
@@ -546,8 +557,6 @@ namespace ShapeDescriptor {
     double computeTriangleArea(cpu::float3 vertex0, cpu::float3 vertex1, cpu::float3 vertex2);
 
     namespace internal {
-        float computeBinVolume(short verticalBinIndex, short layerIndex, float minSupportRadius, float maxSupportRadius);
-
         struct MeshSamplingBuffers {
             gpu::array<float> cumulativeAreaArray;
         };
@@ -582,7 +591,11 @@ namespace ShapeDescriptor {
     }
 #endif
 
-
+#ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
+#define __SD_HOST_DEVICE __host__ __device__
+#else
+#define __SD_HOST_DEVICE
+#endif
 
 }
 

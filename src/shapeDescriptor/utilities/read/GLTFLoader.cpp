@@ -653,7 +653,7 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::loadGLTFPointCloud(std::filesy
 
             tinygltf::Accessor indexAccessor;
             tinygltf::BufferView indexBufferView;
-            unsigned char* indexBasePointer;
+            unsigned char* indexBasePointer = nullptr;
 
             bool useIndexBuffer = primitive.indices >= 0;
             if(!useIndexBuffer) {

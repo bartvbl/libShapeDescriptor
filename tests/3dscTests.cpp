@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <shapeDescriptor/shapeDescriptor.h>
 #include <random>
+#include <shapeDescriptor/descriptors/ShapeContextGenerator.h>
 
 TEST_CASE("Ensuring volume computation makes sense") {
     SECTION("Volume computation") {

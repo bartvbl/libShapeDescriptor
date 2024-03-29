@@ -89,7 +89,7 @@ std::vector<ShapeDescriptor::LocalReferenceFrame> computeUSCReferenceFrames(
     return referenceFrames;
 }
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> ShapeDescriptor::generalUniqueShapeContextMultiRadius(
+ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> ShapeDescriptor::generateUniqueShapeContextDescriptorsMultiRadius(
         const ShapeDescriptor::cpu::PointCloud& pointCloud,
         const ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint>& imageOrigins,
         float pointDensityRadius,
@@ -151,7 +151,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> Shape
     return descriptors;
 }
 
-ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> ShapeDescriptor::generalUniqueShapeContextDescriptors(
+ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> ShapeDescriptor::generateUniqueShapeContextDescriptors(
         ShapeDescriptor::cpu::PointCloud pointCloud,
         ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> imageOrigins,
         float pointDensityRadius,
@@ -160,7 +160,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> Shape
         ShapeDescriptor::SCExecutionTimes* executionTimes) {
     std::vector<float> minRadii(imageOrigins.length, minSupportRadius);
     std::vector<float> maxRadii(imageOrigins.length, maxSupportRadius);
-    return generalUniqueShapeContextMultiRadius(pointCloud, imageOrigins, pointDensityRadius, minRadii, maxRadii, executionTimes);
+    return generateUniqueShapeContextDescriptorsMultiRadius(pointCloud, imageOrigins, pointDensityRadius, minRadii, maxRadii, executionTimes);
 }
 
 

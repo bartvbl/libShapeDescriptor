@@ -264,21 +264,21 @@ namespace ShapeDescriptor {
             const std::vector<float>& maxSupportRadius,
             ShapeDescriptor::SCExecutionTimes* executionTimes = nullptr);
 
-    ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> generalUniqueShapeContextDescriptors(
+    ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> generateUniqueShapeContextDescriptors(
             ShapeDescriptor::cpu::PointCloud pointCloud,
             ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> imageOrigins,
             float pointDensityRadius,
             float minSupportRadius,
             float maxSupportRadius,
-            ShapeDescriptor::SCExecutionTimes* executionTimes);
+            ShapeDescriptor::SCExecutionTimes* executionTimes = nullptr);
 
-    ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> generalUniqueShapeContextMultiRadius(
+    ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> generateUniqueShapeContextDescriptorsMultiRadius(
             const ShapeDescriptor::cpu::PointCloud& pointCloud,
             const ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint>& imageOrigins,
             float pointDensityRadius,
             const std::vector<float>& minSupportRadius,
             const std::vector<float>& maxSupportRadius,
-            ShapeDescriptor::SCExecutionTimes* executionTimes);
+            ShapeDescriptor::SCExecutionTimes* executionTimes = nullptr);
 
     gpu::array<FPFHDescriptor> generateFPFHHistograms(
             gpu::PointCloud device_pointCloud,

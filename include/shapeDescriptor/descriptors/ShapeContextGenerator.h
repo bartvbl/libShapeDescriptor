@@ -3,7 +3,7 @@
 
 namespace ShapeDescriptor {
     namespace internal {
-        __SD_HOST_DEVICE float
+        __SD_HOST_DEVICE inline float
         computeLayerDistance(float minSupportRadius, float maxSupportRadius, short layerIndex) {
             // Avoiding zero divisions
             if (minSupportRadius == 0) {
@@ -39,7 +39,7 @@ namespace ShapeDescriptor {
             return largeSupportRadiusVolume - smallSupportRadiusVolume;
         }
 
-        __SD_HOST_DEVICE float absoluteAngle(float y, float x) {
+        __SD_HOST_DEVICE inline float absoluteAngle(float y, float x) {
             float absoluteAngle = std::atan2(y, x);
             return absoluteAngle < 0 ? absoluteAngle + (2.0f * float(M_PI)) : absoluteAngle;
         }

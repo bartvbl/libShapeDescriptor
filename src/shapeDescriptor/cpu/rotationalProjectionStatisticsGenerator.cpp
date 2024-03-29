@@ -1,7 +1,5 @@
 #include <shapeDescriptor/shapeDescriptor.h>
 #include <glm/glm.hpp>
-#include <Eigen/Core>
-#include <Eigen/Eigenvalues>
 #include <glm/ext/matrix_transform.hpp>
 
 // 1. Compute local reference frame
@@ -13,60 +11,6 @@
 //      4. Compute 5x5 histogram fir each
 //      5. Normlise matrices
 //      6. Compute vector of statistics
-
-std::array<ShapeDescriptor::cpu::float3, 3> computeEigenVectors(glm::mat3 matrix) {
-    Eigen::EigenSolver <Eigen::Matrix3f> eigen_solver;
-    Eigen::Matrix3f convertedMatrix;
-    for (uint32_t i = 0; i < 3; i++) {
-        for (uint32_t j = 0; j < 3; j++) {
-            convertedMatrix(j, i) = matrix[i][j];
-        }
-    }
-
-    eigen_solver.compute(convertedMatrix);
-
-    Eigen::EigenSolver <Eigen::Matrix3f>::EigenvectorsType eigen_vectors;
-    Eigen::EigenSolver <Eigen::Matrix3f>::EigenvalueType eigen_values;
-    eigen_vectors = eigen_solver.eigenvectors();
-    eigen_values = eigen_solver.eigenvalues();
-
-    std::array<float, 3> eigenValues = {
-        eigen_values.real()(0),
-        eigen_values.real()(1),
-        eigen_values.real()(2)
-    };
-
-    unsigned int longestIndex = 0;
-    unsigned int middleIndex = 1;
-    unsigned int shortestIndex = 2;
-
-    if (eigenValues.at(longestIndex) < eigenValues.at(middleIndex))
-    {
-        std::swap(longestIndex, middleIndex);
-    }
-
-    if (eigenValues.at(longestIndex) < eigenValues.at(shortestIndex))
-    {
-        std::swap(longestIndex, shortestIndex);
-    }
-
-    if (eigenValues.at(middleIndex) < eigenValues.at(shortestIndex))
-    {
-        std::swap(shortestIndex, middleIndex);
-    }
-
-    Eigen::Vector3f v1 = eigen_vectors.col(longestIndex).real();
-    Eigen::Vector3f v2 = eigen_vectors.col(middleIndex).real();
-    Eigen::Vector3f v3 = eigen_vectors.col(shortestIndex).real();
-
-    std::array<ShapeDescriptor::cpu::float3, 3> eigenVectors;
-
-    eigenVectors.at(0) = {v1(0), v1(1), v1(2)};
-    eigenVectors.at(1) = {v2(0), v2(1), v2(2)};
-    eigenVectors.at(2) = {v3(0), v3(1), v3(2)};
-
-    return eigenVectors;
-}
 
 // From: Realtime collission detection, Christer Ericson, Morgan Kaufman 2005
 ShapeDescriptor::cpu::float3 computeClosestPointToTriangle(ShapeDescriptor::cpu::float3 p,
@@ -206,7 +150,13 @@ std::vector<std::array<ShapeDescriptor::cpu::float3, 3>> computeLocalReferenceFr
         // We need to scale the matrices to the total area in the support radius to adhere to the specification
         double weight1Factor = (1.0 / supportTriangleAreas.at(referencePointIndex));
         matrices.at(referencePointIndex) *= weight1Factor;
-        eigenVectors.at(referencePointIndex) = computeEigenVectors(matrices.at(referencePointIndex));
+        glm::mat3& matrixToConvert = matrices.at(referencePointIndex);
+        std::array<ShapeDescriptor::cpu::float3, 3> convertedMatrix = {
+                ShapeDescriptor::cpu::float3{matrixToConvert[0][0], matrixToConvert[0][1], matrixToConvert[0][2]},
+                ShapeDescriptor::cpu::float3{matrixToConvert[1][0], matrixToConvert[1][1], matrixToConvert[1][2]},
+                ShapeDescriptor::cpu::float3{matrixToConvert[2][0], matrixToConvert[2][1], matrixToConvert[2][2]}
+        };
+        eigenVectors.at(referencePointIndex) = ShapeDescriptor::internal::computeEigenVectors(convertedMatrix);
 
         // Implicitly doing a dot product
         std::array<double, 3> hCoefficients = accumulatedHValues.at(referencePointIndex);

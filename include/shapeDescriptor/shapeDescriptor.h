@@ -64,7 +64,7 @@ namespace ShapeDescriptor {
     };
 
     typedef GeneralShapeContextDescriptor<SHAPE_CONTEXT_HORIZONTAL_SLICE_COUNT, SHAPE_CONTEXT_VERTICAL_SLICE_COUNT, SHAPE_CONTEXT_LAYER_COUNT> ShapeContextDescriptor;
-    typedef GeneralShapeContextDescriptor<USC_HORIZONTAL_SLICE_COUNT, USC_VERTICAL_SLICE_COUNT, USC_SLICE_COUNT> UniversalShapeContextDescriptor;
+    typedef GeneralShapeContextDescriptor<USC_HORIZONTAL_SLICE_COUNT, USC_VERTICAL_SLICE_COUNT, USC_SLICE_COUNT> UniqueShapeContextDescriptor;
 
 
 
@@ -263,6 +263,22 @@ namespace ShapeDescriptor {
             const std::vector<float>& minSupportRadius,
             const std::vector<float>& maxSupportRadius,
             ShapeDescriptor::SCExecutionTimes* executionTimes = nullptr);
+
+    ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> generalUniqueShapeContextDescriptors(
+            ShapeDescriptor::cpu::PointCloud pointCloud,
+            ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> imageOrigins,
+            float pointDensityRadius,
+            float minSupportRadius,
+            float maxSupportRadius,
+            ShapeDescriptor::SCExecutionTimes* executionTimes);
+
+    ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> generalUniqueShapeContextMultiRadius(
+            const ShapeDescriptor::cpu::PointCloud& pointCloud,
+            const ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint>& imageOrigins,
+            float pointDensityRadius,
+            const std::vector<float>& minSupportRadius,
+            const std::vector<float>& maxSupportRadius,
+            ShapeDescriptor::SCExecutionTimes* executionTimes);
 
     gpu::array<FPFHDescriptor> generateFPFHHistograms(
             gpu::PointCloud device_pointCloud,
@@ -560,6 +576,8 @@ namespace ShapeDescriptor {
         struct MeshSamplingBuffers {
             gpu::array<float> cumulativeAreaArray;
         };
+
+        std::array<ShapeDescriptor::cpu::float3, 3> computeEigenVectors(std::array<ShapeDescriptor::cpu::float3, 3> columnMajorMatrix);
     }
 
     cpu::PointCloud sampleMesh(cpu::Mesh mesh, size_t sampleCount, size_t randomSamplingSeed);
@@ -596,6 +614,7 @@ namespace ShapeDescriptor {
 #else
 #define __SD_HOST_DEVICE
 #endif
+
 
 }
 

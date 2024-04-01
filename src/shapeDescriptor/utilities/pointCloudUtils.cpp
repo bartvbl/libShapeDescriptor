@@ -195,7 +195,7 @@ std::vector<unsigned int> ShapeDescriptor::computePointDensities(
     double boundingBoxMax  = std::max(std::max(boundingBoxSize.x, boundingBoxSize.y), boundingBoxSize.z);
     double binSize = boundingBoxMax;
     const double binSizeScaleFactor = 0.66;
-    const uint32_t minBinCount = 250;
+    const uint32_t minBinCount = 10000;
 
     ShapeDescriptor::cpu::int3 binCounts;
     int totalBinCount = binCounts.x * binCounts.y * binCounts.z;

@@ -198,16 +198,21 @@ std::vector<unsigned int> ShapeDescriptor::computePointDensities(
     const uint32_t minBinCount = 250;
 
     ShapeDescriptor::cpu::int3 binCounts;
-    int totalBinCount = binCounts.x * binCounts.y * binCounts.z;
-    while(totalBinCount < minBinCount) {
-        binSize *= binSizeScaleFactor;
-        binCounts = {int(boundingBoxSize.x / binSize) + 1,
-                     int(boundingBoxSize.y / binSize) + 1,
-                     int(boundingBoxSize.z / binSize) + 1};
-        binCounts.x = std::max(binCounts.x, 1);
-        binCounts.y = std::max(binCounts.y, 1);
-        binCounts.z = std::max(binCounts.z, 1);
-        totalBinCount = binCounts.x * binCounts.y * binCounts.z;
+    // Handle malformed meshes
+    if(boundingBoxSize.x == 0 || boundingBoxSize.y == 0 || boundingBoxSize.z == 0) {
+        binCounts = {1, 1, 1};
+    } else {
+        int totalBinCount = binCounts.x * binCounts.y * binCounts.z;
+        while (totalBinCount < minBinCount) {
+            binSize *= binSizeScaleFactor;
+            binCounts = {int(boundingBoxSize.x / binSize) + 1,
+                         int(boundingBoxSize.y / binSize) + 1,
+                         int(boundingBoxSize.z / binSize) + 1};
+            binCounts.x = std::max(binCounts.x, 1);
+            binCounts.y = std::max(binCounts.y, 1);
+            binCounts.z = std::max(binCounts.z, 1);
+            totalBinCount = binCounts.x * binCounts.y * binCounts.z;
+        }
     }
 
     std::vector<uint32_t> cumulativeSamplesPerBin(totalBinCount);

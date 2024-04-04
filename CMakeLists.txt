@@ -100,3 +100,5 @@ set_property(TARGET quiccidumper PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
 add_executable(quicciviewer ${QUICCI_VIEWER_TOOL_SOURCES})
 target_link_libraries(quicciviewer ShapeDescriptor)
 
+add_executable(meshconverter tools/meshconverter/main.cpp)
+target_link_libraries(meshconverter ShapeDescriptor)

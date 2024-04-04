@@ -535,6 +535,8 @@ namespace ShapeDescriptor {
               size_t highlightStartVertex, size_t highlightEndVertex);
     void writeOBJ(cpu::Mesh mesh, const std::filesystem::path &outputFilePath,
               cpu::array<float2> vertexTextureCoordinates, std::string textureMapPath);
+    void writePointCloud(const ShapeDescriptor::cpu::PointCloud& cloud, std::filesystem::path destination);
+    void writeMesh(const ShapeDescriptor::cpu::Mesh& mesh, std::filesystem::path destination);
 
     void writeCompressedQUICCIDescriptors(
             const std::filesystem::path &outputDumpFile,

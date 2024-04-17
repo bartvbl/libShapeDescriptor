@@ -31,7 +31,6 @@ include_directories (
 	lib/glm/
 	lib/lodepng/
 	lib/arrrgh/
-	lib/json/
 	lib/tinygltf
 	lib/cuda-samples/Common
 	lib/fast-lzma2/src/

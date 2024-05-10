@@ -143,3 +143,10 @@ All descriptors implemented by the library follow the same API. Their parameters
 Each function returns a `ShapeDescriptor::cpu::array` or `ShapeDescriptor::gpu::array` containing the desired descriptor. The `ShapeDescriptor::copyToCPU()` can be used to transfer any computed descriptors to CPU memory.
 
 For a set of complete example projects, please refer to the [examples directory](https://github.com/bartvbl/libShapeDescriptor/tree/master/examples).
+
+
+## Roadmap
+We intend to make some larger architectural changes for improved ergonomics:
+* Remove the need for a separate cpu::array and gpu::array type by replacing cpu::array with std::vector
+* Uphold RAII with the Mesh and array types
+* Convert the descriptor generator functions to templates rather than relying on compile time constants to determine various dimension parameters

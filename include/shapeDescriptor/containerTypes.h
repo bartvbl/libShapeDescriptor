@@ -154,6 +154,12 @@ namespace ShapeDescriptor {
                 std::fill_n(content, length, value);
             }
 
+            ShapeDescriptor::cpu::array<TYPE> clone() {
+                ShapeDescriptor::cpu::array<TYPE> copiedArray(length);
+                std::copy(content, content + length, copiedArray.content);
+                return copiedArray;
+            }
+
             TYPE &operator[](size_t index) {
                 //assert(index >= 0); // >= 0
                 assert(index < length);

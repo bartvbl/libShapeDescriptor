@@ -55,6 +55,17 @@ namespace ShapeDescriptor {
         float contents[ROPS_NUM_ROTATIONS * ROPS_NUM_ROTATIONS * ROPS_NUM_ROTATIONS * 5];
     };
 
+    template<uint32_t ELEVATION_DIVISIONS = 2, uint32_t RADIAL_DIVISIONS = 2, uint32_t AZIMUTH_DIVISIONS = 8, uint32_t INTERNAL_HISTOGRAM_BINS = 11>
+    struct SHOTDescriptor {
+        static constexpr uint32_t elevationDivisions = ELEVATION_DIVISIONS;
+        static constexpr uint32_t radialDivisions = RADIAL_DIVISIONS;
+        static constexpr uint32_t azimuthDivisions = AZIMUTH_DIVISIONS;
+        static constexpr uint32_t internalHistogramBins = INTERNAL_HISTOGRAM_BINS;
+        static constexpr uint32_t totalBinCount = elevationDivisions * radialDivisions * azimuthDivisions * internalHistogramBins;
+
+        float contents[totalBinCount];
+    };
+
     template<uint32_t horizontalSlices, uint32_t verticalSlices, uint32_t layers>
     struct GeneralShapeContextDescriptor {
         float contents[horizontalSlices * verticalSlices * layers];
@@ -163,6 +174,9 @@ namespace ShapeDescriptor {
         double fpfhGenerationExecutionTimeSeconds = 0;
     };
     struct RoPSExecutionTimes {
+        double totalExecutionTimeSeconds = 0;
+    };
+    struct SHOTExecutionTimes {
         double totalExecutionTimeSeconds = 0;
     };
 

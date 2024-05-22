@@ -594,6 +594,11 @@ namespace ShapeDescriptor {
         };
 
         std::array<ShapeDescriptor::cpu::float3, 3> computeEigenVectors(std::array<ShapeDescriptor::cpu::float3, 3> columnMajorMatrix);
+
+        std::vector<ShapeDescriptor::LocalReferenceFrame> computeSHOTReferenceFrames(
+                const ShapeDescriptor::cpu::PointCloud& pointCloud,
+                const ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint>& imageOrigins,
+                const std::vector<float>& maxSupportRadius);
     }
 
     cpu::PointCloud sampleMesh(cpu::Mesh mesh, size_t sampleCount, size_t randomSamplingSeed);

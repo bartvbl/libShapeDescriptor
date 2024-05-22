@@ -42,7 +42,7 @@ std::vector<ShapeDescriptor::LocalReferenceFrame> computeUSCReferenceFrames(
                         0, 0, 0
                 };
                 glm::mat3 covarianceDelta = glm::transpose(covarianceDeltaTransposed);
-                float relativeDistance = distance * referenceWeightsZ.at(originIndex);
+                float relativeDistance = distance * (1.0f / referenceWeightsZ.at(originIndex));
                 covarianceMatrices.at(originIndex) += relativeDistance * covarianceDelta * covarianceDeltaTransposed;
             }
         }

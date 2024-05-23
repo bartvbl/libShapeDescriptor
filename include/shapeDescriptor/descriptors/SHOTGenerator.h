@@ -1,23 +1,23 @@
 #pragma once
 
 #include <shapeDescriptor/shapeDescriptor.h>
+#include "ShapeContextGenerator.h"
 
 namespace ShapeDescriptor {
 
     namespace internal {
         template<uint32_t ELEVATION_DIVISIONS = 2, uint32_t RADIAL_DIVISIONS = 2, uint32_t AZIMUTH_DIVISIONS = 8, uint32_t INTERNAL_HISTOGRAM_BINS = 11>
         void computeGeneralisedSHOTDescriptor(
-                ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
-                ShapeDescriptor::cpu::PointCloud pointCloud,
+                const ShapeDescriptor::cpu::array<ShapeDescriptor::OrientedPoint> descriptorOrigins,
+                const ShapeDescriptor::cpu::PointCloud pointCloud,
                 ShapeDescriptor::cpu::array<ShapeDescriptor::SHOTDescriptor<ELEVATION_DIVISIONS, RADIAL_DIVISIONS, AZIMUTH_DIVISIONS, INTERNAL_HISTOGRAM_BINS>> descriptors,
-                std::vector<unsigned int> pointDensityArray,
                 const std::vector<ShapeDescriptor::LocalReferenceFrame>& localReferenceFrames,
                 const std::vector<float>& supportRadii)
         {
             const size_t elementsPerShapeContextDescriptor = RADIAL_DIVISIONS * ELEVATION_DIVISIONS * RADIAL_DIVISIONS;
 
             for(uint32_t descriptorIndex = 0; descriptorIndex < descriptors.length; descriptorIndex++) {
-                const ShapeDescriptor::cpu::float3 vertex = descriptorOrigins[descriptorIndex].vertex;
+                const ShapeDescriptor::cpu::float3 vertex = descriptorOrigins.content[descriptorIndex].vertex;
 
                 for(float & content : descriptors.content[descriptorIndex].contents) {
                     content = 0;
@@ -75,9 +75,6 @@ namespace ShapeDescriptor {
                     uint32_t layerIndex = std::min<uint32_t>(RADIAL_DIVISIONS, uint32_t(sampleDistance / distancePerSlice));
 
                     uint3 binIndex = {horizontalIndex, verticalIndex, layerIndex};
-                    assert(binIndex.x >= 0);
-                    assert(binIndex.y >= 0);
-                    assert(binIndex.z >= 0);
                     assert(binIndex.x < AZIMUTH_DIVISIONS);
                     assert(binIndex.y < ELEVATION_DIVISIONS);
                     assert(binIndex.z < RADIAL_DIVISIONS);
@@ -89,7 +86,7 @@ namespace ShapeDescriptor {
                             binIndex.y * RADIAL_DIVISIONS +
                             binIndex.z;
                     assert(index < elementsPerShapeContextDescriptor);
-                    descriptors.content[descriptorIndex].contents[index] += sampleWeight;
+                    //descriptors.content[descriptorIndex].contents[index] += sampleWeight;
                 }
             }
         }
@@ -97,8 +94,8 @@ namespace ShapeDescriptor {
 
     template<uint32_t ELEVATION_DIVISIONS = 2, uint32_t RADIAL_DIVISIONS = 2, uint32_t AZIMUTH_DIVISIONS = 8, uint32_t INTERNAL_HISTOGRAM_BINS = 11>
     cpu::array<ShapeDescriptor::SHOTDescriptor<ELEVATION_DIVISIONS, RADIAL_DIVISIONS, AZIMUTH_DIVISIONS, INTERNAL_HISTOGRAM_BINS>> generateSHOTDescriptorsMultiRadius(
-            cpu::PointCloud cloud,
-            cpu::array<OrientedPoint> descriptorOrigins,
+            const cpu::PointCloud cloud,
+            const cpu::array<OrientedPoint> descriptorOrigins,
             const std::vector<float>& supportRadii,
             SHOTExecutionTimes* executionTimes = nullptr) {
         ShapeDescriptor::cpu::array<ShapeDescriptor::SHOTDescriptor<ELEVATION_DIVISIONS, RADIAL_DIVISIONS, AZIMUTH_DIVISIONS, INTERNAL_HISTOGRAM_BINS>> descriptors(descriptorOrigins.length);

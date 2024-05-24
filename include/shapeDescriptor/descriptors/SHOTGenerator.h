@@ -50,7 +50,8 @@ namespace ShapeDescriptor {
 
                     // Only include vertices which are within the support radius
                     float distanceToVertex = length(translated);
-                    if (distanceToVertex > supportRadii.at(descriptorIndex)) {
+                    float currentSupportRadius = supportRadii.at(descriptorIndex);
+                    if (distanceToVertex > currentSupportRadius) {
                         continue;
                     }
 
@@ -126,34 +127,52 @@ namespace ShapeDescriptor {
 
 
                     // c) Interpolation on elevation
+                    float elevationAngleRaw = std::atan2(verticalDirection.y, verticalDirection.x);
+                    float elevationAnglePosition = clamp(((elevationAngleRaw / (2.0f * float(M_PI))) + 0.5f) * float(ELEVATION_DIVISIONS), 0, ELEVATION_DIVISIONS);
+                    uint32_t elevationBinIndex = std::min(ELEVATION_DIVISIONS - 1, uint32_t(elevationAnglePosition));
+                    float elevationHistogramDelta = elevationAnglePosition - (float(elevationBinIndex) + 0.5f);
+                    uint32_t elevationNeighbourBinIndex;
+                    if(elevationHistogramDelta >= 0) {
+                        elevationNeighbourBinIndex = std::min(ELEVATION_DIVISIONS - 1, elevationBinIndex + 1);
+                    } else if(elevationHistogramDelta < 0) {
+                        elevationNeighbourBinIndex = std::max(1, elevationBinIndex) - 1;
+                    }
+                    float elevationBinContribution = std::abs(elevationHistogramDelta);
+                    float elevationNeighbourBinContribution = 1.0f - elevationBinContribution;
 
 
-                    float verticalAngle = std::fmod(
-                            internal::absoluteAngle(verticalDirection.y, verticalDirection.x) + (float(M_PI) / 2.0f),
-                            2.0f * float(M_PI));
-                    uint32_t verticalIndex = unsigned((verticalAngle / M_PI) * float(ELEVATION_DIVISIONS)) % ELEVATION_DIVISIONS;
-
-                    float sampleDistance = length(relativeSamplePoint);
-                    const float distancePerSlice = supportRadii.at(descriptorIndex) / float(RADIAL_DIVISIONS);
-                    uint32_t layerIndex = std::min<uint32_t>(RADIAL_DIVISIONS, uint32_t(sampleDistance / distancePerSlice));
-
-                    uint3 binIndex = {horizontalIndex, verticalIndex, layerIndex};
-                    assert(binIndex.x < AZIMUTH_DIVISIONS);
-                    assert(binIndex.y < ELEVATION_DIVISIONS);
-                    assert(binIndex.z < RADIAL_DIVISIONS);
-
-
+                    // d) Interpolation on distance
+                    float layerDistanceRaw = distanceToVertex;
+                    float layerDistancePosition = clamp((layerDistanceRaw / currentSupportRadius) * float(RADIAL_DIVISIONS), 0, RADIAL_DIVISIONS);
+                    uint32_t radialBinIndex = std::min(RADIAL_DIVISIONS - 1, uint32_t(layerDistancePosition));
+                    float radialHistogramDelta = layerDistancePosition - (float(radialBinIndex) + 0.5f);
+                    uint32_t radialNeighbourBinIndex;
+                    if(radialHistogramDelta >= 0) {
+                        radialNeighbourBinIndex = std::min(RADIAL_DIVISIONS - 1, radialBinIndex + 1);
+                    } else if(radialHistogramDelta < 0) {
+                        radialNeighbourBinIndex = std::max(1, radialBinIndex) - 1;
+                    }
+                    float radialBinContribution = std::abs(radialHistogramDelta);
+                    float radialNeighbourBinContribution = 1.0f - radialBinContribution;
 
 
-                    // 3. Increment appropriate bin
-                    unsigned int index =
-                            binIndex.x * RADIAL_DIVISIONS * ELEVATION_DIVISIONS +
-                            binIndex.y * RADIAL_DIVISIONS +
-                            binIndex.z;
-                    assert(index < elementsPerShapeContextDescriptor);
-                    //descriptors.content[descriptorIndex].contents[index] += sampleWeight;
+                    // Increment bins
+                }
+
+                // Normalise descriptor
+                uint32_t binCount = ELEVATION_DIVISIONS * RADIAL_DIVISIONS * AZIMUTH_DIVISIONS * INTERNAL_HISTOGRAM_BINS;
+                double squaredSum = 0;
+                for(int i = 0; i < binCount; i++) {
+                    double total = descriptors.content[descriptorIndex].contents[i];
+                    squaredSum += total * total;
+                }
+                double totalLength = std::sqrt(squaredSum);
+                for(int i = 0; i < binCount; i++) {
+                    descriptors.content[descriptorIndex].contents[i] /= totalLength;
                 }
             }
+
+
         }
     }
 

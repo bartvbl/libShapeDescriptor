@@ -7,7 +7,8 @@ namespace ShapeDescriptor {
 
     namespace internal {
         template<uint32_t ELEVATION_DIVISIONS = 2, uint32_t RADIAL_DIVISIONS = 2, uint32_t AZIMUTH_DIVISIONS = 8, uint32_t INTERNAL_HISTOGRAM_BINS = 11>
-        inline void incrementSHOTBin(ShapeDescriptor::SHOTDescriptor<ELEVATION_DIVISIONS, RADIAL_DIVISIONS, AZIMUTH_DIVISIONS, INTERNAL_HISTOGRAM_BINS>& descriptor, uint32_t elevationBinIndex, uint32_t radialBinIndex, uint32_t azimuthBinIndex, uint32_t histogramBinIndex, float contribution) {
+        inline void incrementSHOTBin(ShapeDescriptor::SHOTDescriptor<ELEVATION_DIVISIONS, RADIAL_DIVISIONS, AZIMUTH_DIVISIONS, INTERNAL_HISTOGRAM_BINS>& descriptor,
+                                     uint32_t elevationBinIndex, uint32_t radialBinIndex, uint32_t azimuthBinIndex, uint32_t histogramBinIndex, float contribution) {
             assert(elevationBinIndex < ELEVATION_DIVISIONS);
             assert(radialBinIndex < RADIAL_DIVISIONS);
             assert(azimuthBinIndex < AZIMUTH_DIVISIONS);
@@ -29,7 +30,6 @@ namespace ShapeDescriptor {
                 const std::vector<ShapeDescriptor::LocalReferenceFrame>& localReferenceFrames,
                 const std::vector<float>& supportRadii)
         {
-            const size_t elementsPerShapeContextDescriptor = RADIAL_DIVISIONS * ELEVATION_DIVISIONS * RADIAL_DIVISIONS;
 
             for(uint32_t descriptorIndex = 0; descriptorIndex < descriptors.length; descriptorIndex++) {
                 const ShapeDescriptor::cpu::float3 vertex = descriptorOrigins.content[descriptorIndex].vertex;
@@ -128,14 +128,14 @@ namespace ShapeDescriptor {
 
                     // c) Interpolation on elevation
                     float elevationAngleRaw = std::atan2(verticalDirection.y, verticalDirection.x);
-                    float elevationAnglePosition = clamp(((elevationAngleRaw / (2.0f * float(M_PI))) + 0.5f) * float(ELEVATION_DIVISIONS), 0, ELEVATION_DIVISIONS);
+                    float elevationAnglePosition = clamp(((elevationAngleRaw / (2.0f * float(M_PI))) + 0.5f) * float(ELEVATION_DIVISIONS), 0.0f, float(ELEVATION_DIVISIONS));
                     uint32_t elevationBinIndex = std::min(ELEVATION_DIVISIONS - 1, uint32_t(elevationAnglePosition));
                     float elevationHistogramDelta = elevationAnglePosition - (float(elevationBinIndex) + 0.5f);
                     uint32_t elevationNeighbourBinIndex;
                     if(elevationHistogramDelta >= 0) {
                         elevationNeighbourBinIndex = std::min(ELEVATION_DIVISIONS - 1, elevationBinIndex + 1);
                     } else if(elevationHistogramDelta < 0) {
-                        elevationNeighbourBinIndex = std::max(1, elevationBinIndex) - 1;
+                        elevationNeighbourBinIndex = std::max(1u, elevationBinIndex) - 1;
                     }
                     float elevationBinContribution = std::abs(elevationHistogramDelta);
                     float elevationNeighbourBinContribution = 1.0f - elevationBinContribution;
@@ -143,20 +143,26 @@ namespace ShapeDescriptor {
 
                     // d) Interpolation on distance
                     float layerDistanceRaw = distanceToVertex;
-                    float layerDistancePosition = clamp((layerDistanceRaw / currentSupportRadius) * float(RADIAL_DIVISIONS), 0, RADIAL_DIVISIONS);
+                    float layerDistancePosition = clamp((layerDistanceRaw / currentSupportRadius) * float(RADIAL_DIVISIONS), 0.0f, float(RADIAL_DIVISIONS));
                     uint32_t radialBinIndex = std::min(RADIAL_DIVISIONS - 1, uint32_t(layerDistancePosition));
                     float radialHistogramDelta = layerDistancePosition - (float(radialBinIndex) + 0.5f);
                     uint32_t radialNeighbourBinIndex;
                     if(radialHistogramDelta >= 0) {
                         radialNeighbourBinIndex = std::min(RADIAL_DIVISIONS - 1, radialBinIndex + 1);
                     } else if(radialHistogramDelta < 0) {
-                        radialNeighbourBinIndex = std::max(1, radialBinIndex) - 1;
+                        radialNeighbourBinIndex = std::max(1u, radialBinIndex) - 1;
                     }
                     float radialBinContribution = std::abs(radialHistogramDelta);
                     float radialNeighbourBinContribution = 1.0f - radialBinContribution;
 
 
                     // Increment bins
+                    float primaryBinContribution = cosineHistogramBinContribution + azimuthBinContribution + elevationBinContribution + radialBinContribution;
+                    incrementSHOTBin(descriptors.content[descriptorIndex], elevationBinIndex, radialBinIndex, azimuthBinIndex, cosineHistogramBinIndex, primaryBinContribution);
+                    incrementSHOTBin(descriptors.content[descriptorIndex], elevationNeighbourBinContribution, radialBinIndex, azimuthBinIndex, cosineHistogramBinIndex, elevationNeighbourBinContribution);
+                    incrementSHOTBin(descriptors.content[descriptorIndex], elevationBinIndex, radialNeighbourBinIndex, azimuthBinIndex, cosineHistogramBinIndex, radialNeighbourBinContribution);
+                    incrementSHOTBin(descriptors.content[descriptorIndex], elevationBinIndex, radialBinIndex, azimuthNeighbourBinIndex, cosineHistogramBinIndex, azimuthNeighbourBinContribution);
+                    incrementSHOTBin(descriptors.content[descriptorIndex], elevationBinIndex, radialBinIndex, azimuthBinIndex, cosineHistogramNeighbourBinIndex, cosineHistogramNeighbourBinContribution);
                 }
 
                 // Normalise descriptor

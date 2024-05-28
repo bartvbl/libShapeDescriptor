@@ -170,6 +170,10 @@ namespace ShapeDescriptor {
                 double squaredSum = 0;
                 for(int i = 0; i < binCount; i++) {
                     double total = descriptors.content[descriptorIndex].contents[i];
+                    if(std::isnan(total)) {
+                        descriptors.content[descriptorIndex].contents[i] = 0;
+                        total = 0;
+                    }
                     squaredSum += total * total;
                 }
                 if(squaredSum > 0) {

@@ -172,9 +172,11 @@ namespace ShapeDescriptor {
                     double total = descriptors.content[descriptorIndex].contents[i];
                     squaredSum += total * total;
                 }
-                double totalLength = std::sqrt(squaredSum);
-                for(int i = 0; i < binCount; i++) {
-                    descriptors.content[descriptorIndex].contents[i] /= totalLength;
+                if(squaredSum > 0) {
+                    double totalLength = std::sqrt(squaredSum);
+                    for(int i = 0; i < binCount; i++) {
+                        descriptors.content[descriptorIndex].contents[i] /= totalLength;
+                    }
                 }
             }
 

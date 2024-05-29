@@ -22,7 +22,7 @@ ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> Shape
     assert(imageOrigins.length == maxSupportRadius.size());
 
     ShapeDescriptor::cpu::array<ShapeDescriptor::UniqueShapeContextDescriptor> descriptors(imageOrigins.length);
-    std::memset(descriptors.content, 0, descriptors.length * sizeof(UniqueShapeContextDescriptor::contents));
+    std::memset(descriptors.content, 0, descriptors.length * sizeof(UniqueShapeContextDescriptor));
 
     // -- Point Count Computation --
     std::chrono::time_point pointCountingStart = std::chrono::steady_clock::now();

@@ -5,6 +5,8 @@ This library contains efficient GPU implementations for computing and comparing 
 - Spin Image (Johnson et al., 1999)
 - 3D Shape Context (Frome et al., 2004)
 - Fast Point Feature Histogram (Rusu et al., 2009)
+- Unique Shape Context (Tombari et al., 2010)
+- Signature of Histograms of OrienTations (Salti et al., 2014)
 - Radial Intersection Count Image (van Blokland et al., 2020)
 - Quick Intersection Count Change Image (van Blokland et al., 2020)
 

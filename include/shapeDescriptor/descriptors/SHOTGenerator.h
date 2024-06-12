@@ -151,6 +151,8 @@ namespace ShapeDescriptor {
                         radialNeighbourBinIndex = std::min(RADIAL_DIVISIONS - 1, radialBinIndex + 1);
                     } else if(radialHistogramDelta < 0) {
                         radialNeighbourBinIndex = std::max(1u, radialBinIndex) - 1;
+                    } else {
+                        throw std::runtime_error("HOW IS THIS EVEN POSSIBLE??");
                     }
                     float radialBinContribution = std::abs(radialHistogramDelta);
                     float radialNeighbourBinContribution = 1.0f - radialBinContribution;
@@ -183,8 +185,6 @@ namespace ShapeDescriptor {
                     }
                 }
             }
-
-
         }
     }
 

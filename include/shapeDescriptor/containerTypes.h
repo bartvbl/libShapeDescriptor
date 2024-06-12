@@ -166,10 +166,21 @@ namespace ShapeDescriptor {
     /* -- Mesh and Point cloud types -- */
 
     namespace cpu {
+        struct MeshTexture {
+            std::vector<uint8_t> textureData;
+            uint8_t bytesPerPixel = 3;
+            uint8_t channelsPerPixel = 3;
+            uint32_t widthPixels = 0;
+            uint32_t heightPixels = 0;
+        };
+
         struct Mesh {
             ShapeDescriptor::cpu::float3 *vertices = nullptr;
             ShapeDescriptor::cpu::float3 *normals = nullptr;
             ShapeDescriptor::cpu::uchar4 *vertexColours = nullptr;
+
+            bool hasTexture = false;
+            MeshTexture texture;
 
             size_t vertexCount = 0;
 

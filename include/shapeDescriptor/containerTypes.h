@@ -174,19 +174,64 @@ namespace ShapeDescriptor {
     namespace cpu {
         struct MeshTexture {
             std::vector<uint8_t> textureData;
+
             uint8_t bytesPerPixel = 3;
             uint8_t channelsPerPixel = 3;
             uint32_t widthPixels = 0;
             uint32_t heightPixels = 0;
         };
 
+        class TextureCollection {
+            std::vector<MeshTexture> textures;
+
+            template<typename Pixel>
+            Pixel readPixel(uint32_t x, uint32_t y, const MeshTexture& texture) {
+                uint32_t coordinateX = std::min(x, texture.widthPixels - 1);
+                uint32_t coordinateY = std::min(y, texture.heightPixels - 1);
+                uint32_t index = coordinateY * texture.widthPixels + coordinateX;
+                Pixel output;
+                memcpy(&output, texture.textureData.data() + (index * texture.bytesPerPixel), sizeof(Pixel));
+                return output;
+            }
+
+        public:
+            template<typename Pixel>
+            Pixel getPixelAt(ShapeDescriptor::cpu::float2 textureCoordinate, uint8_t textureIndex) {
+                const MeshTexture& texture = textures.at(textureIndex);
+                if(sizeof(Pixel) != texture.bytesPerPixel) {
+                    throw std::runtime_error("Pixel size mismatch! Attempted to read pixel with size of " + std::to_string(sizeof(Pixel)) + " bytes, but texture has " + std::to_string(texture.bytesPerPixel) + " bytes per pixel.");
+                }
+                float exactPixelX = std::min<float>(1, std::max<float>(textureCoordinate.x, 0)) * float(texture.widthPixels);
+                float exactPixelY = std::min<float>(1, std::max<float>(textureCoordinate.y, 0)) * float(texture.heightPixels);
+                uint32_t baseX = uint32_t(exactPixelX);
+                uint32_t baseY = uint32_t(exactPixelY);
+                float distanceInPixelX = float(baseX) - exactPixelX;
+                float distanceInPixelY = float(baseY) - exactPixelY;
+
+                Pixel bottomLeftPixel = readPixel<Pixel>(baseX, baseY, texture);
+                Pixel bottomRightPixel = readPixel<Pixel>(baseX + 1, baseY, texture);
+                Pixel topRightPixel = readPixel<Pixel>(baseX + 1, baseY + 1, texture);
+                Pixel topLeftPixel = readPixel<Pixel>(baseX, baseY + 1, texture);
+
+                Pixel bilinearBottomX = (1 - distanceInPixelX) * bottomLeftPixel + distanceInPixelX * bottomRightPixel;
+                Pixel bilinearTopX = (1 - distanceInPixelX) * topLeftPixel + distanceInPixelX * topRightPixel;
+                Pixel interpolatedPixel = (1 - distanceInPixelY) * bilinearBottomX + distanceInPixelY * bilinearTopX;
+
+                return interpolatedPixel;
+            }
+        };
+
         struct Mesh {
-            ShapeDescriptor::cpu::float3 *vertices = nullptr;
-            ShapeDescriptor::cpu::float3 *normals = nullptr;
-            ShapeDescriptor::cpu::uchar4 *vertexColours = nullptr;
+            ShapeDescriptor::cpu::float3* vertices = nullptr;
+            ShapeDescriptor::cpu::float3* normals = nullptr;
+            ShapeDescriptor::cpu::uchar4* vertexColours = nullptr;
+            ShapeDescriptor::cpu::float2* textureCoordinates = nullptr;
+
+            // Which texture should be sampled for each triangle in the mesh
+            uint8_t* triangleTextureIDs = nullptr;
 
             bool hasTexture = false;
-            MeshTexture texture;
+            TextureCollection texture;
 
             size_t vertexCount = 0;
 

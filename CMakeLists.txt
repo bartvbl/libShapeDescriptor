@@ -82,19 +82,19 @@ target_include_directories(ShapeDescriptor PUBLIC
 
 
 target_link_libraries(ShapeDescriptor fast-lzma2 meshoptimizer Eigen3::Eigen)
-set_property(TARGET ShapeDescriptor PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
+set_property(TARGET ShapeDescriptor PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75 80 90)
 
 add_executable(runTests ${TEST_SOURCES})
 target_link_libraries(runTests ShapeDescriptor Catch2::Catch2WithMain)
-set_property(TARGET runTests PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
+set_property(TARGET runTests PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75 80 90)
 
 add_executable(imagerenderer ${RENDER_TOOL_SOURCES})
 target_link_libraries(imagerenderer ShapeDescriptor)
-set_property(TARGET imagerenderer PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
+set_property(TARGET imagerenderer PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75 80 90)
 
 add_executable(quiccidumper ${QUICCI_DUMPER_TOOL_SOURCES})
 target_link_libraries(quiccidumper ShapeDescriptor)
-set_property(TARGET quiccidumper PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75)
+set_property(TARGET quiccidumper PROPERTY CUDA_ARCHITECTURES 52 60 61 70 75 80 90)
 
 add_executable(quicciviewer ${QUICCI_VIEWER_TOOL_SOURCES})
 target_link_libraries(quicciviewer ShapeDescriptor)

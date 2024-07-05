@@ -295,7 +295,9 @@ void dumpCompressedGeometry(const ShapeDescriptor::cpu::float3* vertices,
 
     assert(bufferPointer == fileBuffer.data() + fileBuffer.size());
 
-    ShapeDescriptor::writeCompressedFile((char*) fileBuffer.data(), fileBuffer.size(), filePath, 4);
+    // Done with 1 thread on purpose!
+    // Using multithreaded makes written files nondeterministic.
+    ShapeDescriptor::writeCompressedFile((char*) fileBuffer.data(), fileBuffer.size(), filePath, 1);
 }
 
 void ShapeDescriptor::writeCompressedGeometryFile(const ShapeDescriptor::cpu::Mesh &mesh, const std::filesystem::path &filePath, bool stripVertexColours) {

@@ -17,7 +17,8 @@ void dumpMesh(ShapeDescriptor::cpu::Mesh mesh, const std::filesystem::path &outp
 
     std::ofstream outputFile;
     outputFile.open(outputFilePath);
-    const std::string materialLibFileName = useCustomTextureMap ? "highlightObject.mtl" : "exportedObject.mtl";
+    std::filesystem::path mtlLibPath = outputFilePath;
+    const std::string materialLibFileName = mtlLibPath.filename().replace_extension(".mtl");
 
     std::stringstream fileContents;
 

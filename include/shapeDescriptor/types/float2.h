@@ -29,6 +29,8 @@ namespace ShapeDescriptor {
                 out.y = y / other;
                 return out;
             }
+
+            float2(float _x, float _y) : x{_x}, y{_y} {}
         };
     }
 }

@@ -31,6 +31,7 @@ namespace ShapeDescriptor {
             }
 
             float2(float _x, float _y) : x{_x}, y{_y} {}
+            float2() = default;
         };
     }
 }

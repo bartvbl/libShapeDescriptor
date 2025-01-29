@@ -4,10 +4,6 @@
 [submodule "lib/lodepng"]
 	path = lib/lodepng
 	url = https://github.com/lvandeve/lodepng
-[submodule "lib/Catch2"]
-	path = lib/Catch2
-	branch = devel
-	url = https://github.com/catchorg/Catch2
 [submodule "lib/tinygltf"]
 	path = lib/tinygltf
 	url = https://github.com/syoyo/tinygltf

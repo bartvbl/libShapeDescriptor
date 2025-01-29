@@ -12,6 +12,8 @@ double ShapeDescriptor::computeTriangleArea(ShapeDescriptor::cpu::float3 vertex0
     return area;
 }
 
+
+
 ShapeDescriptor::cpu::PointCloud ShapeDescriptor::sampleMesh(cpu::Mesh mesh, size_t sampleCount, size_t randomSeed) {
     size_t triangleCount = mesh.vertexCount / 3;
 

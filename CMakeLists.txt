@@ -20,7 +20,7 @@ cmake_minimum_required (VERSION 3.5)
 set(CMAKE_CXX_STANDARD 20)
 
 find_package(OpenMP)
-add_subdirectory(lib/Catch2)
+add_subdirectory(lib/Catch2-3.8.0)
 add_subdirectory(lib/tinygltf tinygltf)
 add_subdirectory(lib/fast-lzma2 fast-lzma2)
 add_subdirectory(lib/meshoptimizer meshoptimizer)

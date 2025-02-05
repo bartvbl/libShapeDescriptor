@@ -2,6 +2,7 @@
 
 #include <shapeDescriptor/types/GPUFloat2.h>
 #include <shapeDescriptor/types/GPUFloat3.h>
+#include <shapeDescriptor/types/double2.h>
 #include <shapeDescriptor/types/double3.h>
 #include <shapeDescriptor/types/float2.h>
 #include <shapeDescriptor/types/float3.h>

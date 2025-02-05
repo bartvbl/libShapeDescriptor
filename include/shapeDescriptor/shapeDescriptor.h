@@ -587,6 +587,7 @@ namespace ShapeDescriptor {
 
     cpu::float3 computeTriangleNormal(cpu::float3 &triangleVertex0, cpu::float3 &triangleVertex1, cpu::float3 &triangleVertex2);
     double computeTriangleArea(cpu::float3 vertex0, cpu::float3 vertex1, cpu::float3 vertex2);
+    double computeTriangleArea(cpu::double3 vertex0, cpu::double3 vertex1, cpu::double3 vertex2);
 
     namespace internal {
         struct MeshSamplingBuffers {

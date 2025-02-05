@@ -12,6 +12,15 @@ double ShapeDescriptor::computeTriangleArea(ShapeDescriptor::cpu::float3 vertex0
     return area;
 }
 
+double ShapeDescriptor::computeTriangleArea(ShapeDescriptor::cpu::double3 vertex0, ShapeDescriptor::cpu::double3 vertex1, ShapeDescriptor::cpu::double3 vertex2) {
+    ShapeDescriptor::cpu::double3 AB = vertex1 - vertex0;
+    ShapeDescriptor::cpu::double3 AC = vertex2 - vertex0;
+
+    double area = length(cross(AB, AC)) * 0.5;
+    assert(area >= 0);
+    return area;
+}
+
 
 
 ShapeDescriptor::cpu::PointCloud ShapeDescriptor::sampleMesh(cpu::Mesh mesh, size_t sampleCount, size_t randomSeed) {

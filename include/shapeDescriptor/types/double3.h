@@ -111,6 +111,13 @@ inline ShapeDescriptor::cpu::double3 normalize(ShapeDescriptor::cpu::double3 in)
     return out;
 }
 
+inline ShapeDescriptor::cpu::double3 cross(const ShapeDescriptor::cpu::double3 a, const ShapeDescriptor::cpu::double3 b) {
+    double x = a.y * b.z - a.z * b.y;
+    double y = a.z * b.x - a.x * b.z;
+    double z = a.x * b.y - a.y * b.x;
+    return {x, y, z};
+}
+
 inline ShapeDescriptor::cpu::double3 operator* (ShapeDescriptor::cpu::double3 vec, double other) {
     ShapeDescriptor::cpu::double3 out;
     out.x = vec.x * other;

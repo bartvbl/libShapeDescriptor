@@ -89,6 +89,10 @@ inline double length(ShapeDescriptor::cpu::double2 vec) {
     return std::sqrt(vec.x * vec.x + vec.y * vec.y);
 }
 
+inline float dot(ShapeDescriptor::cpu::double2 a, ShapeDescriptor::cpu::double2 b) {
+    return a.x * b.x + a.y * b.y;
+}
+
 inline ShapeDescriptor::cpu::double2 normalize(ShapeDescriptor::cpu::double2 in) {
     ShapeDescriptor::cpu::double2 out;
     double len = length(in);

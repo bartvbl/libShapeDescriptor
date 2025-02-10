@@ -10,3 +10,5 @@
 #include <shapeDescriptor/types/uchar3.h>
 #include <shapeDescriptor/types/uchar4.h>
 #include <shapeDescriptor/types/int3.h>
+
+#include <shapeDescriptor/types/conversions.h>

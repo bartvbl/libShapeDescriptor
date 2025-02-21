@@ -434,7 +434,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::loadGLTFMesh(std::filesystem::path f
                         ShapeDescriptor::cpu::float4 floatColour;
                         if(colourAccessor->type == TINYGLTF_TYPE_VEC3) {
                             ShapeDescriptor::cpu::float3* vec3Pointer = reinterpret_cast<ShapeDescriptor::cpu::float3*>(colourPointer);
-                            floatColour = {vec3Pointer->x, vec3Pointer->y, vec3Pointer->z, 1};
+                            floatColour = ShapeDescriptor::cpu::float4{vec3Pointer->x, vec3Pointer->y, vec3Pointer->z, 1};
                         } else if(colourAccessor->type == TINYGLTF_TYPE_VEC4) {
                             floatColour = *reinterpret_cast<ShapeDescriptor::cpu::float4*>(colourPointer);
                         } else {
@@ -705,7 +705,7 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::loadGLTFPointCloud(std::filesy
                         ShapeDescriptor::cpu::float4 floatColour;
                         if(colourAccessor->type == TINYGLTF_TYPE_VEC3) {
                             ShapeDescriptor::cpu::float3* vec3Pointer = reinterpret_cast<ShapeDescriptor::cpu::float3*>(colourPointer);
-                            floatColour = {vec3Pointer->x, vec3Pointer->y, vec3Pointer->z, 1};
+                            floatColour = ShapeDescriptor::cpu::float4{vec3Pointer->x, vec3Pointer->y, vec3Pointer->z, 1};
                         } else if(colourAccessor->type == TINYGLTF_TYPE_VEC4) {
                             floatColour = *reinterpret_cast<ShapeDescriptor::cpu::float4*>(colourPointer);
                         } else {

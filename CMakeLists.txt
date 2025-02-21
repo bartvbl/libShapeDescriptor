@@ -28,9 +28,11 @@ add_subdirectory(lib/fast-lzma2 fast-lzma2)
 add_subdirectory(lib/meshoptimizer meshoptimizer)
 find_package(Eigen3 3.4.0 REQUIRED)
 
+add_subdirectory(lib/glm-1.0.1)
+
 include_directories (
 	src/
-	lib/glm/
+	lib/glm-1.0.1/
 	lib/lodepng/
 	lib/arrrgh/
 	lib/tinygltf

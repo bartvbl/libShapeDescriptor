@@ -13,8 +13,8 @@ namespace ShapeDescriptor {
             float z = 0;
             float w = 0;
 
-            float4() = default;
-            float4(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
+            explicit float4() = default;
+            explicit float4(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
 
             float4 operator- (float4 other) {
                 float4 out;

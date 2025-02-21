@@ -65,6 +65,7 @@ namespace ShapeDescriptor {
 
         float contents[totalBinCount];
     };
+    static_assert(sizeof(SHOTDescriptor<>) == (sizeof(float) * SHOTDescriptor<>::totalBinCount));
 
     template<uint32_t horizontalSlices, uint32_t verticalSlices, uint32_t layers>
     struct GeneralShapeContextDescriptor {

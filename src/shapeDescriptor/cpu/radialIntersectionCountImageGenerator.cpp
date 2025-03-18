@@ -58,10 +58,10 @@ void rasteriseTriangle(
 
 	// Sort vertices by z-coordinate
 
-	char minIndex = 0;
-    char midIndex = 1;
-    char maxIndex = 2;
-    char _temp;
+	int minIndex = 0;
+    int midIndex = 1;
+    int maxIndex = 2;
+    int _temp;
 
 	if (vertices[minIndex].z > vertices[midIndex].z)
 	{
@@ -223,7 +223,7 @@ void generateRadialIntersectionCountImage(
 	ShapeDescriptor::cpu::float3 spinImageNormal = spinOrigins.content[imageIndex].normal;
 
 	const size_t triangleCount = mesh.vertexCount / 3;
-	for (int triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++)
+	for (size_t triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++)
 	{
 		ShapeDescriptor::cpu::float3 vertices[3];
 

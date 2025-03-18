@@ -49,7 +49,7 @@ bool ShapeDescriptor::gltfContainsPointCloud(const std::filesystem::path& file) 
 
     if(fileHeader.at(0) == 0x46546C67) {
         assert(fileHeader.at(1) == 2); // GLTF revision should be 2
-        unsigned int totalSize = fileHeader.at(2);
+        //unsigned int totalSize = fileHeader.at(2);
 
         unsigned int headerChunkLength;
         unsigned int ignored_headerChunkType;
@@ -155,7 +155,7 @@ void computeMeshTransformation(const std::vector<tinygltf::Node> &nodes, int nod
     glm::mat3 normalMatrixDefinedByNode(1.0);
     if(node.matrix.size() == 16) {
         bool allZero = true;
-        std::array<float, 16> convertedMatrix;
+
         // Guaranteed to be in column major order
         for(uint32_t i = 0; i < node.matrix.size(); i++) {
             if(node.matrix.at(i) != 0) {
@@ -196,7 +196,7 @@ void computeMeshTransformation(const std::vector<tinygltf::Node> &nodes, int nod
     glm::mat4 transformationMatrix = node.matrix.size() == 16 ? partialTransform * transformationDefinedByNode : partialTransform * translationMatrix * rotationMatrix * scaleMatrix;
     glm::mat3 normalMatrix = node.matrix.size() == 16 ? partialNormalMatrix *  normalMatrixDefinedByNode : partialNormalMatrix * directionMatrix;
 
-    if(node.mesh >= 0 && node.mesh < meshTransformationMatrices.size()) {
+    if(node.mesh >= 0 && node.mesh < int(meshTransformationMatrices.size())) {
         meshTransformationMatrices.at(node.mesh) = transformationMatrix;
         normalMatrices.at(node.mesh) = normalMatrix;
     }
@@ -301,7 +301,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::loadGLTFMesh(std::filesystem::path f
 
     size_t nextVertexIndex = 0;
 
-    for(int meshIndex = 0; meshIndex < model.meshes.size(); meshIndex++) {
+    for(uint32_t meshIndex = 0; meshIndex < model.meshes.size(); meshIndex++) {
         const tinygltf::Mesh& modelMesh = model.meshes.at(meshIndex);
         glm::mat4 meshTransformationMatrix = meshTransformationMatrices.at(meshIndex);
         glm::mat3 meshNormalMatrix = meshNormalMatrices.at(meshIndex);
@@ -378,7 +378,7 @@ ShapeDescriptor::cpu::Mesh ShapeDescriptor::loadGLTFMesh(std::filesystem::path f
 
             tinygltf::Accessor indexAccessor;
             tinygltf::BufferView indexBufferView;
-            unsigned char* indexBasePointer;
+            unsigned char* indexBasePointer = nullptr;
 
             bool useIndexBuffer = primitive.indices >= 0;
             if(!useIndexBuffer) {
@@ -747,8 +747,6 @@ ShapeDescriptor::cpu::PointCloud ShapeDescriptor::loadGLTFPointCloud(std::filesy
                     }
                     cloud.vertexColours[nextVertexIndex] = colour;
                 }
-
-                bool triangleProcessed = nextVertexIndex % 3 == 2;
 
                 nextVertexIndex++;
             }

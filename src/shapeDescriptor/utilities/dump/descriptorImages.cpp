@@ -129,15 +129,46 @@ void performSpinDump(ShapeDescriptor::cpu::array<descriptorType> redChannelDescr
 			unsigned int topLeftPixel = redChannelDescriptors.content[imageIndex].contents[0];
 			if(topLeftPixel != UINT32_MAX) {
 
+                spinPixelType redPixelMax = 0;
+                spinPixelType greenPixelMax = 0;
+                spinPixelType bluePixelMax = 0;
+                size_t nonzeroPixelCount = 0;
+
+
+                for(size_t x = 0; x < spinImageWidthPixels; x++)
+                {
+                    for(size_t y = 0; y < spinImageWidthPixels; y++)
+                    {
+                        size_t pixel_index = size_t(spinImageWidthPixels) * y + x;
+                        spinPixelType redChannelPixelValue = redChannelDescriptors.content[imageIndex].contents[pixel_index];
+                        spinPixelType greenChannelPixelValue = greenChannelDescriptors.content[imageIndex].contents[pixel_index];
+                        spinPixelType blueChannelPixelValue = blueChannelDescriptors.content[imageIndex].contents[pixel_index];
+                        if(redChannelPixelValue != 0 || greenChannelPixelValue != 0 || blueChannelPixelValue != 0) {
+                            nonzeroPixelCount++;
+                        }
+                        if(!std::isnan((float) redChannelPixelValue) && redChannelPixelValue != UINT32_MAX) {
+                            redPixelMax = std::max<spinPixelType>(redChannelPixelValue, redPixelMax);
+                        }
+                        if(!std::isnan((float) greenChannelPixelValue) && greenChannelPixelValue != UINT32_MAX) {
+                            greenPixelMax = std::max<spinPixelType>(greenChannelPixelValue, greenPixelMax);
+                        }
+                        if(!std::isnan((float) blueChannelPixelValue) && blueChannelPixelValue != UINT32_MAX) {
+                            bluePixelMax = std::max<spinPixelType>(blueChannelPixelValue, bluePixelMax);
+                        }
+
+                    }
+                }
+
+
 				for (size_t x = 0; x < spinImageWidthPixels; x++) {
 					for (size_t y = 0; y < spinImageWidthPixels; y++) {
 						spinPixelType redPixelValue = redChannelDescriptors.content[imageIndex].contents[size_t(spinImageWidthPixels) * y + x];
                         spinPixelType greenPixelValue = greenChannelDescriptors.content[imageIndex].contents[size_t(spinImageWidthPixels) * y + x];
                         spinPixelType bluePixelValue = blueChannelDescriptors.content[imageIndex].contents[size_t(spinImageWidthPixels) * y + x];
 
-                        unsigned char redPixelByte = computeImageByte(logarithmicImage, redMax, redPixelValue);
-                        unsigned char greenPixelByte = computeImageByte(logarithmicImage, greenMax, greenPixelValue);
-                        unsigned char bluePixelByte = computeImageByte(logarithmicImage, blueMax, bluePixelValue);
+                        unsigned char redPixelByte = computeImageByte(logarithmicImage, redPixelMax, redPixelValue);
+                        unsigned char greenPixelByte = computeImageByte(logarithmicImage, greenPixelMax, greenPixelValue);
+                        unsigned char bluePixelByte = computeImageByte(logarithmicImage, bluePixelMax, bluePixelValue);
 
                         size_t pixelX = col * (spinImageWidthPixels + 1) + x;
 						size_t pixelY = row * (spinImageWidthPixels + 1) +

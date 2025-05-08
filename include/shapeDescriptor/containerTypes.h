@@ -75,7 +75,7 @@ namespace ShapeDescriptor {
             }
 
 #ifdef DESCRIPTOR_CUDA_KERNELS_ENABLED
-            __device__ float3 at(size_t index) {
+            __device__ float3 at(size_t index) const {
                 assert(index < length);
 
                 float3 item;
@@ -147,7 +147,7 @@ namespace ShapeDescriptor {
                     : length(length),
                       content(content) {}
 
-            ShapeDescriptor::gpu::array<TYPE> copyToGPU() {
+            ShapeDescriptor::gpu::array<TYPE> copyToGPU() const {
                 return ShapeDescriptor::copyToGPU<TYPE>({length, content});
             }
 
